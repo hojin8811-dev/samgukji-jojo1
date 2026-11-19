@@ -128,7 +128,7 @@ const BATTLES = {
     title: '여남 공방전', subtitle: '황건 잔당 토벌', map: MAP_YEONAN,
     enemies: [
       { id: 'juchang', name: '주창', hanja: '周倉', cls: 'sanjeok', lv: 6, boss: true, x: 8, y: 2 },
-      { id: 'jutaek', name: '주태', hanja: '周泰', cls: 'sujeok', lv: 6, boss: true, x: 7, y: 5 },
+      { id: 'jutaek', name: '주태', hanja: '周泰', cls: 'sujeok', lv: 6, boss: true, x: 7, y: 4 },
       { id: 'hg1', name: '황건적', hanja: '黃巾', cls: 'bobyung', lv: 2, x: 9, y: 7 },
       { id: 'hg2', name: '황건 궁수', hanja: '黃巾', cls: 'gungbyung', lv: 2, x: 10, y: 1 },
       { id: 'hg3', name: '황건 술사', hanja: '黃巾', cls: 'chaeksa', lv: 3, x: 9, y: 3 },
@@ -146,8 +146,8 @@ const BATTLES = {
   geonup: {
     title: '건업 수전', subtitle: '수적 소탕 · 강을 건너라', map: MAP_GEONUP,
     enemies: [
-      { id: 'gamnyeong', name: '수적 두목', hanja: '水賊', cls: 'sujeok', lv: 6, boss: true, x: 6, y: 4 },
-      { id: 'su1', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 4, x: 4, y: 4 },
+      { id: 'gamnyeong', name: '수적 두목', hanja: '水賊', cls: 'sujeok', lv: 6, boss: true, x: 3, y: 4 },
+      { id: 'su1', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 4, x: 3, y: 5 },
       { id: 'su2', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 4, x: 8, y: 4 },
       { id: 'su3', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 3, x: 8, y: 5 },
       { id: 'gb1', name: '수적 궁수', hanja: '水賊', cls: 'gungbyung', lv: 4, x: 2, y: 2 },
@@ -2178,8 +2178,6 @@ function toast(text, cls = '') {
   toastTimer.push(t);
   while (root.children.length > 3) root.removeChild(root.firstChild);
 }
-
-function getAttendance() {}
 
 function openHelp() {
   const m = openModal(`
