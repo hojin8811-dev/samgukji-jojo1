@@ -671,7 +671,6 @@
     ctx.arc((u.x + 0.5) * TILE, (u.y + 0.86) * TILE, TILE * 0.34, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-    drawTerrainBadge(u.x, u.y, false, true);
     if (hoverTile && (hoverTile.x !== u.x || hoverTile.y !== u.y)) drawTerrainBadge(hoverTile.x, hoverTile.y, true);
   }
 
@@ -894,8 +893,8 @@
       const btxt = badge[1];
       const bw2 = ctx.measureText(btxt).width + Math.round(8 * k);
       const bh2 = Math.round(12 * k);
-      // HP 배지 같은 줄 왼쪽에 작게 붙여 위아래 겹침을 줄인다
-      const bx2 = pillX - bw2 - Math.round(3 * k);
+      // HP 배지 같은 줄 왼쪽(적군은 오른쪽)에 작게 붙여 이웃 부대와 겹치지 않게 한다
+      const bx2 = u.side === 'enemy' ? pillX + pillW + Math.round(3 * k) : pillX - bw2 - Math.round(3 * k);
       const by2 = pillY + (pillH - bh2) / 2;
       ctx.fillStyle = BADGE_BG[u.side] || BADGE_BG.enemy;
       ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.55)' : 'rgba(255,170,150,0.5)';
