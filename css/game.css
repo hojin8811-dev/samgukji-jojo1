@@ -1258,3 +1258,7 @@ b { font-weight: 700; }
 .transport label { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #4a3a1a; font-weight: 700; }
 .transport input[type=range] { flex: 1; accent-color: #b8862f; }
 .transport b { min-width: 54px; text-align: right; font-family: var(--serif); color: #33280f; }
+.city-groups { grid-template-columns: repeat(6, 1fr) !important; }
+.city-groups .cmd.next .cmd-ic { background: linear-gradient(180deg, #b4553f, #8a3629); border-color: #5e2018; color: #fff3dc; font-size: 13px; }
+.city-groups .cmd.next b { color: #8a2f22; }
+.city-next-btn { display: none; }

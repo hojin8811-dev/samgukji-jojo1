@@ -165,8 +165,8 @@
       <button class="cmd" data-grp="diplomacy"><span class="cmd-ic">◈</span><b>외교·계략</b><small>정찰·이간</small></button>
       <button class="cmd" data-grp="tech"><span class="cmd-ic">✦</span><b>기술 연구</b><small>24종</small></button>
       <button class="cmd sortie" data-grp="military"><span class="cmd-ic">⚔</span><b>군사</b><small>출진·수송</small></button>
+      <button id="btn-city-next" class="cmd next" data-next="1" aria-label="다음 달"><span class="cmd-ic">▶</span><b>다음 달</b><small>월정산</small></button>
     </nav>
-    <button id="btn-city-next" class="city-next-btn" aria-label="다음 달">다음 달 ▶</button>
   </section>
 
   <!-- ═══════════ 4단계 · 격자 전장 ═══════════ -->
@@ -235,6 +235,11 @@
   <div id="modal-root"></div>
   <div id="toast" class="toast" hidden></div>
 </div>
+<script>/* 화면 오류 수집 — 점검용 (콘솔 오류 0 확인) */
+  window.__errs = [];
+  window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
+  window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
+</script>
 <script src="js/mapgeo.js?v=8"></script>
 <script src="js/city_geo.js?v=8"></script>
 <script src="js/data.js?v=8"></script>

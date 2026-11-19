@@ -1625,7 +1625,7 @@
           SK.save(); SK.refreshHud(); m.close();
           SK.openCity(cityId);
           SK.sfx.play('hammer');
-          SK.toast(`${SLOT_DEFS[sl.key].name}을(를) 지었습니다 — 금 -300`);
+          SK.toast(`${josa(SLOT_DEFS[sl.key].name, 'eul')} 지었습니다 — 금 -300`);
         };
       });
       return;
@@ -1838,7 +1838,7 @@
           const done = s.techs.includes(t.id);
           const ok = can(t);
           return `<button class="tech-node ${done ? 'done' : ok ? 'ready' : 'locked'}" data-t="${t.id}" ${done || !ok || s.gold < t.costGold ? 'disabled' : ''}>
-            <span class="tn-lv">${'I'.repeat(t.tier)}</span>
+            <span class="tn-lv">${['I','II','III','IV'][Math.min(3, t.tier - 1)]}</span>
             <div><b>${t.name}</b><span>${t.summary}</span></div>
             <em>${done ? '완료' : `금 ${fmt(t.costGold)}`}</em></button>`;
         }).join('')}
@@ -2196,7 +2196,7 @@
       const govName = (cityGens(cityId).find((g) => g.uid === cs.governor) || {}).name || '없음';
       const advName = (cityGens(cityId).find((g) => g.uid === cs.advisor) || {}).name || '없음';
       info.innerHTML = `<span class="ci-item">인구 <b>${fmt(cs.pop)}</b></span>
-        <span class="ci-item">최대 병력 <b>${fmt(cap)}</b> <em>(인구 30%)</em></span>
+        <span class="ci-item">최대 병력 <b>${fmt(cap)}</b> <em>(인구 17%)</em></span>
         <span class="ci-item">주둔병 <b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b> <em>${pct}%</em></span>
         <span class="ci-item">훈련도 <b>${cs.train == null ? 50 : cs.train}</b></span>
         <span class="ci-item">태수 <b>${govName}</b></span>
@@ -2466,7 +2466,7 @@
       const s = SK.state; const st = s.cities[cityId];
       if (s.gold < 150 || s.food < 120) return fail('금이나 군량이 부족합니다. (필요 금 150 · 미 120)');
       const cap = cityCap(st);
-      if (st.troops >= cap) return fail(`인구 대비 병력 상한입니다. (최대 ${fmt(cap)} · 인구 30%)`);
+      if (st.troops >= cap) return fail(`인구 대비 병력 상한입니다. (최대 ${fmt(cap)} · 인구 17%)`);
       if (st.pop < 9000) return fail(`인구가 너무 적습니다. (인구 ${fmt(st.pop)})`);
       const m = conMul(cityId, actor);
       const rPct = 1 + (SK.techPct ? SK.techPct('recruitPct') : 0) / 100;

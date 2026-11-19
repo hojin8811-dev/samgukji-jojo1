@@ -239,7 +239,7 @@ SK.FACTION_MARK = {
   goguryeo: '고', baekje: '백', silla: '신', sunquan: '오', liuzhang: '장', zhanglu: '로',
   gongsunkang: '강', cao_wei_pre: '위', liuzong: '종', shu_han: '촉', sun_wu: '오',
   shi_xie: '사', meng_huo: '맹', neutral: '야',
-  kongrong: '공', liuyao: '유', yanbaihu: '엄', wanglang: '왕', zhanglu: '로',
+  kongrong: '융', liuyao: '유', yanbaihu: '엄', wanglang: '왕', zhanglu: '로',
 };
 
 /* 세력 표식 — 한 글자 한국어 (data에 mark가 없으면 이름 첫 글자) */

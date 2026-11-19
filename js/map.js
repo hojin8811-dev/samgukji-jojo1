@@ -515,6 +515,9 @@
         <img class="m-icon" src="assets/icons/${ICON_SRC[c.type]}.webp" alt="" draggable="false" />
         <span class="m-label">${c.name}</span>`;
       b.addEventListener('click', (e) => { e.stopPropagation(); onMarker(c.id); });
+      // 지도 판(viewport)이 포인터를 캡처하면 마커 클릭이 사라진다 — 마커 위 터치는 지도 제스처로 보내지 않는다
+      b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+      b.addEventListener('pointerup', (e) => { e.stopPropagation(); });
       markersEl.appendChild(b);
       return { id: c.id, el: b, city: c, anchor: 0, lw: 0, lh: 0,
         flagEl: b.querySelector('.m-flag'), labelEl: b.querySelector('.m-label'), lvEl: b.querySelector('.m-lv') };
