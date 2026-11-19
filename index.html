@@ -49,10 +49,9 @@
 
     <div id="world-viewport" class="world-viewport">
       <div id="world-layer" class="world-layer">
-        <img id="terrain-img" src="assets/maps/v2/terrain.webp" alt="삼국지대 지도" draggable="false" />
-        <svg id="roads-svg" viewBox="0 0 2000 1333" preserveAspectRatio="none"></svg>
-        <div id="city-markers"></div>
+        <canvas id="map-terrain"></canvas>
       </div>
+      <div id="city-markers" class="city-markers"></div>
       <div class="map-controls">
         <button id="zoom-in" class="round-btn" aria-label="확대">＋</button>
         <button id="zoom-out" class="round-btn" aria-label="축소">−</button>
@@ -84,6 +83,7 @@
         <span class="faction-tag" id="city-faction">魏</span>
         <h2 id="city-name">허창</h2>
         <span id="city-hanja">許昌</span>
+        <span id="city-level" class="city-level">Lv.1</span>
         <span id="city-rank" class="rank-chip sm">현령</span>
       </div>
       <div class="city-res">
@@ -94,20 +94,18 @@
       <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>
     </header>
 
-    <div class="city-scene">
+    <div class="city-scene" id="city-scene">
       <img id="city-scene-img" src="assets/scenes/city_main.webp" alt="성내" />
       <div class="scene-shade"></div>
+      <div id="scene-lv" class="scene-lv"></div>
       <div id="scene-hotspots" class="scene-hotspots"></div>
       <div id="city-floats" class="city-floats"></div>
       <div id="city-cutin" class="city-cutin"></div>
       <div id="city-weather" class="city-weather">맑음 · 민심 안정</div>
     </div>
 
-    <div class="city-stats">
-      <div class="stat-cell"><span>성벽</span><b id="stat-def">0</b><i><em id="bar-def"></em></i></div>
-      <div class="stat-cell"><span>민심</span><b id="stat-loyal">0</b><i><em id="bar-loyal"></em></i></div>
-      <div class="stat-cell"><span>주둔 장수</span><b id="stat-generals">0</b><i><em id="bar-gen"></em></i></div>
-    </div>
+    <div class="city-dev" id="city-dev"></div>
+    <div class="city-info" id="city-info"></div>
 
     <div class="city-general-strip" id="city-generals"></div>
 
@@ -187,6 +185,7 @@
   <div id="modal-root"></div>
   <div id="toast" class="toast" hidden></div>
 </div>
+<script src="js/mapgeo.js"></script>
 <script src="js/city_geo.js"></script>
 <script src="js/data.js"></script>
 <script src="js/bgm.js"></script>

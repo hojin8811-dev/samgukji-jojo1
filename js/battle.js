@@ -49,6 +49,18 @@
     return loadImg(`${SK.unitSrc(key)}`);
   }
 
+  /* 세력 우두머리를 전장 지휘관으로 — 이름·초상화·병과 */
+  function bossOfFaction(faction) {
+    const info = SK.factionInfo(faction);
+    const lord = info && info.lord;
+    const g = lord ? SK.GEN_BY_NAME[lord] : null;
+    if (g) {
+      return { name: g.name, hanja: '', pt: SK.genPortrait(g), cls: SK.genClass(g), lv: Math.max(4, SK.genLv(g)) };
+    }
+    if (lord) return { name: lord, hanja: '', pt: SK.CLASS_PORTRAIT.gunwoong || 'gen_bobyung', cls: 'gunwoong', lv: 5 };
+    return null;
+  }
+
   /* ───────────── 전장 시작 ───────────── */
   SK.startBattle = function (opts) {
     document.querySelectorAll('#modal-root .modal-layer').forEach((m) => m.remove());
@@ -59,7 +71,7 @@
     const mapRows = SK.MAPS[def.map];
     const tiles = mapRows.map((r) => r.split(''));
     const faction = s.cities[opts.targetId].owner;
-    const bossInfo = SK.BOSS_PORTRAITS[faction];
+    const bossInfo = bossOfFaction(faction);
 
     const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i) : makeRegiment(spec, i)));
 
@@ -112,8 +124,8 @@
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
-      atk: (C.atk + (h.wu + eq.war - 60) * 0.30) * (1 + 0.10 * SK.tierForLv(h.lv)),
-      def: (C.def + (h.tong + eq.leadership - 60) * 0.15) * (1 + 0.10 * SK.tierForLv(h.lv)),
+      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)),
+      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)),
       mov: Math.min(9, C.mov + eq.move), rng: C.rng, minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
@@ -140,7 +152,7 @@
     return {
       id: 'boss', side: 'enemy', name: info.name, hanja: info.hanja, cls: info.cls, lv,
       hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
-      atk: C.atk + lv * 1.8, def: C.def + lv * 1.2,
+      atk: C.atk + lv * 1.15, def: C.def + lv * 0.8,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv, tong: 80, boss: true,
       portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: C.skills.slice(),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
@@ -156,8 +168,8 @@
     return {
       id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv,
       hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
-      atk: (C.atk + g.war * 0.22) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.03),
-      def: (C.def + g.leadership * 0.14),
+      atk: (C.atk + g.war * 0.13) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.03),
+      def: (C.def + g.leadership * 0.08),
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel, tong: g.leadership,
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
@@ -173,10 +185,10 @@
     const frac = [1, 0.9, 1.05, 0.95, 1, 0.9, 1.1, 0.95][i % 8];
     const troops = Math.round(per * frac);
     return {
-      id: 'e' + i, side: 'enemy', name: `${faction === 'han' ? '한 ' : ''}${C.name}대`,
+      id: 'e' + i, side: 'enemy', name: `${SK.factionName(faction).replace(/군$/, '')} ${C.name}대`,
       hanja: '', cls, lv,
       hp: troops, maxHp: troops, mp: C.mp + lv, maxMp: C.mp + lv,
-      atk: (C.atk + lv * 1.6) * (1 + season * 0.03), def: (C.def + lv * 1.0) * (1 + season * 0.03),
+      atk: (C.atk + lv * 1.15) * (1 + season * 0.03), def: (C.def + lv * 0.75) * (1 + season * 0.03),
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 60 + lv * 3, ji: 55 + lv * 2, tong: 60 + lv * 2,
       portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: C.skills.slice(),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
@@ -212,14 +224,25 @@
   }
 
   function buildIntro(type, target, faction, bossInfo, defGens, event) {
-    const F = SK.FACTIONS[faction];
     const lines = [];
     if (event) lines.push({ event });
-    lines.push({ who: '조조', hanja: '曹操', pt: 'caocao', side: 'ally', text: SK.quoteOf('조조', 'deploy') || `${target.name}의 성문을 열어라. 오늘로 끝내겠다.` });
-    if (type === 'siege') lines.push({ who: '순유', hanja: '荀攸', pt: 'xunyou', side: 'ally', text: '성벽이 높습니다. 성문을 향해 힘을 모으십시오.' });
-    if (type === 'naval') lines.push({ who: '주태', hanja: '周泰', pt: 'zhoutai', side: 'ally', text: '물길은 내가 안다. 배를 따라오너라!' });
-    if (type === 'mountain') lines.push({ who: '주창', hanja: '周倉', pt: 'zhoucang', side: 'ally', text: '산길은 좁다. 내 뒤에 붙어라!' });
-    if (type === 'fortress') lines.push({ who: '하후돈', hanja: '夏侯惇', pt: 'xiahoudun', side: 'ally', text: '목책 하나, 부수면 그만이다.' });
+    const mine = SK.factionInfo(SK.playerFaction());
+    const lordName = mine.lord || '조조';
+    const lordG = SK.GEN_BY_NAME[lordName];
+    lines.push({ who: lordName, hanja: '', pt: lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong,
+      side: 'ally', text: SK.quoteOf(lordName, 'deploy') || `${target.name}의 성문을 열어라. 오늘로 끝내겠다.` });
+    const hint = {
+      siege: '성벽이 높습니다. 성문을 향해 힘을 모으십시오.',
+      naval: '물길은 내가 안다. 배를 따라오너라!',
+      mountain: '산길은 좁다. 내 뒤에 붙어라!',
+      fortress: '목책 하나, 부수면 그만이다.',
+    }[type];
+    const speaker = (SK.state.heroes || []).find((h) => h.city === (B && B.origin) && SK.quoteOf(h.name, 'deploy'));
+    if (hint) {
+      lines.push({ who: speaker ? speaker.name : lordName, hanja: '',
+        pt: speaker ? speaker.portrait : (lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong),
+        side: 'ally', text: hint });
+    }
     const named = (defGens || [])[0];
     if (named) lines.push({ who: named.name, hanja: '', pt: SK.genPortrait(named), side: 'enemy', text: `${SK.CLASSES[SK.genClass(named)].name} ${named.name}, 이 성은 내가 지킨다.` });
     else if (bossInfo) lines.push({ who: bossInfo.name, hanja: bossInfo.hanja, pt: bossInfo.pt, side: 'enemy', text: bossLine(faction) });
@@ -227,9 +250,11 @@
   }
   function bossLine(faction) {
     return {
-      yuan: '하북의 힘을 얕보지 마라!', lv: '내 창 앞에서 무릎 꿇어라!', wu: '강동의 호랑이가 어디 도망가겠나!',
-      liu: '형주의 성은 그대들의 무덤이 될 것이다.', yan: '촉의 산하는 쉽게 넘지 못한다.',
-      ma: '서량의 철기를 보아라.', dong: '이 성은 내 것이다.',
+      yuanshao: '하북의 힘을 얕보지 마라!', dongzhuo: '감히 나에게 맞서는가!', sunjian: '강동의 호랑이가 어디 도망가겠나!',
+      sunquan: '강동의 물길은 내가 안다!', liubiao: '형주의 성은 그대들의 무덤이 될 것이다.',
+      liuyan: '익주의 산하는 쉽게 넘지 못한다.', liuzhang: '촉의 산하는 쉽게 넘지 못한다.',
+      mateng: '서량의 철기를 보아라.', goguryeo: '동방의 땅을 함부로 밟지 마라.',
+      baekje: '한강의 물결이 너희를 삼키리라.', silla: '경주의 기상이 너희를 막으리라.',
     }[faction] || '감히 이 성을 넘보는가!';
   }
 
@@ -1109,15 +1134,25 @@
   function buffVal(u, k) { const b = u.buffs[k]; return b && b.t > 0 ? b.v : 0; }
 
   function typeBonus(u) { return (SK.terrainBonus(u.cls, B.type) || 0) / 100; }
+  /* 병력 수가 곧 전투력 — 만성 부대(약 1,800)를 1.0으로 둔다 */
+  function troopPower(u) {
+    const ratio = Math.max(0, u.hp) / Math.max(1, u.maxHp);
+    const abs = Math.min(1.45, Math.max(0.5, Math.sqrt(Math.max(200, u.hp) / 1800)));
+    return (0.44 + 0.56 * ratio) * abs;
+  }
+  function troopGuard(u) {
+    const ratio = Math.max(0, u.hp) / Math.max(1, u.maxHp);
+    return 0.7 + 0.3 * ratio;
+  }
   function effAtk(u) {
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
-    return u.atk * (1 + buffVal(u, 'atk') + aff.atk + typeBonus(u)) * bondAllyMul(u);
+    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25) * bondAllyMul(u);
   }
   function effDef(u) {
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
-    return u.def * (1 - terr(u).def * 0.8 + aff.def + typeBonus(u) * 0.5) * (1 + buffVal(u, 'def'));
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * (1 + buffVal(u, 'def'));
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -1136,7 +1171,7 @@
     let base = (atk * 0.92 - def * 0.62) * 16;
     base *= rnd(0.92, 1.08);
     let crit = false;
-    const cc = 0.05 + (a.wu - 60) * 0.0022 + (a.cls === 'sanjeok' ? 0.06 : 0);
+    const cc = 0.05 + (a.wu - 60) * 0.0011 + (a.cls === 'sanjeok' ? 0.06 : 0);
     if (!opts || !opts.noCrit) {
       if (Math.random() < cc) { crit = true; base *= 1.55; }
     }
@@ -1507,7 +1542,7 @@
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
-            const dmg = Math.max(10, Math.round(sk.power + u.ji * 0.5 - t.ji * 0.2));
+            const dmg = Math.max(10, Math.round(sk.power * 0.9 + u.ji * 0.35 + Math.min(400, u.hp * 0.02) - t.ji * 0.14));
             t.hp = Math.max(0, t.hp - dmg);
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
@@ -1529,7 +1564,7 @@
       SK.sfx.play('spell');
       setTimeout(() => {
         if (!B || B.over) { finish(0); return; }
-        const dmg = Math.max(10, Math.round(sk.power + u.ji * 2.4 - target.ji * 0.6));
+        const dmg = Math.max(10, Math.round(sk.power * 0.9 + u.ji * 1.5 + Math.min(600, u.hp * 0.04) - target.ji * 0.4));
         target.hp = Math.max(0, target.hp - dmg);
         target.flash = 1; target.shake = 240;
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
@@ -1689,7 +1724,7 @@
       SK.sfx.play('spell');
       setTimeout(() => {
         if (!B || B.over) { done(); return; }
-        const dmg = Math.max(6, Math.round(20 + e.ji * 0.18 - target.ji * 0.05));
+        const dmg = Math.max(6, Math.round(20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04));
         target.hp = Math.max(0, target.hp - dmg);
         addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.55) * TILE, life: 700 });
@@ -1757,6 +1792,11 @@
     addFx({ kind: 'ring', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.72) * TILE, life: 520, color: '210,225,255' });
   }
 
+  function victoryQuote() {
+    const lord = SK.factionInfo(SK.playerFaction()).lord || '조조';
+    return SK.quoteOf(lord, 'victory') || SK.quoteOf('조조', 'victory');
+  }
+
   /* ───────────── 승패 ───────────── */
   function victory() {
     if (B.over) return;
@@ -1770,7 +1810,7 @@
     const defeatedNames = B.units.filter((u) => u.side === 'enemy').map((u) => u.name);
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
-    st.owner = 'wei';
+    st.owner = SK.playerFaction();
     st.genIds = [];
     st.troops = Math.max(1200, Math.round(troopsLeft));
     st.def = Math.max(30, Math.round(st.def * 0.8));
@@ -1794,13 +1834,13 @@
     // move wounded survivors to the captured city
     SK.save();
     SKBattle.refreshUI();
-    const owned = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === 'wei').length;
+    const owned = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
     SK.modal({
       kicker: '勝',
       title: `${c.name} 함락`,
       body: `<div class="result-modal win">
         <div class="rm-seal">勝</div>
-        <p class="rm-line">${SK.FACTIONS[prevOwner].name}군을 무찌르고 <b>${c.name}</b>을(를) 차지했습니다.</p>
+        <p class="rm-line">${SK.factionName(prevOwner)}을(를) 무찌르고 <b>${c.name}</b>을(를) 차지했습니다.</p>
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -1814,8 +1854,8 @@
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
         ${B.event ? `<p class="rm-event">특별 이벤트 — ${B.event.title} · 명성 +5</p>` : ''}
-        ${SK.quoteOf('조조', 'victory') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'victory')}”</p>` : ''}
-        <p class="rm-note">${owned >= 76 ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
+        ${victoryQuote() ? `<p class="rm-quote">“${victoryQuote()}”</p>` : ''}
+        <p class="rm-note">${owned >= SK.CITY_LIST.length ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
       </div>`,
       actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,

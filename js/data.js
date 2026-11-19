@@ -189,29 +189,150 @@ SK.GENERIC_PORTRAITS = { bobyung: 'gen_bobyung', gungbyung: 'gen_gungbyung', gib
   gunggi: 'gen_gibyung', chaeksa: 'gen_chaeksa', sanjeok: 'gen_sanjeok', sujeok: 'gen_sujeok',
   pungsusa: 'gen_chaeksa', gunwoong: 'gen_bobyung' };
 
-/* ───────────── 세력 ───────────── */
+/* ───────────── 세력 ─────────────
+   시나리오마다 state.factions가 만들어진다 (data/historical_scenarios.json).
+   SK.FACTIONS는 중립/미지정 세력만 담는 최소 사전. */
 SK.FACTIONS = {
-  wei: { name: '위', hanja: '魏', color: '#3f6fb5', light: '#cddcf2', lord: '조조' },
-  yuan: { name: '원', hanja: '袁', color: '#b34a4a', light: '#f0cfcf', lord: '원소' },
-  lv: { name: '여', hanja: '呂', color: '#7a5aa8', light: '#ded1ef', lord: '여포' },
-  wu: { name: '오', hanja: '吳', color: '#2e8b83', light: '#c6e5e0', lord: '손책' },
-  liu: { name: '형', hanja: '荊', color: '#b58b3f', light: '#eee0bd', lord: '유표' },
-  yan: { name: '익', hanja: '益', color: '#7a9a4a', light: '#dde8c6', lord: '유언' },
-  ma: { name: '량', hanja: '涼', color: '#a06a3f', light: '#ead5c3', lord: '마등' },
-  gongsun: { name: '공', hanja: '公', color: '#6a7fa8', light: '#d4dceb', lord: '공손찬' },
-  dong: { name: '동', hanja: '董', color: '#8a5a5a', light: '#e3cfcf', lord: '동탁' },
-  han: { name: '한', hanja: '韓', color: '#7f8577', light: '#dfe1d9', lord: '한왕' },
-  shu: { name: '촉', hanja: '蜀', color: '#4f8f5a', light: '#d7e6cf', lord: '유비' },
-  warlord: { name: '군웅', hanja: '雄', color: '#7a5a8a', light: '#e2d6ec', lord: '군웅' },
-  neutral: { name: '중', hanja: '中', color: '#8d8d8d', light: '#e4e4e4', lord: '중립' },
+  neutral: { name: '재야', hanja: '在', color: '#8b8677', light: '#e4e2d8', lord: '' },
+  caocao: { name: '조조군', hanja: '曹', color: '#2f57a6', light: '#d5dff0', lord: '조조' },
+  liubei: { name: '유비군', hanja: '劉', color: '#2b7fc9', light: '#d6e7f5', lord: '유비' },
+  sunquan: { name: '손권군', hanja: '吳', color: '#2f8f7d', light: '#d3e9e3', lord: '손권' },
+  goguryeo: { name: '고구려', hanja: '高', color: '#3a5f9a', light: '#d6e0f0', lord: '고국천왕' },
 };
 
-SK.BOSS_PORTRAITS = {
-  yuan: { name: '원소', hanja: '袁紹', pt: 'yuanshao', cls: 'gunwoong', lv: 6 },
-  lv: { name: '여포', hanja: '呂布', pt: 'lvbu', cls: 'gibi', lv: 8 },
-  wu: { name: '손책', hanja: '孫策', pt: 'sunce', cls: 'gibi', lv: 6 },
-  liu: { name: '유표', hanja: '劉表', pt: 'liubiao', cls: 'gunwoong', lv: 5 },
+/* 세력 id → 한자 표식 (없으면 이름 첫 글자 사용) */
+SK.FACTION_HANJA = {
+  dongzhuo: '董', yuanshao: '袁', caocao: '曹', liubei: '劉', sunjian: '孫', yuanshu: '術',
+  liubiao: '荊', liuyan: '益', mateng: '涼', gongsunzan: '公', taoqian: '陶', hansui: '韓',
+  goguryeo: '高', baekje: '百', silla: '新', sunquan: '吳', liuzhang: '益', zhanglu: '漢',
+  gongsunkang: '遼', cao_wei_pre: '魏', liuzong: '荊', shu_han: '蜀', sun_wu: '吳',
+  shi_xie: '交', meng_huo: '蠻', neutral: '在',
 };
+
+/* 데이터 색이 지도에서 너무 밝거나 어두운 경우 보정 */
+SK.FACTION_COLOR = {
+  caocao: '#2f57a6', cao_wei_pre: '#2f57a6', gongsunzan: '#8e9bae', liubei: '#2b7fc9',
+  sunjian: '#c0392b', sunquan: '#2f8f7d', sun_wu: '#2f8f7d', yuanshao: '#c99a20',
+  dongzhuo: '#7b3fbf', mateng: '#b8834d', hansui: '#7d6a5c', liubiao: '#7a6bb5',
+  liuzong: '#9a8cc8', liuyan: '#8a5a3a', liuzhang: '#8a5a3a', shu_han: '#3f8a52',
+  yuanshu: '#a0662c', goguryeo: '#5b4a9a', baekje: '#a97b12', silla: '#e0b45c',
+  zhanglu: '#6f7a3f', gongsunkang: '#6a7fa8', shi_xie: '#8a7f5a', meng_huo: '#5c7a3a',
+};
+
+SK.factionInfo = function (key) {
+  const st = SK.state;
+  if (st && st.factions && st.factions[key]) return st.factions[key];
+  return SK.FACTIONS[key] || SK.FACTIONS.neutral;
+};
+SK.factionColor = function (key) { return SK.factionInfo(key).color || '#8b8677'; };
+SK.factionName = function (key) { return SK.factionInfo(key).name || '재야'; };
+SK.playerFaction = function () { return (SK.state && SK.state.playerFaction) || 'neutral'; };
+
+/* ───────────── 거점 이름 별칭 (사서 이름 → 게임 거점) ───────────── */
+SK.CITY_ALIAS = {
+  '낙양': 'luoyang', '장안': 'changan', '홍농': 'hangu', '미오': 'changan', '호로관': 'huluguan',
+  '발해': 'nanpi', '업': 'ye', '남피': 'nanpi', '감릉': 'pingyuan',
+  '진류': 'chenliu', '동군': 'puyang', '진국': 'runan', '영천': 'xuchang',
+  '고당': 'pingyuan', '평원': 'pingyuan', '복양': 'puyang',
+  '장사': 'changsha', '무릉': 'wuling', '영릉': 'lingling', '계양': 'guiyang',
+  '완': 'wan', '남양': 'wan', '수춘': 'shouchun', '구강': 'shouchun',
+  '양양': 'xiangyang', '강릉': 'jiangling', '강하': 'jiangxia', '남군': 'jiangling',
+  '성도': 'chengdu', '광한': 'zitong', '파군': 'yongan', '건위': 'jianning',
+  '한중': 'hanzhong', '남정': 'hanzhong', '양평관': 'yangping',
+  '무위': 'wuwei', '서량': 'wuwei', '서량군': 'wuwei', '금성': 'tianshui', '천수': 'tianshui',
+  '안정': 'anding', '서평': 'anding', '삭방': 'shuofang',
+  '북평': 'beiping', '요서': 'beiping', '계': 'ji', '역경': 'ji',
+  '하비': 'xiapi', '팽성': 'xiaopei', '낭야': 'langya', '광릉': 'guangling', '초': 'xiaopei',
+  '소패': 'xiaopei', '해릉 요새': 'hailing',
+  '국내성': 'guknaeseong', '환도성': 'guknaeseong', '졸본': 'ansiseong',
+  '압록강 유역': 'hamhung', '동옥저': 'hamhung', '함흥': 'hamhung',
+  '위례성': 'hanseong', '한성': 'hanseong', '미추홀': 'hanseong',
+  '마한 북부': 'wansan', '한강 유역': 'wonju', '웅진': 'ungjin',
+  '서라벌': 'gyeongju', '금성': 'gyeongju', '경주': 'gyeongju',
+  '동해안': 'daegwallyeong', '낙동강 동부': 'busan',
+  '허창': 'xuchang', '관도': 'puyang', '여남': 'runan', '신야': 'xinye',
+  '건업': 'jianye', '오군': 'wu', '회계': 'kuaiji', '단양': 'shishang',
+  '여강': 'hefei', '합비': 'hefei', '예장': 'jianan', '파양': 'changsha', '시상': 'shishang',
+  '자동': 'zitong', '강주': 'gangju', '하구': 'jiangxia', '당양': 'jiangling',
+  '장판': 'xinye', '무창': 'jiangxia', '영안': 'yongan',
+  '양평': 'liaodong', '요동': 'liaodong', '현도': 'ansiseong', '낙랑': 'pyongyang',
+  '교지': 'nanhai', '구진': 'nanhai', '일남': 'nanhai', '합포': 'nanhai',
+  '월수': 'yunnan', '영창': 'yongchang', '운남': 'yunnan', '건녕': 'jianning',
+  '상당': 'shangdang', '호관': 'hoguan', '진양': 'jinyang', '대': 'dai',
+  '남해': 'nanhai', '건안': 'jianan', '대만': 'taipei', '탐라': 'tamna',
+};
+
+/* 세력별로 뜻이 갈리는 지명 (서량의 金城 ↔ 신라의 金城) */
+SK.ALIAS_BY_FACTION = {
+  hansui: { '금성': 'tianshui', '서평': 'anding', '무위': 'wuwei' },
+  mateng: { '금성': 'tianshui', '서량': 'wuwei' },
+};
+
+SK.cityIdByName = function (name) {
+  if (!name) return null;
+  const s = String(name).trim();
+  if (SK.CITY_ALIAS[s] && SK.CITY[SK.CITY_ALIAS[s]]) return SK.CITY_ALIAS[s];
+  const hit = SK.CITY_LIST.find((c) => c.name === s || c.hanja === s);
+  return hit ? hit.id : null;
+};
+
+/* ───────────── 499장수 밖 인물 (시나리오 데이터의 누락 인명) ──────── */
+SK.EXTRA_GENERALS = {
+  '유언': { job: '군주', tier: 'A', war: 40, intel: 66, lead: 58 },
+  '초고왕': { job: '군주', tier: 'A', war: 72, intel: 70, lead: 74 },
+  '구수왕': { job: '군주', tier: 'B', war: 61, intel: 64, lead: 66 },
+  '벌휴이사금': { job: '군주', tier: 'A', war: 64, intel: 72, lead: 73 },
+  '내해이사금': { job: '군주', tier: 'B', war: 60, intel: 66, lead: 64 },
+  '산상왕': { job: '군주', tier: 'A', war: 73, intel: 68, lead: 70 },
+  '공손강': { job: '군주', tier: 'B', war: 58, intel: 62, lead: 60 },
+  '공손도': { job: '군주', tier: 'B', war: 62, intel: 70, lead: 66 },
+  '공손공': { job: '기병', tier: 'B', war: 66, intel: 54, lead: 58 },
+  '남중 호족': { job: '군주', tier: 'B', war: 55, intel: 52, lead: 58 },
+  '구수': { job: '군주', tier: 'A', war: 58, intel: 76, lead: 70 },
+  '내해': { job: '창병', tier: 'B', war: 66, intel: 60, lead: 62 },
+  '마휴': { job: '기병', tier: 'B', war: 71, intel: 52, lead: 63 },
+  '마철': { job: '기병', tier: 'B', war: 68, intel: 48, lead: 60 },
+  '양홍': { job: '검병', tier: 'B', war: 63, intel: 55, lead: 62 },
+  '염상': { job: '검병', tier: 'B', war: 60, intel: 52, lead: 58 },
+  '주포': { job: '기병', tier: 'B', war: 74, intel: 46, lead: 61 },
+  '전해': { job: '창병', tier: 'B', war: 65, intel: 50, lead: 59 },
+  '선우보': { job: '궁기', tier: 'B', war: 67, intel: 54, lead: 60 },
+  '엄강': { job: '창병', tier: 'B', war: 70, intel: 56, lead: 62 },
+  '국의': { job: '책사', tier: 'B', war: 30, intel: 74, lead: 58 },
+  '명림어수': { job: '책사', tier: 'A', war: 40, intel: 82, lead: 70 },
+  '석우로': { job: '창병', tier: 'A', war: 82, intel: 66, lead: 74 },
+  '사반왕': { job: '군주', tier: 'B', war: 45, intel: 58, lead: 55 },
+  '번민': { job: '검병', tier: 'B', war: 64, intel: 58, lead: 60 },
+  '이감': { job: '기병', tier: 'B', war: 68, intel: 50, lead: 57 },
+  '염행': { job: '궁수', tier: 'B', war: 62, intel: 54, lead: 56 },
+  '양추': { job: '검병', tier: 'B', war: 60, intel: 52, lead: 55 },
+  '양송': { job: '군주', tier: 'B', war: 48, intel: 62, lead: 58 },
+  '양백': { job: '창병', tier: 'B', war: 63, intel: 50, lead: 56 },
+  '성의': { job: '검병', tier: 'B', war: 61, intel: 55, lead: 57 },
+  '옹개': { job: '창병', tier: 'B', war: 66, intel: 48, lead: 58 },
+  '왕위': { job: '군주', tier: 'B', war: 52, intel: 60, lead: 57 },
+  '사일': { job: '궁수', tier: 'B', war: 60, intel: 56, lead: 55 },
+  '사흠': { job: '창병', tier: 'B', war: 58, intel: 58, lead: 56 },
+  '염포': { job: '검병', tier: 'B', war: 57, intel: 54, lead: 55 },
+  '고람': { job: '기병', tier: 'B', war: 62, intel: 50, lead: 56 },
+  '고정': { job: '창병', tier: 'B', war: 60, intel: 52, lead: 54 },
+};
+
+/* 한자 인명 → 한국어 표기 */
+SK.NAME_ALIAS = {
+  '于禁': '우금', '典韋': '전위', '徐晃': '서황', '許褚': '허저', '曹真': '조진', '조仁': '조인',
+};
+
+SK.BOSS_PORTRAITS = {};   // 세력 우두머리 초상화는 factionInfo().lord 로 찾는다
+
+/* ───────────── 시나리오 (data/historical_scenarios.json) ───────────── */
+SK.HIST = [];
+SK.setHistorical = function (list) {
+  SK.HIST = (list || []).filter((s) => s && s.factions && s.factions.length).slice().sort((a, b) => a.year - b.year);
+  SK.SCENARIOS = SK.HIST;
+};
+SK.histById = function (id) { return SK.HIST.find((s) => Number(s.id) === Number(id)) || null; };
+
 
 /* ───────────── 승급 · 경험치 ───────────── */
 SK.PROMO = {
@@ -339,23 +460,107 @@ SK.terrainBonus = function (cls, type) {
 
 SK.SCENARIOS = [];
 SK.setScenarios = function (list) { SK.SCENARIOS = list || []; };
-SK.applyScenario = function (cities, sc) {
-  if (!sc || !sc.factions) return null;
-  const caps = Object.keys(sc.factions).map((f) => {
-    const info = sc.factions[f];
-    const c = SK.CITY_LIST.find((x) => x.name === info.capital);
-    return c ? { key: SK.JFAC[f] || 'warlord', label: f, city: c } : null;
-  }).filter(Boolean);
-  if (caps.length < 2) return null;
-  SK.CITY_LIST.forEach((c) => {
-    let best = caps[0], bd = Infinity;
-    caps.forEach((k) => {
-      const d = Math.hypot((c.u - k.city.u) * 2000, (c.v - k.city.v) * 1333);
-      if (d < bd) { bd = d; best = k; }
+
+/* 사서 인명 → 게임 인명 */
+SK.normName = function (n) { return SK.NAME_ALIAS[n] || n; };
+
+/* 시나리오 하나를 실제 영지 배치로 푼다.
+   · faction.cities 이름을 77거점으로 별칭 변환
+   · 여러 세력이 같은 거점을 주장하면 "자기 영지 중심"이 가까운 세력이 가져간다
+   · 아무도 주장하지 않은 거점은 가장 가까운 세력(300px 이내), 그 밖은 재야 */
+SK.resolveScenario = function (sc) {
+  if (!sc || !sc.factions || !SK.CITY_LIST.length) return null;
+  const facs = {};
+  const claims = {};
+  sc.factions.forEach((f) => {
+    const ids = [];
+    const own = SK.ALIAS_BY_FACTION[f.id] || {};
+    (f.cities || []).forEach((nm) => {
+      const id = own[nm] || SK.cityIdByName(nm);
+      if (!id) return;
+      if (ids.indexOf(id) < 0) ids.push(id);
+      (claims[id] = claims[id] || []).push(f.id);
     });
-    cities[c.id].owner = best.key;
+    const capId = own[f.capital] || SK.cityIdByName(f.capital) || ids[0] || null;
+    if (capId && ids.indexOf(capId) < 0) {
+      ids.unshift(capId);
+      (claims[capId] = claims[capId] || []).push(f.id);
+    }
+    facs[f.id] = {
+      id: f.id,
+      name: f.name,
+      lord: SK.normName(f.leader),
+      hanja: SK.FACTION_HANJA[f.id] || String(f.name || '?').charAt(0),
+      color: SK.FACTION_COLOR[f.id] || f.color || '#8b8677',
+      allies: f.allies || [],
+      enemies: f.enemies || [],
+      generals: (f.generals || []).map(SK.normName).filter(Boolean),
+      listed: ids,
+      capital: capId,
+      cities: [],
+    };
   });
-  return sc;
+  const facIds = Object.keys(facs);
+  facIds.forEach((k) => {
+    const cs = facs[k].listed.map((id) => SK.CITY[id]).filter(Boolean);
+    const n = Math.max(1, cs.length);
+    facs[k].cx = cs.reduce((a, c) => a + c.u * 2000, 0) / n;
+    facs[k].cy = cs.reduce((a, c) => a + c.v * 1333, 0) / n;
+  });
+
+  const owner = {};
+  SK.CITY_LIST.forEach((c) => {
+    const list = claims[c.id];
+    if (!list || !list.length) return;
+    if (list.length === 1) { owner[c.id] = list[0]; return; }
+    const x = c.u * 2000, y = c.v * 1333;
+    let best = list[0], bd = Infinity;
+    list.forEach((fid) => {
+      const f = facs[fid];
+      const d = Math.hypot(x - f.cx, y - f.cy);
+      if (d < bd) { bd = d; best = fid; }
+    });
+    owner[c.id] = best;
+  });
+  SK.CITY_LIST.forEach((c) => {
+    if (owner[c.id]) return;
+    const x = c.u * 2000, y = c.v * 1333;
+    let best = null, bd = Infinity;
+    facIds.forEach((fid) => {
+      const d = Math.hypot(x - facs[fid].cx, y - facs[fid].cy);
+      if (d < bd) { bd = d; best = fid; }
+    });
+    owner[c.id] = (best && bd <= 300) ? best : 'neutral';
+  });
+  // 각 세력의 수도는 반드시 그 세력의 것이 되도록 확정한다
+  facIds.forEach((fid) => {
+    const cap = facs[fid].capital;
+    if (!cap) return;
+    owner[cap] = fid;
+  });
+  if (!facs.neutral) {
+    facs.neutral = { id: 'neutral', name: '재야', lord: '', hanja: '在', color: '#8b8677',
+      allies: [], enemies: [], generals: [], listed: [], capital: null, cities: [], cx: 0, cy: 0 };
+  }
+  SK.CITY_LIST.forEach((c) => {
+    const f = facs[owner[c.id]];
+    if (f) f.cities.push(c.id);
+  });
+  return { factions: facs, owner };
+};
+
+SK.applyScenario = function (cities, sc) {
+  const res = SK.resolveScenario(sc);
+  if (!res) return null;
+  SK._lastResolved = res;
+  SK.CITY_LIST.forEach((c) => { if (cities[c.id]) cities[c.id].owner = res.owner[c.id] || 'neutral'; });
+  return res;
+};
+
+/* 시나리오 연표 — (연, 월) 일치 이벤트 */
+SK.timelineFor = function (sc, year, month) {
+  if (!sc || !sc.timelineEvents) return null;
+  return sc.timelineEvents.find((e) => Number(e.year) === Number(year) && Number(e.month) === Number(month)) || null;
 };
 
 SK.EVENTS = [];
@@ -467,6 +672,24 @@ SK.setGenerals = function (list) {
   SK.GENERALS = list || [];
   SK.GEN_BY_ID = {}; SK.GEN_BY_NAME = {};
   SK.GENERALS.forEach((g) => { SK.GEN_BY_ID[g.id] = g; SK.GEN_BY_NAME[g.name] = g; });
+  SK.registerExtras();
+};
+
+/* 시나리오 데이터에만 있는 인물을 장수 목록에 더한다 */
+SK.registerExtras = function () {
+  const base = 90000;
+  Object.keys(SK.EXTRA_GENERALS || {}).forEach((name, i) => {
+    if (SK.GEN_BY_NAME[name]) return;
+    const e = SK.EXTRA_GENERALS[name];
+    const g = {
+      id: base + i, name, faction: '재야', tier: e.tier || 'B', job: e.job || '검병',
+      leadership: e.lead, war: e.war, intel: e.intel,
+      politics: Math.round((e.war + e.intel + e.lead) / 3), charm: 62, skill: e.skill || '',
+    };
+    SK.GENERALS.push(g);
+    SK.GEN_BY_ID[g.id] = g;
+    SK.GEN_BY_NAME[g.name] = g;
+  });
 };
 SK.genClass = function (g) { return (g && SK.JOB_CLASS[g.job]) || 'geombyung'; };
 SK.genLv = function (g) { return (g && SK.TIER_LV[g.tier]) || 3; };
@@ -521,7 +744,7 @@ SK.CITY = {};
 SK.CITY_LIST = [];
 SK.ROADS = [];
 SK.SEALANES = [];
-SK.JFAC = { '위': 'wei', '촉': 'shu', '오': 'wu', '군웅': 'warlord', '한국': 'han' };
+SK.JFAC = { '위': 'caocao', '촉': 'liubei', '오': 'sunquan', '군웅': 'neutral', '한국': 'goguryeo' };
 SK.TYPE_KEY = { '대도시': 'capital', '소도시': 'town', '관문': 'pass', '요새': 'fortress' };
 
 SK.setCities = function (list) {
