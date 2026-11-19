@@ -1,0 +1,802 @@
+[
+  {
+    "name": "조조",
+    "title": "난세의 간웅",
+    "trigger": "on_attack",
+    "effect": "공격 시 주변 2칸 아군 최대 3명의 사기와 공격력 12% 증가, 2턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "유비",
+    "title": "인의의 군주",
+    "trigger": "turn_start",
+    "effect": "매 턴 시작 시 인접 아군 전체 HP 8% 회복",
+    "valuePct": 8,
+    "cooldown": 1
+  },
+  {
+    "name": "손권",
+    "title": "강동의 패주",
+    "trigger": "passive",
+    "effect": "수전 및 강변 지형에서 아군 전체 공격력과 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "여포",
+    "title": "천하무쌍",
+    "trigger": "on_kill",
+    "effect": "적 처치 성공 시 추가 행동 1회 획득, 전투당 1회",
+    "valuePct": 0,
+    "cooldown": 0
+  },
+  {
+    "name": "관우",
+    "title": "만인지적",
+    "trigger": "on_attack",
+    "effect": "근접 공격 시 대상 방어력 20% 무시",
+    "valuePct": 20,
+    "cooldown": 0
+  },
+  {
+    "name": "장비",
+    "title": "장판파의 포효",
+    "trigger": "on_attack",
+    "effect": "공격 시 주변 1칸 적의 사기와 공격력 12% 감소, 2턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "제갈량",
+    "title": "팔진도",
+    "trigger": "passive",
+    "effect": "책략 피해 15% 증가, 주변 2칸 아군의 책략 방어력 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "사마의",
+    "title": "낭고의 야심",
+    "trigger": "passive",
+    "effect": "이동력 1칸 증가, 책략 피해 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "조운",
+    "title": "단기돌파",
+    "trigger": "after_action",
+    "effect": "직선 2칸 이내 적을 관통하는 특수 공격 사용 가능",
+    "valuePct": 0,
+    "cooldown": 2
+  },
+  {
+    "name": "화타",
+    "title": "청낭서",
+    "trigger": "after_action",
+    "effect": "공격 또는 행동 종료 후 주변 5칸 내 HP 비율이 가장 낮은 아군 1명 회복, 회복량은 입힌 피해량의 10%",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "이순신",
+    "title": "명량의 학익진",
+    "trigger": "passive",
+    "effect": "수전에서 본인 공격력과 방어력 15% 증가, 인접 아군 방어력 12% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "광개토대왕",
+    "title": "영토 확장",
+    "trigger": "on_attack",
+    "effect": "공격 피해 12% 증가, 적 성문과 거점 공격 시 피해 15% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "을지문덕",
+    "title": "살수 유인",
+    "trigger": "on_attack",
+    "effect": "반격 피해 20% 증가, 반격당한 적 이동력 1칸 감소, 1턴 지속",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "조인",
+    "title": "철벽 수호",
+    "trigger": "passive",
+    "effect": "성벽 및 거점 방어 시 본인 방어력 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "하후돈",
+    "title": "독안의 투지",
+    "trigger": "on_attack",
+    "effect": "HP가 50% 이하일 때 공격력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "하후연",
+    "title": "신속한 기습",
+    "trigger": "on_attack",
+    "effect": "이동 후 첫 공격의 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "장료",
+    "title": "합비의 위명",
+    "trigger": "on_attack",
+    "effect": "적 공격 시 대상과 인접 적 1명의 사기 10% 감소",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "전위",
+    "title": "호위의 맹장",
+    "trigger": "passive",
+    "effect": "인접한 군주가 받는 근접 피해 12% 감소",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "허저",
+    "title": "호치의 강맹",
+    "trigger": "on_attack",
+    "effect": "근접 공격 피해 12% 증가, 이동력이 0인 상태에서 발동",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "서황",
+    "title": "군율의 도끼",
+    "trigger": "on_attack",
+    "effect": "적 방어 진형 공격 시 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "장합",
+    "title": "백전의 정예",
+    "trigger": "passive",
+    "effect": "아군이 2명 이상 인접한 경우 본인 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "순욱",
+    "title": "왕좌지재",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군 최대 2명의 사기 10% 회복",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "곽가",
+    "title": "천리안의 책략",
+    "trigger": "on_attack",
+    "effect": "책략 사용 시 대상의 책략 방어력 12% 감소, 2턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "가후",
+    "title": "독계의 대가",
+    "trigger": "on_attack",
+    "effect": "책략 공격 적중 시 대상 공격력 12% 감소, 2턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "황충",
+    "title": "백발의 명궁",
+    "trigger": "on_attack",
+    "effect": "사거리 3칸 이상 원거리 공격 피해 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "마초",
+    "title": "서량의 금마초",
+    "trigger": "on_attack",
+    "effect": "기병 공격 시 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "위연",
+    "title": "배수의 돌격",
+    "trigger": "on_attack",
+    "effect": "적 진영 안에서 공격 시 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "방통",
+    "title": "봉추의 기략",
+    "trigger": "on_attack",
+    "effect": "범위 책략의 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "법정",
+    "title": "원한의 계책",
+    "trigger": "on_attack",
+    "effect": "HP가 50% 이하인 적에게 책략 피해 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "강유",
+    "title": "문무겸전",
+    "trigger": "passive",
+    "effect": "인접 아군이 없을 때 공격력과 방어력 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "주유",
+    "title": "적벽의 화공",
+    "trigger": "on_attack",
+    "effect": "화염 책략 피해 15% 증가",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "노숙",
+    "title": "온후한 외교",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군의 사기 10% 회복",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "여몽",
+    "title": "괄목상대",
+    "trigger": "on_kill",
+    "effect": "적 처치 후 다음 공격 피해량 12% 증가, 1턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "육손",
+    "title": "석정의 화략",
+    "trigger": "on_attack",
+    "effect": "화염 및 책략 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "감녕",
+    "title": "금범의 수적",
+    "trigger": "on_attack",
+    "effect": "야간 및 수전에서 공격 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "태사자",
+    "title": "신궁의 명성",
+    "trigger": "on_attack",
+    "effect": "원거리 공격 시 대상 회피율 12% 감소, 1턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "주태",
+    "title": "불굴의 호위",
+    "trigger": "passive",
+    "effect": "HP가 40% 이하일 때 받는 피해 12% 감소",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "황개",
+    "title": "고육지계",
+    "trigger": "on_attack",
+    "effect": "화공 공격 시 적 방어력 12% 감소, 2턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "연개소문",
+    "title": "삼한의 패자",
+    "trigger": "on_attack",
+    "effect": "공격 시 본인 공격력 12% 증가, 2턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "양만춘",
+    "title": "안시성 철벽",
+    "trigger": "passive",
+    "effect": "성벽 위에서 방어력 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "계백",
+    "title": "황산벌 결사대",
+    "trigger": "passive",
+    "effect": "아군 생존 병력이 절반 이하일 때 본인 공격력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "김유신",
+    "title": "삼국통일의 명장",
+    "trigger": "on_attack",
+    "effect": "기병 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "김춘추",
+    "title": "통합의 외교",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군의 사기 12% 회복",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "강감찬",
+    "title": "귀주대첩",
+    "trigger": "on_attack",
+    "effect": "적 기병에게 주는 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "이성계",
+    "title": "위화도의 결단",
+    "trigger": "on_attack",
+    "effect": "궁병 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "최영",
+    "title": "황금 보기를 돌같이",
+    "trigger": "passive",
+    "effect": "주변 2칸 아군의 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "설총",
+    "title": "화왕의 비유",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군 책략 방어력 12% 증가, 1턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "임경업",
+    "title": "철기 방어",
+    "trigger": "passive",
+    "effect": "창병 및 보병으로부터 받는 피해 12% 감소",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "김응하",
+    "title": "압록의 용장",
+    "trigger": "on_attack",
+    "effect": "적 기병 공격 시 반격 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "조홍",
+    "title": "충성의 방패",
+    "trigger": "passive",
+    "effect": "군주가 주변 2칸 안에 있으면 본인 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "조휴",
+    "title": "강동 정벌",
+    "trigger": "on_attack",
+    "effect": "수전이 아닌 평지에서 기병 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "조진",
+    "title": "서북의 방패",
+    "trigger": "passive",
+    "effect": "인접한 아군 보병의 방어력 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "우금",
+    "title": "엄정한 군율",
+    "trigger": "passive",
+    "effect": "진형 유지 시 본인 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "악진",
+    "title": "선봉의 돌격",
+    "trigger": "on_attack",
+    "effect": "전투 중 첫 공격 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "이전",
+    "title": "침착한 지휘",
+    "trigger": "turn_start",
+    "effect": "주변 2칸 아군의 책략 방어력 10% 증가, 1턴 지속",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "문빙",
+    "title": "강하의 수비",
+    "trigger": "passive",
+    "effect": "강변 및 수전 지형에서 방어력 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "정욱",
+    "title": "냉철한 판단",
+    "trigger": "on_attack",
+    "effect": "책략 공격 시 대상의 사기 10% 감소",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "유엽",
+    "title": "화기 제작",
+    "trigger": "on_attack",
+    "effect": "공성 병기 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "만총",
+    "title": "엄정한 법도",
+    "trigger": "passive",
+    "effect": "거점 주변 2칸 아군 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "진군",
+    "title": "구품의 행정",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군의 사기 8% 회복",
+    "valuePct": 8,
+    "cooldown": 2
+  },
+  {
+    "name": "종요",
+    "title": "서예의 명가",
+    "trigger": "passive",
+    "effect": "본인의 책략 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "양수",
+    "title": "재빠른 통찰",
+    "trigger": "after_action",
+    "effect": "책략 사용 후 다음 행동의 명중률 10% 증가",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "최염",
+    "title": "청렴의 기개",
+    "trigger": "passive",
+    "effect": "사기가 최대일 때 본인 방어력 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "사마사",
+    "title": "권력의 계승",
+    "trigger": "turn_start",
+    "effect": "주변 2칸 아군 책략 피해량 10% 증가, 1턴 지속",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "사마소",
+    "title": "천하의 대세",
+    "trigger": "on_attack",
+    "effect": "적 책사에게 주는 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "마량",
+    "title": "백미의 명성",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군의 책략 방어력 12% 증가, 1턴 지속",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "마속",
+    "title": "병법의 오만",
+    "trigger": "passive",
+    "effect": "고지대에 있을 때 책략 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "장완",
+    "title": "안정의 내정",
+    "trigger": "turn_start",
+    "effect": "주변 2칸 아군 HP 5% 회복",
+    "valuePct": 5,
+    "cooldown": 2
+  },
+  {
+    "name": "비의",
+    "title": "화평의 중재",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군의 사기 10% 회복",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "동윤",
+    "title": "강직한 간언",
+    "trigger": "passive",
+    "effect": "주변 2칸 아군의 책략 방어력 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "미축",
+    "title": "부호의 지원",
+    "trigger": "turn_start",
+    "effect": "주변 2칸 아군의 HP 6% 회복",
+    "valuePct": 6,
+    "cooldown": 2
+  },
+  {
+    "name": "손건",
+    "title": "사신의 언변",
+    "trigger": "passive",
+    "effect": "주변 2칸 아군의 사기 감소 효과 12% 경감",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "간옹",
+    "title": "유연한 처세",
+    "trigger": "passive",
+    "effect": "주변 2칸 아군의 이동력 감소 효과 10% 경감",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "이엄",
+    "title": "촉의 행정관",
+    "trigger": "turn_start",
+    "effect": "주변 2칸 아군 방어력 10% 증가, 1턴 지속",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "왕평",
+    "title": "산악의 수비",
+    "trigger": "passive",
+    "effect": "산악 지형에서 방어력 15% 증가",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "관평",
+    "title": "무성의 후예",
+    "trigger": "on_attack",
+    "effect": "근접 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "관흥",
+    "title": "용장의 계승",
+    "trigger": "on_kill",
+    "effect": "적 처치 후 다음 근접 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "장포",
+    "title": "맹장의 후예",
+    "trigger": "on_attack",
+    "effect": "창병 공격 시 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "요화",
+    "title": "백전의 노장",
+    "trigger": "passive",
+    "effect": "HP가 50% 이하일 때 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "엄안",
+    "title": "노장의 위엄",
+    "trigger": "passive",
+    "effect": "인접한 아군 보병 방어력 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "정보",
+    "title": "강동의 원로",
+    "trigger": "passive",
+    "effect": "주변 2칸 아군 창병의 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "한당",
+    "title": "백전의 수군",
+    "trigger": "passive",
+    "effect": "수전에서 본인 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "장흠",
+    "title": "수상 기습",
+    "trigger": "on_attack",
+    "effect": "수전에서 원거리 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "서성",
+    "title": "강변의 화공",
+    "trigger": "on_attack",
+    "effect": "강변에서 화염 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "정봉",
+    "title": "노장의 역습",
+    "trigger": "on_attack",
+    "effect": "반격 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "반장",
+    "title": "기습의 달인",
+    "trigger": "on_attack",
+    "effect": "측면 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "능통",
+    "title": "젊은 맹장",
+    "trigger": "on_attack",
+    "effect": "이동 후 첫 근접 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "주환",
+    "title": "강동의 방패",
+    "trigger": "passive",
+    "effect": "수전에서 인접 아군 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "제갈근",
+    "title": "형제의 지략",
+    "trigger": "turn_start",
+    "effect": "주변 2칸 아군 책략 방어력 10% 증가, 1턴 지속",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "장소",
+    "title": "강동의 문신",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군 사기 8% 회복",
+    "valuePct": 8,
+    "cooldown": 2
+  },
+  {
+    "name": "을파소",
+    "title": "국상의 지략",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군 방어력 10% 증가, 1턴 지속",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "명림답부",
+    "title": "천리의 기습",
+    "trigger": "on_attack",
+    "effect": "측면 공격 시 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "온달",
+    "title": "평강의 용사",
+    "trigger": "on_attack",
+    "effect": "산악 지형에서 근접 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "문무왕",
+    "title": "해상 통일",
+    "trigger": "passive",
+    "effect": "수전에서 본인 공격력과 방어력 12% 증가",
+    "valuePct": 12,
+    "cooldown": 0
+  },
+  {
+    "name": "대조영",
+    "title": "발해의 개척자",
+    "trigger": "on_attack",
+    "effect": "평지 및 산악에서 공격 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  },
+  {
+    "name": "장보고",
+    "title": "해상 무역왕",
+    "trigger": "passive",
+    "effect": "수전에서 이동력 1칸 증가, 원거리 방어력 10% 증가",
+    "valuePct": 10,
+    "cooldown": 0
+  },
+  {
+    "name": "최치원",
+    "title": "문장의 지략",
+    "trigger": "turn_start",
+    "effect": "주변 3칸 아군 책략 피해량 10% 증가, 1턴 지속",
+    "valuePct": 10,
+    "cooldown": 2
+  },
+  {
+    "name": "윤관",
+    "title": "별무반의 창끝",
+    "trigger": "on_attack",
+    "effect": "기병에게 주는 피해량 15% 증가",
+    "valuePct": 15,
+    "cooldown": 2
+  },
+  {
+    "name": "척준경",
+    "title": "고려의 맹장",
+    "trigger": "on_attack",
+    "effect": "근접 공격 피해량 15% 증가, 전투당 2회 발동",
+    "valuePct": 15,
+    "cooldown": 0
+  },
+  {
+    "name": "강민첨",
+    "title": "귀주의 선봉",
+    "trigger": "on_attack",
+    "effect": "적 기병 공격 시 피해량 12% 증가",
+    "valuePct": 12,
+    "cooldown": 2
+  }
+]

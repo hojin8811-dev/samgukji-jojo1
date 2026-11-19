@@ -10,7 +10,9 @@
     "intel": 91,
     "politics": 94,
     "charm": 96,
-    "skill": "패왕의 호령"
+    "skill": "패왕의 호령",
+    "birthYear": 155,
+    "debutYear": 174
   },
   {
     "id": 2,
@@ -23,7 +25,9 @@
     "intel": 74,
     "politics": 78,
     "charm": 99,
-    "skill": "인덕의 빛"
+    "skill": "인덕의 빛",
+    "birthYear": 161,
+    "debutYear": 184
   },
   {
     "id": 3,
@@ -36,7 +40,9 @@
     "intel": 80,
     "politics": 89,
     "charm": 95,
-    "skill": "강동의 제왕"
+    "skill": "강동의 제왕",
+    "birthYear": 182,
+    "debutYear": 198
   },
   {
     "id": 4,
@@ -49,7 +55,9 @@
     "intel": 58,
     "politics": 70,
     "charm": 81,
-    "skill": "척안의 분노"
+    "skill": "척안의 분노",
+    "birthYear": 157,
+    "debutYear": 174
   },
   {
     "id": 5,
@@ -62,7 +70,9 @@
     "intel": 55,
     "politics": 52,
     "charm": 76,
-    "skill": "신속의 시위"
+    "skill": "신속의 시위",
+    "birthYear": 157,
+    "debutYear": 184
   },
   {
     "id": 6,
@@ -75,7 +85,9 @@
     "intel": 78,
     "politics": 58,
     "charm": 79,
-    "skill": "합비의 귀신"
+    "skill": "합비의 귀신",
+    "birthYear": 169,
+    "debutYear": 189
   },
   {
     "id": 7,
@@ -88,7 +100,9 @@
     "intel": 35,
     "politics": 29,
     "charm": 62,
-    "skill": "악래의 철벽"
+    "skill": "악래의 철벽",
+    "birthYear": 160,
+    "debutYear": 184
   },
   {
     "id": 8,
@@ -101,7 +115,9 @@
     "intel": 36,
     "politics": 20,
     "charm": 58,
-    "skill": "호치의 괴력"
+    "skill": "호치의 괴력",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 9,
@@ -114,7 +130,9 @@
     "intel": 74,
     "politics": 48,
     "charm": 72,
-    "skill": "주아부의 풍모"
+    "skill": "주아부의 풍모",
+    "birthYear": 169,
+    "debutYear": 189
   },
   {
     "id": 10,
@@ -127,7 +145,9 @@
     "intel": 70,
     "politics": 57,
     "charm": 71,
-    "skill": "변화의 명수"
+    "skill": "변화의 명수",
+    "birthYear": 167,
+    "debutYear": 184
   },
   {
     "id": 11,
@@ -140,7 +160,9 @@
     "intel": 95,
     "politics": 99,
     "charm": 93,
-    "skill": "왕좌의 재능"
+    "skill": "왕좌의 재능",
+    "birthYear": 163,
+    "debutYear": 189
   },
   {
     "id": 12,
@@ -153,7 +175,9 @@
     "intel": 94,
     "politics": 88,
     "charm": 82,
-    "skill": "십이기의 지략"
+    "skill": "십이기의 지략",
+    "birthYear": 157,
+    "debutYear": 184
   },
   {
     "id": 13,
@@ -166,7 +190,9 @@
     "intel": 98,
     "politics": 84,
     "charm": 83,
-    "skill": "귀신의 통찰"
+    "skill": "귀신의 통찰",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 14,
@@ -179,20 +205,24 @@
     "intel": 97,
     "politics": 85,
     "charm": 54,
-    "skill": "독사의 계책"
+    "skill": "독사의 계책",
+    "birthYear": 147,
+    "debutYear": 166
   },
   {
     "id": 15,
     "name": "사마의",
     "faction": "위",
     "tier": "S",
-    "job": "기병",
+    "job": "책사",
     "leadership": 98,
     "war": 63,
     "intel": 96,
     "politics": 93,
     "charm": 80,
-    "skill": "낭고의 야심"
+    "skill": "낭고의 야심",
+    "birthYear": 179,
+    "debutYear": 198
   },
   {
     "id": 16,
@@ -205,7 +235,9 @@
     "intel": 62,
     "politics": 56,
     "charm": 77,
-    "skill": "철벽의 수성"
+    "skill": "철벽의 수성",
+    "birthYear": 168,
+    "debutYear": 188
   },
   {
     "id": 17,
@@ -218,7 +250,9 @@
     "intel": 52,
     "politics": 45,
     "charm": 68,
-    "skill": "헌신의 방패"
+    "skill": "헌신의 방패",
+    "birthYear": 168,
+    "debutYear": 184
   },
   {
     "id": 18,
@@ -231,7 +265,9 @@
     "intel": 70,
     "politics": 55,
     "charm": 64,
-    "skill": "엄정한 군율"
+    "skill": "엄정한 군율",
+    "birthYear": 151,
+    "debutYear": 170
   },
   {
     "id": 19,
@@ -244,7 +280,9 @@
     "intel": 54,
     "politics": 49,
     "charm": 71,
-    "skill": "선봉의 돌격"
+    "skill": "선봉의 돌격",
+    "birthYear": 155,
+    "debutYear": 174
   },
   {
     "id": 20,
@@ -257,7 +295,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 74,
-    "skill": "학구파의 진법"
+    "skill": "학구파의 진법",
+    "birthYear": 168,
+    "debutYear": 188
   },
   {
     "id": 21,
@@ -270,7 +310,9 @@
     "intel": 75,
     "politics": 62,
     "charm": 93,
-    "skill": "청룡의 일섬"
+    "skill": "청룡의 일섬",
+    "birthYear": 160,
+    "debutYear": 184
   },
   {
     "id": 22,
@@ -283,7 +325,9 @@
     "intel": 30,
     "politics": 22,
     "charm": 45,
-    "skill": "장판교의 포효"
+    "skill": "장판교의 포효",
+    "birthYear": 165,
+    "debutYear": 184
   },
   {
     "id": 23,
@@ -296,7 +340,9 @@
     "intel": 76,
     "politics": 65,
     "charm": 81,
-    "skill": "일신시담"
+    "skill": "일신시담",
+    "birthYear": 168,
+    "debutYear": 188
   },
   {
     "id": 24,
@@ -309,7 +355,9 @@
     "intel": 44,
     "politics": 26,
     "charm": 82,
-    "skill": "서량의 금마"
+    "skill": "서량의 금마",
+    "birthYear": 176,
+    "debutYear": 194
   },
   {
     "id": 25,
@@ -322,7 +370,9 @@
     "intel": 60,
     "politics": 52,
     "charm": 75,
-    "skill": "백발백중"
+    "skill": "백발백중",
+    "birthYear": 148,
+    "debutYear": 184
   },
   {
     "id": 26,
@@ -335,7 +385,9 @@
     "intel": 100,
     "politics": 95,
     "charm": 92,
-    "skill": "와룡의 천명"
+    "skill": "와룡의 천명",
+    "birthYear": 181,
+    "debutYear": 207
   },
   {
     "id": 27,
@@ -348,7 +400,9 @@
     "intel": 97,
     "politics": 85,
     "charm": 63,
-    "skill": "연환의 계략"
+    "skill": "연환의 계략",
+    "birthYear": 179,
+    "debutYear": 198
   },
   {
     "id": 28,
@@ -361,7 +415,9 @@
     "intel": 94,
     "politics": 79,
     "charm": 51,
-    "skill": "기습의 묘수"
+    "skill": "기습의 묘수",
+    "birthYear": 176,
+    "debutYear": 196
   },
   {
     "id": 29,
@@ -374,7 +430,9 @@
     "intel": 90,
     "politics": 67,
     "charm": 80,
-    "skill": "기린아의 유지"
+    "skill": "기린아의 유지",
+    "birthYear": 202,
+    "debutYear": 220
   },
   {
     "id": 30,
@@ -387,7 +445,9 @@
     "intel": 69,
     "politics": 48,
     "charm": 55,
-    "skill": "자오곡의 칼날"
+    "skill": "자오곡의 칼날",
+    "birthYear": 177,
+    "debutYear": 197
   },
   {
     "id": 31,
@@ -400,7 +460,9 @@
     "intel": 42,
     "politics": 35,
     "charm": 74,
-    "skill": "충의의 도끼"
+    "skill": "충의의 도끼",
+    "birthYear": 165,
+    "debutYear": 184
   },
   {
     "id": 32,
@@ -413,7 +475,9 @@
     "intel": 63,
     "politics": 54,
     "charm": 73,
-    "skill": "청룡의 계승"
+    "skill": "청룡의 계승",
+    "birthYear": 178,
+    "debutYear": 198
   },
   {
     "id": 33,
@@ -426,7 +490,9 @@
     "intel": 52,
     "politics": 60,
     "charm": 41,
-    "skill": "수성의 보급"
+    "skill": "수성의 보급",
+    "birthYear": 165,
+    "debutYear": 184
   },
   {
     "id": 34,
@@ -439,7 +505,9 @@
     "intel": 77,
     "politics": 83,
     "charm": 80,
-    "skill": "사절의 화술"
+    "skill": "사절의 화술",
+    "birthYear": 165,
+    "debutYear": 184
   },
   {
     "id": 35,
@@ -452,7 +520,9 @@
     "intel": 74,
     "politics": 78,
     "charm": 79,
-    "skill": "유머의 중재"
+    "skill": "유머의 중재",
+    "birthYear": 160,
+    "debutYear": 184
   },
   {
     "id": 36,
@@ -465,7 +535,9 @@
     "intel": 74,
     "politics": 71,
     "charm": 86,
-    "skill": "강동의 호랑이"
+    "skill": "강동의 호랑이",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 37,
@@ -478,7 +550,9 @@
     "intel": 69,
     "politics": 70,
     "charm": 92,
-    "skill": "소패왕의 돌진"
+    "skill": "소패왕의 돌진",
+    "birthYear": 175,
+    "debutYear": 191
   },
   {
     "id": 38,
@@ -491,7 +565,9 @@
     "intel": 96,
     "politics": 86,
     "charm": 93,
-    "skill": "적벽의 업화"
+    "skill": "적벽의 업화",
+    "birthYear": 175,
+    "debutYear": 191
   },
   {
     "id": 39,
@@ -504,7 +580,9 @@
     "intel": 92,
     "politics": 91,
     "charm": 88,
-    "skill": "천하양분의 혜안"
+    "skill": "천하양분의 혜안",
+    "birthYear": 172,
+    "debutYear": 190
   },
   {
     "id": 40,
@@ -517,7 +595,9 @@
     "intel": 89,
     "politics": 78,
     "charm": 82,
-    "skill": "괄목상대"
+    "skill": "괄목상대",
+    "birthYear": 178,
+    "debutYear": 194
   },
   {
     "id": 41,
@@ -530,7 +610,9 @@
     "intel": 95,
     "politics": 87,
     "charm": 90,
-    "skill": "이릉의 화계"
+    "skill": "이릉의 화계",
+    "birthYear": 183,
+    "debutYear": 200
   },
   {
     "id": 42,
@@ -543,7 +625,9 @@
     "intel": 76,
     "politics": 18,
     "charm": 65,
-    "skill": "백기겁영"
+    "skill": "백기겁영",
+    "birthYear": 162,
+    "debutYear": 182
   },
   {
     "id": 43,
@@ -556,7 +640,9 @@
     "intel": 66,
     "politics": 58,
     "charm": 79,
-    "skill": "신의의 강궁"
+    "skill": "신의의 강궁",
+    "birthYear": 166,
+    "debutYear": 184
   },
   {
     "id": 44,
@@ -569,7 +655,9 @@
     "intel": 48,
     "politics": 39,
     "charm": 67,
-    "skill": "불굴의 상흔"
+    "skill": "불굴의 상흔",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 45,
@@ -582,7 +670,9 @@
     "intel": 65,
     "politics": 58,
     "charm": 76,
-    "skill": "고육지계"
+    "skill": "고육지계",
+    "birthYear": 145,
+    "debutYear": 170
   },
   {
     "id": 46,
@@ -595,7 +685,9 @@
     "intel": 68,
     "politics": 64,
     "charm": 77,
-    "skill": "노장의 사모"
+    "skill": "노장의 사모",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 47,
@@ -608,7 +700,9 @@
     "intel": 61,
     "politics": 45,
     "charm": 74,
-    "skill": "질풍의 쌍절곤"
+    "skill": "질풍의 쌍절곤",
+    "birthYear": 189,
+    "debutYear": 205
   },
   {
     "id": 48,
@@ -621,7 +715,9 @@
     "intel": 75,
     "politics": 62,
     "charm": 73,
-    "skill": "의성 화공"
+    "skill": "의성 화공",
+    "birthYear": 177,
+    "debutYear": 195
   },
   {
     "id": 49,
@@ -634,7 +730,9 @@
     "intel": 72,
     "politics": 59,
     "charm": 70,
-    "skill": "설중 단병전"
+    "skill": "설중 단병전",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 50,
@@ -647,7 +745,9 @@
     "intel": 81,
     "politics": 84,
     "charm": 78,
-    "skill": "학자의 성정"
+    "skill": "학자의 성정",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 51,
@@ -660,7 +760,9 @@
     "intel": 26,
     "politics": 13,
     "charm": 40,
-    "skill": "천하무쌍"
+    "skill": "천하무쌍",
+    "birthYear": 156,
+    "debutYear": 176
   },
   {
     "id": 52,
@@ -673,7 +775,9 @@
     "intel": 81,
     "politics": 68,
     "charm": 98,
-    "skill": "경국지색의 춤"
+    "skill": "경국지색의 춤",
+    "birthYear": 176,
+    "debutYear": 194
   },
   {
     "id": 53,
@@ -686,7 +790,9 @@
     "intel": 68,
     "politics": 41,
     "charm": 22,
-    "skill": "폭군의 위압"
+    "skill": "폭군의 위압",
+    "birthYear": 139,
+    "debutYear": 159
   },
   {
     "id": 54,
@@ -699,7 +805,9 @@
     "intel": 70,
     "politics": 75,
     "charm": 89,
-    "skill": "사세삼공의 위엄"
+    "skill": "사세삼공의 위엄",
+    "birthYear": 154,
+    "debutYear": 174
   },
   {
     "id": 55,
@@ -712,7 +820,9 @@
     "intel": 41,
     "politics": 32,
     "charm": 58,
-    "skill": "하북의 맹장"
+    "skill": "하북의 맹장",
+    "birthYear": 160,
+    "debutYear": 184
   },
   {
     "id": 56,
@@ -725,7 +835,9 @@
     "intel": 38,
     "politics": 29,
     "charm": 56,
-    "skill": "하북의 강궁"
+    "skill": "하북의 강궁",
+    "birthYear": 160,
+    "debutYear": 184
   },
   {
     "id": 57,
@@ -738,7 +850,9 @@
     "intel": 88,
     "politics": 74,
     "charm": 95,
-    "skill": "창천이사 황천당립"
+    "skill": "창천이사 황천당립",
+    "birthYear": 140,
+    "debutYear": 184
   },
   {
     "id": 58,
@@ -751,7 +865,9 @@
     "intel": 45,
     "politics": 52,
     "charm": 83,
-    "skill": "남만의 왕"
+    "skill": "남만의 왕",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 59,
@@ -764,7 +880,9 @@
     "intel": 56,
     "politics": 48,
     "charm": 84,
-    "skill": "화신의 비도"
+    "skill": "화신의 비도",
+    "birthYear": 180,
+    "debutYear": 200
   },
   {
     "id": 60,
@@ -777,7 +895,9 @@
     "intel": 22,
     "politics": 19,
     "charm": 47,
-    "skill": "불침투 등갑"
+    "skill": "불침투 등갑",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 61,
@@ -790,7 +910,9 @@
     "intel": 46,
     "politics": 33,
     "charm": 55,
-    "skill": "사수관의 수호"
+    "skill": "사수관의 수호",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 62,
@@ -803,7 +925,9 @@
     "intel": 89,
     "politics": 79,
     "charm": 68,
-    "skill": "지략가의 충언"
+    "skill": "지략가의 충언",
+    "birthYear": 156,
+    "debutYear": 176
   },
   {
     "id": 63,
@@ -816,7 +940,9 @@
     "intel": 93,
     "politics": 86,
     "charm": 61,
-    "skill": "강직한 선견"
+    "skill": "강직한 선견",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 64,
@@ -829,7 +955,9 @@
     "intel": 92,
     "politics": 85,
     "charm": 72,
-    "skill": "감군사의 통찰"
+    "skill": "감군사의 통찰",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 65,
@@ -842,7 +970,9 @@
     "intel": 48,
     "politics": 41,
     "charm": 62,
-    "skill": "여남의 유격"
+    "skill": "여남의 유격",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 66,
@@ -855,7 +985,9 @@
     "intel": 87,
     "politics": 91,
     "charm": 97,
-    "skill": "영락의 정복"
+    "skill": "영락의 정복",
+    "debutYear": 190,
+    "birthYear": 170
   },
   {
     "id": 67,
@@ -868,7 +1000,9 @@
     "intel": 98,
     "politics": 89,
     "charm": 88,
-    "skill": "살수의 대첩"
+    "skill": "살수의 대첩",
+    "debutYear": 190,
+    "birthYear": 169
   },
   {
     "id": 68,
@@ -881,7 +1015,9 @@
     "intel": 82,
     "politics": 78,
     "charm": 81,
-    "skill": "오검의 패기"
+    "skill": "오검의 패기",
+    "debutYear": 190,
+    "birthYear": 168
   },
   {
     "id": 69,
@@ -894,7 +1030,9 @@
     "intel": 84,
     "politics": 76,
     "charm": 89,
-    "skill": "안시성의 화살"
+    "skill": "안시성의 화살",
+    "debutYear": 190,
+    "birthYear": 167
   },
   {
     "id": 70,
@@ -907,7 +1045,9 @@
     "intel": 48,
     "politics": 44,
     "charm": 78,
-    "skill": "아차산의 진격"
+    "skill": "아차산의 진격",
+    "debutYear": 190,
+    "birthYear": 166
   },
   {
     "id": 71,
@@ -920,7 +1060,9 @@
     "intel": 79,
     "politics": 68,
     "charm": 90,
-    "skill": "황산벌의 결사대"
+    "skill": "황산벌의 결사대",
+    "debutYear": 190,
+    "birthYear": 165
   },
   {
     "id": 72,
@@ -933,7 +1075,9 @@
     "intel": 83,
     "politics": 65,
     "charm": 79,
-    "skill": "임존성의 유격"
+    "skill": "임존성의 유격",
+    "debutYear": 190,
+    "birthYear": 164
   },
   {
     "id": 73,
@@ -946,7 +1090,9 @@
     "intel": 86,
     "politics": 92,
     "charm": 90,
-    "skill": "해상 제국의 웅비"
+    "skill": "해상 제국의 웅비",
+    "debutYear": 190,
+    "birthYear": 163
   },
   {
     "id": 74,
@@ -959,7 +1105,9 @@
     "intel": 89,
     "politics": 90,
     "charm": 82,
-    "skill": "탄현의 충간"
+    "skill": "탄현의 충간",
+    "debutYear": 190,
+    "birthYear": 162
   },
   {
     "id": 75,
@@ -972,7 +1120,9 @@
     "intel": 88,
     "politics": 87,
     "charm": 79,
-    "skill": "백강의 방비"
+    "skill": "백강의 방비",
+    "debutYear": 190,
+    "birthYear": 161
   },
   {
     "id": 76,
@@ -985,7 +1135,9 @@
     "intel": 90,
     "politics": 88,
     "charm": 94,
-    "skill": "삼한일통의 검"
+    "skill": "삼한일통의 검",
+    "debutYear": 190,
+    "birthYear": 160
   },
   {
     "id": 77,
@@ -998,7 +1150,9 @@
     "intel": 93,
     "politics": 97,
     "charm": 95,
-    "skill": "외교의 승부수"
+    "skill": "외교의 승부수",
+    "debutYear": 190,
+    "birthYear": 159
   },
   {
     "id": 78,
@@ -1011,7 +1165,9 @@
     "intel": 56,
     "politics": 49,
     "charm": 85,
-    "skill": "화랑의 기개"
+    "skill": "화랑의 기개",
+    "debutYear": 190,
+    "birthYear": 158
   },
   {
     "id": 79,
@@ -1024,7 +1180,9 @@
     "intel": 83,
     "politics": 77,
     "charm": 81,
-    "skill": "우산국 복속"
+    "skill": "우산국 복속",
+    "debutYear": 190,
+    "birthYear": 157
   },
   {
     "id": 80,
@@ -1037,7 +1195,9 @@
     "intel": 82,
     "politics": 85,
     "charm": 80,
-    "skill": "국사의 기록"
+    "skill": "국사의 기록",
+    "debutYear": 190,
+    "birthYear": 156
   },
   {
     "id": 81,
@@ -1050,7 +1210,9 @@
     "intel": 82,
     "politics": 89,
     "charm": 92,
-    "skill": "금관가야의 개국"
+    "skill": "금관가야의 개국",
+    "debutYear": 190,
+    "birthYear": 155
   },
   {
     "id": 82,
@@ -1063,7 +1225,9 @@
     "intel": 78,
     "politics": 81,
     "charm": 91,
-    "skill": "아유타의 축복"
+    "skill": "아유타의 축복",
+    "debutYear": 190,
+    "birthYear": 170
   },
   {
     "id": 83,
@@ -1076,7 +1240,9 @@
     "intel": 88,
     "politics": 82,
     "charm": 74,
-    "skill": "벽력거 설계"
+    "skill": "벽력거 설계",
+    "birthYear": 171,
+    "debutYear": 191
   },
   {
     "id": 84,
@@ -1089,7 +1255,9 @@
     "intel": 89,
     "politics": 76,
     "charm": 71,
-    "skill": "개량 연노"
+    "skill": "개량 연노",
+    "birthYear": 180,
+    "debutYear": 200
   },
   {
     "id": 85,
@@ -1102,7 +1270,9 @@
     "intel": 79,
     "politics": 77,
     "charm": 81,
-    "skill": "면죽의 결사항전"
+    "skill": "면죽의 결사항전",
+    "birthYear": 227,
+    "debutYear": 216
   },
   {
     "id": 86,
@@ -1115,7 +1285,9 @@
     "intel": 58,
     "politics": 51,
     "charm": 69,
-    "skill": "백이병 정예"
+    "skill": "백이병 정예",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 87,
@@ -1128,7 +1300,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 77,
-    "skill": "남중 위무"
+    "skill": "남중 위무",
+    "birthYear": 190,
+    "debutYear": 210
   },
   {
     "id": 88,
@@ -1141,7 +1315,9 @@
     "intel": 54,
     "politics": 46,
     "charm": 68,
-    "skill": "하구 돌격"
+    "skill": "하구 돌격",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 89,
@@ -1154,7 +1330,9 @@
     "intel": 51,
     "politics": 34,
     "charm": 52,
-    "skill": "매복 포박"
+    "skill": "매복 포박",
+    "birthYear": 186,
+    "debutYear": 202
   },
   {
     "id": 90,
@@ -1167,7 +1345,9 @@
     "intel": 75,
     "politics": 79,
     "charm": 92,
-    "skill": "후궁의 온화"
+    "skill": "후궁의 온화",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 91,
@@ -1180,7 +1360,9 @@
     "intel": 77,
     "politics": 74,
     "charm": 94,
-    "skill": "낙신의 미모"
+    "skill": "낙신의 미모",
+    "birthYear": 183,
+    "debutYear": 199
   },
   {
     "id": 92,
@@ -1193,7 +1375,9 @@
     "intel": 86,
     "politics": 75,
     "charm": 89,
-    "skill": "호가십팔박"
+    "skill": "호가십팔박",
+    "birthYear": 177,
+    "debutYear": 193
   },
   {
     "id": 93,
@@ -1206,7 +1390,9 @@
     "intel": 61,
     "politics": 53,
     "charm": 72,
-    "skill": "함진영 돌격"
+    "skill": "함진영 돌격",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 94,
@@ -1219,7 +1405,9 @@
     "intel": 76,
     "politics": 62,
     "charm": 75,
-    "skill": "낙봉파 매복"
+    "skill": "낙봉파 매복",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 95,
@@ -1232,7 +1420,9 @@
     "intel": 69,
     "politics": 64,
     "charm": 78,
-    "skill": "단두장군"
+    "skill": "단두장군",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 96,
@@ -1245,7 +1435,9 @@
     "intel": 80,
     "politics": 66,
     "charm": 73,
-    "skill": "진창의 방어"
+    "skill": "진창의 방어",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 97,
@@ -1258,7 +1450,9 @@
     "intel": 59,
     "politics": 42,
     "charm": 65,
-    "skill": "용맹한 기백"
+    "skill": "용맹한 기백",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 98,
@@ -1271,7 +1465,9 @@
     "intel": 41,
     "politics": 30,
     "charm": 54,
-    "skill": "유성추 강타"
+    "skill": "유성추 강타",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 99,
@@ -1284,7 +1480,9 @@
     "intel": 55,
     "politics": 49,
     "charm": 63,
-    "skill": "보급선 수호"
+    "skill": "보급선 수호",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 100,
@@ -1297,7 +1495,9 @@
     "intel": 79,
     "politics": 82,
     "charm": 75,
-    "skill": "군기 확립"
+    "skill": "군기 확립",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 101,
@@ -1310,7 +1510,9 @@
     "intel": 85,
     "politics": 91,
     "charm": 87,
-    "skill": "위왕의 전론"
+    "skill": "위왕의 전론",
+    "birthYear": 187,
+    "debutYear": 204
   },
   {
     "id": 102,
@@ -1323,7 +1525,9 @@
     "intel": 84,
     "politics": 86,
     "charm": 82,
-    "skill": "명제의 결단"
+    "skill": "명제의 결단",
+    "birthYear": 204,
+    "debutYear": 220
   },
   {
     "id": 103,
@@ -1336,7 +1540,9 @@
     "intel": 48,
     "politics": 40,
     "charm": 68,
-    "skill": "황수아의 질주"
+    "skill": "황수아의 질주",
+    "birthYear": 189,
+    "debutYear": 205
   },
   {
     "id": 104,
@@ -1349,7 +1555,9 @@
     "intel": 84,
     "politics": 65,
     "charm": 92,
-    "skill": "칠보시의 재기"
+    "skill": "칠보시의 재기",
+    "birthYear": 192,
+    "debutYear": 210
   },
   {
     "id": 105,
@@ -1362,7 +1570,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 80,
-    "skill": "대사마의 위엄"
+    "skill": "대사마의 위엄",
+    "birthYear": 185,
+    "debutYear": 201
   },
   {
     "id": 106,
@@ -1375,7 +1585,9 @@
     "intel": 67,
     "politics": 63,
     "charm": 72,
-    "skill": "천리구 돌격"
+    "skill": "천리구 돌격",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 107,
@@ -1388,7 +1600,9 @@
     "intel": 72,
     "politics": 68,
     "charm": 75,
-    "skill": "상용 기습"
+    "skill": "상용 기습",
+    "birthYear": 188,
+    "debutYear": 204
   },
   {
     "id": 108,
@@ -1401,7 +1615,9 @@
     "intel": 85,
     "politics": 83,
     "charm": 71,
-    "skill": "합비신성 수비"
+    "skill": "합비신성 수비",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 109,
@@ -1414,7 +1630,9 @@
     "intel": 68,
     "politics": 65,
     "charm": 74,
-    "skill": "강하 철벽"
+    "skill": "강하 철벽",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 110,
@@ -1427,7 +1645,9 @@
     "intel": 83,
     "politics": 79,
     "charm": 76,
-    "skill": "문무겸비 지략"
+    "skill": "문무겸비 지략",
+    "birthYear": 190,
+    "debutYear": 210
   },
   {
     "id": 111,
@@ -1440,7 +1660,9 @@
     "intel": 91,
     "politics": 81,
     "charm": 72,
-    "skill": "음평 산악 돌파"
+    "skill": "음평 산악 돌파",
+    "birthYear": 197,
+    "debutYear": 215
   },
   {
     "id": 112,
@@ -1453,7 +1675,9 @@
     "intel": 92,
     "politics": 84,
     "charm": 73,
-    "skill": "검각 대치"
+    "skill": "검각 대치",
+    "birthYear": 225,
+    "debutYear": 214
   },
   {
     "id": 113,
@@ -1466,7 +1690,9 @@
     "intel": 87,
     "politics": 89,
     "charm": 80,
-    "skill": "냉철한 숙청"
+    "skill": "냉철한 숙청",
+    "birthYear": 208,
+    "debutYear": 215
   },
   {
     "id": 114,
@@ -1479,7 +1705,9 @@
     "intel": 88,
     "politics": 91,
     "charm": 78,
-    "skill": "진왕의 야망"
+    "skill": "진왕의 야망",
+    "birthYear": 211,
+    "debutYear": 218
   },
   {
     "id": 115,
@@ -1492,7 +1720,9 @@
     "intel": 86,
     "politics": 90,
     "charm": 93,
-    "skill": "덕화의 선비"
+    "skill": "덕화의 선비",
+    "birthYear": 221,
+    "debutYear": 219
   },
   {
     "id": 116,
@@ -1505,7 +1735,9 @@
     "intel": 90,
     "politics": 92,
     "charm": 84,
-    "skill": "파죽지세"
+    "skill": "파죽지세",
+    "birthYear": 222,
+    "debutYear": 220
   },
   {
     "id": 117,
@@ -1518,7 +1750,9 @@
     "intel": 86,
     "politics": 95,
     "charm": 83,
-    "skill": "구품관인법"
+    "skill": "구품관인법",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 118,
@@ -1531,7 +1765,9 @@
     "intel": 82,
     "politics": 88,
     "charm": 67,
-    "skill": "삼공의 처세"
+    "skill": "삼공의 처세",
+    "birthYear": 157,
+    "debutYear": 177
   },
   {
     "id": 119,
@@ -1544,7 +1780,9 @@
     "intel": 87,
     "politics": 93,
     "charm": 85,
-    "skill": "관중 안정책"
+    "skill": "관중 안정책",
+    "birthYear": 151,
+    "debutYear": 171
   },
   {
     "id": 120,
@@ -1557,7 +1795,9 @@
     "intel": 91,
     "politics": 83,
     "charm": 64,
-    "skill": "십면매복"
+    "skill": "십면매복",
+    "birthYear": 141,
+    "debutYear": 161
   },
   {
     "id": 121,
@@ -1570,7 +1810,9 @@
     "intel": 34,
     "politics": 42,
     "charm": 69,
-    "skill": "안락공의 태평"
+    "skill": "안락공의 태평",
+    "birthYear": 207,
+    "debutYear": 217
   },
   {
     "id": 122,
@@ -1583,7 +1825,9 @@
     "intel": 64,
     "politics": 58,
     "charm": 79,
-    "skill": "청룡의 비호"
+    "skill": "청룡의 비호",
+    "birthYear": 197,
+    "debutYear": 215
   },
   {
     "id": 123,
@@ -1596,7 +1840,9 @@
     "intel": 52,
     "politics": 44,
     "charm": 75,
-    "skill": "장팔사모 계승"
+    "skill": "장팔사모 계승",
+    "birthYear": 198,
+    "debutYear": 216
   },
   {
     "id": 124,
@@ -1609,7 +1855,9 @@
     "intel": 61,
     "politics": 53,
     "charm": 73,
-    "skill": "서량의 유격"
+    "skill": "서량의 유격",
+    "birthYear": 178,
+    "debutYear": 198
   },
   {
     "id": 125,
@@ -1622,7 +1870,9 @@
     "intel": 67,
     "politics": 62,
     "charm": 74,
-    "skill": "촉한의 노병"
+    "skill": "촉한의 노병",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 126,
@@ -1635,7 +1885,9 @@
     "intel": 77,
     "politics": 68,
     "charm": 75,
-    "skill": "가정 사수"
+    "skill": "가정 사수",
+    "birthYear": 190,
+    "debutYear": 210
   },
   {
     "id": 127,
@@ -1648,7 +1900,9 @@
     "intel": 88,
     "politics": 93,
     "charm": 85,
-    "skill": "승상부 안정"
+    "skill": "승상부 안정",
+    "birthYear": 167,
+    "debutYear": 187
   },
   {
     "id": 128,
@@ -1661,7 +1915,9 @@
     "intel": 87,
     "politics": 92,
     "charm": 86,
-    "skill": "화합의 중재"
+    "skill": "화합의 중재",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 129,
@@ -1674,7 +1930,9 @@
     "intel": 83,
     "politics": 89,
     "charm": 84,
-    "skill": "직언의 시중"
+    "skill": "직언의 시중",
+    "birthYear": 180,
+    "debutYear": 200
   },
   {
     "id": 130,
@@ -1687,7 +1945,9 @@
     "intel": 86,
     "politics": 72,
     "charm": 68,
-    "skill": "공성심계"
+    "skill": "공성심계",
+    "birthYear": 190,
+    "debutYear": 210
   },
   {
     "id": 131,
@@ -1700,7 +1960,9 @@
     "intel": 87,
     "politics": 88,
     "charm": 86,
-    "skill": "백미의 지혜"
+    "skill": "백미의 지혜",
+    "birthYear": 187,
+    "debutYear": 207
   },
   {
     "id": 132,
@@ -1713,7 +1975,9 @@
     "intel": 74,
     "politics": 76,
     "charm": 58,
-    "skill": "백제성 수비"
+    "skill": "백제성 수비",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 133,
@@ -1726,7 +1990,9 @@
     "intel": 71,
     "politics": 74,
     "charm": 77,
-    "skill": "좌장군의 진격"
+    "skill": "좌장군의 진격",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 134,
@@ -1739,7 +2005,9 @@
     "intel": 85,
     "politics": 84,
     "charm": 79,
-    "skill": "강북 통찰"
+    "skill": "강북 통찰",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 135,
@@ -1752,7 +2020,9 @@
     "intel": 56,
     "politics": 49,
     "charm": 64,
-    "skill": "상용 진격"
+    "skill": "상용 진격",
+    "birthYear": 180,
+    "debutYear": 200
   },
   {
     "id": 136,
@@ -1765,7 +2035,9 @@
     "intel": 73,
     "politics": 65,
     "charm": 51,
-    "skill": "신성 거병"
+    "skill": "신성 거병",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 137,
@@ -1778,7 +2050,9 @@
     "intel": 70,
     "politics": 69,
     "charm": 73,
-    "skill": "북벌의 후방"
+    "skill": "북벌의 후방",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 138,
@@ -1791,7 +2065,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 76,
-    "skill": "가맹관 철수"
+    "skill": "가맹관 철수",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 139,
@@ -1804,7 +2080,9 @@
     "intel": 54,
     "politics": 47,
     "charm": 75,
-    "skill": "양평관 결사"
+    "skill": "양평관 결사",
+    "birthYear": 225,
+    "debutYear": 214
   },
   {
     "id": 140,
@@ -1817,7 +2095,9 @@
     "intel": 66,
     "politics": 57,
     "charm": 71,
-    "skill": "선봉의 기세"
+    "skill": "선봉의 기세",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 141,
@@ -1830,7 +2110,9 @@
     "intel": 88,
     "politics": 96,
     "charm": 80,
-    "skill": "내정의 원로"
+    "skill": "내정의 원로",
+    "birthYear": 156,
+    "debutYear": 176
   },
   {
     "id": 142,
@@ -1843,7 +2125,9 @@
     "intel": 87,
     "politics": 93,
     "charm": 85,
-    "skill": "이장지치"
+    "skill": "이장지치",
+    "birthYear": 153,
+    "debutYear": 173
   },
   {
     "id": 143,
@@ -1856,7 +2140,9 @@
     "intel": 84,
     "politics": 88,
     "charm": 89,
-    "skill": "오촉 가교"
+    "skill": "오촉 가교",
+    "birthYear": 174,
+    "debutYear": 194
   },
   {
     "id": 144,
@@ -1869,7 +2155,9 @@
     "intel": 85,
     "politics": 90,
     "charm": 84,
-    "skill": "교주 평정"
+    "skill": "교주 평정",
+    "birthYear": 163,
+    "debutYear": 183
   },
   {
     "id": 145,
@@ -1882,7 +2170,9 @@
     "intel": 84,
     "politics": 92,
     "charm": 83,
-    "skill": "과묵한 재상"
+    "skill": "과묵한 재상",
+    "birthYear": 168,
+    "debutYear": 188
   },
   {
     "id": 146,
@@ -1895,7 +2185,9 @@
     "intel": 91,
     "politics": 86,
     "charm": 88,
-    "skill": "서릉 공방전"
+    "skill": "서릉 공방전",
+    "birthYear": 226,
+    "debutYear": 215
   },
   {
     "id": 147,
@@ -1908,7 +2200,9 @@
     "intel": 74,
     "politics": 63,
     "charm": 71,
-    "skill": "유수구 격파"
+    "skill": "유수구 격파",
+    "birthYear": 177,
+    "debutYear": 195
   },
   {
     "id": 148,
@@ -1921,7 +2215,9 @@
     "intel": 79,
     "politics": 68,
     "charm": 74,
-    "skill": "강릉 방어전"
+    "skill": "강릉 방어전",
+    "birthYear": 182,
+    "debutYear": 200
   },
   {
     "id": 149,
@@ -1934,7 +2230,9 @@
     "intel": 82,
     "politics": 81,
     "charm": 72,
-    "skill": "무릉만 토벌"
+    "skill": "무릉만 토벌",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 150,
@@ -1947,7 +2245,9 @@
     "intel": 56,
     "politics": 51,
     "charm": 72,
-    "skill": "노장의 노젓기"
+    "skill": "노장의 노젓기",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 151,
@@ -1960,7 +2260,9 @@
     "intel": 48,
     "politics": 41,
     "charm": 74,
-    "skill": "유수구 혈투"
+    "skill": "유수구 혈투",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 152,
@@ -1973,7 +2275,9 @@
     "intel": 49,
     "politics": 43,
     "charm": 73,
-    "skill": "오층선 사수"
+    "skill": "오층선 사수",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 153,
@@ -1986,7 +2290,9 @@
     "intel": 51,
     "politics": 45,
     "charm": 68,
-    "skill": "방천화극의 맹진"
+    "skill": "방천화극의 맹진",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 154,
@@ -1999,7 +2305,9 @@
     "intel": 53,
     "politics": 47,
     "charm": 69,
-    "skill": "합비 돌격"
+    "skill": "합비 돌격",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 155,
@@ -2012,7 +2320,9 @@
     "intel": 76,
     "politics": 78,
     "charm": 80,
-    "skill": "해상 진격"
+    "skill": "해상 진격",
+    "birthYear": 198,
+    "debutYear": 216
   },
   {
     "id": 156,
@@ -2025,7 +2335,9 @@
     "intel": 66,
     "politics": 61,
     "charm": 89,
-    "skill": "궁요희의 활"
+    "skill": "궁요희의 활",
+    "birthYear": 189,
+    "debutYear": 207
   },
   {
     "id": 157,
@@ -2038,7 +2350,9 @@
     "intel": 79,
     "politics": 76,
     "charm": 96,
-    "skill": "강동의 꽃"
+    "skill": "강동의 꽃",
+    "birthYear": 176,
+    "debutYear": 194
   },
   {
     "id": 158,
@@ -2051,7 +2365,9 @@
     "intel": 80,
     "politics": 75,
     "charm": 96,
-    "skill": "적벽의 선율"
+    "skill": "적벽의 선율",
+    "birthYear": 178,
+    "debutYear": 196
   },
   {
     "id": 159,
@@ -2064,7 +2380,9 @@
     "intel": 86,
     "politics": 79,
     "charm": 61,
-    "skill": "역학의 점괘"
+    "skill": "역학의 점괘",
+    "birthYear": 164,
+    "debutYear": 184
   },
   {
     "id": 160,
@@ -2077,7 +2395,9 @@
     "intel": 90,
     "politics": 77,
     "charm": 69,
-    "skill": "동흥 대첩"
+    "skill": "동흥 대첩",
+    "birthYear": 203,
+    "debutYear": 217
   },
   {
     "id": 161,
@@ -2090,7 +2410,9 @@
     "intel": 63,
     "politics": 58,
     "charm": 65,
-    "skill": "옥새의 야욕"
+    "skill": "옥새의 야욕",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 162,
@@ -2103,7 +2425,9 @@
     "intel": 52,
     "politics": 46,
     "charm": 64,
-    "skill": "삼첨도 선봉"
+    "skill": "삼첨도 선봉",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 163,
@@ -2116,7 +2440,9 @@
     "intel": 65,
     "politics": 60,
     "charm": 79,
-    "skill": "백마의종 돌격"
+    "skill": "백마의종 돌격",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 164,
@@ -2129,7 +2455,9 @@
     "intel": 75,
     "politics": 82,
     "charm": 84,
-    "skill": "형주 팔준"
+    "skill": "형주 팔준",
+    "birthYear": 142,
+    "debutYear": 162
   },
   {
     "id": 165,
@@ -2142,7 +2470,9 @@
     "intel": 56,
     "politics": 68,
     "charm": 71,
-    "skill": "익주의 온화"
+    "skill": "익주의 온화",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 166,
@@ -2155,7 +2485,9 @@
     "intel": 58,
     "politics": 62,
     "charm": 80,
-    "skill": "서량 철기"
+    "skill": "서량 철기",
+    "birthYear": 156,
+    "debutYear": 176
   },
   {
     "id": 167,
@@ -2168,7 +2500,9 @@
     "intel": 77,
     "politics": 74,
     "charm": 73,
-    "skill": "관서 연합"
+    "skill": "관서 연합",
+    "birthYear": 140,
+    "debutYear": 160
   },
   {
     "id": 168,
@@ -2181,7 +2515,9 @@
     "intel": 74,
     "politics": 83,
     "charm": 81,
-    "skill": "오두미도 교화"
+    "skill": "오두미도 교화",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 169,
@@ -2194,7 +2530,9 @@
     "intel": 64,
     "politics": 75,
     "charm": 78,
-    "skill": "서주 양위"
+    "skill": "서주 양위",
+    "birthYear": 132,
+    "debutYear": 152
   },
   {
     "id": 170,
@@ -2207,7 +2545,9 @@
     "intel": 81,
     "politics": 76,
     "charm": 86,
-    "skill": "북해의 문장"
+    "skill": "북해의 문장",
+    "birthYear": 153,
+    "debutYear": 173
   },
   {
     "id": 171,
@@ -2220,7 +2560,9 @@
     "intel": 83,
     "politics": 81,
     "charm": 68,
-    "skill": "업성 사수"
+    "skill": "업성 사수",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 172,
@@ -2233,7 +2575,9 @@
     "intel": 84,
     "politics": 78,
     "charm": 57,
-    "skill": "계책의 발의"
+    "skill": "계책의 발의",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 173,
@@ -2246,7 +2590,9 @@
     "intel": 80,
     "politics": 74,
     "charm": 46,
-    "skill": "참언의 화살"
+    "skill": "참언의 화살",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 174,
@@ -2259,7 +2605,9 @@
     "intel": 85,
     "politics": 73,
     "charm": 42,
-    "skill": "오소 기밀 누설"
+    "skill": "오소 기밀 누설",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 175,
@@ -2272,7 +2620,9 @@
     "intel": 78,
     "politics": 62,
     "charm": 76,
-    "skill": "지공장군 주술"
+    "skill": "지공장군 주술",
+    "birthYear": 145,
+    "debutYear": 184
   },
   {
     "id": 176,
@@ -2285,7 +2635,9 @@
     "intel": 76,
     "politics": 60,
     "charm": 75,
-    "skill": "인공장군 진법"
+    "skill": "인공장군 진법",
+    "birthYear": 145,
+    "debutYear": 184
   },
   {
     "id": 177,
@@ -2298,7 +2650,9 @@
     "intel": 63,
     "politics": 54,
     "charm": 69,
-    "skill": "독천 함정"
+    "skill": "독천 함정",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 178,
@@ -2311,7 +2665,9 @@
     "intel": 65,
     "politics": 49,
     "charm": 67,
-    "skill": "맹수 조련"
+    "skill": "맹수 조련",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 179,
@@ -2324,7 +2680,9 @@
     "intel": 91,
     "politics": 82,
     "charm": 38,
-    "skill": "낙양 화공"
+    "skill": "낙양 화공",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 180,
@@ -2337,7 +2695,9 @@
     "intel": 84,
     "politics": 88,
     "charm": 79,
-    "skill": "연환계 기획"
+    "skill": "연환계 기획",
+    "birthYear": 137,
+    "debutYear": 157
   },
   {
     "id": 181,
@@ -2350,7 +2710,9 @@
     "intel": 85,
     "politics": 89,
     "charm": 96,
-    "skill": "주몽의 신궁"
+    "skill": "주몽의 신궁",
+    "debutYear": 190,
+    "birthYear": 169
   },
   {
     "id": 182,
@@ -2363,7 +2725,9 @@
     "intel": 81,
     "politics": 84,
     "charm": 82,
-    "skill": "황조가의 서정"
+    "skill": "황조가의 서정",
+    "debutYear": 190,
+    "birthYear": 168
   },
   {
     "id": 183,
@@ -2376,7 +2740,9 @@
     "intel": 86,
     "politics": 87,
     "charm": 88,
-    "skill": "개마무사 돌격"
+    "skill": "개마무사 돌격",
+    "debutYear": 190,
+    "birthYear": 167
   },
   {
     "id": 184,
@@ -2389,7 +2755,9 @@
     "intel": 92,
     "politics": 96,
     "charm": 91,
-    "skill": "남진 정책"
+    "skill": "남진 정책",
+    "debutYear": 190,
+    "birthYear": 166
   },
   {
     "id": 185,
@@ -2402,7 +2770,9 @@
     "intel": 93,
     "politics": 89,
     "charm": 85,
-    "skill": "좌원 대첩"
+    "skill": "좌원 대첩",
+    "debutYear": 190,
+    "birthYear": 165
   },
   {
     "id": 186,
@@ -2415,7 +2785,9 @@
     "intel": 92,
     "politics": 96,
     "charm": 89,
-    "skill": "진대법 시행"
+    "skill": "진대법 시행",
+    "debutYear": 190,
+    "birthYear": 164
   },
   {
     "id": 187,
@@ -2428,7 +2800,9 @@
     "intel": 84,
     "politics": 88,
     "charm": 86,
-    "skill": "왕권 강화"
+    "skill": "왕권 강화",
+    "debutYear": 190,
+    "birthYear": 163
   },
   {
     "id": 188,
@@ -2441,7 +2815,9 @@
     "intel": 61,
     "politics": 52,
     "charm": 79,
-    "skill": "결사대의 돌진"
+    "skill": "결사대의 돌진",
+    "debutYear": 190,
+    "birthYear": 162
   },
   {
     "id": 189,
@@ -2454,7 +2830,9 @@
     "intel": 79,
     "politics": 63,
     "charm": 78,
-    "skill": "비수 암살"
+    "skill": "비수 암살",
+    "debutYear": 190,
+    "birthYear": 161
   },
   {
     "id": 190,
@@ -2467,7 +2845,9 @@
     "intel": 83,
     "politics": 88,
     "charm": 90,
-    "skill": "하남 위례 개국"
+    "skill": "하남 위례 개국",
+    "debutYear": 190,
+    "birthYear": 160
   },
   {
     "id": 191,
@@ -2480,7 +2860,9 @@
     "intel": 87,
     "politics": 92,
     "charm": 89,
-    "skill": "갱위강국"
+    "skill": "갱위강국",
+    "debutYear": 190,
+    "birthYear": 159
   },
   {
     "id": 192,
@@ -2493,7 +2875,9 @@
     "intel": 88,
     "politics": 91,
     "charm": 90,
-    "skill": "사비 천도"
+    "skill": "사비 천도",
+    "debutYear": 190,
+    "birthYear": 158
   },
   {
     "id": 193,
@@ -2506,7 +2890,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 78,
-    "skill": "대야성 함락"
+    "skill": "대야성 함락",
+    "debutYear": 190,
+    "birthYear": 157
   },
   {
     "id": 194,
@@ -2519,7 +2905,9 @@
     "intel": 78,
     "politics": 71,
     "charm": 76,
-    "skill": "주류성 항전"
+    "skill": "주류성 항전",
+    "debutYear": 190,
+    "birthYear": 156
   },
   {
     "id": 195,
@@ -2532,7 +2920,9 @@
     "intel": 89,
     "politics": 93,
     "charm": 92,
-    "skill": "한강 유역 장악"
+    "skill": "한강 유역 장악",
+    "debutYear": 190,
+    "birthYear": 155
   },
   {
     "id": 196,
@@ -2545,7 +2935,9 @@
     "intel": 91,
     "politics": 90,
     "charm": 94,
-    "skill": "삼가지 예지"
+    "skill": "삼가지 예지",
+    "debutYear": 190,
+    "birthYear": 170
   },
   {
     "id": 197,
@@ -2558,7 +2950,9 @@
     "intel": 90,
     "politics": 92,
     "charm": 91,
-    "skill": "매소성 대첩"
+    "skill": "매소성 대첩",
+    "debutYear": 190,
+    "birthYear": 169
   },
   {
     "id": 198,
@@ -2571,7 +2965,9 @@
     "intel": 68,
     "politics": 62,
     "charm": 88,
-    "skill": "전단량 돌파"
+    "skill": "전단량 돌파",
+    "debutYear": 190,
+    "birthYear": 168
   },
   {
     "id": 199,
@@ -2584,7 +2980,9 @@
     "intel": 88,
     "politics": 91,
     "charm": 87,
-    "skill": "당나라 외교전"
+    "skill": "당나라 외교전",
+    "debutYear": 190,
+    "birthYear": 167
   },
   {
     "id": 200,
@@ -2597,7 +2995,9 @@
     "intel": 94,
     "politics": 83,
     "charm": 95,
-    "skill": "일심 화쟁"
+    "skill": "일심 화쟁",
+    "debutYear": 190,
+    "birthYear": 166
   },
   {
     "id": 201,
@@ -2610,7 +3010,9 @@
     "intel": 52,
     "politics": 45,
     "charm": 66,
-    "skill": "완성 호위"
+    "skill": "완성 호위",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 202,
@@ -2623,7 +3025,9 @@
     "intel": 61,
     "politics": 58,
     "charm": 69,
-    "skill": "호표기 지휘"
+    "skill": "호표기 지휘",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 203,
@@ -2636,7 +3040,9 @@
     "intel": 49,
     "politics": 44,
     "charm": 62,
-    "skill": "천탕산 수비"
+    "skill": "천탕산 수비",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 204,
@@ -2649,7 +3055,9 @@
     "intel": 43,
     "politics": 41,
     "charm": 60,
-    "skill": "청강검 수호"
+    "skill": "청강검 수호",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 205,
@@ -2662,7 +3070,9 @@
     "intel": 51,
     "politics": 62,
     "charm": 65,
-    "skill": "부마의 위세"
+    "skill": "부마의 위세",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 206,
@@ -2675,7 +3085,9 @@
     "intel": 85,
     "politics": 84,
     "charm": 88,
-    "skill": "현학의 명사"
+    "skill": "현학의 명사",
+    "birthYear": 209,
+    "debutYear": 216
   },
   {
     "id": 207,
@@ -2688,7 +3100,9 @@
     "intel": 64,
     "politics": 55,
     "charm": 68,
-    "skill": "태산의 맹호"
+    "skill": "태산의 맹호",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 208,
@@ -2701,7 +3115,9 @@
     "intel": 62,
     "politics": 57,
     "charm": 66,
-    "skill": "후장군의 분전"
+    "skill": "후장군의 분전",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 209,
@@ -2714,7 +3130,9 @@
     "intel": 58,
     "politics": 54,
     "charm": 65,
-    "skill": "연주 토벌"
+    "skill": "연주 토벌",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 210,
@@ -2727,11 +3145,13 @@
     "intel": 60,
     "politics": 56,
     "charm": 72,
-    "skill": "강릉 구원"
+    "skill": "강릉 구원",
+    "birthYear": 168,
+    "debutYear": 188
   },
   {
     "id": 211,
-    "name": "우금자",
+    "name": "우규",
     "faction": "위",
     "tier": "B",
     "job": "궁수",
@@ -2740,11 +3160,13 @@
     "intel": 59,
     "politics": 55,
     "charm": 61,
-    "skill": "예비대 사격"
+    "skill": "예비대 사격",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 212,
-    "name": "조창자",
+    "name": "조해",
     "faction": "위",
     "tier": "B",
     "job": "야수병",
@@ -2753,7 +3175,9 @@
     "intel": 47,
     "politics": 43,
     "charm": 63,
-    "skill": "변방 순찰"
+    "skill": "변방 순찰",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 213,
@@ -2766,7 +3190,9 @@
     "intel": 82,
     "politics": 77,
     "charm": 75,
-    "skill": "옹주 방어선"
+    "skill": "옹주 방어선",
+    "birthYear": 187,
+    "debutYear": 205
   },
   {
     "id": 214,
@@ -2779,7 +3205,9 @@
     "intel": 84,
     "politics": 81,
     "charm": 79,
-    "skill": "적도 해위"
+    "skill": "적도 해위",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 215,
@@ -2792,7 +3220,9 @@
     "intel": 53,
     "politics": 44,
     "charm": 62,
-    "skill": "철롱산 돌격"
+    "skill": "철롱산 돌격",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 216,
@@ -2805,7 +3235,9 @@
     "intel": 72,
     "politics": 66,
     "charm": 67,
-    "skill": "진창 보급"
+    "skill": "진창 보급",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 217,
@@ -2818,7 +3250,9 @@
     "intel": 73,
     "politics": 75,
     "charm": 74,
-    "skill": "맹호 격투"
+    "skill": "맹호 격투",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 218,
@@ -2831,7 +3265,9 @@
     "intel": 81,
     "politics": 76,
     "charm": 79,
-    "skill": "북방 오환 제압"
+    "skill": "북방 오환 제압",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 219,
@@ -2844,7 +3280,9 @@
     "intel": 71,
     "politics": 69,
     "charm": 70,
-    "skill": "상곡 수비"
+    "skill": "상곡 수비",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 220,
@@ -2857,7 +3295,9 @@
     "intel": 56,
     "politics": 45,
     "charm": 61,
-    "skill": "회남 거병"
+    "skill": "회남 거병",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 221,
@@ -2870,7 +3310,9 @@
     "intel": 78,
     "politics": 74,
     "charm": 72,
-    "skill": "요동 원정"
+    "skill": "요동 원정",
+    "birthYear": 218,
+    "debutYear": 216
   },
   {
     "id": 222,
@@ -2883,7 +3325,9 @@
     "intel": 77,
     "politics": 76,
     "charm": 73,
-    "skill": "수춘 결사항전"
+    "skill": "수춘 결사항전",
+    "birthYear": 203,
+    "debutYear": 217
   },
   {
     "id": 223,
@@ -2896,7 +3340,9 @@
     "intel": 80,
     "politics": 82,
     "charm": 75,
-    "skill": "회남 충절"
+    "skill": "회남 충절",
+    "birthYear": 172,
+    "debutYear": 192
   },
   {
     "id": 224,
@@ -2909,7 +3355,9 @@
     "intel": 75,
     "politics": 74,
     "charm": 72,
-    "skill": "조수 배수진"
+    "skill": "조수 배수진",
+    "birthYear": 205,
+    "debutYear": 217
   },
   {
     "id": 225,
@@ -2922,7 +3370,9 @@
     "intel": 85,
     "politics": 88,
     "charm": 44,
-    "skill": "음모의 칼날"
+    "skill": "음모의 칼날",
+    "birthYear": 217,
+    "debutYear": 215
   },
   {
     "id": 226,
@@ -2935,7 +3385,9 @@
     "intel": 82,
     "politics": 89,
     "charm": 81,
-    "skill": "청렴한 인사"
+    "skill": "청렴한 인사",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 227,
@@ -2948,7 +3400,9 @@
     "intel": 81,
     "politics": 87,
     "charm": 86,
-    "skill": "위엄 있는 풍채"
+    "skill": "위엄 있는 풍채",
+    "birthYear": 163,
+    "debutYear": 183
   },
   {
     "id": 228,
@@ -2961,7 +3415,9 @@
     "intel": 89,
     "politics": 76,
     "charm": 64,
-    "skill": "계륵의 통찰"
+    "skill": "계륵의 통찰",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 229,
@@ -2974,7 +3430,9 @@
     "intel": 79,
     "politics": 85,
     "charm": 82,
-    "skill": "둔전 권농"
+    "skill": "둔전 권농",
+    "birthYear": 171,
+    "debutYear": 189
   },
   {
     "id": 230,
@@ -2987,7 +3445,9 @@
     "intel": 84,
     "politics": 78,
     "charm": 80,
-    "skill": "건안칠자의 시"
+    "skill": "건안칠자의 시",
+    "birthYear": 177,
+    "debutYear": 195
   },
   {
     "id": 231,
@@ -3000,7 +3460,9 @@
     "intel": 83,
     "politics": 79,
     "charm": 74,
-    "skill": "격문의 필력"
+    "skill": "격문의 필력",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 232,
@@ -3013,7 +3475,9 @@
     "intel": 68,
     "politics": 63,
     "charm": 71,
-    "skill": "완성 야습"
+    "skill": "완성 야습",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 233,
@@ -3026,7 +3490,9 @@
     "intel": 34,
     "politics": 25,
     "charm": 54,
-    "skill": "쌍극 탈취"
+    "skill": "쌍극 탈취",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 234,
@@ -3039,7 +3505,9 @@
     "intel": 81,
     "politics": 83,
     "charm": 74,
-    "skill": "오장원 지휘"
+    "skill": "오장원 지휘",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 235,
@@ -3052,7 +3520,9 @@
     "intel": 88,
     "politics": 82,
     "charm": 87,
-    "skill": "현녀의 선견"
+    "skill": "현녀의 선견",
+    "birthYear": 191,
+    "debutYear": 209
   },
   {
     "id": 236,
@@ -3065,7 +3535,9 @@
     "intel": 86,
     "politics": 85,
     "charm": 90,
-    "skill": "문명황후의 혜안"
+    "skill": "문명황후의 혜안",
+    "birthYear": 217,
+    "debutYear": 215
   },
   {
     "id": 237,
@@ -3078,7 +3550,9 @@
     "intel": 81,
     "politics": 87,
     "charm": 84,
-    "skill": "삼국통일의 대업"
+    "skill": "삼국통일의 대업",
+    "birthYear": 236,
+    "debutYear": 216
   },
   {
     "id": 238,
@@ -3091,7 +3565,9 @@
     "intel": 56,
     "politics": 48,
     "charm": 83,
-    "skill": "화관의 무예"
+    "skill": "화관의 무예",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 239,
@@ -3104,7 +3580,9 @@
     "intel": 61,
     "politics": 54,
     "charm": 86,
-    "skill": "호녀의 일격"
+    "skill": "호녀의 일격",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 240,
@@ -3117,7 +3595,9 @@
     "intel": 68,
     "politics": 72,
     "charm": 85,
-    "skill": "경애황후의 창"
+    "skill": "경애황후의 창",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 241,
@@ -3130,7 +3610,9 @@
     "intel": 52,
     "politics": 43,
     "charm": 79,
-    "skill": "흑산의 여장부"
+    "skill": "흑산의 여장부",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 242,
@@ -3143,7 +3625,9 @@
     "intel": 93,
     "politics": 84,
     "charm": 78,
-    "skill": "목우유마 발명"
+    "skill": "목우유마 발명",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 243,
@@ -3156,7 +3640,9 @@
     "intel": 76,
     "politics": 87,
     "charm": 84,
-    "skill": "거부의 군자금"
+    "skill": "거부의 군자금",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 244,
@@ -3169,7 +3655,9 @@
     "intel": 87,
     "politics": 86,
     "charm": 82,
-    "skill": "광릉 치수"
+    "skill": "광릉 치수",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 245,
@@ -3182,7 +3670,9 @@
     "intel": 82,
     "politics": 84,
     "charm": 77,
-    "skill": "원술 이간책"
+    "skill": "원술 이간책",
+    "birthYear": 135,
+    "debutYear": 155
   },
   {
     "id": 246,
@@ -3195,7 +3685,9 @@
     "intel": 53,
     "politics": 46,
     "charm": 64,
-    "skill": "하변 돌파"
+    "skill": "하변 돌파",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 247,
@@ -3208,7 +3700,9 @@
     "intel": 51,
     "politics": 44,
     "charm": 63,
-    "skill": "음평 돌격"
+    "skill": "음평 돌격",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 248,
@@ -3221,7 +3715,9 @@
     "intel": 67,
     "politics": 64,
     "charm": 68,
-    "skill": "열류성 진영"
+    "skill": "열류성 진영",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 249,
@@ -3234,20 +3730,24 @@
     "intel": 64,
     "politics": 68,
     "charm": 76,
-    "skill": "화려한 의전"
+    "skill": "화려한 의전",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 250,
     "name": "비시",
     "faction": "촉",
     "tier": "B",
-    "job": "궁기",
+    "job": "책사",
     "leadership": 44,
     "war": 28,
     "intel": 77,
     "politics": 81,
     "charm": 79,
-    "skill": "직언의 사신"
+    "skill": "직언의 사신",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 251,
@@ -3260,7 +3760,9 @@
     "intel": 84,
     "politics": 82,
     "charm": 43,
-    "skill": "군수 행군 조율"
+    "skill": "군수 행군 조율",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 252,
@@ -3273,7 +3775,9 @@
     "intel": 83,
     "politics": 86,
     "charm": 85,
-    "skill": "동오 사신 담판"
+    "skill": "동오 사신 담판",
+    "birthYear": 177,
+    "debutYear": 195
   },
   {
     "id": 253,
@@ -3286,7 +3790,9 @@
     "intel": 82,
     "politics": 79,
     "charm": 73,
-    "skill": "천문 관측"
+    "skill": "천문 관측",
+    "birthYear": 201,
+    "debutYear": 219
   },
   {
     "id": 254,
@@ -3299,7 +3805,9 @@
     "intel": 78,
     "politics": 81,
     "charm": 77,
-    "skill": "항복문 작성"
+    "skill": "항복문 작성",
+    "birthYear": 220,
+    "debutYear": 218
   },
   {
     "id": 255,
@@ -3312,20 +3820,24 @@
     "intel": 81,
     "politics": 78,
     "charm": 80,
-    "skill": "영안성 혈전 사수"
+    "skill": "영안성 혈전 사수",
+    "birthYear": 218,
+    "debutYear": 216
   },
   {
     "id": 256,
     "name": "곽유지",
     "faction": "촉",
     "tier": "B",
-    "job": "창병",
+    "job": "풍수사",
     "leadership": 43,
     "war": 22,
     "intel": 79,
     "politics": 85,
     "charm": 83,
-    "skill": "출사표의 충신"
+    "skill": "출사표의 충신",
+    "birthYear": 180,
+    "debutYear": 200
   },
   {
     "id": 257,
@@ -3338,7 +3850,9 @@
     "intel": 76,
     "politics": 80,
     "charm": 78,
-    "skill": "촉오 맹약 체결"
+    "skill": "촉오 맹약 체결",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 258,
@@ -3351,7 +3865,9 @@
     "intel": 79,
     "politics": 77,
     "charm": 75,
-    "skill": "영창군 수호"
+    "skill": "영창군 수호",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 259,
@@ -3364,7 +3880,9 @@
     "intel": 78,
     "politics": 80,
     "charm": 82,
-    "skill": "남중 도독 통치"
+    "skill": "남중 도독 통치",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 260,
@@ -3377,7 +3895,9 @@
     "intel": 71,
     "politics": 68,
     "charm": 81,
-    "skill": "북지왕의 기개"
+    "skill": "북지왕의 기개",
+    "birthYear": 224,
+    "debutYear": 218
   },
   {
     "id": 261,
@@ -3390,20 +3910,24 @@
     "intel": 84,
     "politics": 88,
     "charm": 72,
-    "skill": "직백전 화폐 개혁"
+    "skill": "직백전 화폐 개혁",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 262,
     "name": "이적",
     "faction": "촉",
     "tier": "B",
-    "job": "검병",
+    "job": "도사",
     "leadership": 41,
     "war": 24,
     "intel": 76,
     "politics": 82,
     "charm": 80,
-    "skill": "촉과율 편찬"
+    "skill": "촉과율 편찬",
+    "birthYear": 175,
+    "debutYear": 195
   },
   {
     "id": 263,
@@ -3416,7 +3940,9 @@
     "intel": 68,
     "politics": 70,
     "charm": 79,
-    "skill": "어림군 통솔"
+    "skill": "어림군 통솔",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 264,
@@ -3429,7 +3955,9 @@
     "intel": 58,
     "politics": 52,
     "charm": 64,
-    "skill": "복수의 화살"
+    "skill": "복수의 화살",
+    "birthYear": 220,
+    "debutYear": 218
   },
   {
     "id": 265,
@@ -3442,7 +3970,9 @@
     "intel": 66,
     "politics": 63,
     "charm": 68,
-    "skill": "어린 황제의 총명"
+    "skill": "어린 황제의 총명",
+    "birthYear": 243,
+    "debutYear": 214
   },
   {
     "id": 266,
@@ -3455,7 +3985,9 @@
     "intel": 74,
     "politics": 76,
     "charm": 75,
-    "skill": "권신 주살"
+    "skill": "권신 주살",
+    "birthYear": 235,
+    "debutYear": 215
   },
   {
     "id": 267,
@@ -3468,7 +4000,9 @@
     "intel": 48,
     "politics": 35,
     "charm": 26,
-    "skill": "말대 황제의 폭압"
+    "skill": "말대 황제의 폭압",
+    "birthYear": 242,
+    "debutYear": 218
   },
   {
     "id": 268,
@@ -3481,7 +4015,9 @@
     "intel": 79,
     "politics": 83,
     "charm": 87,
-    "skill": "현명한 태자"
+    "skill": "현명한 태자",
+    "birthYear": 209,
+    "debutYear": 214
   },
   {
     "id": 269,
@@ -3494,7 +4030,9 @@
     "intel": 73,
     "politics": 68,
     "charm": 74,
-    "skill": "이도성 방어"
+    "skill": "이도성 방어",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 270,
@@ -3507,7 +4045,9 @@
     "intel": 71,
     "politics": 74,
     "charm": 76,
-    "skill": "단양 수군"
+    "skill": "단양 수군",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 271,
@@ -3520,7 +4060,9 @@
     "intel": 69,
     "politics": 70,
     "charm": 75,
-    "skill": "강하 주둔군"
+    "skill": "강하 주둔군",
+    "birthYear": 178,
+    "debutYear": 196
   },
   {
     "id": 272,
@@ -3533,7 +4075,9 @@
     "intel": 65,
     "politics": 62,
     "charm": 71,
-    "skill": "유수 방어전"
+    "skill": "유수 방어전",
+    "birthYear": 178,
+    "debutYear": 196
   },
   {
     "id": 273,
@@ -3546,7 +4090,9 @@
     "intel": 77,
     "politics": 79,
     "charm": 76,
-    "skill": "교주 남방 평정"
+    "skill": "교주 남방 평정",
+    "birthYear": 160,
+    "debutYear": 178
   },
   {
     "id": 274,
@@ -3559,7 +4105,9 @@
     "intel": 74,
     "politics": 70,
     "charm": 73,
-    "skill": "산월 토벌의 명장"
+    "skill": "산월 토벌의 명장",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 275,
@@ -3572,7 +4120,9 @@
     "intel": 73,
     "politics": 68,
     "charm": 77,
-    "skill": "면학의 장수"
+    "skill": "면학의 장수",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 276,
@@ -3585,7 +4135,9 @@
     "intel": 74,
     "politics": 79,
     "charm": 76,
-    "skill": "손씨 가문의 원로"
+    "skill": "손씨 가문의 원로",
+    "birthYear": 156,
+    "debutYear": 176
   },
   {
     "id": 277,
@@ -3598,7 +4150,9 @@
     "intel": 81,
     "politics": 83,
     "charm": 80,
-    "skill": "구휼과 절약"
+    "skill": "구휼과 절약",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 278,
@@ -3611,7 +4165,9 @@
     "intel": 84,
     "politics": 80,
     "charm": 82,
-    "skill": "회귤의 효심"
+    "skill": "회귤의 효심",
+    "birthYear": 187,
+    "debutYear": 205
   },
   {
     "id": 279,
@@ -3624,7 +4180,9 @@
     "intel": 82,
     "politics": 83,
     "charm": 78,
-    "skill": "재치 있는 응대"
+    "skill": "재치 있는 응대",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 280,
@@ -3637,7 +4195,9 @@
     "intel": 86,
     "politics": 84,
     "charm": 79,
-    "skill": "고육계 밀서 전달"
+    "skill": "고육계 밀서 전달",
+    "birthYear": 170,
+    "debutYear": 190
   },
   {
     "id": 281,
@@ -3650,7 +4210,9 @@
     "intel": 71,
     "politics": 72,
     "charm": 74,
-    "skill": "수군 선봉"
+    "skill": "수군 선봉",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 282,
@@ -3663,7 +4225,9 @@
     "intel": 66,
     "politics": 69,
     "charm": 73,
-    "skill": "강동 개척"
+    "skill": "강동 개척",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 283,
@@ -3676,7 +4240,9 @@
     "intel": 80,
     "politics": 81,
     "charm": 82,
-    "skill": "사절의 품격"
+    "skill": "사절의 품격",
+    "birthYear": 193,
+    "debutYear": 211
   },
   {
     "id": 284,
@@ -3689,7 +4255,9 @@
     "intel": 83,
     "politics": 65,
     "charm": 71,
-    "skill": "팔괘 점술"
+    "skill": "팔괘 점술",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 285,
@@ -3702,7 +4270,9 @@
     "intel": 42,
     "politics": 35,
     "charm": 54,
-    "skill": "동오의 덕왕"
+    "skill": "동오의 덕왕",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 286,
@@ -3715,20 +4285,24 @@
     "intel": 65,
     "politics": 71,
     "charm": 73,
-    "skill": "양주 자사"
+    "skill": "양주 자사",
+    "birthYear": 157,
+    "debutYear": 177
   },
   {
     "id": 287,
     "name": "왕랑",
     "faction": "군웅",
     "tier": "B",
-    "job": "창병",
+    "job": "군악대",
     "leadership": 53,
     "war": 32,
     "intel": 75,
     "politics": 81,
     "charm": 74,
-    "skill": "회계 태수"
+    "skill": "회계 태수",
+    "birthYear": 141,
+    "debutYear": 161
   },
   {
     "id": 288,
@@ -3741,11 +4315,13 @@
     "intel": 62,
     "politics": 53,
     "charm": 74,
-    "skill": "흑산 비연"
+    "skill": "흑산 비연",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 289,
-    "name": "장수군",
+    "name": "한맹",
     "faction": "군웅",
     "tier": "B",
     "job": "무도가",
@@ -3754,7 +4330,9 @@
     "intel": 41,
     "politics": 32,
     "charm": 58,
-    "skill": "황건 돌격대"
+    "skill": "황건 돌격대",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 290,
@@ -3767,7 +4345,9 @@
     "intel": 36,
     "politics": 28,
     "charm": 55,
-    "skill": "북해 포위망"
+    "skill": "북해 포위망",
+    "birthYear": 165,
+    "debutYear": 184
   },
   {
     "id": 291,
@@ -3780,7 +4360,9 @@
     "intel": 79,
     "politics": 81,
     "charm": 83,
-    "skill": "평양성 진격"
+    "skill": "평양성 진격",
+    "debutYear": 190,
+    "birthYear": 165
   },
   {
     "id": 292,
@@ -3793,7 +4375,9 @@
     "intel": 85,
     "politics": 91,
     "charm": 86,
-    "skill": "율령 반포"
+    "skill": "율령 반포",
+    "debutYear": 190,
+    "birthYear": 164
   },
   {
     "id": 293,
@@ -3806,7 +4390,9 @@
     "intel": 74,
     "politics": 76,
     "charm": 84,
-    "skill": "비류수 혈전"
+    "skill": "비류수 혈전",
+    "debutYear": 190,
+    "birthYear": 163
   },
   {
     "id": 294,
@@ -3819,7 +4405,9 @@
     "intel": 82,
     "politics": 84,
     "charm": 85,
-    "skill": "낙랑군 축출"
+    "skill": "낙랑군 축출",
+    "debutYear": 190,
+    "birthYear": 162
   },
   {
     "id": 295,
@@ -3832,7 +4420,9 @@
     "intel": 71,
     "politics": 73,
     "charm": 76,
-    "skill": "환도성 방어"
+    "skill": "환도성 방어",
+    "debutYear": 190,
+    "birthYear": 161
   },
   {
     "id": 296,
@@ -3845,7 +4435,9 @@
     "intel": 86,
     "politics": 92,
     "charm": 88,
-    "skill": "불교 공인과 건원"
+    "skill": "불교 공인과 건원",
+    "debutYear": 190,
+    "birthYear": 160
   },
   {
     "id": 297,
@@ -3858,7 +4450,9 @@
     "intel": 83,
     "politics": 89,
     "charm": 85,
-    "skill": "국호 신라 제정"
+    "skill": "국호 신라 제정",
+    "debutYear": 190,
+    "birthYear": 159
   },
   {
     "id": 298,
@@ -3871,7 +4465,9 @@
     "intel": 85,
     "politics": 87,
     "charm": 89,
-    "skill": "치당태평송"
+    "skill": "치당태평송",
+    "debutYear": 190,
+    "birthYear": 158
   },
   {
     "id": 299,
@@ -3884,7 +4480,9 @@
     "intel": 72,
     "politics": 74,
     "charm": 77,
-    "skill": "서라벌 수비"
+    "skill": "서라벌 수비",
+    "debutYear": 190,
+    "birthYear": 157
   },
   {
     "id": 300,
@@ -3897,7 +4495,9 @@
     "intel": 87,
     "politics": 76,
     "charm": 90,
-    "skill": "도솔가의 영험"
+    "skill": "도솔가의 영험",
+    "debutYear": 190,
+    "birthYear": 156
   },
   {
     "id": 301,
@@ -3910,7 +4510,9 @@
     "intel": 84,
     "politics": 74,
     "charm": 79,
-    "skill": "파미르 산맥 돌파"
+    "skill": "파미르 산맥 돌파",
+    "debutYear": 190,
+    "birthYear": 155
   },
   {
     "id": 302,
@@ -3923,7 +4525,9 @@
     "intel": 86,
     "politics": 92,
     "charm": 96,
-    "skill": "호족 포용의 덕"
+    "skill": "호족 포용의 덕",
+    "debutYear": 190,
+    "birthYear": 170
   },
   {
     "id": 303,
@@ -3936,7 +4540,9 @@
     "intel": 94,
     "politics": 90,
     "charm": 88,
-    "skill": "귀주 대첩의 물막이"
+    "skill": "귀주 대첩의 물막이",
+    "debutYear": 190,
+    "birthYear": 169
   },
   {
     "id": 304,
@@ -3949,7 +4555,9 @@
     "intel": 91,
     "politics": 94,
     "charm": 89,
-    "skill": "강동 육주 담판"
+    "skill": "강동 육주 담판",
+    "debutYear": 190,
+    "birthYear": 168
   },
   {
     "id": 305,
@@ -3962,7 +4570,9 @@
     "intel": 85,
     "politics": 83,
     "charm": 84,
-    "skill": "별무반 동북 9성"
+    "skill": "별무반 동북 9성",
+    "debutYear": 190,
+    "birthYear": 167
   },
   {
     "id": 306,
@@ -3975,7 +4585,9 @@
     "intel": 48,
     "politics": 36,
     "charm": 57,
-    "skill": "신검의 일격"
+    "skill": "신검의 일격",
+    "debutYear": 190,
+    "birthYear": 166
   },
   {
     "id": 307,
@@ -3988,7 +4600,9 @@
     "intel": 72,
     "politics": 45,
     "charm": 38,
-    "skill": "관심법의 위압"
+    "skill": "관심법의 위압",
+    "debutYear": 190,
+    "birthYear": 165
   },
   {
     "id": 308,
@@ -4001,7 +4615,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 77,
-    "skill": "후백제의 호랑이"
+    "skill": "후백제의 호랑이",
+    "debutYear": 190,
+    "birthYear": 164
   },
   {
     "id": 309,
@@ -4014,7 +4630,9 @@
     "intel": 61,
     "politics": 54,
     "charm": 85,
-    "skill": "공산 전투 대타"
+    "skill": "공산 전투 대타",
+    "debutYear": 192,
+    "birthYear": 169
   },
   {
     "id": 310,
@@ -4027,7 +4645,9 @@
     "intel": 63,
     "politics": 58,
     "charm": 80,
-    "skill": "개국 공신의 충절"
+    "skill": "개국 공신의 충절",
+    "debutYear": 194,
+    "birthYear": 170
   },
   {
     "id": 311,
@@ -4040,7 +4660,9 @@
     "intel": 60,
     "politics": 57,
     "charm": 78,
-    "skill": "삼한 공신의 의기"
+    "skill": "삼한 공신의 의기",
+    "debutYear": 196,
+    "birthYear": 171
   },
   {
     "id": 312,
@@ -4053,7 +4675,9 @@
     "intel": 58,
     "politics": 52,
     "charm": 76,
-    "skill": "의리의 돌격"
+    "skill": "의리의 돌격",
+    "debutYear": 198,
+    "birthYear": 172
   },
   {
     "id": 313,
@@ -4066,7 +4690,9 @@
     "intel": 92,
     "politics": 86,
     "charm": 89,
-    "skill": "토황소격문"
+    "skill": "토황소격문",
+    "debutYear": 200,
+    "birthYear": 173
   },
   {
     "id": 314,
@@ -4079,7 +4705,9 @@
     "intel": 90,
     "politics": 79,
     "charm": 88,
-    "skill": "비보 풍수 지리"
+    "skill": "비보 풍수 지리",
+    "debutYear": 202,
+    "birthYear": 184
   },
   {
     "id": 315,
@@ -4092,7 +4720,9 @@
     "intel": 82,
     "politics": 71,
     "charm": 86,
-    "skill": "흥화진 7전 7승"
+    "skill": "흥화진 7전 7승",
+    "debutYear": 204,
+    "birthYear": 185
   },
   {
     "id": 316,
@@ -4105,7 +4735,9 @@
     "intel": 70,
     "politics": 64,
     "charm": 77,
-    "skill": "곽주 결사 방어"
+    "skill": "곽주 결사 방어",
+    "debutYear": 206,
+    "birthYear": 186
   },
   {
     "id": 317,
@@ -4118,7 +4750,9 @@
     "intel": 66,
     "politics": 61,
     "charm": 79,
-    "skill": "석성 기습"
+    "skill": "석성 기습",
+    "debutYear": 208,
+    "birthYear": 187
   },
   {
     "id": 318,
@@ -4131,7 +4765,9 @@
     "intel": 85,
     "politics": 93,
     "charm": 84,
-    "skill": "문벌 외교 안정"
+    "skill": "문벌 외교 안정",
+    "debutYear": 192,
+    "birthYear": 170
   },
   {
     "id": 319,
@@ -4144,7 +4780,9 @@
     "intel": 87,
     "politics": 91,
     "charm": 75,
-    "skill": "삼국사기 편찬"
+    "skill": "삼국사기 편찬",
+    "debutYear": 194,
+    "birthYear": 171
   },
   {
     "id": 320,
@@ -4157,7 +4795,9 @@
     "intel": 84,
     "politics": 68,
     "charm": 76,
-    "skill": "서경 천도 주술"
+    "skill": "서경 천도 주술",
+    "debutYear": 196,
+    "birthYear": 172
   },
   {
     "id": 321,
@@ -4170,7 +4810,9 @@
     "intel": 58,
     "politics": 54,
     "charm": 62,
-    "skill": "무신 정변의 칼날"
+    "skill": "무신 정변의 칼날",
+    "debutYear": 198,
+    "birthYear": 173
   },
   {
     "id": 322,
@@ -4183,7 +4825,9 @@
     "intel": 51,
     "politics": 46,
     "charm": 55,
-    "skill": "보현원 급습"
+    "skill": "보현원 급습",
+    "debutYear": 200,
+    "birthYear": 174
   },
   {
     "id": 323,
@@ -4196,7 +4840,9 @@
     "intel": 67,
     "politics": 62,
     "charm": 83,
-    "skill": "도방의 협객"
+    "skill": "도방의 협객",
+    "debutYear": 202,
+    "birthYear": 175
   },
   {
     "id": 324,
@@ -4209,7 +4855,9 @@
     "intel": 84,
     "politics": 88,
     "charm": 59,
-    "skill": "교정도감 장악"
+    "skill": "교정도감 장악",
+    "debutYear": 204,
+    "birthYear": 186
   },
   {
     "id": 325,
@@ -4222,7 +4870,9 @@
     "intel": 78,
     "politics": 74,
     "charm": 76,
-    "skill": "거란 잔당 소탕"
+    "skill": "거란 잔당 소탕",
+    "debutYear": 206,
+    "birthYear": 187
   },
   {
     "id": 326,
@@ -4235,7 +4885,9 @@
     "intel": 80,
     "politics": 75,
     "charm": 84,
-    "skill": "귀주성 항전"
+    "skill": "귀주성 항전",
+    "debutYear": 208,
+    "birthYear": 188
   },
   {
     "id": 327,
@@ -4248,7 +4900,9 @@
     "intel": 65,
     "politics": 59,
     "charm": 77,
-    "skill": "죽주산성 승전"
+    "skill": "죽주산성 승전",
+    "debutYear": 192,
+    "birthYear": 171
   },
   {
     "id": 328,
@@ -4261,7 +4915,9 @@
     "intel": 62,
     "politics": 58,
     "charm": 71,
-    "skill": "충주성 방어"
+    "skill": "충주성 방어",
+    "debutYear": 194,
+    "birthYear": 172
   },
   {
     "id": 329,
@@ -4274,7 +4930,9 @@
     "intel": 77,
     "politics": 72,
     "charm": 83,
-    "skill": "삼별초 해상 항전"
+    "skill": "삼별초 해상 항전",
+    "debutYear": 196,
+    "birthYear": 173
   },
   {
     "id": 330,
@@ -4287,20 +4945,24 @@
     "intel": 75,
     "politics": 70,
     "charm": 81,
-    "skill": "탐라 구원 항전"
+    "skill": "탐라 구원 항전",
+    "debutYear": 198,
+    "birthYear": 174
   },
   {
     "id": 331,
     "name": "안향",
     "faction": "한국",
     "tier": "B",
-    "job": "검병",
+    "job": "책사",
     "leadership": 41,
     "war": 22,
     "intel": 85,
     "politics": 87,
     "charm": 88,
-    "skill": "성리학 도입"
+    "skill": "성리학 도입",
+    "debutYear": 200,
+    "birthYear": 175
   },
   {
     "id": 332,
@@ -4313,7 +4975,9 @@
     "intel": 81,
     "politics": 79,
     "charm": 85,
-    "skill": "반원 자주 개혁"
+    "skill": "반원 자주 개혁",
+    "debutYear": 202,
+    "birthYear": 176
   },
   {
     "id": 333,
@@ -4326,7 +4990,9 @@
     "intel": 82,
     "politics": 78,
     "charm": 52,
-    "skill": "전민변정도감"
+    "skill": "전민변정도감",
+    "debutYear": 204,
+    "birthYear": 177
   },
   {
     "id": 334,
@@ -4339,7 +5005,9 @@
     "intel": 93,
     "politics": 82,
     "charm": 81,
-    "skill": "화통도감 화포"
+    "skill": "화통도감 화포",
+    "debutYear": 206,
+    "birthYear": 188
   },
   {
     "id": 335,
@@ -4352,7 +5020,9 @@
     "intel": 78,
     "politics": 73,
     "charm": 79,
-    "skill": "관음포 왜구 격퇴"
+    "skill": "관음포 왜구 격퇴",
+    "debutYear": 208,
+    "birthYear": 189
   },
   {
     "id": 336,
@@ -4365,7 +5035,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 75,
-    "skill": "대마도 정벌"
+    "skill": "대마도 정벌",
+    "debutYear": 192,
+    "birthYear": 172
   },
   {
     "id": 337,
@@ -4378,7 +5050,9 @@
     "intel": 83,
     "politics": 86,
     "charm": 92,
-    "skill": "신궁의 일시"
+    "skill": "신궁의 일시",
+    "debutYear": 194,
+    "birthYear": 173
   },
   {
     "id": 338,
@@ -4391,7 +5065,9 @@
     "intel": 94,
     "politics": 97,
     "charm": 84,
-    "skill": "삼봉의 개국 설계"
+    "skill": "삼봉의 개국 설계",
+    "debutYear": 196,
+    "birthYear": 174
   },
   {
     "id": 339,
@@ -4404,7 +5080,9 @@
     "intel": 91,
     "politics": 93,
     "charm": 95,
-    "skill": "단심가의 충의"
+    "skill": "단심가의 충의",
+    "debutYear": 198,
+    "birthYear": 175
   },
   {
     "id": 340,
@@ -4417,7 +5095,9 @@
     "intel": 88,
     "politics": 92,
     "charm": 76,
-    "skill": "왕자의 난 결단"
+    "skill": "왕자의 난 결단",
+    "debutYear": 200,
+    "birthYear": 176
   },
   {
     "id": 341,
@@ -4430,7 +5110,9 @@
     "intel": 74,
     "politics": 76,
     "charm": 75,
-    "skill": "개국 공신 돌격"
+    "skill": "개국 공신 돌격",
+    "debutYear": 202,
+    "birthYear": 177
   },
   {
     "id": 342,
@@ -4443,7 +5125,9 @@
     "intel": 85,
     "politics": 91,
     "charm": 77,
-    "skill": "과전법 개혁"
+    "skill": "과전법 개혁",
+    "debutYear": 204,
+    "birthYear": 178
   },
   {
     "id": 343,
@@ -4456,7 +5140,9 @@
     "intel": 88,
     "politics": 89,
     "charm": 72,
-    "skill": "왕권 강화 책략"
+    "skill": "왕권 강화 책략",
+    "debutYear": 206,
+    "birthYear": 179
   },
   {
     "id": 344,
@@ -4469,7 +5155,9 @@
     "intel": 87,
     "politics": 95,
     "charm": 94,
-    "skill": "청백리의 지혜"
+    "skill": "청백리의 지혜",
+    "debutYear": 208,
+    "birthYear": 190
   },
   {
     "id": 345,
@@ -4482,7 +5170,9 @@
     "intel": 83,
     "politics": 88,
     "charm": 91,
-    "skill": "피리 소리의 덕망"
+    "skill": "피리 소리의 덕망",
+    "debutYear": 192,
+    "birthYear": 173
   },
   {
     "id": 346,
@@ -4495,7 +5185,9 @@
     "intel": 97,
     "politics": 99,
     "charm": 98,
-    "skill": "훈민정음의 빛"
+    "skill": "훈민정음의 빛",
+    "debutYear": 194,
+    "birthYear": 174
   },
   {
     "id": 347,
@@ -4508,7 +5200,9 @@
     "intel": 95,
     "politics": 74,
     "charm": 82,
-    "skill": "천문 기기 발명"
+    "skill": "천문 기기 발명",
+    "debutYear": 196,
+    "birthYear": 175
   },
   {
     "id": 348,
@@ -4521,7 +5215,9 @@
     "intel": 83,
     "politics": 85,
     "charm": 82,
-    "skill": "육진 개척의 호랑이"
+    "skill": "육진 개척의 호랑이",
+    "debutYear": 198,
+    "birthYear": 176
   },
   {
     "id": 349,
@@ -4534,7 +5230,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 80,
-    "skill": "북방 수호의 기개"
+    "skill": "북방 수호의 기개",
+    "debutYear": 200,
+    "birthYear": 177
   },
   {
     "id": 350,
@@ -4547,7 +5245,9 @@
     "intel": 88,
     "politics": 84,
     "charm": 92,
-    "skill": "사육신의 절개"
+    "skill": "사육신의 절개",
+    "debutYear": 202,
+    "birthYear": 178
   },
   {
     "id": 351,
@@ -4560,7 +5260,9 @@
     "intel": 89,
     "politics": 90,
     "charm": 74,
-    "skill": "해동제국기 통찰"
+    "skill": "해동제국기 통찰",
+    "debutYear": 204,
+    "birthYear": 179
   },
   {
     "id": 352,
@@ -4573,7 +5275,9 @@
     "intel": 90,
     "politics": 88,
     "charm": 71,
-    "skill": "책사의 정국 운영"
+    "skill": "책사의 정국 운영",
+    "debutYear": 206,
+    "birthYear": 180
   },
   {
     "id": 353,
@@ -4586,7 +5290,9 @@
     "intel": 82,
     "politics": 84,
     "charm": 75,
-    "skill": "병서 편찬과 왕권"
+    "skill": "병서 편찬과 왕권",
+    "debutYear": 208,
+    "birthYear": 181
   },
   {
     "id": 354,
@@ -4599,7 +5305,9 @@
     "intel": 96,
     "politics": 88,
     "charm": 97,
-    "skill": "명량의 학익진"
+    "skill": "명량의 학익진",
+    "debutYear": 192,
+    "birthYear": 174
   },
   {
     "id": 355,
@@ -4612,7 +5320,9 @@
     "intel": 88,
     "politics": 82,
     "charm": 86,
-    "skill": "행주산성 투석전"
+    "skill": "행주산성 투석전",
+    "debutYear": 194,
+    "birthYear": 175
   },
   {
     "id": 356,
@@ -4625,7 +5335,9 @@
     "intel": 84,
     "politics": 71,
     "charm": 89,
-    "skill": "홍의장군의 유격"
+    "skill": "홍의장군의 유격",
+    "debutYear": 196,
+    "birthYear": 176
   },
   {
     "id": 357,
@@ -4638,7 +5350,9 @@
     "intel": 83,
     "politics": 76,
     "charm": 87,
-    "skill": "진주성 대첩 사수"
+    "skill": "진주성 대첩 사수",
+    "debutYear": 198,
+    "birthYear": 177
   },
   {
     "id": 358,
@@ -4651,7 +5365,9 @@
     "intel": 81,
     "politics": 74,
     "charm": 88,
-    "skill": "칠백의총 결사"
+    "skill": "칠백의총 결사",
+    "debutYear": 200,
+    "birthYear": 178
   },
   {
     "id": 359,
@@ -4664,7 +5380,9 @@
     "intel": 83,
     "politics": 78,
     "charm": 85,
-    "skill": "의병 격문 출정"
+    "skill": "의병 격문 출정",
+    "debutYear": 202,
+    "birthYear": 179
   },
   {
     "id": 360,
@@ -4677,7 +5395,9 @@
     "intel": 71,
     "politics": 66,
     "charm": 81,
-    "skill": "부산진 최후 항전"
+    "skill": "부산진 최후 항전",
+    "debutYear": 204,
+    "birthYear": 180
   },
   {
     "id": 361,
@@ -4690,7 +5410,9 @@
     "intel": 42,
     "politics": 39,
     "charm": 46,
-    "skill": "무모한 돌격"
+    "skill": "무모한 돌격",
+    "debutYear": 206,
+    "birthYear": 181
   },
   {
     "id": 362,
@@ -4703,7 +5425,9 @@
     "intel": 77,
     "politics": 72,
     "charm": 82,
-    "skill": "한산도 좌익 수군"
+    "skill": "한산도 좌익 수군",
+    "debutYear": 208,
+    "birthYear": 182
   },
   {
     "id": 363,
@@ -4716,7 +5440,9 @@
     "intel": 62,
     "politics": 51,
     "charm": 84,
-    "skill": "익장군의 철퇴"
+    "skill": "익장군의 철퇴",
+    "debutYear": 192,
+    "birthYear": 165
   },
   {
     "id": 364,
@@ -4729,7 +5455,9 @@
     "intel": 90,
     "politics": 82,
     "charm": 92,
-    "skill": "승병 규합의 선지"
+    "skill": "승병 규합의 선지",
+    "debutYear": 194,
+    "birthYear": 176
   },
   {
     "id": 365,
@@ -4742,7 +5470,9 @@
     "intel": 89,
     "politics": 86,
     "charm": 91,
-    "skill": "적진 담판의 기개"
+    "skill": "적진 담판의 기개",
+    "debutYear": 196,
+    "birthYear": 177
   },
   {
     "id": 366,
@@ -4755,20 +5485,24 @@
     "intel": 91,
     "politics": 93,
     "charm": 87,
-    "skill": "징비록의 통찰"
+    "skill": "징비록의 통찰",
+    "debutYear": 198,
+    "birthYear": 178
   },
   {
     "id": 367,
     "name": "조광조",
     "faction": "한국",
     "tier": "B",
-    "job": "궁수",
+    "job": "풍수사",
     "leadership": 46,
     "war": 24,
     "intel": 85,
     "politics": 79,
     "charm": 89,
-    "skill": "도학 개혁"
+    "skill": "도학 개혁",
+    "debutYear": 200,
+    "birthYear": 179
   },
   {
     "id": 368,
@@ -4781,7 +5515,9 @@
     "intel": 95,
     "politics": 84,
     "charm": 94,
-    "skill": "퇴계 성리학"
+    "skill": "퇴계 성리학",
+    "debutYear": 202,
+    "birthYear": 180
   },
   {
     "id": 369,
@@ -4794,7 +5530,9 @@
     "intel": 94,
     "politics": 92,
     "charm": 88,
-    "skill": "십만양병설"
+    "skill": "십만양병설",
+    "debutYear": 204,
+    "birthYear": 181
   },
   {
     "id": 370,
@@ -4807,7 +5545,9 @@
     "intel": 96,
     "politics": 94,
     "charm": 89,
-    "skill": "거중기 설계"
+    "skill": "거중기 설계",
+    "debutYear": 206,
+    "birthYear": 182
   },
   {
     "id": 371,
@@ -4820,7 +5560,9 @@
     "intel": 90,
     "politics": 89,
     "charm": 86,
-    "skill": "동명왕편 문장"
+    "skill": "동명왕편 문장",
+    "debutYear": 208,
+    "birthYear": 183
   },
   {
     "id": 372,
@@ -4833,7 +5575,9 @@
     "intel": 82,
     "politics": 80,
     "charm": 92,
-    "skill": "황금 보기를 돌같이"
+    "skill": "황금 보기를 돌같이",
+    "debutYear": 192,
+    "birthYear": 166
   },
   {
     "id": 373,
@@ -4846,7 +5590,9 @@
     "intel": 95,
     "politics": 93,
     "charm": 90,
-    "skill": "화왕계 직언"
+    "skill": "화왕계 직언",
+    "debutYear": 194,
+    "birthYear": 167
   },
   {
     "id": 374,
@@ -4859,7 +5605,9 @@
     "intel": 84,
     "politics": 75,
     "charm": 88,
-    "skill": "백마산성 신궁"
+    "skill": "백마산성 신궁",
+    "debutYear": 196,
+    "birthYear": 178
   },
   {
     "id": 375,
@@ -4872,7 +5620,9 @@
     "intel": 79,
     "politics": 70,
     "charm": 87,
-    "skill": "요동 결사돌격"
+    "skill": "요동 결사돌격",
+    "debutYear": 198,
+    "birthYear": 179
   },
   {
     "id": 376,
@@ -4885,7 +5635,9 @@
     "intel": 84,
     "politics": 85,
     "charm": 87,
-    "skill": "청해진 해상 제왕"
+    "skill": "청해진 해상 제왕",
+    "debutYear": 200,
+    "birthYear": 180
   },
   {
     "id": 377,
@@ -4898,7 +5650,9 @@
     "intel": 84,
     "politics": 72,
     "charm": 79,
-    "skill": "토정비결 예지"
+    "skill": "토정비결 예지",
+    "debutYear": 202,
+    "birthYear": 181
   },
   {
     "id": 378,
@@ -4911,7 +5665,9 @@
     "intel": 78,
     "politics": 74,
     "charm": 88,
-    "skill": "고구려 부흥군"
+    "skill": "고구려 부흥군",
+    "debutYear": 204,
+    "birthYear": 182
   },
   {
     "id": 379,
@@ -4924,7 +5680,9 @@
     "intel": 85,
     "politics": 74,
     "charm": 97,
-    "skill": "송도 명월의 가무"
+    "skill": "송도 명월의 가무",
+    "debutYear": 206,
+    "birthYear": 183
   },
   {
     "id": 380,
@@ -4937,11 +5695,13 @@
     "intel": 86,
     "politics": 72,
     "charm": 91,
-    "skill": "몽유광산의 시혼"
+    "skill": "몽유광산의 시혼",
+    "debutYear": 208,
+    "birthYear": 184
   },
   {
     "id": 381,
-    "name": "장수팔",
+    "name": "파재",
     "faction": "군웅",
     "tier": "B",
     "job": "산적",
@@ -4950,7 +5710,9 @@
     "intel": 44,
     "politics": 35,
     "charm": 56,
-    "skill": "황건 잔당 기습"
+    "skill": "황건 잔당 기습",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 382,
@@ -4963,7 +5725,9 @@
     "intel": 41,
     "politics": 32,
     "charm": 52,
-    "skill": "양주 봉기"
+    "skill": "양주 봉기",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 383,
@@ -4976,7 +5740,9 @@
     "intel": 72,
     "politics": 56,
     "charm": 64,
-    "skill": "황건 주술 방패"
+    "skill": "황건 주술 방패",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 384,
@@ -4989,7 +5755,9 @@
     "intel": 52,
     "politics": 44,
     "charm": 61,
-    "skill": "광종 돌격대"
+    "skill": "광종 돌격대",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 385,
@@ -5002,11 +5770,13 @@
     "intel": 46,
     "politics": 38,
     "charm": 55,
-    "skill": "하북 유격전"
+    "skill": "하북 유격전",
+    "birthYear": 160,
+    "debutYear": 184
   },
   {
     "id": 386,
-    "name": "흑산적우독",
+    "name": "우독",
     "faction": "군웅",
     "tier": "B",
     "job": "야수병",
@@ -5015,7 +5785,9 @@
     "intel": 43,
     "politics": 34,
     "charm": 51,
-    "skill": "산악 맹습"
+    "skill": "산악 맹습",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 387,
@@ -5028,7 +5800,9 @@
     "intel": 55,
     "politics": 47,
     "charm": 60,
-    "skill": "태산 원거리 사격"
+    "skill": "태산 원거리 사격",
+    "birthYear": 155,
+    "debutYear": 184
   },
   {
     "id": 388,
@@ -5041,7 +5815,9 @@
     "intel": 51,
     "politics": 42,
     "charm": 44,
-    "skill": "장안 약탈 돌격"
+    "skill": "장안 약탈 돌격",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 389,
@@ -5054,7 +5830,9 @@
     "intel": 48,
     "politics": 39,
     "charm": 41,
-    "skill": "서량군 난전"
+    "skill": "서량군 난전",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 390,
@@ -5067,7 +5845,9 @@
     "intel": 42,
     "politics": 33,
     "charm": 48,
-    "skill": "괴력의 철벽"
+    "skill": "괴력의 철벽",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 391,
@@ -5080,7 +5860,9 @@
     "intel": 50,
     "politics": 43,
     "charm": 53,
-    "skill": "장안 방위군"
+    "skill": "장안 방위군",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 392,
@@ -5093,7 +5875,9 @@
     "intel": 79,
     "politics": 74,
     "charm": 58,
-    "skill": "서량 모사"
+    "skill": "서량 모사",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 393,
@@ -5106,11 +5890,13 @@
     "intel": 61,
     "politics": 54,
     "charm": 66,
-    "skill": "서북 기병대"
+    "skill": "서북 기병대",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 394,
-    "name": "장완군웅",
+    "name": "위속",
     "faction": "군웅",
     "tier": "B",
     "job": "궁기",
@@ -5119,7 +5905,9 @@
     "intel": 54,
     "politics": 46,
     "charm": 59,
-    "skill": "서량 기마궁수"
+    "skill": "서량 기마궁수",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 395,
@@ -5132,7 +5920,9 @@
     "intel": 59,
     "politics": 55,
     "charm": 57,
-    "skill": "청주 장남의 기세"
+    "skill": "청주 장남의 기세",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 396,
@@ -5145,7 +5935,9 @@
     "intel": 62,
     "politics": 58,
     "charm": 76,
-    "skill": "원소 후계자 돌진"
+    "skill": "원소 후계자 돌진",
+    "birthYear": 178,
+    "debutYear": 196
   },
   {
     "id": 397,
@@ -5158,7 +5950,9 @@
     "intel": 67,
     "politics": 65,
     "charm": 69,
-    "skill": "유주 수비"
+    "skill": "유주 수비",
+    "birthYear": 174,
+    "debutYear": 192
   },
   {
     "id": 398,
@@ -5171,11 +5965,13 @@
     "intel": 81,
     "politics": 78,
     "charm": 62,
-    "skill": "업성 구원 요청"
+    "skill": "업성 구원 요청",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 399,
-    "name": "조무군웅",
+    "name": "송헌",
     "faction": "군웅",
     "tier": "B",
     "job": "창병",
@@ -5184,7 +5980,9 @@
     "intel": 53,
     "politics": 47,
     "charm": 60,
-    "skill": "원소군 선봉"
+    "skill": "원소군 선봉",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 400,
@@ -5197,7 +5995,9 @@
     "intel": 55,
     "politics": 49,
     "charm": 58,
-    "skill": "남만 독화살"
+    "skill": "남만 독화살",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 401,
@@ -5210,20 +6010,24 @@
     "intel": 64,
     "politics": 66,
     "charm": 78,
-    "skill": "완성 호위 결사"
+    "skill": "완성 호위 결사",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 402,
     "name": "조충",
     "faction": "위",
     "tier": "B",
-    "job": "창병",
+    "job": "도사",
     "leadership": 35,
     "war": 20,
     "intel": 89,
     "politics": 81,
     "charm": 88,
-    "skill": "코끼리 무게 측량"
+    "skill": "코끼리 무게 측량",
+    "birthYear": 196,
+    "debutYear": 211
   },
   {
     "id": 403,
@@ -5236,7 +6040,9 @@
     "intel": 72,
     "politics": 74,
     "charm": 76,
-    "skill": "오왕의 풍류"
+    "skill": "오왕의 풍류",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 404,
@@ -5249,7 +6055,9 @@
     "intel": 58,
     "politics": 52,
     "charm": 64,
-    "skill": "옹주 순찰 기병"
+    "skill": "옹주 순찰 기병",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 405,
@@ -5262,7 +6070,9 @@
     "intel": 67,
     "politics": 65,
     "charm": 71,
-    "skill": "형주 자사 수비"
+    "skill": "형주 자사 수비",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 406,
@@ -5275,20 +6085,24 @@
     "intel": 78,
     "politics": 76,
     "charm": 73,
-    "skill": "낙안 태수 치세"
+    "skill": "낙안 태수 치세",
+    "birthYear": 202,
+    "debutYear": 220
   },
   {
     "id": 407,
     "name": "하후화",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 63,
     "war": 44,
     "intel": 79,
     "politics": 77,
     "charm": 74,
-    "skill": "하남윤의 지략"
+    "skill": "하남윤의 지략",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 408,
@@ -5301,7 +6115,9 @@
     "intel": 62,
     "politics": 59,
     "charm": 67,
-    "skill": "선봉장의 혈통"
+    "skill": "선봉장의 혈통",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 409,
@@ -5314,7 +6130,9 @@
     "intel": 56,
     "politics": 51,
     "charm": 68,
-    "skill": "합비의 후예"
+    "skill": "합비의 후예",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 410,
@@ -5327,7 +6145,9 @@
     "intel": 58,
     "politics": 46,
     "charm": 74,
-    "skill": "여관 결사의 돌격"
+    "skill": "여관 결사의 돌격",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 411,
@@ -5340,7 +6160,9 @@
     "intel": 79,
     "politics": 73,
     "charm": 82,
-    "skill": "황제의 비장한 검"
+    "skill": "황제의 비장한 검",
+    "birthYear": 241,
+    "debutYear": 219
   },
   {
     "id": 412,
@@ -5353,7 +6175,9 @@
     "intel": 58,
     "politics": 61,
     "charm": 67,
-    "skill": "제왕의 위엄"
+    "skill": "제왕의 위엄",
+    "birthYear": 232,
+    "debutYear": 218
   },
   {
     "id": 413,
@@ -5366,20 +6190,24 @@
     "intel": 55,
     "politics": 59,
     "charm": 65,
-    "skill": "진류왕의 양위"
+    "skill": "진류왕의 양위",
+    "birthYear": 246,
+    "debutYear": 215
   },
   {
     "id": 414,
     "name": "사마부",
     "faction": "위",
     "tier": "B",
-    "job": "궁수",
+    "job": "책사",
     "leadership": 64,
     "war": 36,
     "intel": 81,
     "politics": 86,
     "charm": 85,
-    "skill": "위실의 충직한 원로"
+    "skill": "위실의 충직한 원로",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 415,
@@ -5392,7 +6220,9 @@
     "intel": 75,
     "politics": 77,
     "charm": 76,
-    "skill": "오나라 정벌 수군"
+    "skill": "오나라 정벌 수군",
+    "birthYear": 227,
+    "debutYear": 214
   },
   {
     "id": 416,
@@ -5405,7 +6235,9 @@
     "intel": 83,
     "politics": 81,
     "charm": 79,
-    "skill": "누선 장강 돌파"
+    "skill": "누선 장강 돌파",
+    "birthYear": 206,
+    "debutYear": 220
   },
   {
     "id": 417,
@@ -5418,7 +6250,9 @@
     "intel": 75,
     "politics": 73,
     "charm": 72,
-    "skill": "파촉 수로 개척"
+    "skill": "파촉 수로 개척",
+    "birthYear": 235,
+    "debutYear": 213
   },
   {
     "id": 418,
@@ -5431,7 +6265,9 @@
     "intel": 48,
     "politics": 36,
     "charm": 71,
-    "skill": "단기 필마의 무용"
+    "skill": "단기 필마의 무용",
+    "birthYear": 238,
+    "debutYear": 216
   },
   {
     "id": 419,
@@ -5444,7 +6280,9 @@
     "intel": 81,
     "politics": 83,
     "charm": 62,
-    "skill": "중서감의 권모"
+    "skill": "중서감의 권모",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 420,
@@ -5457,7 +6295,9 @@
     "intel": 80,
     "politics": 82,
     "charm": 60,
-    "skill": "밀실의 계책"
+    "skill": "밀실의 계책",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 421,
@@ -5470,7 +6310,9 @@
     "intel": 84,
     "politics": 79,
     "charm": 75,
-    "skill": "천문 재변 직언"
+    "skill": "천문 재변 직언",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 422,
@@ -5483,7 +6325,9 @@
     "intel": 82,
     "politics": 69,
     "charm": 84,
-    "skill": "청담의 선구자"
+    "skill": "청담의 선구자",
+    "birthYear": 193,
+    "debutYear": 211
   },
   {
     "id": 423,
@@ -5496,7 +6340,9 @@
     "intel": 88,
     "politics": 72,
     "charm": 80,
-    "skill": "노자주 현학"
+    "skill": "노자주 현학",
+    "birthYear": 226,
+    "debutYear": 213
   },
   {
     "id": 424,
@@ -5509,11 +6355,13 @@
     "intel": 83,
     "politics": 64,
     "charm": 85,
-    "skill": "죽림칠현의 거문고"
+    "skill": "죽림칠현의 거문고",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 425,
-    "name": "유봉진",
+    "name": "구안",
     "faction": "촉",
     "tier": "B",
     "job": "연노병",
@@ -5522,7 +6370,9 @@
     "intel": 61,
     "politics": 57,
     "charm": 65,
-    "skill": "익주 수비대"
+    "skill": "익주 수비대",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 426,
@@ -5535,7 +6385,9 @@
     "intel": 59,
     "politics": 56,
     "charm": 71,
-    "skill": "호분중랑장의 명예"
+    "skill": "호분중랑장의 명예",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 427,
@@ -5548,7 +6400,9 @@
     "intel": 57,
     "politics": 55,
     "charm": 69,
-    "skill": "한수정후의 계승"
+    "skill": "한수정후의 계승",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 428,
@@ -5561,7 +6415,9 @@
     "intel": 58,
     "politics": 54,
     "charm": 70,
-    "skill": "면죽관의 혈투"
+    "skill": "면죽관의 혈투",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 429,
@@ -5574,7 +6430,9 @@
     "intel": 64,
     "politics": 59,
     "charm": 76,
-    "skill": "충효의 돌격"
+    "skill": "충효의 돌격",
+    "birthYear": 245,
+    "debutYear": 214
   },
   {
     "id": 430,
@@ -5587,7 +6445,9 @@
     "intel": 63,
     "politics": 60,
     "charm": 74,
-    "skill": "상산 조씨의 창"
+    "skill": "상산 조씨의 창",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 431,
@@ -5600,7 +6460,9 @@
     "intel": 61,
     "politics": 58,
     "charm": 73,
-    "skill": "답중의 전사"
+    "skill": "답중의 전사",
+    "birthYear": 202,
+    "debutYear": 220
   },
   {
     "id": 432,
@@ -5613,7 +6475,9 @@
     "intel": 62,
     "politics": 55,
     "charm": 84,
-    "skill": "서량 여장군의 질주"
+    "skill": "서량 여장군의 질주",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 433,
@@ -5626,7 +6490,9 @@
     "intel": 54,
     "politics": 49,
     "charm": 81,
-    "skill": "남만 공주의 맹수"
+    "skill": "남만 공주의 맹수",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 434,
@@ -5639,7 +6505,9 @@
     "intel": 85,
     "politics": 91,
     "charm": 84,
-    "skill": "청렴한 서무 행정"
+    "skill": "청렴한 서무 행정",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 435,
@@ -5652,7 +6520,9 @@
     "intel": 82,
     "politics": 85,
     "charm": 78,
-    "skill": "상서령의 기틀"
+    "skill": "상서령의 기틀",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 436,
@@ -5665,7 +6535,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 68,
-    "skill": "궁중의 환심"
+    "skill": "궁중의 환심",
+    "birthYear": 201,
+    "debutYear": 219
   },
   {
     "id": 437,
@@ -5678,7 +6550,9 @@
     "intel": 68,
     "politics": 64,
     "charm": 32,
-    "skill": "귀신 섬기는 참언"
+    "skill": "귀신 섬기는 참언",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 438,
@@ -5691,7 +6565,9 @@
     "intel": 69,
     "politics": 72,
     "charm": 77,
-    "skill": "안평왕의 풍채"
+    "skill": "안평왕의 풍채",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 439,
@@ -5704,7 +6580,9 @@
     "intel": 65,
     "politics": 68,
     "charm": 74,
-    "skill": "감릉왕의 의전"
+    "skill": "감릉왕의 의전",
+    "birthYear": 228,
+    "debutYear": 215
   },
   {
     "id": 440,
@@ -5717,11 +6595,13 @@
     "intel": 62,
     "politics": 58,
     "charm": 64,
-    "skill": "서북 변경 유격"
+    "skill": "서북 변경 유격",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 441,
-    "name": "장억부",
+    "name": "장남",
     "faction": "촉",
     "tier": "B",
     "job": "등갑병",
@@ -5730,7 +6610,9 @@
     "intel": 66,
     "politics": 63,
     "charm": 69,
-    "skill": "익주 정예 방패"
+    "skill": "익주 정예 방패",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 442,
@@ -5743,7 +6625,9 @@
     "intel": 64,
     "politics": 61,
     "charm": 67,
-    "skill": "파동 도독 수비"
+    "skill": "파동 도독 수비",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 443,
@@ -5756,7 +6640,9 @@
     "intel": 71,
     "politics": 70,
     "charm": 72,
-    "skill": "한중 방어 공성"
+    "skill": "한중 방어 공성",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 444,
@@ -5769,7 +6655,9 @@
     "intel": 63,
     "politics": 60,
     "charm": 68,
-    "skill": "한수 요충지 사수"
+    "skill": "한수 요충지 사수",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 445,
@@ -5782,7 +6670,9 @@
     "intel": 67,
     "politics": 65,
     "charm": 69,
-    "skill": "촉도 연노 매복"
+    "skill": "촉도 연노 매복",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 446,
@@ -5795,7 +6685,9 @@
     "intel": 62,
     "politics": 61,
     "charm": 66,
-    "skill": "낙성 수비군"
+    "skill": "낙성 수비군",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 447,
@@ -5808,7 +6700,9 @@
     "intel": 64,
     "politics": 62,
     "charm": 67,
-    "skill": "검각 지원 사격"
+    "skill": "검각 지원 사격",
+    "birthYear": 228,
+    "debutYear": 215
   },
   {
     "id": 448,
@@ -5821,7 +6715,9 @@
     "intel": 54,
     "politics": 56,
     "charm": 44,
-    "skill": "강유관 개문"
+    "skill": "강유관 개문",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 449,
@@ -5834,11 +6730,13 @@
     "intel": 85,
     "politics": 86,
     "charm": 89,
-    "skill": "진정표의 효심"
+    "skill": "진정표의 효심",
+    "birthYear": 224,
+    "debutYear": 220
   },
   {
     "id": 450,
-    "name": "정봉아우",
+    "name": "정전",
     "faction": "오",
     "tier": "B",
     "job": "검병",
@@ -5847,7 +6745,9 @@
     "intel": 61,
     "politics": 56,
     "charm": 67,
-    "skill": "동오의 단병 돌격"
+    "skill": "동오의 단병 돌격",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 451,
@@ -5860,7 +6760,9 @@
     "intel": 72,
     "politics": 70,
     "charm": 75,
-    "skill": "충절의 결사항전"
+    "skill": "충절의 결사항전",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 452,
@@ -5873,11 +6775,13 @@
     "intel": 63,
     "politics": 59,
     "charm": 72,
-    "skill": "단양 철벽 수비"
+    "skill": "단양 철벽 수비",
+    "birthYear": 240,
+    "debutYear": 218
   },
   {
     "id": 453,
-    "name": "장제오",
+    "name": "손분",
     "faction": "오",
     "tier": "A",
     "job": "등갑병",
@@ -5886,7 +6790,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 82,
-    "skill": "우저 최후의 방어"
+    "skill": "우저 최후의 방어",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 454,
@@ -5899,7 +6805,9 @@
     "intel": 62,
     "politics": 58,
     "charm": 39,
-    "skill": "권신의 폭압"
+    "skill": "권신의 폭압",
+    "birthYear": 231,
+    "debutYear": 218
   },
   {
     "id": 455,
@@ -5912,7 +6820,9 @@
     "intel": 61,
     "politics": 55,
     "charm": 42,
-    "skill": "궁중 정변의 칼"
+    "skill": "궁중 정변의 칼",
+    "birthYear": 219,
+    "debutYear": 215
   },
   {
     "id": 456,
@@ -5925,7 +6835,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 79,
-    "skill": "전공주의 암투"
+    "skill": "전공주의 암투",
+    "birthYear": 183,
+    "debutYear": 201
   },
   {
     "id": 457,
@@ -5938,7 +6850,9 @@
     "intel": 75,
     "politics": 74,
     "charm": 81,
-    "skill": "주공주의 온화"
+    "skill": "주공주의 온화",
+    "birthYear": 188,
+    "debutYear": 206
   },
   {
     "id": 458,
@@ -5951,20 +6865,24 @@
     "intel": 81,
     "politics": 83,
     "charm": 77,
-    "skill": "동오의 내정 조율"
+    "skill": "동오의 내정 조율",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 459,
     "name": "등윤",
     "faction": "오",
     "tier": "B",
-    "job": "궁기",
+    "job": "풍수사",
     "leadership": 62,
     "war": 35,
     "intel": 80,
     "politics": 82,
     "charm": 76,
-    "skill": "태상의 예법"
+    "skill": "태상의 예법",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 460,
@@ -5977,7 +6895,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 78,
-    "skill": "장강 함대 지휘"
+    "skill": "장강 함대 지휘",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 461,
@@ -5990,7 +6910,9 @@
     "intel": 73,
     "politics": 68,
     "charm": 75,
-    "skill": "수춘 구원 돌격"
+    "skill": "수춘 구원 돌격",
+    "birthYear": 204,
+    "debutYear": 218
   },
   {
     "id": 462,
@@ -6003,7 +6925,9 @@
     "intel": 74,
     "politics": 67,
     "charm": 80,
-    "skill": "군가 제창의 기세"
+    "skill": "군가 제창의 기세",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 463,
@@ -6016,7 +6940,9 @@
     "intel": 77,
     "politics": 73,
     "charm": 76,
-    "skill": "강릉 공방 포격"
+    "skill": "강릉 공방 포격",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 464,
@@ -6029,7 +6955,9 @@
     "intel": 78,
     "politics": 75,
     "charm": 77,
-    "skill": "건평 쇠사슬 방어"
+    "skill": "건평 쇠사슬 방어",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 465,
@@ -6042,7 +6970,9 @@
     "intel": 82,
     "politics": 81,
     "charm": 83,
-    "skill": "교지 탈환 유격"
+    "skill": "교지 탈환 유격",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 466,
@@ -6055,7 +6985,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 77,
-    "skill": "비기장군의 사격"
+    "skill": "비기장군의 사격",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 467,
@@ -6068,7 +7000,9 @@
     "intel": 84,
     "politics": 78,
     "charm": 83,
-    "skill": "변망론의 문장"
+    "skill": "변망론의 문장",
+    "birthYear": 261,
+    "debutYear": 212
   },
   {
     "id": 468,
@@ -6081,7 +7015,9 @@
     "intel": 82,
     "politics": 77,
     "charm": 81,
-    "skill": "청하의 재기"
+    "skill": "청하의 재기",
+    "birthYear": 262,
+    "debutYear": 213
   },
   {
     "id": 469,
@@ -6094,24 +7030,28 @@
     "intel": 83,
     "politics": 85,
     "charm": 80,
-    "skill": "직언의 상소문"
+    "skill": "직언의 상소문",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 470,
     "name": "만욱",
     "faction": "오",
     "tier": "B",
-    "job": "창병",
+    "job": "도사",
     "leadership": 54,
     "war": 32,
     "intel": 78,
     "politics": 80,
     "charm": 76,
-    "skill": "좌승상의 조율"
+    "skill": "좌승상의 조율",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 471,
-    "name": "장포오",
+    "name": "장분",
     "faction": "오",
     "tier": "B",
     "job": "연노병",
@@ -6120,7 +7060,9 @@
     "intel": 74,
     "politics": 75,
     "charm": 76,
-    "skill": "우승상의 수비"
+    "skill": "우승상의 수비",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 472,
@@ -6133,7 +7075,9 @@
     "intel": 76,
     "politics": 74,
     "charm": 73,
-    "skill": "서릉 성벽 수호"
+    "skill": "서릉 성벽 수호",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 473,
@@ -6146,7 +7090,9 @@
     "intel": 75,
     "politics": 76,
     "charm": 78,
-    "skill": "작피 전투 지원"
+    "skill": "작피 전투 지원",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 474,
@@ -6159,7 +7105,9 @@
     "intel": 81,
     "politics": 82,
     "charm": 79,
-    "skill": "태자 보좌 지략"
+    "skill": "태자 보좌 지략",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 475,
@@ -6172,7 +7120,9 @@
     "intel": 71,
     "politics": 68,
     "charm": 62,
-    "skill": "연왕 자칭의 패기"
+    "skill": "연왕 자칭의 패기",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 476,
@@ -6185,7 +7135,9 @@
     "intel": 54,
     "politics": 48,
     "charm": 60,
-    "skill": "요동 선봉 돌격"
+    "skill": "요동 선봉 돌격",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 477,
@@ -6198,20 +7150,24 @@
     "intel": 58,
     "politics": 52,
     "charm": 63,
-    "skill": "요수 기마 사격"
+    "skill": "요수 기마 사격",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 478,
     "name": "윤직",
     "faction": "군웅",
     "tier": "B",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 45,
     "war": 26,
     "intel": 78,
     "politics": 76,
     "charm": 74,
-    "skill": "양평 직언"
+    "skill": "양평 직언",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 479,
@@ -6224,7 +7180,9 @@
     "intel": 79,
     "politics": 77,
     "charm": 73,
-    "skill": "요동 출병 만류"
+    "skill": "요동 출병 만류",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 480,
@@ -6237,7 +7195,9 @@
     "intel": 81,
     "politics": 88,
     "charm": 86,
-    "skill": "교지 평화의 통치"
+    "skill": "교지 평화의 통치",
+    "birthYear": 137,
+    "debutYear": 157
   },
   {
     "id": 481,
@@ -6250,7 +7210,9 @@
     "intel": 55,
     "politics": 52,
     "charm": 58,
-    "skill": "남방 항전"
+    "skill": "남방 항전",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 482,
@@ -6263,7 +7225,9 @@
     "intel": 56,
     "politics": 51,
     "charm": 62,
-    "skill": "수춘 대장군 진격"
+    "skill": "수춘 대장군 진격",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 483,
@@ -6276,7 +7240,9 @@
     "intel": 52,
     "politics": 47,
     "charm": 59,
-    "skill": "원술군 선봉장"
+    "skill": "원술군 선봉장",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 484,
@@ -6289,7 +7255,9 @@
     "intel": 48,
     "politics": 41,
     "charm": 55,
-    "skill": "잠산 산채 농성"
+    "skill": "잠산 산채 농성",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 485,
@@ -6302,7 +7270,9 @@
     "intel": 47,
     "politics": 40,
     "charm": 54,
-    "skill": "회남 산적 매복"
+    "skill": "회남 산적 매복",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 486,
@@ -6315,7 +7285,9 @@
     "intel": 54,
     "politics": 46,
     "charm": 61,
-    "skill": "백파군 호위"
+    "skill": "백파군 호위",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 487,
@@ -6328,7 +7300,9 @@
     "intel": 45,
     "politics": 38,
     "charm": 57,
-    "skill": "낙양 호송 격투"
+    "skill": "낙양 호송 격투",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 488,
@@ -6341,7 +7315,9 @@
     "intel": 42,
     "politics": 35,
     "charm": 51,
-    "skill": "황하 도적단"
+    "skill": "황하 도적단",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 489,
@@ -6354,7 +7330,9 @@
     "intel": 46,
     "politics": 39,
     "charm": 53,
-    "skill": "서량 유격 기병"
+    "skill": "서량 유격 기병",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 490,
@@ -6367,7 +7345,9 @@
     "intel": 72,
     "politics": 74,
     "charm": 76,
-    "skill": "의대조 밀약"
+    "skill": "의대조 밀약",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 491,
@@ -6380,7 +7360,9 @@
     "intel": 61,
     "politics": 59,
     "charm": 68,
-    "skill": "충의의 결사대"
+    "skill": "충의의 결사대",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 492,
@@ -6393,7 +7375,9 @@
     "intel": 79,
     "politics": 68,
     "charm": 77,
-    "skill": "태의의 탕약"
+    "skill": "태의의 탕약",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 493,
@@ -6406,7 +7390,9 @@
     "intel": 75,
     "politics": 76,
     "charm": 62,
-    "skill": "형주 수군 조련"
+    "skill": "형주 수군 조련",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 494,
@@ -6419,7 +7405,9 @@
     "intel": 72,
     "politics": 69,
     "charm": 64,
-    "skill": "장강 수채 방비"
+    "skill": "장강 수채 방비",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 495,
@@ -6432,7 +7420,9 @@
     "intel": 88,
     "politics": 86,
     "charm": 79,
-    "skill": "형주 평정 책략"
+    "skill": "형주 평정 책략",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 496,
@@ -6445,7 +7435,9 @@
     "intel": 86,
     "politics": 88,
     "charm": 77,
-    "skill": "호족 회유 외교"
+    "skill": "호족 회유 외교",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 497,
@@ -6458,7 +7450,9 @@
     "intel": 63,
     "politics": 61,
     "charm": 56,
-    "skill": "강하 화살 매복"
+    "skill": "강하 화살 매복",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 498,
@@ -6471,7 +7465,9 @@
     "intel": 71,
     "politics": 74,
     "charm": 80,
-    "skill": "강하 장남의 명분"
+    "skill": "강하 장남의 명분",
+    "birthYear": 188,
+    "debutYear": 206
   },
   {
     "id": 499,
@@ -6484,7 +7480,9 @@
     "intel": 58,
     "politics": 64,
     "charm": 67,
-    "skill": "형주 양도의 결단"
+    "skill": "형주 양도의 결단",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 500,
@@ -6497,7 +7495,9 @@
     "intel": 79,
     "politics": 85,
     "charm": 74,
-    "skill": "둔전 보급"
+    "skill": "둔전 보급",
+    "birthYear": 174,
+    "debutYear": 192
   },
   {
     "id": 501,
@@ -6510,7 +7510,9 @@
     "intel": 82,
     "politics": 84,
     "charm": 72,
-    "skill": "행정 정비"
+    "skill": "행정 정비",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 502,
@@ -6523,7 +7525,9 @@
     "intel": 81,
     "politics": 86,
     "charm": 70,
-    "skill": "농업 진흥"
+    "skill": "농업 진흥",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 503,
@@ -6536,7 +7540,9 @@
     "intel": 83,
     "politics": 85,
     "charm": 79,
-    "skill": "외교 중재"
+    "skill": "외교 중재",
+    "birthYear": 165,
+    "debutYear": 185
   },
   {
     "id": 504,
@@ -6549,7 +7555,9 @@
     "intel": 79,
     "politics": 83,
     "charm": 75,
-    "skill": "법령 정비"
+    "skill": "법령 정비",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 505,
@@ -6562,7 +7570,9 @@
     "intel": 81,
     "politics": 86,
     "charm": 77,
-    "skill": "수리 건설"
+    "skill": "수리 건설",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 506,
@@ -6575,7 +7585,9 @@
     "intel": 80,
     "politics": 85,
     "charm": 73,
-    "skill": "지역 개발"
+    "skill": "지역 개발",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 507,
@@ -6588,7 +7600,9 @@
     "intel": 82,
     "politics": 84,
     "charm": 76,
-    "skill": "내정 개혁"
+    "skill": "내정 개혁",
+    "birthYear": 172,
+    "debutYear": 190
   },
   {
     "id": 508,
@@ -6601,7 +7615,9 @@
     "intel": 78,
     "politics": 86,
     "charm": 72,
-    "skill": "인재 선발"
+    "skill": "인재 선발",
+    "birthYear": 168,
+    "debutYear": 186
   },
   {
     "id": 509,
@@ -6614,7 +7630,9 @@
     "intel": 80,
     "politics": 84,
     "charm": 74,
-    "skill": "행정 개혁"
+    "skill": "행정 개혁",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 510,
@@ -6627,7 +7645,9 @@
     "intel": 81,
     "politics": 82,
     "charm": 73,
-    "skill": "군수 정비"
+    "skill": "군수 정비",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 511,
@@ -6640,7 +7660,9 @@
     "intel": 79,
     "politics": 85,
     "charm": 78,
-    "skill": "농지 개간"
+    "skill": "농지 개간",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 512,
@@ -6653,72 +7675,84 @@
     "intel": 82,
     "politics": 84,
     "charm": 76,
-    "skill": "수리 시설"
+    "skill": "수리 시설",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 513,
     "name": "비위",
     "faction": "촉",
     "tier": "B",
-    "job": "검병",
+    "job": "책사",
     "leadership": 62,
     "war": 36,
     "intel": 85,
     "politics": 86,
     "charm": 85,
-    "skill": "인재 등용"
+    "skill": "인재 등용",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 514,
     "name": "종예",
     "faction": "촉",
     "tier": "B",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 65,
     "war": 42,
     "intel": 79,
     "politics": 82,
     "charm": 78,
-    "skill": "국경 협상"
+    "skill": "국경 협상",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 515,
     "name": "향랑",
     "faction": "촉",
     "tier": "B",
-    "job": "창병",
+    "job": "도사",
     "leadership": 52,
     "war": 35,
     "intel": 78,
     "politics": 85,
     "charm": 81,
-    "skill": "문서 관리"
+    "skill": "문서 관리",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 516,
     "name": "양홍",
     "faction": "촉",
     "tier": "B",
-    "job": "궁수",
+    "job": "군악대",
     "leadership": 68,
     "war": 40,
     "intel": 80,
     "politics": 85,
     "charm": 76,
-    "skill": "군정 정비"
+    "skill": "군정 정비",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 517,
     "name": "왕련",
     "faction": "촉",
     "tier": "B",
-    "job": "검병",
+    "job": "책사",
     "leadership": 60,
     "war": 35,
     "intel": 78,
     "politics": 85,
     "charm": 75,
-    "skill": "상업 진흥"
+    "skill": "상업 진흥",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 518,
@@ -6731,20 +7765,24 @@
     "intel": 82,
     "politics": 81,
     "charm": 78,
-    "skill": "남방 안정"
+    "skill": "남방 안정",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 519,
     "name": "주거",
     "faction": "오",
     "tier": "C",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 58,
     "war": 35,
     "intel": 83,
     "politics": 85,
     "charm": 81,
-    "skill": "재정 관리"
+    "skill": "재정 관리",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 520,
@@ -6757,189 +7795,219 @@
     "intel": 72,
     "politics": 65,
     "charm": 73,
-    "skill": "수군 지원"
+    "skill": "수군 지원",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 521,
     "name": "유언",
     "faction": "군웅",
     "tier": "C",
-    "job": "검병",
+    "job": "도사",
     "leadership": 72,
     "war": 45,
     "intel": 78,
     "politics": 84,
     "charm": 79,
-    "skill": "지역 개발"
+    "skill": "지역 개발",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 522,
     "name": "왕수",
     "faction": "군웅",
     "tier": "C",
-    "job": "창병",
+    "job": "군악대",
     "leadership": 58,
     "war": 35,
     "intel": 78,
     "politics": 85,
     "charm": 82,
-    "skill": "민생 안정"
+    "skill": "민생 안정",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 523,
     "name": "장범",
     "faction": "군웅",
     "tier": "C",
-    "job": "궁수",
+    "job": "책사",
     "leadership": 50,
     "war": 35,
     "intel": 82,
     "politics": 85,
     "charm": 81,
-    "skill": "정책 자문"
+    "skill": "정책 자문",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 524,
     "name": "원환",
     "faction": "군웅",
     "tier": "C",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 54,
     "war": 35,
     "intel": 83,
     "politics": 86,
     "charm": 80,
-    "skill": "행정 정비"
+    "skill": "행정 정비",
+    "birthYear": 160,
+    "debutYear": 178
   },
   {
     "id": 525,
     "name": "변희",
     "faction": "군웅",
     "tier": "C",
-    "job": "창병",
+    "job": "도사",
     "leadership": 52,
     "war": 35,
     "intel": 79,
     "politics": 82,
     "charm": 77,
-    "skill": "지방 행정"
+    "skill": "지방 행정",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 526,
     "name": "왕보",
     "faction": "촉",
     "tier": "C",
-    "job": "궁수",
+    "job": "군악대",
     "leadership": 55,
     "war": 35,
     "intel": 78,
     "politics": 82,
     "charm": 79,
-    "skill": "군정 보좌"
+    "skill": "군정 보좌",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 527,
     "name": "주군",
     "faction": "촉",
     "tier": "C",
-    "job": "검병",
+    "job": "책사",
     "leadership": 55,
     "war": 35,
     "intel": 79,
     "politics": 82,
     "charm": 78,
-    "skill": "천문 관측"
+    "skill": "천문 관측",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 528,
     "name": "고소",
     "faction": "오",
     "tier": "C",
-    "job": "창병",
+    "job": "풍수사",
     "leadership": 56,
     "war": 35,
     "intel": 78,
     "politics": 81,
     "charm": 79,
-    "skill": "행정 보좌"
+    "skill": "행정 보좌",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 529,
     "name": "주방",
     "faction": "오",
     "tier": "C",
-    "job": "궁수",
+    "job": "도사",
     "leadership": 60,
     "war": 38,
     "intel": 82,
     "politics": 79,
     "charm": 73,
-    "skill": "정보 공작"
+    "skill": "정보 공작",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 530,
     "name": "온회",
     "faction": "위",
     "tier": "C",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 70,
     "war": 45,
     "intel": 80,
     "politics": 85,
     "charm": 78,
-    "skill": "군량 보급"
+    "skill": "군량 보급",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 531,
     "name": "환범",
     "faction": "위",
     "tier": "B",
-    "job": "궁수",
+    "job": "책사",
     "leadership": 65,
     "war": 42,
     "intel": 84,
     "politics": 85,
     "charm": 76,
-    "skill": "재정 개혁"
+    "skill": "재정 개혁",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 532,
     "name": "오질",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 58,
     "war": 38,
     "intel": 82,
     "politics": 78,
     "charm": 74,
-    "skill": "인맥 관리"
+    "skill": "인맥 관리",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 533,
     "name": "배잠",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "도사",
     "leadership": 62,
     "war": 35,
     "intel": 79,
     "politics": 83,
     "charm": 75,
-    "skill": "지방 행정"
+    "skill": "지방 행정",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 534,
     "name": "왕숙",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 55,
     "war": 35,
     "intel": 84,
     "politics": 85,
     "charm": 78,
-    "skill": "학문 진흥"
+    "skill": "학문 진흥",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 535,
@@ -6952,20 +8020,24 @@
     "intel": 80,
     "politics": 81,
     "charm": 78,
-    "skill": "변방 수비"
+    "skill": "변방 수비",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 536,
     "name": "양부",
     "faction": "위",
     "tier": "B",
-    "job": "궁수",
+    "job": "책사",
     "leadership": 72,
     "war": 52,
     "intel": 83,
     "politics": 85,
     "charm": 77,
-    "skill": "민심 안정"
+    "skill": "민심 안정",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 537,
@@ -6978,7 +8050,9 @@
     "intel": 76,
     "politics": 72,
     "charm": 75,
-    "skill": "기병 지휘"
+    "skill": "기병 지휘",
+    "birthYear": 238,
+    "debutYear": 216
   },
   {
     "id": 538,
@@ -6991,7 +8065,9 @@
     "intel": 81,
     "politics": 80,
     "charm": 76,
-    "skill": "군사 개혁"
+    "skill": "군사 개혁",
+    "birthYear": 225,
+    "debutYear": 212
   },
   {
     "id": 539,
@@ -7004,72 +8080,84 @@
     "intel": 75,
     "politics": 68,
     "charm": 72,
-    "skill": "기습 돌격"
+    "skill": "기습 돌격",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 540,
     "name": "상조",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 58,
     "war": 35,
     "intel": 80,
     "politics": 82,
     "charm": 75,
-    "skill": "문서 관리"
+    "skill": "문서 관리",
+    "birthYear": 215,
+    "debutYear": 220
   },
   {
     "id": 541,
     "name": "양준",
     "faction": "위",
     "tier": "B",
-    "job": "궁수",
+    "job": "도사",
     "leadership": 62,
     "war": 38,
     "intel": 82,
     "politics": 84,
     "charm": 79,
-    "skill": "인재 발굴"
+    "skill": "인재 발굴",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 542,
     "name": "두서",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 60,
     "war": 35,
     "intel": 83,
     "politics": 85,
     "charm": 77,
-    "skill": "법령 정비"
+    "skill": "법령 정비",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 543,
     "name": "왕침",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "책사",
     "leadership": 61,
     "war": 35,
     "intel": 81,
     "politics": 84,
     "charm": 78,
-    "skill": "국정 운영"
+    "skill": "국정 운영",
+    "birthYear": 225,
+    "debutYear": 212
   },
   {
     "id": 544,
     "name": "배수",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 55,
     "war": 35,
     "intel": 85,
     "politics": 83,
     "charm": 76,
-    "skill": "지리 연구"
+    "skill": "지리 연구",
+    "birthYear": 224,
+    "debutYear": 220
   },
   {
     "id": 545,
@@ -7082,46 +8170,54 @@
     "intel": 84,
     "politics": 82,
     "charm": 75,
-    "skill": "군정 정비"
+    "skill": "군정 정비",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 546,
     "name": "장화",
     "faction": "위",
     "tier": "B",
-    "job": "궁수",
+    "job": "도사",
     "leadership": 58,
     "war": 35,
     "intel": 85,
     "politics": 84,
     "charm": 80,
-    "skill": "외교 전략"
+    "skill": "외교 전략",
+    "birthYear": 232,
+    "debutYear": 219
   },
   {
     "id": 547,
     "name": "조엄",
     "faction": "위",
     "tier": "B",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 66,
     "war": 40,
     "intel": 79,
     "politics": 83,
     "charm": 76,
-    "skill": "군량 조달"
+    "skill": "군량 조달",
+    "birthYear": 160,
+    "debutYear": 180
   },
   {
     "id": 548,
     "name": "유정",
     "faction": "위",
     "tier": "B",
-    "job": "창병",
+    "job": "책사",
     "leadership": 60,
     "war": 35,
     "intel": 81,
     "politics": 82,
     "charm": 77,
-    "skill": "행정 관리"
+    "skill": "행정 관리",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 549,
@@ -7134,20 +8230,24 @@
     "intel": 68,
     "politics": 70,
     "charm": 71,
-    "skill": "군세 정비"
+    "skill": "군세 정비",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 550,
     "name": "장막",
     "faction": "군웅",
     "tier": "B",
-    "job": "궁수",
+    "job": "풍수사",
     "leadership": 72,
     "war": 55,
     "intel": 75,
     "politics": 78,
     "charm": 80,
-    "skill": "인재 초빙"
+    "skill": "인재 초빙",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 551,
@@ -7160,7 +8260,9 @@
     "intel": 74,
     "politics": 80,
     "charm": 72,
-    "skill": "변방 통치"
+    "skill": "변방 통치",
+    "birthYear": 150,
+    "debutYear": 170
   },
   {
     "id": 552,
@@ -7173,33 +8275,39 @@
     "intel": 78,
     "politics": 77,
     "charm": 73,
-    "skill": "국경 방어"
+    "skill": "국경 방어",
+    "birthYear": 175,
+    "debutYear": 193
   },
   {
     "id": 553,
     "name": "유우",
     "faction": "군웅",
     "tier": "B",
-    "job": "궁수",
+    "job": "도사",
     "leadership": 75,
     "war": 48,
     "intel": 79,
     "politics": 85,
     "charm": 84,
-    "skill": "민생 안정"
+    "skill": "민생 안정",
+    "birthYear": 135,
+    "debutYear": 155
   },
   {
     "id": 554,
     "name": "한복",
     "faction": "군웅",
     "tier": "B",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 60,
     "war": 38,
     "intel": 77,
     "politics": 82,
     "charm": 78,
-    "skill": "행정 관리"
+    "skill": "행정 관리",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 555,
@@ -7212,98 +8320,114 @@
     "intel": 68,
     "politics": 67,
     "charm": 70,
-    "skill": "성채 방어"
+    "skill": "성채 방어",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 556,
     "name": "양희",
     "faction": "촉",
     "tier": "C",
-    "job": "검병",
+    "job": "책사",
     "leadership": 55,
     "war": 35,
     "intel": 82,
     "politics": 84,
     "charm": 78,
-    "skill": "역사 편찬"
+    "skill": "역사 편찬",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 557,
     "name": "비관",
     "faction": "촉",
     "tier": "C",
-    "job": "궁수",
+    "job": "풍수사",
     "leadership": 68,
     "war": 45,
     "intel": 78,
     "politics": 82,
     "charm": 76,
-    "skill": "지방 행정"
+    "skill": "지방 행정",
+    "birthYear": 170,
+    "debutYear": 188
   },
   {
     "id": 558,
     "name": "동궐",
     "faction": "촉",
     "tier": "C",
-    "job": "검병",
+    "job": "도사",
     "leadership": 65,
     "war": 38,
     "intel": 83,
     "politics": 85,
     "charm": 80,
-    "skill": "국정 보좌"
+    "skill": "국정 보좌",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 559,
     "name": "번건",
     "faction": "촉",
     "tier": "C",
-    "job": "궁수",
+    "job": "군악대",
     "leadership": 60,
     "war": 35,
     "intel": 84,
     "politics": 83,
     "charm": 79,
-    "skill": "외교 협상"
+    "skill": "외교 협상",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 560,
     "name": "진수",
     "faction": "촉",
     "tier": "C",
-    "job": "검병",
+    "job": "책사",
     "leadership": 48,
     "war": 35,
     "intel": 85,
     "politics": 78,
     "charm": 77,
-    "skill": "역사 기록"
+    "skill": "역사 기록",
+    "birthYear": 233,
+    "debutYear": 220
   },
   {
     "id": 561,
     "name": "장표",
     "faction": "촉",
     "tier": "C",
-    "job": "검병",
+    "job": "풍수사",
     "leadership": 68,
     "war": 48,
     "intel": 76,
     "politics": 77,
     "charm": 75,
-    "skill": "군정 보좌"
+    "skill": "군정 보좌",
+    "birthYear": 220,
+    "debutYear": 216
   },
   {
     "id": 562,
     "name": "요립",
     "faction": "촉",
     "tier": "C",
-    "job": "창병",
+    "job": "도사",
     "leadership": 55,
     "war": 35,
     "intel": 80,
     "politics": 81,
     "charm": 62,
-    "skill": "정책 자문"
+    "skill": "정책 자문",
+    "birthYear": 168,
+    "debutYear": 186
   },
   {
     "id": 563,
@@ -7316,59 +8440,69 @@
     "intel": 78,
     "politics": 81,
     "charm": 76,
-    "skill": "변방 안정"
+    "skill": "변방 안정",
+    "birthYear": 195,
+    "debutYear": 213
   },
   {
     "id": 564,
     "name": "이복",
     "faction": "촉",
     "tier": "C",
-    "job": "궁수",
+    "job": "군악대",
     "leadership": 62,
     "war": 40,
     "intel": 79,
     "politics": 84,
     "charm": 78,
-    "skill": "행정 개혁"
+    "skill": "행정 개혁",
+    "birthYear": 205,
+    "debutYear": 219
   },
   {
     "id": 565,
     "name": "설제",
     "faction": "오",
     "tier": "C",
-    "job": "검병",
+    "job": "책사",
     "leadership": 55,
     "war": 35,
     "intel": 82,
     "politics": 85,
     "charm": 79,
-    "skill": "국정 관리"
+    "skill": "국정 관리",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 566,
     "name": "육윤",
     "faction": "오",
     "tier": "C",
-    "job": "창병",
+    "job": "풍수사",
     "leadership": 60,
     "war": 35,
     "intel": 81,
     "politics": 84,
     "charm": 78,
-    "skill": "지방 통치"
+    "skill": "지방 통치",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 567,
     "name": "등목",
     "faction": "오",
     "tier": "C",
-    "job": "검병",
+    "job": "도사",
     "leadership": 58,
     "war": 35,
     "intel": 83,
     "politics": 82,
     "charm": 80,
-    "skill": "외교 협상"
+    "skill": "외교 협상",
+    "birthYear": 230,
+    "debutYear": 217
   },
   {
     "id": 568,
@@ -7381,46 +8515,54 @@
     "intel": 70,
     "politics": 68,
     "charm": 73,
-    "skill": "수군 지원"
+    "skill": "수군 지원",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 569,
     "name": "반비",
     "faction": "오",
     "tier": "C",
-    "job": "검병",
+    "job": "군악대",
     "leadership": 57,
     "war": 35,
     "intel": 79,
     "politics": 83,
     "charm": 76,
-    "skill": "재정 관리"
+    "skill": "재정 관리",
+    "birthYear": 210,
+    "debutYear": 215
   },
   {
     "id": 570,
     "name": "육개",
     "faction": "오",
     "tier": "C",
-    "job": "검병",
+    "job": "책사",
     "leadership": 68,
     "war": 45,
     "intel": 83,
     "politics": 85,
     "charm": 81,
-    "skill": "정책 개혁"
+    "skill": "정책 개혁",
+    "birthYear": 198,
+    "debutYear": 216
   },
   {
     "id": 571,
     "name": "정병",
     "faction": "오",
     "tier": "C",
-    "job": "궁수",
+    "job": "풍수사",
     "leadership": 55,
     "war": 35,
     "intel": 82,
     "politics": 83,
     "charm": 78,
-    "skill": "학문 진흥"
+    "skill": "학문 진흥",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 572,
@@ -7433,20 +8575,24 @@
     "intel": 72,
     "politics": 68,
     "charm": 74,
-    "skill": "수군 전술"
+    "skill": "수군 전술",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 573,
     "name": "고승",
     "faction": "오",
     "tier": "C",
-    "job": "검병",
+    "job": "도사",
     "leadership": 65,
     "war": 42,
     "intel": 80,
     "politics": 79,
     "charm": 76,
-    "skill": "군정 관리"
+    "skill": "군정 관리",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 574,
@@ -7459,20 +8605,24 @@
     "intel": 72,
     "politics": 70,
     "charm": 75,
-    "skill": "진영 수비"
+    "skill": "진영 수비",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 575,
     "name": "장승",
     "faction": "오",
     "tier": "C",
-    "job": "궁수",
+    "job": "군악대",
     "leadership": 60,
     "war": 35,
     "intel": 82,
     "politics": 84,
     "charm": 78,
-    "skill": "행정 정비"
+    "skill": "행정 정비",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 576,
@@ -7485,7 +8635,9 @@
     "intel": 72,
     "politics": 68,
     "charm": 74,
-    "skill": "기습 공격"
+    "skill": "기습 공격",
+    "birthYear": 190,
+    "debutYear": 208
   },
   {
     "id": 577,
@@ -7498,20 +8650,24 @@
     "intel": 71,
     "politics": 70,
     "charm": 75,
-    "skill": "수비 전술"
+    "skill": "수비 전술",
+    "birthYear": 200,
+    "debutYear": 218
   },
   {
     "id": 578,
     "name": "장초",
     "faction": "군웅",
     "tier": "C",
-    "job": "궁수",
+    "job": "책사",
     "leadership": 64,
     "war": 42,
     "intel": 78,
     "politics": 81,
     "charm": 76,
-    "skill": "지방 행정"
+    "skill": "지방 행정",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 579,
@@ -7524,7 +8680,9 @@
     "intel": 72,
     "politics": 68,
     "charm": 70,
-    "skill": "기병 운용"
+    "skill": "기병 운용",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 580,
@@ -7537,7 +8695,9 @@
     "intel": 68,
     "politics": 70,
     "charm": 75,
-    "skill": "병력 모집"
+    "skill": "병력 모집",
+    "birthYear": 145,
+    "debutYear": 165
   },
   {
     "id": 581,
@@ -7550,33 +8710,39 @@
     "intel": 68,
     "politics": 65,
     "charm": 69,
-    "skill": "기마 전술"
+    "skill": "기마 전술",
+    "birthYear": 185,
+    "debutYear": 203
   },
   {
     "id": 582,
     "name": "채옹",
     "faction": "군웅",
     "tier": "C",
-    "job": "궁수",
+    "job": "풍수사",
     "leadership": 45,
     "war": 35,
     "intel": 85,
     "politics": 83,
     "charm": 82,
-    "skill": "문화 진흥"
+    "skill": "문화 진흥",
+    "birthYear": 133,
+    "debutYear": 153
   },
   {
     "id": 583,
     "name": "괴도",
     "faction": "군웅",
     "tier": "C",
-    "job": "창병",
+    "job": "도사",
     "leadership": 60,
     "war": 35,
     "intel": 78,
     "politics": 81,
     "charm": 76,
-    "skill": "군정 자문"
+    "skill": "군정 자문",
+    "birthYear": 155,
+    "debutYear": 175
   },
   {
     "id": 584,
@@ -7589,7 +8755,9 @@
     "intel": 65,
     "politics": 66,
     "charm": 68,
-    "skill": "수비 진형"
+    "skill": "수비 진형",
+    "birthYear": 180,
+    "debutYear": 198
   },
   {
     "id": 585,
@@ -7602,6 +8770,8 @@
     "intel": 68,
     "politics": 67,
     "charm": 70,
-    "skill": "변방 기동"
+    "skill": "변방 기동",
+    "birthYear": 190,
+    "debutYear": 208
   }
 ]

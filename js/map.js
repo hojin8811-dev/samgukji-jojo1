@@ -23,8 +23,10 @@
 
   /* 캐시 — world 좌표계 */
   let landPath = null, lakePath = null, roadPath = null, seaPath = null;
-  let peaks = [], trees = [], riverPaths = [], seaDashes = [];
+  let peaks = [], trees = [], riverPaths = [], riverMain = [], seaDashes = [];
   let paperPattern = null;
+  /* 장강·황하 본류 — 2배 두껍게 그린다 */
+  const MAIN_RIVERS = ['Huang', 'Chang Jiang', 'Yangtze', 'Jinsha'];
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   function rgba(hex, a) {
@@ -63,6 +65,7 @@
     lakePath = new Path2D();
     G.lakes.forEach((r) => ringPath(lakePath, r));
     riverPaths = G.rivers.map((r) => riverPath(r.p));
+    riverMain = G.rivers.map((r) => MAIN_RIVERS.indexOf(r.n) >= 0);
 
     /* 산맥 — 봉우리 삼각형 배치 */
     peaks = [];
@@ -104,7 +107,7 @@
         const px = x + Math.cos(a) * d;
         const py = y + Math.sin(a) * d * 0.9;
         if (!cx.isPointInPath(landPath, px, py)) continue;
-        trees.push({ x: px, y: py, s: 0.8 + rnd() * 0.7 });
+        trees.push({ x: px, y: py, s: 0.8 + rnd() * 0.7, v: rnd() });
       }
     });
 
@@ -195,66 +198,123 @@
       g.fill();
     });
 
-    /* 숲 */
+    /* 숲 — 나무를 겹겹이 그려 숲 덩어리로 보이게 (v5) */
     trees.forEach((t) => {
-      const w = 5.2 * t.s, hh = 7.4 * t.s;
-      g.fillStyle = '#6e8a4e';
+      const w = 5.6 * t.s, hh = 8.6 * t.s;
+      const v = t.v || 0;
+      // 바닥 그림자
+      g.fillStyle = 'rgba(46,62,34,0.20)';
+      g.beginPath();
+      g.ellipse(t.x + w * 0.35, t.y + 1.2, w * 0.92, hh * 0.18, 0, 0, Math.PI * 2);
+      g.fill();
+      // 뒤쪽 큰 침엽
+      g.fillStyle = v > 0.5 ? '#5f7d44' : '#68884a';
       g.beginPath();
       g.moveTo(t.x - w, t.y);
       g.lineTo(t.x, t.y - hh);
       g.lineTo(t.x + w, t.y);
       g.closePath();
       g.fill();
-      g.fillStyle = 'rgba(58,78,42,0.55)';
+      // 앞쪽 작은 침엽 — 숲이 빽빽해 보인다
+      g.fillStyle = v > 0.5 ? '#789853' : '#7d9c56';
+      g.beginPath();
+      g.moveTo(t.x - w * 0.68 + w * 0.3, t.y + 0.6);
+      g.lineTo(t.x + w * 0.3, t.y - hh * 0.72);
+      g.lineTo(t.x + w * 1.08, t.y + 0.6);
+      g.closePath();
+      g.fill();
+      // 그늘 면
+      g.fillStyle = 'rgba(48,68,36,0.42)';
       g.beginPath();
       g.moveTo(t.x, t.y - hh);
       g.lineTo(t.x + w, t.y);
-      g.lineTo(t.x + w * 0.3, t.y);
+      g.lineTo(t.x + w * 0.28, t.y);
       g.closePath();
       g.fill();
     });
 
-    /* 산맥 */
-    peaks.forEach((p) => {
+    /* 산맥 — 여러 겹의 능선과 설관(雪冠)으로 입체감을 준다 (v5) */
+    peaks.forEach((p, pi) => {
       const { x, y, w, h } = p;
+      // 뒷산 그림자
+      g.fillStyle = 'rgba(120,126,96,0.34)';
+      g.beginPath();
+      g.moveTo(x - w * 0.62, y + 2.4);
+      g.lineTo(x + w * 0.12, y - h * 0.82);
+      g.lineTo(x + w * 0.74, y + 2.4);
+      g.closePath();
+      g.fill();
+      // 본체
       g.beginPath();
       g.moveTo(x - w / 2, y);
       g.lineTo(x - w * 0.08, y - h);
       g.lineTo(x + w / 2, y);
       g.closePath();
-      g.fillStyle = '#9aa37b';
+      const mg = g.createLinearGradient(x, y - h, x, y);
+      mg.addColorStop(0, '#a7ae83');
+      mg.addColorStop(1, '#89926d');
+      g.fillStyle = mg;
       g.fill();
+      // 그늘진 오른쪽 면
       g.beginPath();
       g.moveTo(x + w / 2, y);
       g.lineTo(x - w * 0.08, y - h);
       g.lineTo(x + w * 0.12, y);
       g.closePath();
-      g.fillStyle = '#7d8a68';
+      g.fillStyle = '#6f7c5c';
       g.fill();
+      // 능선 하이라이트
       g.beginPath();
       g.moveTo(x - w * 0.08, y - h);
-      g.lineTo(x - w * 0.26, y - h * 0.45);
-      g.lineTo(x + w * 0.08, y - h * 0.5);
+      g.lineTo(x - w * 0.26, y - h * 0.42);
+      g.lineTo(x - w * 0.1, y - h * 0.46);
       g.closePath();
-      g.fillStyle = '#e6e3c0';
-      g.globalAlpha = 0.85;
+      g.fillStyle = 'rgba(232,232,204,0.55)';
       g.fill();
-      g.globalAlpha = 1;
-      g.strokeStyle = 'rgba(84,86,54,0.5)';
-      g.lineWidth = 0.9;
+      // 설관 — 높은 봉우리에만
+      if (pi % 2 === 0 || h > 26) {
+        g.beginPath();
+        g.moveTo(x - w * 0.08, y - h);
+        g.lineTo(x - w * 0.21, y - h * 0.66);
+        g.lineTo(x - w * 0.1, y - h * 0.7);
+        g.lineTo(x + w * 0.01, y - h * 0.62);
+        g.lineTo(x + w * 0.1, y - h * 0.74);
+        g.closePath();
+        g.fillStyle = 'rgba(250,250,240,0.88)';
+        g.fill();
+      }
+      g.strokeStyle = 'rgba(80,86,58,0.45)';
+      g.lineWidth = 0.8;
+      g.beginPath();
+      g.moveTo(x - w / 2, y);
+      g.lineTo(x - w * 0.08, y - h);
+      g.lineTo(x + w / 2, y);
       g.stroke();
     });
 
-    /* 강 */
-    riverPaths.forEach((p) => {
-      g.strokeStyle = 'rgba(52,88,110,0.30)';
-      g.lineWidth = 5.6;
+    /* 강 — 장강·황하 본류는 2배 두께 + 강기슭 음영 (v5) */
+    riverPaths.forEach((p, i) => {
+      const main = riverMain[i];
+      const wBase = main ? 11.2 : 5.6;
+      const wCore = main ? 6.2 : 3.1;
+      g.strokeStyle = main ? 'rgba(38,70,92,0.42)' : 'rgba(52,88,110,0.30)';
+      g.lineWidth = wBase;
+      g.lineJoin = 'round';
+      g.lineCap = 'round';
       g.stroke(p);
-      g.strokeStyle = '#79b4c8';
-      g.lineWidth = 3.1;
+      // 기슭 하이라이트
+      g.strokeStyle = main ? 'rgba(216,232,214,0.5)' : 'rgba(206,224,208,0.32)';
+      g.lineWidth = wBase + 1.6;
+      g.globalAlpha = 0.5;
       g.stroke(p);
-      g.strokeStyle = 'rgba(190,228,236,0.75)';
-      g.lineWidth = 0.9;
+      g.globalAlpha = 1;
+      // 물줄기
+      g.strokeStyle = main ? '#6fa9c4' : '#79b4c8';
+      g.lineWidth = wCore;
+      g.stroke(p);
+      // 물결 빛
+      g.strokeStyle = 'rgba(198,232,240,0.75)';
+      g.lineWidth = main ? 1.8 : 0.9;
       g.stroke(p);
     });
 
@@ -289,6 +349,18 @@
     g.strokeStyle = 'rgba(246,240,205,0.55)';
     g.lineWidth = 1.1;
     g.stroke(landPath);
+    g.restore();
+    /* 해안 물결무늬 — 바다 쪽에 잔물결을 여러 겹 (v5, 클리핑 밖) */
+    g.save();
+    for (let i = 1; i <= 3; i++) {
+      g.setLineDash([12 + i * 6, 14 + i * 7]);
+      g.lineDashOffset = i * 9;
+      g.strokeStyle = `rgba(226,244,246,${0.26 - i * 0.055})`;
+      g.lineWidth = 1.2 + i * 0.5;
+      g.stroke(landPath);
+    }
+    g.setLineDash([]);
+    g.lineDashOffset = 0;
     g.restore();
 
     /* 섬 테두리 */

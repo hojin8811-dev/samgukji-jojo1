@@ -134,15 +134,20 @@
     const C = SK.CLASSES[h.cls];
     const eq = SK.equipBonus(h);
     const troops = spec.troops || SK.troopForNamed(h.lv);
+    const passive = (SK.PASSIVES && SK.PASSIVES[h.name]) || null;
+    const techAtk = 1 + ((SK.techPct ? SK.techPct('atkPct') : 0) / 100);
+    const techDef = 1 + ((SK.techPct ? SK.techPct('defPct') : 0) / 100);
+    // 고유 특기(상시형)는 공격·방어에 소폭 보탬이 된다 — 값의 절반만, 사기적이지 않게
+    const pMul = passive && passive.trigger === 'passive' ? 1 + (Number(passive.valuePct) || 0) / 200 : 1;
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
-      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)),
-      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)),
+      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * techAtk * pMul,
+      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * techDef * pMul,
       mov: Math.min(9, C.mov + eq.move), rng: C.rng, minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
-      x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
+      passive, pUsed: {}, x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
       train: allyTrain(origin, h),
     };
   }
@@ -732,6 +737,18 @@
     enemy: { ring: '#ff4a34', ringSoft: 'rgba(255,90,60,0.28)', bar: ['#e2452f', '#ff9d84'], chip: '#bf3325', label: '적' },
   };
 
+  /* 병과 배지 — HP 배지 옆에 붙어 서 있는 SD 영웅의 병과를 바로 읽게 한다 (v5) */
+  const CLASS_BADGE = {
+    gunwoong: ['👑', '군주'], gibi: ['🐎', '기병'], gunggi: ['🏹', '궁기'], changbyung: ['🗡', '창병'],
+    geombyung: ['🛡', '검병'], sanjeok: ['🪓', '산적'], sujeok: ['🔱', '수적'], chaeksa: ['📜', '책사'],
+    pungsusa: ['🌿', '풍수'], dosa: ['☯', '도사'], gungsu: ['🏹', '궁수'], mudoga: ['👊', '무도'],
+    yasubyung: ['🐯', '야수'], muhui: ['💃', '무희'], yeonnobyung: ['🏹', '연노'], deunggabyung: ['🛡', '등갑'],
+    gunakdae: ['🥁', '군악'], pocha: ['💥', '포차'], balseokcha: ['💥', '발석'],
+  };
+  const BADGE_BG = {
+    ally: 'rgba(30,52,92,0.9)', enemy: 'rgba(74,26,20,0.9)',
+  };
+
   function drawUnit(u) {
     const ux = u.rx == null ? u.x : u.rx;
     const uy = u.ry == null ? u.y : u.ry;
@@ -824,6 +841,28 @@
     ctx.fillStyle = '#fffaf0';
     ctx.fillText(num, pillX + chipW + Math.round(4 * k), pillY + pillH / 2 + 0.5);
     ctx.restore();
+    // 병과 배지 — [🐎 기병] 형태의 작은 칩을 HP 배지 왼쪽에 붙인다
+    const badge = CLASS_BADGE[u.cls] || ['', SK.CLASSES[u.cls] ? SK.CLASSES[u.cls].name.slice(0, 2) : ''];
+    if (badge[1]) {
+      const bsz = Math.max(7, Math.round(7.4 * k));
+      ctx.save();
+      ctx.font = `800 ${bsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
+      const btxt = `${badge[0]} ${badge[1]}`.trim();
+      const bw2 = ctx.measureText(btxt).width + Math.round(7 * k);
+      const bh2 = Math.round(12 * k);
+      const bx2 = pillX - bw2 - Math.round(3 * k);
+      const by2 = pillY + (pillH - bh2) / 2;
+      ctx.fillStyle = BADGE_BG[u.side] || BADGE_BG.enemy;
+      ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.6)' : 'rgba(255,170,150,0.55)';
+      ctx.lineWidth = 1;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx2, by2, bw2, bh2, bh2 / 2); ctx.fill(); ctx.stroke(); }
+      else { ctx.fillRect(bx2, by2, bw2, bh2); ctx.strokeRect(bx2, by2, bw2, bh2); }
+      ctx.fillStyle = '#f4ead2';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(btxt, bx2 + bw2 / 2, by2 + bh2 / 2 + 0.5);
+      ctx.restore();
+    }
     // 병력 바
     const p = clamp(u.hp / u.maxHp, 0, 1);
     ctx.fillStyle = 'rgba(18,14,8,0.8)';
@@ -1483,6 +1522,37 @@
     return m;
   }
 
+  /* 고유 특기 발동 — 상위 100명의 data/unique_passives.json
+     on_attack: 공격 후 주변 아군 강화 / turn_start: 매 턴 아군 회복 / 그 외: 공격 시 발동으로 본다 */
+  function triggerPassive(u, when) {
+    const p = u && u.passive;
+    if (!p || !u.alive || B.over) return;
+    const trig = p.trigger || 'on_attack';
+    if (when === 'turn_start' ? trig !== 'turn_start' : trig === 'turn_start') return;
+    if (when !== 'turn_start' && u.pUsed && u.pUsed[trig]) return;
+    const v = clamp((Number(p.valuePct) || 10) / 100, 0.03, 0.2);
+    const cx = (rxOf(u) + 0.5) * TILE, cy = (ryOf(u) + 0.5) * TILE;
+    if (trig === 'turn_start') {
+      const list = B.units.filter((o) => o.alive && o.side === u.side && cheb(rxOf(o), ryOf(o), rxOf(u), ryOf(u)) <= 2);
+      list.forEach((o) => {
+        o.hp = Math.min(o.maxHp, o.hp + Math.round(o.maxHp * v));
+        addFx({ kind: 'heal', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 520 });
+      });
+      addFloat(cx, cy - 10, `「${p.title}」`, '#9ef0b8');
+      feed(`${u.name}의 고유 특기 「${p.title}」 — 주변 아군 회복`, 'good');
+      return;
+    }
+    u.pUsed = u.pUsed || {};
+    u.pUsed[trig] = true;
+    const allies = B.units.filter((o) => o.alive && o.side === u.side && o !== u && cheb(o.x, o.y, u.x, u.y) <= 2).slice(0, 3);
+    allies.forEach((o) => {
+      o.buffs.atk = { v: Math.max(v, (o.buffs.atk && o.buffs.atk.v) || 0), t: 2 };
+      addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 420, color: '255,210,120' });
+    });
+    addFloat(cx, cy - 10, `「${p.title}」`, '#ffe08a');
+    feed(`${u.name}의 고유 특기 「${p.title}」 — 아군 사기 상승`, 'good');
+  }
+
   function doAttack(a, d) {
     if (!a || !d || !a.alive || !d.alive) return;
     busy = true;
@@ -1491,6 +1561,7 @@
     B.reachCache = null;
     attackUnit(a, d, { mult: 1 }, () => {
       const wasAlive = d.alive && d.hp > 0;
+      triggerPassive(a, 'on_attack');
       setTimeout(() => {
         if (!B || B.over) { busy = false; return; }
         if (wasAlive && d.alive && !B.over) counter(d, a);
@@ -1805,6 +1876,7 @@
           else u.mp = Math.min(u.maxMp, u.mp + 2);
         });
         B.phase = 'ally';
+        B.units.forEach((u) => { if (u.side === 'ally' && u.alive) triggerPassive(u, 'turn_start'); });
         banner('아군 페이즈', 'ally');
         SKBattle.refreshUI();
         const first = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);

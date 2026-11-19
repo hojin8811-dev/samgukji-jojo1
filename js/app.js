@@ -43,8 +43,8 @@
   }
   SK.cityLevel = cityLevel;
 
-  /* 징병 상한 — 인구의 30% */
-  function cityCap(cs) { return Math.max(1200, Math.floor((cs.pop || 10000) * 0.3)); }
+  /* 징병 상한 — 인구의 15~20% (v5: 인구를 실제 규모로 올린 만큼 비율을 낮춰 병력 밸런스를 지킨다) */
+  function cityCap(cs) { return Math.max(1500, Math.floor((cs.pop || 10000) * 0.17)); }
   SK.cityCap = cityCap;
 
   /* 시작 등급 — 대도시는 Lv.2, 소도시·관문·요새는 Lv.1 */
@@ -65,12 +65,23 @@
   const ECON_MUL = { capital: 1.5, town: 1, pass: 0.42, fortress: 0.45 };
   function econMul(c) { return ECON_MUL[c.type] || 1; }
   SK.econMul = econMul;
+  /* v5 — 인구를 실제 도시 규모로 올린다
+     관문·요새 3~6만 · 소도시 8~15만 · 대도시(평원·낙양·장안·업·성도·건업 포함) 25~45만 */
+  const BIG_CAPITALS = ['pingyuan', 'luoyang', 'changan', 'ye', 'chengdu', 'jianye'];
   function basePop(c) {
-    const t = { capital: 52000, town: 33000, pass: 14000, fortress: 15000 }[c.type] || 28000;
-    return Math.round(t * (0.86 + (hashStr(c.id) % 26) / 100));
+    const h = hashStr(c.id);
+    const v = (h % 1000) / 1000;                     // 0~1 고정 난수
+    if (c.type === 'capital') {
+      const big = BIG_CAPITALS.indexOf(c.id) >= 0;
+      const lo = big ? 300000 : 250000, hi = big ? 450000 : 380000;
+      return Math.round(lo + (hi - lo) * v);
+    }
+    if (c.type === 'town') return Math.round(80000 + 70000 * v);
+    if (c.type === 'pass') return Math.round(30000 + 30000 * v);
+    return Math.round(36000 + 24000 * v);            // 요새
   }
   function cityPopCap(c) {
-    return Math.round(({ capital: 90000, town: 64000, pass: 26000, fortress: 28000 }[c.type] || 60000));
+    return Math.round(({ capital: 700000, town: 260000, pass: 90000, fortress: 110000 }[c.type] || 150000));
   }
 
   function hashStr(str) {
@@ -88,7 +99,7 @@
       const h = hashStr(c.id);
       cities[c.id] = {
         owner: c.faction || 'neutral',
-        troops: Math.min(c.baseTroops, Math.round(base * 0.3)),
+        troops: Math.min(c.baseTroops, Math.round(base * 0.17)),
         def: Math.min(100, c.defense + (c.type === 'pass' ? 8 : c.type === 'fortress' ? 6 : 0)),
         loyalty: 62 + (h % 12),
         pop: base,
@@ -96,13 +107,16 @@
         comm: ({ capital: 31, town: 23, pass: 17, fortress: 19 }[c.type] || 22) + ((h >> 3) % 10),
         train: 50,                        // 시작 훈련도는 50 (v4.2)
         gold: 0, food: 0, genIds: [], advisor: null, governor: null, auto: true, bandit: false,
+        slots: null, scoutedUntil: 0,
       };
+      ensureSlots(cities[c.id], c);
     });
     const st = {
       version: 5, year: 1, month: 0, gold: 0, food: 0, fame: 0, turn: 1,
       cities, heroes: [], citiesOwned: 0, log: [], lastCity: 'xuchang', treasures: [],
       playerFaction: factionId || 'caocao', factions: {}, scenario: sc ? Number(sc.id) : null,
       eraYear: sc ? Number(sc.year) : 200, timelineSeen: [], talentLuck: 0, talentsVersion: 3,
+      rp: 0, techs: [], truce: {},
     };
     SK.CITY_LIST.forEach((c) => enforceStartLevel(cities[c.id], c));
     if (sc) {
@@ -172,8 +186,30 @@
 
   /* v4.2 — 시나리오가 지정한 장수 뒤에 585장수 풀에서 같은 지역 인물을 더 채운다.
      한국 인물은 한국 세력에만, 중국 인물은 중국 세력에만 간다. */
+  /* v5 — 인물 풀은 세력 계열별로 완전히 갈라 둔다.
+     위=위 인물, 촉=촉 인물, 오=오 인물, 군웅(원소·도겸·동탁·공융·유요·엄백호·왕랑·장로 등)=군웅 인물, 한국=한국 인물.
+     아직 등장 연도(debutYear)가 되지 않은 인물은 어느 풀에도 들지 않는다. */
+  function poolGroupOf(fid) {
+    const g = SK.factionGroup(fid);
+    if (g === '위' || g === '촉' || g === '오') return g;
+    if (g === '한국') return '한국';
+    return '군웅';
+  }
+  function genPoolGroup(g) {
+    if (!g) return '군웅';
+    if (SK.generalGroup(g) === '한국') return '한국';
+    const f = g.faction || '';
+    if (f === '위' || f === '촉' || f === '오') return f;
+    return '군웅';                       // 군웅·재야
+  }
+  SK.poolGroupOf = poolGroupOf;
+  SK.genPoolGroup = genPoolGroup;
+  function eraYearOf(st) { return Number((st && (st.eraYear || (195 + (st.year || 0)))) || 190); }
+  SK.eraYearOf = eraYearOf;
+
   function enrichFactions(st) {
     if (!SK.GENERALS.length) return;
+    const year = eraYearOf(st);
     const used = new Set();
     const fids = Object.keys(st.factions).filter((k) => k !== 'neutral');
     fids.forEach((k) => {
@@ -183,28 +219,30 @@
         const nm = SK.normName(n);
         const g = nm ? SK.GEN_BY_NAME[nm] : null;
         if (!g || used.has(g.id)) return;
+        if (!SK.debutOk(g, year)) return;          // 아직 세상에 나오지 않은 인물
         names.push(nm); used.add(g.id);
       };
       if (f.lord) add(f.lord);
       (f.generals || []).forEach(add);
       f.generals = names;
       f.group = SK.factionGroup(f.id);
+      f.pool = poolGroupOf(f.id);
     });
-    const pools = { '한국': [], '중국': [] };
+    const pools = { '위': [], '촉': [], '오': [], '군웅': [], '한국': [] };
     SK.GENERALS.forEach((g) => {
-      if (used.has(g.id)) return;
-      pools[SK.generalGroup(g)].push(g);
+      if (used.has(g.id) || !SK.debutOk(g, year)) return;
+      pools[genPoolGroup(g)].push(g);
     });
     Object.keys(pools).forEach((k) => pools[k].sort((a, b) => SK.genScore(b) - SK.genScore(a) || a.id - b.id));
     const order = fids.map((k) => st.factions[k]).sort((a, b) => (b.cities || []).length - (a.cities || []).length);
     order.forEach((f) => {
       const want = rosterTarget(f.id, (f.cities || []).length);
-      const pool = pools[f.group === '한국' ? '한국' : '중국'];
+      const pool = pools[f.pool] || pools['군웅'];
       let guard = 0;
-      while ((f.generals || []).length < want && pool.length && guard++ < 60) {
+      while ((f.generals || []).length < want && pool.length && guard++ < 80) {
         const g = pool.shift();
         if (!g || used.has(g.id)) continue;
-        if (SK.generalGroup(g) !== (f.group === '한국' ? '한국' : '중국')) continue;
+        if (genPoolGroup(g) !== f.pool) continue;
         f.generals.push(g.name); used.add(g.id);
       }
     });
@@ -263,11 +301,11 @@
       const h = makeHero(nm, cityId, 1);
       if (h) st.heroes.push(h);
     });
-    // 수도에 장수가 하나도 없으면 세력 장수 한 명을 불러온다 (같은 지역 인물만)
+    // 수도에 장수가 하나도 없으면 세력 장수 한 명을 불러온다 (같은 계열 인물만)
     if (!st.heroes.some((h) => h.city === capital)) {
-      const grp = ((f && f.group) === '한국') ? '한국' : '중국';
+      const grp = (f && f.pool) || poolGroupOf(st.playerFaction);
       const spare = SK.GENERALS.find((g) => !st.heroes.some((h) => h.genId === g.id)
-        && SK.generalGroup(g) === grp);
+        && genPoolGroup(g) === grp && SK.debutOk(g, eraYearOf(st)));
       if (spare) { const h = makeHero(spare.name, capital, 1); if (h) st.heroes.push(h); }
     }
   }
@@ -285,18 +323,19 @@
     st.treasures = [];
   }
 
-  /* 적성 수비 장수 — 그 성의 세력 인물로만 (지역이 다른 인물은 세우지 않는다) */
+  /* 적성 수비 장수 — 그 성의 세력 인물로만 (지역·계열이 다른 인물은 세우지 않는다) */
   function assignGarrisons(st) {
     if (!SK.GENERALS.length) return;
+    const year = eraYearOf(st);
     const used = new Set();
     st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
     const rank = { S: 0, A: 1, B: 2, C: 3 };
     const byFaction = {};
     Object.keys(st.factions).forEach((k) => {
       const f = st.factions[k];
-      const grp = f && f.group === '한국' ? '한국' : '중국';
+      const grp = f && f.pool ? f.pool : poolGroupOf(k);
       const pool = ((f && f.generals) || []).map((n) => SK.GEN_BY_NAME[n]).filter(Boolean)
-        .filter((g) => SK.generalGroup(g) === grp);
+        .filter((g) => genPoolGroup(g) === grp && SK.debutOk(g, year));
       pool.sort((a, b) => (rank[a.tier] - rank[b.tier]) || (b.war + b.intel) - (a.war + a.intel));
       byFaction[k] = pool;
     });
@@ -330,33 +369,36 @@
   function tavernGroupOf(st, cityId) {
     const cs = st && st.cities ? st.cities[cityId] : null;
     const owner = cs ? cs.owner : null;
-    if (owner && owner !== 'neutral' && SK.KOREAN_FACTIONS.indexOf(owner) >= 0) return '한국';
     if (owner && owner !== 'neutral' && st.factions[owner]) {
-      return st.factions[owner].group === '한국' ? '한국' : '중국';
+      return st.factions[owner].pool || poolGroupOf(owner);
     }
-    return SK.cityGroup(cityId) === '한국' ? '한국' : '중국';
+    return SK.cityGroup(cityId) === '한국' ? '한국' : '군웅';
   }
   SK.tavernGroupOf = tavernGroupOf;
 
   function seedTalents(st) {
+    const year = eraYearOf(st);
     const used = new Set();
     st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
     SK.CITY_LIST.forEach((c) => (st.cities[c.id].genIds || []).forEach((id) => used.add(id)));
     const lordName = (st.factions[st.playerFaction] || {}).lord;
-    const buckets = { '한국': { S: [], A: [], B: [], C: [] }, '중국': { S: [], A: [], B: [], C: [] } };
+    const groups = ['위', '촉', '오', '군웅', '한국'];
+    const buckets = {};
+    groups.forEach((grp) => { buckets[grp] = { S: [], A: [], B: [], C: [] }; });
     SK.GENERALS.forEach((g) => {
       if (used.has(g.id) || g.name === lordName) return;
-      const grp = SK.generalGroup(g);
+      if (!SK.debutOk(g, year)) return;          // 아직 나오지 않은 인물은 주점에도 없다
+      const grp = genPoolGroup(g);
       (buckets[grp][g.tier] || buckets[grp].C).push(g);
     });
-    Object.keys(buckets).forEach((grp) => Object.keys(buckets[grp]).forEach((t) => {
+    groups.forEach((grp) => Object.keys(buckets[grp]).forEach((t) => {
       buckets[grp][t].sort((a, b) => SK.genScore(b) - SK.genScore(a) || a.id - b.id);
     }));
     // 한 성이 2~4명씩 가져가도록 B·C를 촘촘히, A를 드문드문 섞은 순서
     const MIX = ['C', 'B', 'C', 'C', 'B', 'A', 'C', 'B', 'C', 'C', 'B', 'A', 'C', 'C', 'B', 'B', 'C', 'A', 'B', 'C',
       'C', 'B', 'C', 'C', 'B'];
     const seq = {};
-    Object.keys(buckets).forEach((grp) => {
+    groups.forEach((grp) => {
       const b = buckets[grp];
       const out = [];
       let guard = 0;
@@ -367,8 +409,8 @@
       }
       seq[grp] = out;
     });
-    const cursor = { '한국': 0, '중국': 0 };
-    const seen = { '한국': 0, '중국': 0 };
+    const cursor = {}; const seen = {};
+    groups.forEach((grp) => { cursor[grp] = 0; seen[grp] = 0; });
     SK.CITY_LIST.forEach((c) => {
       const cs = st.cities[c.id];
       cs.talents = cs.talents || [];
@@ -376,7 +418,7 @@
       const grp = tavernGroupOf(st, c.id);
       const h = hashStr(c.id);
       const n = 2 + (h % 3);
-      const list = seq[grp];
+      const list = seq[grp] || [];
       const take = [];
       for (let k = 0; k < n && cursor[grp] < list.length; k++) {
         const g = list[cursor[grp]++];
@@ -393,6 +435,32 @@
       cs.talents = take;
     });
   }
+
+  /* 해가 바뀔 때 — 새로 성년이 된 명장을 각지 주점에 풀어 놓는다 (v5) */
+  SK.refreshDebut = function (st) {
+    const yr = eraYearOf(st);
+    const used = new Set();
+    st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      (cs.talents || []).forEach((id) => used.add(id));
+      (cs.genIds || []).forEach((id) => used.add(id));
+    });
+    const fresh = SK.GENERALS.filter((g) => Number(g.debutYear) === yr && !used.has(g.id));
+    const out = [];
+    fresh.forEach((g) => {
+      const grp = genPoolGroup(g);
+      let cands = SK.CITY_LIST.filter((c) => tavernGroupOf(st, c.id) === grp);
+      if (!cands.length) cands = SK.CITY_LIST.filter((c) => SK.cityGroup(c.id) === (grp === '한국' ? '한국' : '중국'));
+      if (!cands.length) return;
+      const c = cands[Math.floor(Math.random() * cands.length)];
+      const cs = st.cities[c.id];
+      cs.talents = cs.talents || [];
+      cs.talents.unshift(g.id);
+      out.push(g);
+    });
+    return out;
+  };
 
   /* 그 성에 지금 있는 재야 인재 (주점) */
   function localTalents(cityId) {
@@ -454,7 +522,12 @@
         if (cs.governor === undefined) cs.governor = null;
         if (cs.advisor === undefined) cs.advisor = null;
         if (cs.auto == null) cs.auto = true;
+        ensureSlots(cs, c);                 // v5 — 공터 슬롯 이관
+        if (cs.scoutedUntil == null) cs.scoutedUntil = 0;
       });
+      s.techs = s.techs || [];
+      s.truce = s.truce || {};
+      s.rp = s.rp || 0;
       SK.state = s;
       // v4.2 인재 분포 — 한국/중국 인재를 갈라 다시 놓는다
       if (s.talentsVersion !== 3 && SK.GENERALS.length) {
@@ -596,6 +669,30 @@
   }
   SK.loadTopArt = loadTopArt;
 
+  async function loadTechTree() {
+    if (SK.TECHS && SK.TECHS.length) return true;
+    try {
+      const res = await fetch('data/tech_tree.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      SK.TECHS = await res.json();
+      return true;
+    } catch (e) { console.warn('기술 데이터를 불러오지 못했습니다.', e); SK.TECHS = SK.TECHS || []; return false; }
+  }
+  SK.loadTechTree = loadTechTree;
+
+  async function loadPassives() {
+    if (SK.PASSIVES && Object.keys(SK.PASSIVES).length) return true;
+    try {
+      const res = await fetch('data/unique_passives.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const list = await res.json();
+      SK.PASSIVES = {};
+      (list || []).forEach((p) => { if (p && p.name) SK.PASSIVES[p.name] = p; });
+      return true;
+    } catch (e) { console.warn('고유 특기를 불러오지 못했습니다.', e); SK.PASSIVES = SK.PASSIVES || {}; return false; }
+  }
+  SK.loadPassives = loadPassives;
+
   async function loadQuotesAndRanks() {
     if (SK.RANKS.length) return true;
     try {
@@ -666,6 +763,8 @@
     if (!SK.DOMESTIC_EVENTS.length) await loadDomesticEvents();
     if (!SK.RANKS.length) await loadQuotesAndRanks();
     if (!Object.keys(SK.ART).length) await loadTopArt();
+    if (!SK.TECHS || !SK.TECHS.length) await loadTechTree();
+    if (!SK.PASSIVES || !Object.keys(SK.PASSIVES).length) await loadPassives();
     applyLordArt();
     if (!SK.TREASURES.length) await loadTreasures();
     if (fresh) { openScenarioPicker(); return; }
@@ -867,15 +966,46 @@
   SK.troopCap = troopCap;
 
   /* ───────────── 도시 시트 (지도 하단) ───────────── */
+  function isScouted(st) {
+    const s = SK.state;
+    return !!(st && st.scoutedUntil && Number(st.scoutedUntil) >= (s ? s.turn : 1));
+  }
+  SK.isScouted = isScouted;
+
+  function scoutCost() { return 160; }
+  SK.scoutCost = scoutCost;
+
+  /* 정찰 — 길로 이어진 아군 성에서 첩자를 보내 3~4개월 동안 적성 내부를 볼 수 있다 */
+  SK.scoutCity = function (id, fromId) {
+    const s = SK.state;
+    const st = s.cities[id];
+    if (!st || st.owner === PF()) return false;
+    if (s.gold < scoutCost()) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (정찰 금 ${scoutCost()})`); return false; }
+    const from = fromId || SK.allNeighbors(id).find((n) => s.cities[n] && s.cities[n].owner === PF());
+    if (!from) { SK.toast('정찰을 보낼 아군 성이 맞닿아 있지 않습니다.'); return false; }
+    s.gold -= scoutCost();
+    const months = 3 + Math.floor(Math.random() * 2);
+    st.scoutedUntil = s.turn + months;
+    st.scoutedFrom = from;
+    SK.save();
+    SK.refreshHud();
+    SK.sfx.play('ui');
+    SK.toast(`${CITY[id].name} 정찰 완료 — ${months}개월 동안 성내가 보입니다.`);
+    if (document.querySelector('#screen-map.active')) SK.openCitySheet(id);
+    return true;
+  };
+
   SK.openCitySheet = function (id) {
     const c = CITY[id];
     const st = SK.state.cities[id];
     const f = SK.factionInfo(st.owner);
     const mine = st.owner === PF();
+    const scouted = mine || isScouted(st);
     const ownGens = SK.state.heroes.filter((h) => h.city === id);
     const defGens = mine ? [] : (st.genIds || []).map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean);
-    const generals = mine ? ownGens : defGens;
+    const generals = mine ? ownGens : (scouted ? defGens : []);
     const canAttack = !mine && SK.allNeighbors(id).some((n) => SK.state.cities[n].owner === PF());
+    const hidden = '? <em class="fog">미정찰</em>';
     const sheet = $('#city-sheet');
     sheet.hidden = false;
     sheet.innerHTML = `
@@ -883,20 +1013,22 @@
       <div class="sheet-head">
         <span class="faction-badge" style="--fc:${f.color}">${SK.markOf(f)}</span>
         <div class="sheet-title"><h3>${c.name}</h3>
-          <p>${f.name} · ${typeName(c.type)} · ${c.region}</p></div>
+          <p>${f.name} · ${typeName(c.type)} · ${c.region}${!mine && scouted ? ' · <b class="scout-on">정찰됨</b>' : ''}</p></div>
         <button class="sheet-close" aria-label="닫기">✕</button>
       </div>
-      <div class="sheet-stats">
-        <div><span>수비병</span><b>${fmt(st.troops)}</b></div>
-        <div><span>성벽</span><b>${st.def}</b></div>
-        <div><span>민심</span><b>${st.loyalty}</b></div>
-        <div><span>장수</span><b>${generals.length}</b></div>
+      <div class="sheet-stats ${scouted ? '' : 'fogged'}">
+        <div><span>수비병</span><b>${scouted ? fmt(st.troops) : hidden}</b></div>
+        <div><span>성벽</span><b>${scouted ? st.def : hidden}</b></div>
+        <div><span>민심</span><b>${scouted ? st.loyalty : hidden}</b></div>
+        <div><span>장수</span><b>${scouted ? generals.length : hidden}</b></div>
       </div>
       ${generals.length ? `<div class="sheet-gens">${generals.slice(0, 6).map((g) => `<div class="mini-gen" title="통솔 ${g.tong || g.leadership} 무력 ${g.wu || g.war} 지력 ${g.ji || g.intel} 정치 ${g.pol || g.politics || 60} 매력 ${g.cha || g.charm || 60}"><img src="${SK.ptSrc(g.portrait || SK.genPortrait(g))}" alt=""><div><span>${g.name}</span><em>통${g.tong || g.leadership} 무${g.wu || g.war} 지${g.ji || g.intel} 정${g.pol || g.politics || 60} 매${g.cha || g.charm || 60}</em></div></div>`).join('')}</div>` : ''}
+      ${!mine && !scouted ? `<p class="fog-note">첩자가 닿지 않아 성안을 알 수 없습니다. [정찰 보내기]로 3~4개월 동안 병력·성벽·장수를 살필 수 있습니다.</p>` : ''}
       <div class="sheet-actions">
-        ${mine ? `<button class="btn btn-primary" data-a="enter">입성 · 내정</button>` :
-          canAttack ? `<button class="btn btn-primary danger" data-a="attack">출진 · 공격</button>` :
-            `<button class="btn btn-paper" data-a="far">원정 불가</button>`}
+        ${mine ? `<button class="btn btn-primary" data-a="enter">입성 · 내정</button>` : ''}
+        ${!mine && canAttack ? `<button class="btn btn-primary danger" data-a="attack">출진 · 공격</button>` : ''}
+        ${!mine && !scouted ? `<button class="btn btn-paper" data-a="scout">정찰 보내기 <em>금 ${scoutCost()}</em></button>` : ''}
+        ${!mine && !canAttack ? `<button class="btn btn-paper" data-a="far">원정 불가</button>` : ''}
         <button class="btn btn-paper" data-a="close">닫기</button>
       </div>`;
     sheet.querySelector('.sheet-close').onclick = () => (sheet.hidden = true);
@@ -905,10 +1037,24 @@
         const a = b.dataset.a;
         if (a === 'enter') { sheet.hidden = true; SK.openCity(id); }
         else if (a === 'attack') {
+          if (!isScouted(st)) {
+            SK.modal({
+              kicker: `${c.name} · 미정찰`,
+              title: '보이지 않는 성을 칠까',
+              body: `<p class="modal-p">아직 첩자가 닿지 않아 ${c.name}의 병력·성벽·장수를 모릅니다. 먼저 정찰하면 출진할 때 적의 전력을 알고 편성할 수 있습니다.</p>`,
+              actions: [
+                { label: '닫기' },
+                { label: `정찰 먼저 (금 ${scoutCost()})`, onClick: () => SK.scoutCity(id) },
+                { label: '그래도 출진', onClick: () => { sheet.hidden = true; const from = SK.allNeighbors(id).find((n) => SK.state.cities[n].owner === PF()) || SK.state.lastCity; SK.openSortiePrep(id, from); } },
+              ],
+            });
+            return;
+          }
           sheet.hidden = true;
           const from = SK.allNeighbors(id).find((n) => SK.state.cities[n].owner === PF()) || SK.state.lastCity;
           SK.openSortiePrep(id, from);
         }
+        else if (a === 'scout') { const ok = SK.scoutCity(id); if (ok) SK.closeCitySheet(); }
         else if (a === 'far') { SK.toast('인접한 아군 거점에서만 출진할 수 있습니다.'); }
         else sheet.hidden = true;
       };
@@ -951,10 +1097,12 @@
     $('#city-troops').textContent = fmt(st.troops);
     const gens = s.heroes.filter((h) => h.city === id);
     if (!gens.length) cityActorUid = null;
+    ensureSlots(st, c);
     $('#city-weather').textContent = `${monthWeather(s)} · ${st.loyalty > 75 ? '민심 안정' : st.loyalty > 50 ? '민심 보통' : '민심 흉흉'}`;
     const cr = $('#city-rank');
     if (cr) cr.textContent = SK.rankFor(s.fame).title;
     renderCityDev(id);
+    renderCitySlots(id);
     renderSceneLevel(id);
     renderCityGens(id);
     const hs = $('#scene-hotspots');
@@ -1112,6 +1260,17 @@
     { key: 'city', label: '위치', sort: (h) => (CITY[h.city] || {}).name || '' },
   ];
 
+  /* v5 — 나이 (세는나이: 올해 - 태어난 해 + 1). 태어난 해를 모르면 0 */
+  function heroAge(h) {
+    if (!h) return 0;
+    const g = h.genId ? SK.GEN_BY_ID[h.genId] : SK.GEN_BY_NAME[h.name];
+    const by = g && Number(g.birthYear);
+    if (!by) return 0;
+    const yr = SK.state ? Number(SK.state.eraYear || 190) : 190;
+    return Math.max(1, yr - by + 1);
+  }
+  SK.heroAge = heroAge;
+
   function roleOf(h) {
     const s = SK.state;
     const f = s.factions[PF()] || {};
@@ -1166,7 +1325,7 @@
       const list = rows();
       const head = ROSTER_COLS.map((c) => `<button class="rs-th ${c.num ? 'num' : ''} ${sortKey === c.key ? 'on' : ''}" data-k="${c.key}">${c.label}${sortKey === c.key ? (dir < 0 ? ' ▼' : ' ▲') : ''}</button>`).join('');
       const body = list.map((h) => `<button class="rs-row" data-uid="${h.uid}">
-          <span class="rs-name"><img src="${SK.ptSrc(h.portrait)}" alt=""><b>${h.name}</b></span>
+          <span class="rs-name"><img style="--fa:${genAura(h.genId, h.name)}" src="${SK.ptSrc(h.portrait)}" alt=""><b>${h.name}</b><em class="rs-age">${heroAge(h) || '-'}</em></span>
           <span class="rs-num">${h.tong}</span>
           <span class="rs-num">${h.wu}</span>
           <span class="rs-num">${h.ji}</span>
@@ -1257,18 +1416,27 @@
   }
   SK.openRoster = openRoster;
 
+  /* 계열별 초상화 오라 색 — 위 파랑 · 촉 옥빛 초록 · 오 크림슨 · 한국 금/틸 · 군웅 보랏빛/호박 */
+  const GROUP_AURA = { '위': '#3B82F6', '촉': '#22A06B', '오': '#DC2626', '한국': '#D4A017', '군웅': '#8B5CF6' };
+  function genAura(genId, name) {
+    const g = genId ? SK.GEN_BY_ID[genId] : (name ? SK.GEN_BY_NAME[name] : null);
+    const grp = g ? genPoolGroup(g) : '군웅';
+    return GROUP_AURA[grp] || GROUP_AURA['군웅'];
+  }
+  SK.genAura = genAura;
+
   function showHeroInfo(uid) {
     const g = SK.state.heroes.find((h) => h.uid === uid);
     if (!g) return;
     const C = SK.CLASSES[g.cls];
     const hpM = maxHpOf(g.cls, g.lv), mpM = maxMpOf(g.cls, g.lv);
     SK.modal({
-      title: `${g.name}`,
-      body: `<div class="hero-info">
-        <div class="hi-portrait"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
+      title: `${g.name}`,          body: `<div class="hero-info">
+        <div class="hi-portrait" style="--fa:${genAura(g.genId, g.name)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
         <div class="hi-body">
-          <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}</p>
+          <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}${heroAge(g) ? ` · ${heroAge(g)}세` : ''}</p>
           ${g.skillName ? `<p class="hi-skill">특기 — ${g.skillName}</p>` : ''}
+          ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기</span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p></div>` : ''}
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
           <p class="hi-next">${SK.nextPromo(g.lv) ? `다음 승급 Lv.${SK.nextPromo(g.lv)} · ${SK.PROMO[g.cls] ? SK.PROMO[g.cls].names[Math.min(4, SK.PROMO[g.cls].names.length - 1)] : ''}` : '최고 승급 단계'}</p>
           <div class="hi-bars"><span class="hi-hp">출진 병력 ${SK.troopForNamed(g.lv).toLocaleString('ko-KR')}</span><span class="hi-mp">MP ${g.mp}/${mpM}</span></div>
@@ -1284,7 +1452,7 @@
       </div>`,
       actions: [
         { label: '보물 관리', onClick: () => openTreasures(g) },
-        ...(SK.state.cities[g.city] && SK.state.cities[g.city].owner === 'wei'
+        ...(SK.state.cities[g.city] && SK.state.cities[g.city].owner === PF()
           ? [{ label: '다른 성으로 이동', onClick: () => openTransfer(g) }] : []),
         { label: '닫기', primary: true },
       ],
@@ -1294,7 +1462,7 @@
 
   function openTransfer(g) {
     const s = SK.state;
-    const towns = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === 'wei' && c.id !== g.city);
+    const towns = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF() && c.id !== g.city);
     if (!towns.length) { SK.toast('옮겨 갈 다른 성이 없습니다.'); return; }
     const rows = towns.map((c) => `<button class="target-card" data-c="${c.id}">
       <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
@@ -1334,6 +1502,650 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
   function cityGens(cityId) { return SK.state.heroes.filter((h) => h.city === cityId); }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5 내정 개편 1단계 — 설치식 내성 건설(공터 슬롯) · 5묶음 메뉴
+     · 공터에 건물을 지어 두면 담당자가 없어도 50% 효과가 돌아간다
+     · 담당 장수를 앉히면 능력치에 따라 100~150% 효과 + 매달 경험치
+     · 장수는 한 달에 한 번, '건물 담당'이거나 '직접 명령' 중 하나를 한다
+     ══════════════════════════════════════════════════════════════ */
+  const SLOT_DEFS = {
+    market: { name: '시장', icon: 'market', stat: 'pol', res: 'gold', desc: '매달 금을 벌어들입니다' },
+    farm: { name: '농원', icon: 'farm', stat: 'pol', res: 'food', desc: '매달 군량을 쌓습니다' },
+    barracks: { name: '병영', icon: 'barracks', stat: 'tong', res: 'troops', desc: '매달 수비병을 모읍니다' },
+    training: { name: '연병장', icon: 'training', stat: 'tong', res: 'train', desc: '훈련도를 올리고 담당 장수를 키웁니다' },
+    patrol: { name: '순찰소', icon: 'patrol', stat: 'cha', res: 'loyalty', desc: '민심과 치안을 다스립니다' },
+    tavern: { name: '주점', icon: 'tavern', stat: 'cha', res: 'talent', desc: '재야 인재가 모여듭니다' },
+    wall: { name: '성벽', icon: 'wall', stat: 'tong', res: 'def', desc: '성벽을 손봅니다' },
+    lab: { name: '연구소', icon: 'lab', stat: 'pol', res: 'research', desc: '기술 연구를 돕습니다' },
+    workshop: { name: '공방', icon: 'workshop', stat: 'pol', res: 'gold', desc: '수송과 병기를 준비합니다' },
+  };
+  SK.SLOT_DEFS = SLOT_DEFS;
+  const SLOT_MAX = { capital: 8, town: 5, pass: 2, fortress: 3 };
+  const SLOT_DEFAULT = {
+    capital: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
+    town: ['market', 'farm', 'barracks'],
+    pass: ['wall'],
+    fortress: ['wall', 'barracks'],
+  };
+  function slotCount(type) { return SLOT_MAX[type] || 4; }
+  function ensureSlots(cs, c) {
+    if (!cs) return;
+    const n = slotCount(c.type);
+    if (!Array.isArray(cs.slots)) cs.slots = [];
+    const defs = SLOT_DEFAULT[c.type] || SLOT_DEFAULT.town;
+    while (cs.slots.length < n) {
+      const i = cs.slots.length;
+      cs.slots.push({ key: defs[i] || null, lv: defs[i] ? 1 : 0, uid: null });
+    }
+    if (cs.slots.length > n) cs.slots.length = n;
+    cs.slots.forEach((sl) => { if (sl.lv == null) sl.lv = sl.key ? 1 : 0; if (sl.uid === undefined) sl.uid = null; });
+  }
+  SK.ensureSlots = ensureSlots;
+
+  function slotMul(cs, sl, g) {
+    if (!sl || !sl.key) return 0;
+    const base = 0.5;
+    if (!g) return base;
+    const def = SLOT_DEFS[sl.key] || {};
+    const stat = g[def.stat || 'pol'] || 60;
+    return Math.min(1.5, 1 + Math.max(-0.15, (stat - 60) * 0.0075)) * (0.92 + sl.lv * 0.03);
+  }
+  SK.slotMul = slotMul;
+
+  function slotOwner(cityId, sl) { return sl && sl.uid ? cityGens(cityId).find((g) => g.uid === sl.uid) || null : null; }
+
+  /* 장수 상태 — 건물 담당 / 대기 / 완료 */
+  function dutyOf(h, cityId) {
+    const cs = SK.state.cities[cityId || h.city];
+    if (cs && (cs.slots || []).some((sl) => sl.uid === h.uid)) return '건물 담당';
+    if (h.actedThisMonth) return '이번 달 완료';
+    return '대기';
+  }
+  SK.dutyOf = dutyOf;
+
+  function buildCost(sl) { return sl.key ? Math.round(320 * (sl.lv + 1) * (1 + sl.lv * 0.35)) : 300; }
+
+  function renderCitySlots(cityId) {
+    const s = SK.state;
+    const cs = s.cities[cityId];
+    const c = CITY[cityId];
+    const box = $('#city-slots');
+    if (!box) return;
+    ensureSlots(cs, c);
+    const built = cs.slots.filter((sl) => sl.key).length;
+    box.innerHTML = `<div class="slot-head"><b>내성 시설</b><span>${built}/${cs.slots.length}칸 건설</span>
+        <em>담당 장수가 없어도 절반은 돌아갑니다</em></div>
+      <div class="slot-grid">${cs.slots.map((sl, i) => {
+        if (!sl.key) {
+          return `<button class="slot-card empty" data-slot="${i}">
+            <span class="sc-empty">＋</span><b>공터</b><small>건설 금 ${fmt(300)}</small></button>`;
+        }
+        const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
+        const g = slotOwner(cityId, sl);
+        const stars = '★'.repeat(sl.lv) + '☆'.repeat(Math.max(0, 5 - sl.lv));
+        return `<button class="slot-card" data-slot="${i}" style="--sc:#b8862f">
+          <img class="sc-ico" src="assets/buildings/${def.icon}.webp" alt="">
+          <div class="sc-main"><b>${def.name}</b><small class="sc-stars">${stars}</small>
+            <em>${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : '담당 없음 · 50%'}</em></div>
+          <span class="sc-lv">Lv.${sl.lv}</span></button>`;
+      }).join('')}</div>`.replace('<div class="slot-head">', '<div class="slot-head">');
+    box.querySelectorAll('.slot-card').forEach((b) => {
+      b.onclick = () => openSlot(cityId, Number(b.dataset.slot));
+    });
+  }
+  SK.renderCitySlots = renderCitySlots;
+
+  function openSlot(cityId, idx) {
+    const s = SK.state;
+    const cs = s.cities[cityId];
+    const c = CITY[cityId];
+    ensureSlots(cs, c);
+    const sl = cs.slots[idx];
+    if (!sl) return;
+    if (!sl.key) {
+      const rows = Object.keys(SLOT_DEFS).map((k) => {
+        const def = SLOT_DEFS[k];
+        const same = cs.slots.filter((x) => x.key === k).length;
+        return `<button class="build-row" data-k="${k}" ${s.gold < 300 ? 'disabled' : ''}>
+          <img src="assets/buildings/${def.icon}.webp" alt="">
+          <div><b>${def.name}${same ? ` <em>이미 ${same}곳</em>` : ''}</b><span>${def.desc}</span></div>
+          <em class="br-cost">금 ${fmt(300)}</em></button>`;
+      }).join('');
+      const m = SK.modal({
+        kicker: `${c.name} · 공터`, title: '무엇을 지을까',
+        body: `<p class="talent-note">건물은 담당자가 없어도 기본 효과의 50%를 냅니다. 담당 장수를 앉히면 정치·통솔·매력에 따라 100~150%까지 오르고, 그 장수는 그달 건물 일을 맡습니다.</p>
+          <div class="build-list">${rows}</div>`, wide: true, actions: [{ label: '닫기' }],
+      });
+      m.el.querySelectorAll('.build-row').forEach((b) => {
+        b.onclick = () => {
+          if (s.gold < 300) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 300)'); return; }
+          s.gold -= 300;
+          sl.key = b.dataset.k; sl.lv = 1; sl.uid = null;
+          SK.save(); SK.refreshHud(); m.close();
+          SK.openCity(cityId);
+          SK.sfx.play('hammer');
+          SK.toast(`${SLOT_DEFS[sl.key].name}을(를) 지었습니다 — 금 -300`);
+        };
+      });
+      return;
+    }
+    const def = SLOT_DEFS[sl.key];
+    const g = slotOwner(cityId, sl);
+    const cost = buildCost(sl);
+    const free = cityGens(cityId).filter((h) => !cs.slots.some((x) => x.uid === h.uid));
+    const opts = free.map((h) => `<button class="target-card" data-uid="${h.uid}">
+        <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
+        <div class="tc-main"><b>${h.name}</b><span>${SK.CLASSES[h.cls].name} · ${def.stat === 'pol' ? '정치' : def.stat === 'cha' ? '매력' : '통솔'} ${h[def.stat] || 60}</span></div>
+        <span class="tc-go">▸</span></button>`).join('');
+    const m = SK.modal({
+      kicker: `${c.name} · ${def.name}`, title: `Lv.${sl.lv} ${def.name}`,
+      body: `<div class="slot-detail">
+          <img class="sd-ico" src="assets/buildings/${def.icon}.webp" alt="">
+          <div><b>${def.desc}</b>
+            <span>효과 ${Math.round(slotMul(cs, sl, g) * 100)}% ${g ? `· 담당 ${g.name}` : '· 담당 없음'}</span>
+            <em>${sl.lv < 5 ? `증축 금 ${fmt(cost)}` : '최고 등급'}</em></div>
+        </div>
+        <div class="menu-list">
+          ${sl.lv < 5 ? `<button data-a="up" ${s.gold < cost ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})</button>` : ''}
+          ${g ? '<button data-a="free">담당 해제 — 이번 달 자유 행동</button>' : ''}
+          <button data-a="assign">담당 장수 앉히기</button>
+        </div>
+        ${!g && free.length ? `<p class="talent-note">앉힐 수 있는 대기 장수 ${free.length}명</p><div class="target-list">${opts}</div>` : ''}`,
+      wide: true, actions: [{ label: '닫기' }],
+    });
+    m.el.querySelectorAll('[data-a]').forEach((b) => {
+      b.onclick = () => {
+        const a = b.dataset.a;
+        if (a === 'up') {
+          if (s.gold < cost) { SK.toast('금이 부족합니다.'); return; }
+          s.gold -= cost; sl.lv += 1;
+          SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
+          SK.toast(`${def.name} Lv.${sl.lv} 증축 완료`);
+          SK.sfx.play('hammer');
+        } else if (a === 'free') {
+          sl.uid = null;
+          SK.save(); m.close(); SK.openCity(cityId);
+          SK.toast('담당을 해제했습니다. 이번 달 자유 행동이 돌아옵니다.');
+        } else if (a === 'assign') {
+          m.close();
+          openDutyPick(cityId, idx);
+        }
+      };
+    });
+    m.el.querySelectorAll('.target-card[data-uid]').forEach((b) => {
+      b.onclick = () => {
+        sl.uid = b.dataset.uid;
+        const h = cityGens(cityId).find((x) => x.uid === sl.uid);
+        if (h) h.actedThisMonth = true;
+        SK.save(); m.close(); SK.openCity(cityId);
+        SK.toast(`${josa(h ? h.name : '', 'i')} ${def.name} 담당이 되었습니다.`);
+      };
+    });
+  }
+  SK.openSlot = openSlot;
+
+  function openDutyPick(cityId, idx) {
+    const cs = SK.state.cities[cityId];
+    const sl = cs.slots[idx];
+    const free = cityGens(cityId).filter((h) => !cs.slots.some((x) => x.uid === h.uid));
+    if (!free.length) { SK.toast('앉힐 수 있는 장수가 없습니다. (모두 다른 건물을 맡고 있습니다)'); return; }
+    const def = SLOT_DEFS[sl.key];
+    const rows = free.map((h) => `<button class="target-card" data-uid="${h.uid}">
+      <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
+      <div class="tc-main"><b>${h.name}</b><span>${SK.CLASSES[h.cls].name} · ${def.stat === 'pol' ? '정치' : def.stat === 'cha' ? '매력' : '통솔'} ${h[def.stat] || 60}</span></div>
+      <span class="tc-go">▸</span></button>`).join('');
+    const m = SK.modal({ kicker: `${CITY[cityId].name} · ${def.name}`, title: '누구에게 맡길까',
+      body: `<div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }] });
+    m.el.querySelectorAll('.target-card[data-uid]').forEach((b) => {
+      b.onclick = () => {
+        sl.uid = b.dataset.uid;
+        const h = cityGens(cityId).find((x) => x.uid === sl.uid);
+        if (h) h.actedThisMonth = true;
+        SK.save(); m.close(); SK.openCity(cityId);
+        SK.toast(`${josa(h ? h.name : '', 'i')} ${def.name} 담당이 되었습니다.`);
+      };
+    });
+  }
+
+  /* 달이 바뀔 때 건물이 내놓는 결산 — 담당 장수는 경험치를 얻는다 */
+  function runSlots(st) {
+    const log = [];
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      ensureSlots(cs, c);
+      let gold = 0, food = 0, troops = 0, train = 0, loyalty = 0, def = 0, rp = 0;
+      cs.slots.forEach((sl) => {
+        if (!sl.key) return;
+        const g = slotOwner(c.id, sl);
+        const mul = slotMul(cs, sl, g);
+        const lv = sl.lv;
+        if (sl.key === 'market') gold += Math.round((55 + lv * 45) * mul);
+        else if (sl.key === 'farm') food += Math.round((80 + lv * 55) * mul);
+        else if (sl.key === 'barracks') troops += Math.round((45 + lv * 32) * mul);
+        else if (sl.key === 'training') { train += 0.5 * lv * mul; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
+        else if (sl.key === 'patrol') loyalty += 0.5 * lv * mul;
+        else if (sl.key === 'wall') def += 0.6 * lv * mul;
+        else if (sl.key === 'lab') rp += 1;
+        else if (sl.key === 'workshop') gold += Math.round((25 + lv * 25) * mul);
+        else if (sl.key === 'tavern') { if (g) SK.gainExp(g, 20); }
+        if (g && sl.key !== 'training' && sl.key !== 'tavern') SK.gainExp(g, Math.round(16 * lv * mul));
+      });
+      if (gold) { st.gold += gold; cs.gold = (cs.gold || 0) + gold; }
+      if (food) { st.food += food; }
+      if (troops) cs.troops = clamp(cs.troops + troops, 0, cityCap(cs));
+      if (train) cs.train = clamp((cs.train == null ? 50 : cs.train) + train, 0, 100);
+      if (loyalty) cs.loyalty = clamp(cs.loyalty + loyalty, 0, 100);
+      if (def) cs.def = clamp(cs.def + def, 0, 100);
+      if (rp) st.rp = (st.rp || 0) + rp;
+      if (gold || food || troops) log.push({ city: c.name, gold, food, troops });
+    });
+    return log;
+  }
+  SK.runSlots = runSlots;
+
+  /* 담당 장수는 그달 건물 일을 한 것으로 친다 (자유 행동 없음) */
+  function applyDuty(st) {
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      if (!cs || cs.owner !== PF() || !cs.slots) return;
+      cs.slots.forEach((sl) => {
+        if (!sl.uid) return;
+        const h = st.heroes.find((x) => x.uid === sl.uid);
+        if (h) h.actedThisMonth = true;
+      });
+    });
+  }
+  SK.applyDuty = applyDuty;
+
+  /* ───────────── 탐색 — 보물·은거 인재·금/군량 (v5) ───────────── */
+  function exploreCost() { return 140; }
+  function explore(cityId, actor) {
+    const s = SK.state;
+    const c = CITY[cityId];
+    const cs = s.cities[cityId];
+    if (s.gold < exploreCost()) return { ok: false, msg: `금이 부족합니다. (탐색 금 ${exploreCost()})` };
+    s.gold -= exploreCost();
+    const roll = Math.random();
+    const lucky = (actor ? (actor.cha || 60) : 60) + (actor ? (actor.ji || 60) : 60);
+    const bonus = Math.min(0.18, Math.max(0, (lucky - 120) * 0.002));
+    // 1) 보물
+    if (roll < 0.5 + bonus) {
+      const owned = new Set(s.treasures || []);
+      s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => owned.add(id)));
+      const pool = SK.TREASURES.filter((t) => !owned.has(t.id));
+      if (pool.length) {
+        const g2 = pool[Math.floor(Math.random() * pool.length)];
+        s.treasures.push(g2.id);
+        return { ok: true, kind: 'treasure', title: `보물을 찾았다 — ${g2.name}`, text: `${c.name} 근방 산야에서 ${g2.grade} 등급의 ${g2.name}을(를) 캐냈습니다. ${g2.effect}`, gain: '보관함에 넣었습니다' };
+      }
+    }
+    // 2) 은거 인재
+    if (roll < 0.78 + bonus) {
+      const grp = tavernGroupOf(s, cityId);
+      const used = new Set();
+      s.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
+      SK.CITY_LIST.forEach((x) => (s.cities[x.id].talents || []).forEach((id) => used.add(id)));
+      const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, eraYearOf(s)));
+      if (pool.length) {
+        const g2 = pool[Math.floor(Math.random() * pool.length)];
+        cs.talents = cs.talents || [];
+        cs.talents.unshift(g2.id);
+        return { ok: true, kind: 'talent', title: `은거하던 인재 — ${g2.name}`, text: `${c.name} 인근에서 ${g2.name}(${g2.tier}급 ${SK.CLASSES[SK.genClass(g2)].name})을(를) 만났습니다. 주점에 소문을 내 두었습니다.`, gain: '주점에 등장' };
+      }
+    }
+    // 3) 금·군량
+    const gold = 180 + Math.floor(Math.random() * 260);
+    const food = 300 + Math.floor(Math.random() * 500);
+    s.gold += gold; s.food += food;
+    return { ok: true, kind: 'goods', title: '탐색 성과 — 은닉한 재물', text: `${c.name} 산기슭의 옛 창고에서 금 ${fmt(gold)}과(와) 군량 ${fmt(food)}을(를) 찾았습니다.`, gain: `금 +${fmt(gold)} · 군량 +${fmt(food)}` };
+  }
+  SK.explore = explore;
+
+  function openExplore(cityId) {
+    const actor = pickActor(cityId);
+    if (!actor) return;
+    const res = explore(cityId, actor);
+    if (!res.ok) { SK.sfx.play('deny'); SK.toast(res.msg); return; }
+    actor.actedThisMonth = true;
+    SK.gainExp(actor, 22);
+    cityActorUid = null;
+    SK.save(); SK.refreshHud();
+    SK.openCity(cityId);
+    SK.sfx.play('coin');
+    SK.modal({
+      kicker: `${CITY[cityId].name} 탐색`, title: res.title,
+      body: `<div class="explore-card ${res.kind}"><p>${res.text}</p><b>${res.gain}</b></div>`,
+      actions: [{ label: '확인', primary: true }],
+    });
+  }
+  SK.openExplore = openExplore;
+
+  /* ───────────── 기술 연구 트리 ───────────── */
+  function openTech() {
+    const s = SK.state;
+    s.techs = s.techs || [];
+    const list = SK.TECHS || [];
+    if (!list.length) { SK.toast('기술 데이터를 불러오지 못했습니다.'); return; }
+    const cats = [];
+    list.forEach((t) => { if (cats.indexOf(t.category) < 0) cats.push(t.category); });
+    const can = (t) => !s.techs.includes(t.id) && (!t.prereq || s.techs.includes(t.prereq));
+    const rows = cats.map((cat) => {
+      const items = list.filter((t) => t.category === cat).sort((a, b) => a.tier - b.tier);
+      return `<div class="tech-branch"><p class="tb-name">${cat}</p>
+        ${items.map((t) => {
+          const done = s.techs.includes(t.id);
+          const ok = can(t);
+          return `<button class="tech-node ${done ? 'done' : ok ? 'ready' : 'locked'}" data-t="${t.id}" ${done || !ok || s.gold < t.costGold ? 'disabled' : ''}>
+            <span class="tn-lv">${'I'.repeat(t.tier)}</span>
+            <div><b>${t.name}</b><span>${t.summary}</span></div>
+            <em>${done ? '완료' : `금 ${fmt(t.costGold)}`}</em></button>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+    const m = SK.modal({
+      kicker: '기술 연구', title: `연구 ${s.techs.length} / ${list.length}`,
+      body: `<p class="talent-note">기술은 여섯 계열 24종입니다. 앞 단계를 먼저 연구해야 다음 단계가 열리고, 연구하면 전군 공격·방어, 세수, 군량, 징병, 성벽 효과가 실제로 올라갑니다.</p>
+        <div class="tech-wrap">${rows}</div>`,
+      wide: true, actions: [{ label: '닫기' }],
+    });
+    m.el.querySelectorAll('.tech-node').forEach((b) => {
+      b.onclick = () => {
+        const t = list.find((x) => x.id === b.dataset.t);
+        if (!t) return;
+        if (s.gold < t.costGold) { SK.toast('금이 부족합니다.'); return; }
+        if (t.prereq && !s.techs.includes(t.prereq)) { SK.toast('앞 단계 기술이 필요합니다.'); return; }
+        s.gold -= t.costGold;
+        s.techs.push(t.id);
+        SK.save(); SK.refreshHud(); m.close();
+        SK.sfx.play('levelup');
+        SK.toast(`${t.name} 연구 완료 — ${t.summary}`);
+        if (document.querySelector('#screen-city.active')) SK.openCity(s.lastCity);
+      };
+    });
+  }
+  SK.openTech = openTech;
+  function techPct(key) {
+    const s = SK.state;
+    if (!s || !s.techs || !s.techs.length) return 0;
+    let v = 0;
+    (SK.TECHS || []).forEach((t) => { if (s.techs.includes(t.id)) v += (t.bonus && t.bonus[key]) || 0; });
+    return v;
+  }
+  SK.techPct = techPct;
+
+  /* ───────────── 5묶음 메뉴 (시설·인사/탐색·외교/계략·기술·군사) ───────────── */
+  const GROUPS = {
+    facility: {
+      name: '시설 관리', sub: '건설·증축·민심',
+      items: [
+        { key: 'build', label: '내성 시설 보기 · 건설/증축', desc: '공터에 시장·농원·병영·연병장·순찰소 등을 짓고 Lv.1~5로 키웁니다' },
+        { key: 'comfort', label: '백성 위로', desc: '금 100으로 민심을 올립니다' },
+        { key: 'office', label: '관아 — 태수·군사·자동 내정', desc: '성을 맡길 사람과 자동 내정을 정합니다' },
+      ],
+    },
+    talent: {
+      name: '인사·탐색', sub: '등용·탐색·명부',
+      items: [
+        { key: 'talent', label: '주점 — 인재 등용', desc: '이 성과 길로 이어진 성의 재야 인재를 만납니다' },
+        { key: 'explore', label: '탐색 — 보물·은거 인재', desc: `금 ${exploreCost()}으로 산야를 뒤져 보물·인재·재물을 찾습니다` },
+        { key: 'roster', label: '장수 명부 · 보물 · 배치', desc: '전체 장수를 표로 보고 장비를 관리합니다' },
+      ],
+    },
+    diplomacy: {
+      name: '외교·계략', sub: '정찰·이간·유언비어',
+      items: [
+        { key: 'scout', label: '정찰 — 이웃 적성 첩보', desc: `금 ${scoutCost()}으로 3~4개월 동안 적성 내부를 봅니다` },
+        { key: 'spy', label: '이간계 — 적 장수 흔들기', desc: '금 260 · 적성 장수 충성을 꺾어 수비를 흔듭니다' },
+        { key: 'rumor', label: '유언비어 — 적성 민심 흔들기', desc: '금 180 · 적성 민심과 병력을 깎습니다' },
+        { key: 'peace', label: '화친 — 휴전 청하기', desc: '금 400 · 6개월간 그 세력의 공격을 늦춥니다' },
+      ],
+    },
+    tech: {
+      name: '기술 연구', sub: `24종 트리 · 연구 ${(SK.state && (SK.state.techs || []).length) || 0}/24`,
+      items: [{ key: 'tech', label: '기술 트리 열기', desc: '군사·치안·경제·개발·정무·계략 6계열 24종' }],
+    },
+    military: {
+      name: '군사 출진·수송', sub: '출진·수송',
+      items: [
+        { key: 'sortie', label: '출진 — 이웃 적성 공략', desc: '부대를 편성해 전장으로 나갑니다' },
+        { key: 'transport', label: '수송 — 아군 성에 병력·군량', desc: '후방 성에서 전방 성으로 보급합니다' },
+        { key: 'train', label: '훈련 — 주둔 장수 경험치', desc: '금 80으로 훈련도와 장수 경험치를 올립니다' },
+        { key: 'recruit', label: '징병 — 수비병 모으기', desc: '금 150 · 군량 120으로 병력을 채웁니다' },
+      ],
+    },
+  };
+
+  function openGroupMenu(grp) {
+    const g = GROUPS[grp];
+    if (!g) return;
+    const cityId = SK.state.lastCity;
+    const rows = g.items.map((it) => `<button class="grp-row" data-k="${it.key}">
+      <div><b>${it.label}</b><span>${it.desc}</span></div><span class="grp-go">▸</span></button>`).join('');
+    const m = SK.modal({
+      kicker: `${CITY[cityId].name} · ${g.name}`, title: g.sub,
+      body: `<div class="grp-list">${rows}</div>`, actions: [{ label: '닫기' }], wide: true,
+    });
+    m.el.querySelectorAll('.grp-row').forEach((b) => {
+      b.onclick = () => { const k = b.dataset.k; m.close(); setTimeout(() => groupAction(k, cityId), 30); };
+    });
+  }
+  SK.openGroupMenu = openGroupMenu;
+
+  function groupAction(k, cityId) {
+    if (k === 'build') {
+      const box = $('#city-slots');
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      SK.toast('공터를 눌러 건설하고, 지은 건물을 눌러 증축·담당을 정하세요.');
+      return;
+    }
+    if (k === 'comfort') {
+      const gov = officerOf(cityId, 'gov');
+      const res = comfortCity(cityId, gov);
+      if (!res.ok) { SK.sfx.play('deny'); SK.toast(res.msg); return; }
+      SK.save(); SK.refreshHud(); SK.openCity(cityId); SK.toast(res.msg);
+      return;
+    }
+    if (k === 'office') { openOffice(cityId); return; }
+    if (k === 'roster') { SK.openRoster(); return; }
+    if (k === 'explore') { openExplore(cityId); return; }
+    if (k === 'tech') { openTech(); return; }
+    if (k === 'scout') { openScoutPick(cityId); return; }
+    if (k === 'spy') { openSpy(cityId, 'spy'); return; }
+    if (k === 'rumor') { openSpy(cityId, 'rumor'); return; }
+    if (k === 'peace') { openPeace(cityId); return; }
+    if (k === 'transport') { openTransport(cityId); return; }
+    doCommand(k);
+  }
+
+  function openScoutPick(cityId) {
+    const s = SK.state;
+    const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF());
+    if (!targets.length) { SK.toast('정찰할 이웃 적성이 없습니다.'); return; }
+    const rows = targets.map((id) => {
+      const st = s.cities[id];
+      const f = SK.factionInfo(st.owner);
+      const sc = isScouted(st);
+      return `<button class="target-card" data-c="${id}">
+        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
+        <div class="tc-main"><b>${CITY[id].name}</b><span>${f.name} · ${typeName(CITY[id].type)} · ${sc ? `정찰 중 (${st.scoutedUntil - s.turn}개월 남음)` : '미정찰'}</span></div>
+        <span class="tc-go">▸</span></button>`;
+    }).join('');
+    const m = SK.modal({ kicker: `${CITY[cityId].name} 첩보`, title: '어느 성을 살필까',
+      body: `<p class="talent-note">정찰하면 3~4개월 동안 그 성의 수비병·성벽·민심·장수를 볼 수 있습니다. (금 ${scoutCost()})</p><div class="target-list">${rows}</div>`,
+      wide: true, actions: [{ label: '취소' }] });
+    m.el.querySelectorAll('.target-card').forEach((b) => {
+      b.onclick = () => { const ok = SK.scoutCity(b.dataset.c, cityId); if (ok) m.close(); };
+    });
+  }
+
+  /* 계략 — 이간계·유언비어 */
+  function openSpy(cityId, kind) {
+    const s = SK.state;
+    const cost = kind === 'spy' ? 260 : 180;
+    const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF() && s.cities[n].owner !== 'neutral');
+    if (!targets.length) { SK.toast('계략을 펼칠 이웃 적성이 없습니다.'); return; }
+    const rows = targets.map((id) => {
+      const st = s.cities[id];
+      const f = SK.factionInfo(st.owner);
+      return `<button class="target-card" data-c="${id}">
+        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
+        <div class="tc-main"><b>${CITY[id].name}</b><span>${f.name} · 수비병 ${isScouted(st) ? fmt(st.troops) : '?'}</span></div>
+        <span class="tc-go">▸</span></button>`;
+    }).join('');
+    const m = SK.modal({
+      kicker: `${CITY[cityId].name} 계략`, title: kind === 'spy' ? '이간계를 펼 성' : '유언비어를 풀 성',
+      body: `<p class="talent-note">${kind === 'spy' ? '적 장수 사이를 갈라 수비병과 성벽을 약화시킵니다.' : '거짓 소문을 풀어 적성 민심을 흔듭니다.'} 실패하면 금만 나갑니다. (금 ${cost})</p>
+        <div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }],
+    });
+    m.el.querySelectorAll('.target-card').forEach((b) => {
+      b.onclick = () => {
+        if (s.gold < cost) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${cost})`); return; }
+        s.gold -= cost;
+        const st = s.cities[b.dataset.c];
+        const actor = pickActor(cityId);
+        const base = kind === 'spy' ? 0.55 : 0.65;
+        const bonus = actor ? Math.min(0.25, Math.max(0, ((actor.ji || 60) - 60) * 0.005)) : 0;
+        const ok = Math.random() < base + bonus;
+        if (actor) { actor.actedThisMonth = true; SK.gainExp(actor, 14); }
+        if (ok) {
+          if (kind === 'spy') { st.troops = Math.max(200, Math.round(st.troops * 0.88)); st.def = Math.max(20, st.def - 4); }
+          else { st.loyalty = Math.max(10, st.loyalty - 8); st.troops = Math.max(200, Math.round(st.troops * 0.94)); }
+        }
+        SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
+        SK.sfx.play(ok ? 'ui' : 'deny');
+        SK.modal({
+          kicker: `${CITY[cityId].name} 계략`, title: ok ? '계략이 통했습니다' : '계략이 들통났습니다',
+          body: `<p class="modal-p">${ok ? (kind === 'spy' ? `${CITY[b.dataset.c].name}의 장수들이 서로를 의심해 수비병과 성벽이 흔들렸습니다.` : `${CITY[b.dataset.c].name}에 거짓 소문이 퍼져 민심이 흔들렸습니다.`) : '상대가 첩자를 붙잡았습니다. 이번 일은 수포로 돌아갔습니다.'}</p>`,
+          actions: [{ label: '확인', primary: true }],
+        });
+      };
+    });
+  }
+
+  function openPeace(cityId) {
+    const s = SK.state;
+    const fids = {};
+    SK.CITY_LIST.forEach((c) => {
+      const st = s.cities[c.id];
+      if (st.owner && st.owner !== PF() && st.owner !== 'neutral') fids[st.owner] = true;
+    });
+    const list = Object.keys(fids);
+    if (!list.length) { SK.toast('화친을 청할 세력이 없습니다.'); return; }
+    const rows = list.map((fid) => {
+      const f = SK.factionInfo(fid);
+      const left = (s.truce && s.truce[fid]) ? Math.max(0, s.truce[fid] - s.turn) : 0;
+      return `<button class="target-card" data-f="${fid}">
+        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
+        <div class="tc-main"><b>${f.name}</b><span>${left ? `휴전 중 (${left}개월)` : '교전 중'}</span></div>
+        <span class="tc-go">▸</span></button>`;
+    }).join('');
+    const m = SK.modal({ kicker: `${CITY[cityId].name} 외교`, title: '화친할 세력',
+      body: `<p class="talent-note">금 400과 사자를 보내 6개월 휴전을 청합니다. 매력이 높은 장수가 나서면 성사가 쉽습니다.</p><div class="target-list">${rows}</div>`,
+      wide: true, actions: [{ label: '취소' }] });
+    m.el.querySelectorAll('.target-card').forEach((b) => {
+      b.onclick = () => {
+        if (s.gold < 400) { SK.toast('금이 부족합니다. (필요 금 400)'); return; }
+        s.gold -= 400;
+        const actor = pickActor(cityId);
+        const ok = Math.random() < (actor ? 0.35 + Math.min(0.35, ((actor.cha || 60) - 60) * 0.007) : 0.35);
+        if (actor) { actor.actedThisMonth = true; }
+        s.truce = s.truce || {};
+        if (ok) s.truce[b.dataset.f] = s.turn + 6;
+        SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
+        SK.modal({ kicker: '외교', title: ok ? '휴전이 성립했습니다' : '사자가 빈손으로 돌아왔습니다',
+          body: `<p class="modal-p">${ok ? '6개월간 상대가 먼저 치지 않습니다.' : '상대 군주가 사자를 물리쳤습니다. 금만 나갔습니다.'}</p>`, actions: [{ label: '확인', primary: true }] });
+      };
+    });
+  }
+
+  /* 수송 — 아군 성 사이에 병력·군량을 옮긴다 */
+  function openTransport(cityId) {
+    const s = SK.state;
+    const dests = SK.CITY_LIST.filter((c) => c.id !== cityId && s.cities[c.id].owner === PF());
+    if (!dests.length) { SK.toast('수송할 다른 아군 성이 없습니다.'); return; }
+    const rows = dests.map((c) => {
+      const st = s.cities[c.id];
+      return `<button class="target-card" data-c="${c.id}">
+        <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
+        <div class="tc-main"><b>${c.name}</b><span>${typeName(c.type)} · 병력 ${fmt(st.troops)} / ${fmt(cityCap(st))}</span></div>
+        <span class="tc-go">▸</span></button>`;
+    }).join('');
+    const m = SK.modal({ kicker: `${CITY[cityId].name} 수송`, title: '어디로 보낼까',
+      body: `<p class="talent-note">보유 병력 ${fmt(s.cities[cityId].troops)} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 수송에는 장수 한 명의 이번 달 행동이 듭니다.</p><div class="target-list">${rows}</div>`,
+      wide: true, actions: [{ label: '취소' }] });
+    m.el.querySelectorAll('.target-card').forEach((b) => {
+      b.onclick = () => { m.close(); openTransportAmount(cityId, b.dataset.c); };
+    });
+  }
+  function openTransportAmount(from, to) {
+    const s = SK.state;
+    const src = s.cities[from];
+    const maxT = Math.max(0, Math.floor(src.troops * 0.6));
+    const maxG = Math.floor(s.gold * 0.5);
+    const maxF = Math.floor(s.food * 0.5);
+    let t = Math.min(maxT, 3000), g = Math.min(maxG, 600), f = Math.min(maxF, 1200);
+    const m = SK.modal({
+      kicker: `${CITY[from].name} → ${CITY[to].name}`, title: '수송품을 정하세요',
+      body: `<div class="transport">
+        <label>병력 <input id="tp-t" type="range" min="0" max="${maxT}" step="100" value="${t}"><b id="tp-tv">${fmt(t)}</b></label>
+        <label>금 <input id="tp-g" type="range" min="0" max="${maxG}" step="50" value="${g}"><b id="tp-gv">${fmt(g)}</b></label>
+        <label>군량 <input id="tp-f" type="range" min="0" max="${maxF}" step="100" value="${f}"><b id="tp-fv">${fmt(f)}</b></label>
+        <p class="talent-note">도착할 성의 병력 상한은 ${fmt(cityCap(s.cities[to]))}입니다.</p>
+      </div>`,
+      wide: true,
+      actions: [{ label: '취소' }, { label: '수송 보내기', primary: true, onClick: () => {
+        const actor = pickActor(from);
+        if (!actor) return;
+        const dst = s.cities[to];
+        const room = Math.max(0, cityCap(dst) - dst.troops);
+        const sendT = Math.min(t, room);
+        src.troops -= sendT; dst.troops += sendT;
+        s.gold -= g; s.food -= f;
+        dst.gold = (dst.gold || 0) + g; dst.food = (dst.food || 0) + f;
+        actor.actedThisMonth = true;
+        SK.gainExp(actor, 12);
+        cityActorUid = null;
+        SK.save(); SK.refreshHud(); SK.openCity(from);
+        SK.sfx.play('drum');
+        SK.toast(`${CITY[to].name}으로 수송 — 병력 ${fmt(sendT)} · 금 ${fmt(g)} · 군량 ${fmt(f)}`);
+      } }],
+    });
+    const bindRange = (id, valId, setter) => {
+      const el = m.el.querySelector(id);
+      const lab = m.el.querySelector(valId);
+      if (el) el.oninput = () => { setter(Number(el.value)); lab.textContent = fmt(Number(el.value)); };
+    };
+    bindRange('#tp-t', '#tp-tv', (v) => { t = v; });
+    bindRange('#tp-g', '#tp-gv', (v) => { g = v; });
+    bindRange('#tp-f', '#tp-fv', (v) => { f = v; });
+  }
+
+  /* ───────────── 명성과 관작 ───────────── */
+  function openRank() {
+    const s = SK.state;
+    const rank = SK.rankFor(s.fame);
+    const nx = SK.nextRank(s.fame);
+    const pct = nx ? Math.min(100, Math.round((s.fame - rank.minRenown) / Math.max(1, nx.minRenown - rank.minRenown) * 100)) : 100;
+    const list = (SK.RANKS || []).map((r) => {
+      const on = r.title === rank.title;
+      return `<div class="rank-row ${on ? 'on' : ''}"><span class="rr-lv">${r.level}</span>
+        <b>${r.title}</b><span>명성 ${fmt(r.minRenown)}</span>
+        <em>봉급 금 ${fmt(r.salaryGold || 0)} · 병력 +${fmt(r.maxTroopsBonus || 0)}</em></div>`;
+    }).join('');
+    SK.modal({
+      kicker: '명성과 관작', title: `${rank.title} — 다음은 ${nx ? nx.title : '없음'}`,
+      body: `<div class="rank-wrap">
+        <div class="rank-progress"><i style="width:${pct}%"></i></div>
+        <p class="rank-note">현재 명성 <b>${fmt(s.fame)}</b>${nx ? ` · ${nx.title}까지 <b>${fmt(Math.max(0, nx.minRenown - s.fame))}</b> 남았습니다` : ' · 최고 관작입니다'}</p>
+        <p class="talent-note">명성은 달이 바뀔 때, 성을 함락할 때, 큰 인물을 등용할 때 오릅니다. 관작이 오르면 매달 봉급과 거느릴 수 있는 병력이 늘어납니다.</p>
+        <div class="rank-list">${list}</div>
+      </div>`,
+      wide: true, actions: [{ label: '닫기', primary: true }],
+    });
+  }
+  SK.openRank = openRank;
 
   function pickActor(cityId) {
     const gens = cityGens(cityId);
@@ -1462,14 +2274,15 @@
     const el = $('#city-generals');
     const allChip = `<button class="gen-chip all" data-all="1"><span class="gc-all">전</span><div><b>장수 명부</b><span>전체 보기</span></div></button>`;
     el.innerHTML = (gens.map((g) => {
-      const done = !!g.actedThisMonth;
-      const sel = !done && g.uid === cityActorUid;
+      const duty = dutyOf(g, cityId);
+      const done = duty === '이번 달 완료';
+      const sel = !done && duty !== '건물 담당' && g.uid === cityActorUid;
       const role = roleOf(g);
-      return `<button class="gen-chip ${done ? 'done' : ''} ${sel ? 'sel' : ''}" data-uid="${g.uid}">
+      return `<button class="gen-chip ${done ? 'done' : ''} ${duty === '건물 담당' ? 'duty' : ''} ${sel ? 'sel' : ''}" data-uid="${g.uid}">
         <img src="${SK.ptSrc(g.portrait)}" alt="">
-        <div><b>${g.name}</b><span>${role === SK.CLASSES[g.cls].name ? role : `${role} · ${SK.CLASSES[g.cls].name}`} · Lv.${g.lv}</span>
+        <div><b>${g.name}<em class="gc-age">${heroAge(g) || ''}세</em></b><span>${role === SK.CLASSES[g.cls].name ? role : `${role} · ${SK.CLASSES[g.cls].name}`} · Lv.${g.lv}</span>
           <em class="gc-stats"><i>통${g.tong}</i><i>무${g.wu}</i><i>지${g.ji}</i><i>정${g.pol || 60}</i><i>매${g.cha || 60}</i></em></div>
-        <em class="gc-flag">${done ? '행동 완료' : sel ? '행동 차례' : '대기'}</em>
+        <em class="gc-flag">${duty}</em>
       </button>`;
     }).join('') || '<p class="empty-gens">주둔한 장수가 없습니다. 주점에서 인재를 등용하세요.</p>') + allChip;
     el.querySelectorAll('.gen-chip').forEach((b) => {
@@ -1492,25 +2305,33 @@
     renderCityGens(SK.state.lastCity);
   }
 
+  /* 장수 상태판 — 공용 행동력 숫자 대신 담당·대기·완료로 보여 준다 (v5) */
   function renderApBar(gens) {
     const bar = $('#city-ap');
     if (!bar) return;
     const cityId = SK.state.lastCity;
     const cs = SK.state.cities[cityId] || {};
-    const ready = gens.filter((g) => !g.actedThisMonth);
-    const actor = gens.find((g) => g.uid === cityActorUid && !g.actedThisMonth);
+    const slots = cs.slots || [];
+    const dutyN = gens.filter((g) => slots.some((sl) => sl.uid === g.uid)).length;
+    const doneN = gens.filter((g) => g.actedThisMonth && !slots.some((sl) => sl.uid === g.uid)).length;
+    const readyN = gens.length - dutyN - doneN;
     const advisor = gens.find((g) => g.uid === cs.advisor);
+    const actor = gens.find((g) => g.uid === cityActorUid && !g.actedThisMonth);
     bar.innerHTML = `
       <div class="ap-head">
-        <span class="ap-title">이번 달 행동</span>
-        <b class="ap-count ${ready.length ? '' : 'none'}">행동 ${ready.length}/${gens.length}</b>
+        <span class="ap-title">장수 상태</span>
+        <b class="ap-count ${readyN ? '' : 'none'}">대기 ${readyN}명</b>
         <span class="ap-actor">${actor
           ? `<img src="${SK.ptSrc(actor.portrait)}" alt="">${actor.name} 차례`
-          : (ready.length ? '장수를 고르세요' : '다음 달에 다시')}</span>
+          : (readyN ? '대기 장수를 고르세요' : '다음 달에 다시')}</span>
       </div>
       <div class="ap-row2">
-        <div class="ap-dots">${gens.map((g) => `<i class="${g.actedThisMonth ? 'spent' : 'ready'}" title="${g.name}"></i>`).join('')}</div>
-        <button class="ap-delegate" id="btn-delegate" title="군사에게 지금 성에 필요한 조언을 듣는다 (행동력은 쓰지 않습니다)">
+        <div class="ap-dots">
+          <i class="duty"></i><em>담당 ${dutyN}</em>
+          <i class="ready"></i><em>대기 ${readyN}</em>
+          <i class="spent"></i><em>완료 ${doneN}</em>
+        </div>
+        <button class="ap-delegate" id="btn-delegate" title="군사에게 지금 성에 필요한 조언을 듣는다">
           <span>${advisor ? advisor.name : '군사'}</span>${advisor ? '조언' : '임명'}
         </button>
       </div>`;
@@ -1520,13 +2341,6 @@
         if (!advisor) { openAdvisorPick(cityId); return; }
         openAdvice(cityId);
       };
-    }
-    const nav = $('.city-commands');
-    if (nav) {
-      nav.classList.toggle('locked', !ready.length);
-      nav.querySelectorAll('.cmd').forEach((b) => {
-        if (DOMESTIC.includes(b.dataset.cmd)) b.classList.toggle('off', !ready.length);
-      });
     }
   }
 
@@ -1655,7 +2469,8 @@
       if (st.troops >= cap) return fail(`인구 대비 병력 상한입니다. (최대 ${fmt(cap)} · 인구 30%)`);
       if (st.pop < 9000) return fail(`인구가 너무 적습니다. (인구 ${fmt(st.pop)})`);
       const m = conMul(cityId, actor);
-      const want = Math.min(Math.round((2500 + (roll(0.2) ? 800 : 0)) * m), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
+      const rPct = 1 + (SK.techPct ? SK.techPct('recruitPct') : 0) / 100;
+      const want = Math.min(Math.round((2500 + (roll(0.2) ? 800 : 0)) * m * rPct), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
       if (want < 300) return fail('징병할 수 있는 인구가 부족합니다.');
       const drop = clamp(5 - Math.round(((actor ? actor.cha : 60) - 60) * 0.04), 2, 7);
       s.gold -= 150; s.food -= 120;
@@ -1706,7 +2521,8 @@
       if (s.gold < 120) return fail('금이 부족합니다. (필요 금 120)');
       if (st.def >= 100) return fail('성벽이 이미 완벽합니다.');
       const m = polMul(cityId, actor);
-      const up = Math.max(3, Math.round(9 * m));
+      const wPct = 1 + (SK.techPct ? SK.techPct('wallPct') : 0) / 100;
+      const up = Math.max(3, Math.round(9 * m * wPct));
       s.gold -= 120; st.def = clamp(st.def + up, 0, 100);
       st.loyalty = clamp(st.loyalty + 1, 0, 100);
       let msg = `보수 완료 — 성벽 +${up}, 민심 +1`;
@@ -1734,7 +2550,8 @@
     const grp = tavernGroupOf(st, cityId);
     const take = (g, fromId, here) => {
       if (!g || seen.has(g.id)) return;
-      if (SK.generalGroup(g) !== grp) return;
+      if (genPoolGroup(g) !== grp) return;
+      if (!SK.debutOk(g, eraYearOf(st))) return;
       seen.add(g.id);
       out.push({ g, cityId: fromId, here });
     };
@@ -1765,7 +2582,8 @@
       if (c.id !== cityId) (s.cities[c.id].talents || []).forEach((id) => used.add(id));
     });
     const grp = tavernGroupOf(s, cityId);
-    const pool = SK.GENERALS.filter((g) => !used.has(g.id) && SK.generalGroup(g) === grp)
+    const yr = eraYearOf(s);
+    const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, yr))
       .sort((a, b) => SK.genScore(b) - SK.genScore(a));
     const start = Math.max(0, Math.min(pool.length - 1, Math.floor(pool.length * 0.5)));
     cs.talents = pool.slice(start, start + 3).map((g) => g.id);
@@ -1791,10 +2609,11 @@
       const from = here ? '현재 성' : `${CITY[fromId].name} · 인접`;
       return `<button class="gen-pick ${ok ? '' : 'off'} ${refuse ? 'refuse' : ''}" data-gid="${g.id}" data-city="${fromId}">
         <span class="tier t${g.tier}">${g.tier}</span>
-        <img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <img style="--fa:${genAura(g.id, g.name)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="gp-main">
           <b>${g.name}<em class="gp-city ${here ? 'here' : ''}">${from}</em></b>
-          <span>${SK.CLASSES[cls].name} · ${g.skill || '특기 없음'}</span>
+          <span>${SK.CLASSES[cls].name} · ${g.skill || '특기 없음'}${g.birthYear ? ` · ${SK.state.eraYear - g.birthYear + 1}세` : ''}</span>
+          ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<em class="gp-passive">${SK.PASSIVES[g.name].title}</em>` : ''}
           <em class="gp-rumor">“${rumor}”</em>
           <em class="gp-stats"><i>통 <b>${g.leadership}</b></i><i>무 <b>${g.war}</b></i><i>지 <b>${g.intel}</b></i><i>정 <b>${g.politics || 60}</b></i><i>매 <b>${g.charm || 60}</b></i></em>
         </div>
@@ -2587,12 +3406,15 @@
 
   function advanceMonth() {
     const s = SK.state;
+    const prevYear = s.eraYear || (195 + s.year);
     s.month += 1;
     if (s.month >= 12) { s.month = 0; s.year += 1; if (s.eraYear) s.eraYear += 1; }
     s.turn += 1;
     // 달이 바뀌기 전에 태수들이 남은 행동으로 내정을 마친다 (본성·태수 없는 성 제외)
     const autoLog = runAutoDomestic(s);
     let gold = 0, food = 0, pop = 0, popGrowth = 0, unrest = 0;
+    const gPct = 1 + (SK.techPct ? SK.techPct('goldPct') : 0) / 100;
+    const fPct = 1 + (SK.techPct ? SK.techPct('foodPct') : 0) / 100;
     SK.CITY_LIST.forEach((c) => {
       const st = s.cities[c.id];
       if (st.owner !== PF()) return;
@@ -2600,9 +3422,9 @@
       const morale = st.loyalty;
       // 민심이 좋으면 세수와 인구가 오르고, 나쁘면 줄고 소란이 난다
       const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
-      gold += Math.round((c.gold / 45 + morale * 0.6) * base * moraleMul * (0.85 + st.comm / 250));
-      food += Math.round((c.food / 60 + morale * 0.5) * base * (0.85 + st.agri / 250));
-      const growing = Math.round(st.pop * (0.004 + st.agri / 100 * 0.010 + (morale - 50) / 100 * 0.006));
+      gold += Math.round((c.gold / 45 + morale * 0.6) * base * moraleMul * (0.85 + st.comm / 250) * gPct);
+      food += Math.round((c.food / 60 + morale * 0.5) * base * (0.85 + st.agri / 250) * fPct);
+      const growing = Math.round(st.pop * (0.004 + st.agri / 100 * 0.010 + (morale - 50) / 100 * 0.006 + (SK.techPct ? SK.techPct('popPct') : 0) / 1000));
       if (morale >= 70) popGrowth += Math.round(st.pop * 0.004);
       if (morale < 40) {
         unrest += 1;
@@ -2639,6 +3461,14 @@
         h.mp = maxMpOf(h.cls, h.lv);
       }
     });
+    // v5 — 건물 담당 장수는 이번 달 건물 일을 한 것으로 치고, 건물이 결산을 내놓는다
+    applyDuty(s);
+    const slotLog = runSlots(s);
+    gold += slotLog.reduce((a, x) => a + (x.gold || 0), 0);
+    food += slotLog.reduce((a, x) => a + (x.food || 0), 0);
+    // 해가 바뀌면 새로 성년이 된 명장이 주점에 나타난다
+    let debuted = [];
+    if (s.month === 0 && (s.eraYear || 0) !== prevYear) debuted = SK.refreshDebut(s);
     cityActorUid = null;
     const ev = rollMonthEvent(s);
     // 역사 연표 이벤트
@@ -2669,7 +3499,10 @@
         </div>` : ''}
         ${ev ? `<div class="mr-event ${ev.type === '위기' ? 'crisis' : ''}"><span class="me-seal">${ev.hanja}</span>
           <div class="me-main"><b>${ev.title} <em class="me-season">${ev.type || ''} · ${ev.season || ''}</em></b><span>${ev.text}</span><em>${ev.gain}</em></div></div>` : ''}
-        <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 남은 행동으로 내정을 마칩니다(본성 제외).</p>
+        ${slotLog.length ? `<div class="mr-auto"><p class="mr-auto-title">내성 시설 수입</p>
+          ${slotLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${[l.gold ? `금 +${fmt(l.gold)}` : '', l.food ? `군량 +${fmt(l.food)}` : '', l.troops ? `병력 +${fmt(l.troops)}` : ''].filter(Boolean).join(' · ')}</span></div>`).join('')}</div>` : ''}
+        ${debuted.length ? `<div class="mr-event"><span class="me-seal">영</span><div class="me-main"><b>새 명장이 세상에 나왔습니다</b><span>${debuted.slice(0, 6).map((g) => g.name).join(' · ')}${debuted.length > 6 ? ' 외' : ''} — 각지 주점에 소문이 돕니다.</span></div></div>` : ''}
+        <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 남은 행동으로 내정을 마칩니다(본성 제외). 건물 담당 장수는 건물 일을 맡은 것으로 칩니다.</p>
       </div>`,
       actions: [{ label: '계속', primary: true, onClick: () => { if (tlEv) setTimeout(() => showTimelineCard(tlEv), 220); } }],
     });
@@ -2711,8 +3544,13 @@
       body: `<div class="help-body">
         <div class="help-item"><b>지도</b><p>두 손가락으로 확대·축소하고, 한 손가락으로 끌어 이동합니다. 우리 성을 누르면 내정, 적성을 누르면 공격 정보가 열립니다. 아래 [내 본성 ▶]을 누르면 언제든 내 수도로 돌아갑니다.</p></div>
         <div class="help-item"><b>태수·군사와 자동 내정</b><p>관아에서 태수(정치·통솔)와 군사(지력·매력)를 앉힙니다. 태수가 앉은 성은 [다음 달]을 누를 때 남은 행동으로 개간·징병·보수·민심·훈련을 스스로 마치고 월정산에 보고합니다. 본성과 태수가 없는 성은 자동으로 움직이지 않으며, 관아에서 자동 내정을 끄거나 언제든 직접 지시할 수 있습니다.</p></div>
-        <div class="help-item"><b>내정 행동력</b><p>주둔 장수는 한 달에 한 번만 내정을 할 수 있습니다. 장수를 눌러 이번 달 일을 맡기고, 모두 일하면 [다음 달]을 눌러야 합니다.</p></div>
-        <div class="help-item"><b>여섯 시설</b><p>관아(민심·태수/군사 임명) · 농장(개간) · 시장(상업) · 병영(징병·훈련) · 주점(그 성의 인재 등용) · 성벽(보수). 개발도가 오르면 성이 Lv.1→Lv.5로 자라고 장면도 바뀝니다.</p></div>
+        <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·연구소를 직접 지을 수 있습니다(소도시 5칸 · 대도시 8칸 · 관문 2칸 · 요새 3칸). 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건전을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다.</p></div>
+        <div class="help-item"><b>장수는 한 달에 한 번</b><p>장수는 <b>건물 담당</b>, 아니면 직접 명령(탐색·등용·수송·계략·연구·출진) 중 하나를 합니다. 담당을 맡은 장수는 매달 자동으로 건물 효과를 내므로, 급히 출진에 쓰고 싶으면 그 건물에서 담당을 해제하세요. 행동력 숫자는 없앴고 장수 카드에 <b>건물 담당 / 대기 / 이번 달 완료</b>로만 표시됩니다.</p></div>
+        <div class="help-item"><b>인사·탐색</b><p>주점에서 재야 인재를 등용하고, [탐색]으로 보물 150종·은거 인재·은닉 재물을 찾습니다. 태수·군사는 관아에서 언제든 바꿉니다.</p></div>
+        <div class="help-item"><b>외교·계략</b><p>정찰(금 160)로 3~4개월 적성 내부를 보고, 이간계·유언비어로 적의 병력·성벽·민심을 깎고, 화친으로 6개월 휴전을 청합니다.</p></div>
+        <div class="help-item"><b>기술 연구</b><p>군사·치안·경제·개발·정무·계략 6계열 24종입니다. 앞 단계를 먼저 연구하면 다음이 열리고, 공격·방어·세수·군량·징병·성벽 효과가 실제 전투와 내정에 반영됩니다.</p></div>
+        <div class="help-item"><b>명성과 관작</b><p>지도 위 관작 표식(현령·태수·자사…)을 누르면 승진 진행도가 열립니다. 명성은 달이 바뀔 때, 성을 함락할 때, 인물을 등용할 때 오르고, 관작이 오르면 매달 봉급과 거느릴 수 있는 병력이 늘어납니다.</p></div>
+        <div class="help-item"><b>미정찰 적성</b><p>첩자가 닿지 않은 성은 병력·성벽·민심·장수가 <b>? (미정찰)</b>로 보입니다. 도시 팝업의 [정찰 보내기]나 외교·계략의 [정찰]로 3~4개월 동안 성안을 살필 수 있습니다.</p></div>
         <div class="help-item"><b>인구와 징병</b><p>징병은 그 성의 인구에서 병사를 빼옵니다. 주둔병은 인구의 30%를 넘을 수 없고, 징병하면 민심이 내려갑니다(매력이 높으면 덜 내려갑니다). 민심이 70 이상이면 세수와 인구가 더 늘고, 40 아래면 줄어듭니다.</p></div>
         <div class="help-item"><b>군사 조언</b><p>관아나 행동력 줄의 [군사] 버튼으로 군사를 임명하면, 그 성의 민심·병력·성벽·재정과 이웃 적성·주점 인재를 읽어 지금 필요한 일을 조언합니다. 조언은 행동력을 쓰지 않고, '조언대로 진행'을 눌러야 실행됩니다. 남은 내정을 통째로 맡기는 위임은 관아에서 따로 고를 수 있습니다.</p></div>
         <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
@@ -2746,8 +3584,11 @@
     $('#btn-map-menu').onclick = openMenu;
     $('#btn-city-back').onclick = () => SK.showMap();
     $('#btn-battle-help').onclick = () => SK.showHelp();
-    $('#btn-city-back').onclick = () => SK.showMap();
-    $$('.city-commands .cmd').forEach((b) => { b.onclick = () => doCommand(b.dataset.cmd); });
+    $$('.city-commands .cmd[data-grp]').forEach((b) => { b.onclick = () => openGroupMenu(b.dataset.grp); });
+    const cn = $('#btn-city-next');
+    if (cn) cn.onclick = () => advanceMonth();
+    const rk = $('#map-rank');
+    if (rk) { rk.style.cursor = 'pointer'; rk.onclick = () => openRank(); }
     $('#btn-retreat').onclick = () => {
       SK.modal({ title: '후퇴할까요?', body: '<p class="modal-p">전투에서 물러나면 이번 공격은 실패합니다.</p>', actions: [
         { label: '계속 싸운다' }, { label: '후퇴', onClick: () => { if (window.SKBattle) SKBattle.retreat(); } },
@@ -2773,6 +3614,8 @@
     loadQuotesAndRanks();
     loadTopArt();
     loadTreasures();
+    loadTechTree();
+    loadPassives();
     bind();
     if (hasSaveOnBoot()) $('#btn-continue').hidden = false;
   });

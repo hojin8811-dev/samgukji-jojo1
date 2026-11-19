@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=7" />
+<link rel="stylesheet" href="css/game.css?v=8" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -152,22 +152,21 @@
     </div>
 
     <div class="city-dev" id="city-dev"></div>
+    <div class="city-slots" id="city-slots"></div>
     <div class="city-info" id="city-info"></div>
 
     <div class="city-general-strip" id="city-generals"></div>
 
     <div class="city-ap" id="city-ap"></div>
 
-    <nav class="city-commands" aria-label="내정 명령">
-      <button class="cmd" data-cmd="farm"><span class="cmd-ic ic-farm"></span><b>개간</b><small id="cmd-farm-cost">금 100</small></button>
-      <button class="cmd" data-cmd="trade"><span class="cmd-ic ic-trade"></span><b>상업</b><small id="cmd-trade-cost">미 80</small></button>
-      <button class="cmd" data-cmd="recruit"><span class="cmd-ic ic-troop"></span><b>징병</b><small id="cmd-recruit-cost">금 150</small></button>
-      <button class="cmd" data-cmd="train"><span class="cmd-ic ic-train"></span><b>훈련</b><small>금 80</small></button>
-      <button class="cmd" data-cmd="talent"><span class="cmd-ic ic-talent"></span><b>인재</b><small id="cmd-talent-cost">주점 등용</small></button>
-      <button class="cmd" data-cmd="repair"><span class="cmd-ic ic-repair"></span><b>보수</b><small id="cmd-repair-cost">금 120</small></button>
-      <button class="cmd sortie" data-cmd="sortie"><span class="cmd-ic ic-sortie"></span><b>출진</b><small>적성 공략</small></button>
-      <button class="cmd" data-cmd="map"><span class="cmd-ic ic-map"></span><b>지도</b><small>전국으로</small></button>
+    <nav class="city-commands city-groups" aria-label="내정 명령">
+      <button class="cmd" data-grp="facility"><span class="cmd-ic">▦</span><b>시설 관리</b><small>건설·증축</small></button>
+      <button class="cmd" data-grp="talent"><span class="cmd-ic">☰</span><b>인사·탐색</b><small>등용·탐색</small></button>
+      <button class="cmd" data-grp="diplomacy"><span class="cmd-ic">◈</span><b>외교·계략</b><small>정찰·이간</small></button>
+      <button class="cmd" data-grp="tech"><span class="cmd-ic">✦</span><b>기술 연구</b><small>24종</small></button>
+      <button class="cmd sortie" data-grp="military"><span class="cmd-ic">⚔</span><b>군사</b><small>출진·수송</small></button>
     </nav>
+    <button id="btn-city-next" class="city-next-btn" aria-label="다음 달">다음 달 ▶</button>
   </section>
 
   <!-- ═══════════ 4단계 · 격자 전장 ═══════════ -->
@@ -236,13 +235,13 @@
   <div id="modal-root"></div>
   <div id="toast" class="toast" hidden></div>
 </div>
-<script src="js/mapgeo.js?v=7"></script>
-<script src="js/city_geo.js?v=7"></script>
-<script src="js/data.js?v=7"></script>
-<script src="js/bgm.js?v=7"></script>
-<script src="js/sfx.js?v=7"></script>
-<script src="js/app.js?v=7"></script>
-<script src="js/map.js?v=7"></script>
-<script src="js/battle.js?v=7"></script>
+<script src="js/mapgeo.js?v=8"></script>
+<script src="js/city_geo.js?v=8"></script>
+<script src="js/data.js?v=8"></script>
+<script src="js/bgm.js?v=8"></script>
+<script src="js/sfx.js?v=8"></script>
+<script src="js/app.js?v=8"></script>
+<script src="js/map.js?v=8"></script>
+<script src="js/battle.js?v=8"></script>
 </body>
 </html>

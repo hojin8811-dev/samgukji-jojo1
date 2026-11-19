@@ -122,6 +122,14 @@ SK.CLASS_UNIT = {
   yasubyung: 'yasubyung', muhui: 'muhui', pocha: 'pocha', balseokcha: 'balseokcha',
   yeonnobyung: 'gungbyung', deunggabyung: 'bobyung', gunakdae: 'muhui',
 };
+/* v5 — 병과 공용 SD 18종 (assets/units/job_*.webp, 2등신 치비 화풍) */
+SK.JOB_UNIT = {
+  jojo: 'lord', gunwoong: 'lord', bong: 'lord',
+  gibyung: 'cavalry', gunggi: 'horse_archer', gunggibyung: 'horse_archer', changbyung: 'spear', bobyung: 'sword',
+  sanjeok: 'bandit', sujeok: 'pirate', chaeksa: 'strategist', pungsusa: 'geomancer', dosa: 'taoist',
+  gungbyung: 'archer', gungsu: 'archer', mudoga: 'martial', yasubyung: 'beast', muhui: 'dancer',
+  yeonnobyung: 'crossbow', deunggabyung: 'rattan', gunakdae: 'drum', pocha: 'catapult', balseokcha: 'catapult',
+};
 SK.CLASS_PORTRAIT = {
   gunwoong: 'gen_bobyung', gibi: 'gen_gibyung', gunggi: 'gen_gibyung', changbyung: 'gen_changbyung',
   geombyung: 'gen_bobyung', sanjeok: 'gen_sanjeok', sujeok: 'gen_sujeok', chaeksa: 'gen_chaeksa',
@@ -231,6 +239,7 @@ SK.FACTION_MARK = {
   goguryeo: '고', baekje: '백', silla: '신', sunquan: '오', liuzhang: '장', zhanglu: '로',
   gongsunkang: '강', cao_wei_pre: '위', liuzong: '종', shu_han: '촉', sun_wu: '오',
   shi_xie: '사', meng_huo: '맹', neutral: '야',
+  kongrong: '공', liuyao: '유', yanbaihu: '엄', wanglang: '왕', zhanglu: '로',
 };
 
 /* 세력 표식 — 한 글자 한국어 (data에 mark가 없으면 이름 첫 글자) */
@@ -255,6 +264,7 @@ SK.FACTION_COLOR = {
   liuzhang: '#92400E', mateng: '#B45309', hansui: '#78716C', gongsunzan: '#475569',
   taoqian: '#65A30D', zhanglu: '#3F6212', gongsunkang: '#64748B', shi_xie: '#A16207',
   meng_huo: '#4D7C0F', neutral: '#8B8777',
+  kongrong: '#0EA5E9', liuyao: '#7E22CE', yanbaihu: '#C2410C', wanglang: '#A21CAF',
 };
 
 SK.factionInfo = function (key) {
@@ -325,6 +335,14 @@ SK.EXTRA_GENERALS = {
   '내해이사금': { job: '군주', tier: 'B', war: 60, intel: 66, lead: 64 },
   '산상왕': { job: '군주', tier: 'A', war: 73, intel: 68, lead: 70 },
   '공손강': { job: '군주', tier: 'B', war: 58, intel: 62, lead: 60 },
+  '무안국': { job: '창병', tier: 'B', war: 74, intel: 56, lead: 66 },
+  '왕수': { job: '검병', tier: 'C', war: 62, intel: 50, lead: 58 },
+  '엄여': { job: '수적', tier: 'B', war: 72, intel: 46, lead: 62 },
+  '장영': { job: '창병', tier: 'B', war: 68, intel: 52, lead: 60 },
+  '번능': { job: '궁수', tier: 'B', war: 66, intel: 50, lead: 58 },
+  '착융': { job: '산적', tier: 'B', war: 70, intel: 48, lead: 60 },
+  '양임': { job: '창병', tier: 'B', war: 70, intel: 58, lead: 64 },
+  '장위': { job: '검병', tier: 'B', war: 67, intel: 54, lead: 60 },
   '공손도': { job: '군주', tier: 'B', war: 62, intel: 70, lead: 66 },
   '공손공': { job: '기병', tier: 'B', war: 66, intel: 54, lead: 58 },
   '남중 호족': { job: '군주', tier: 'B', war: 55, intel: 52, lead: 58 },
@@ -518,6 +536,20 @@ SK.normName = function (n) { return SK.NAME_ALIAS[n] || n; };
 SK.NEUTRAL_KEEP = ['tamna', 'taipei', 'tainan', 'nanhai', 'yunnan', 'yongchang', 'lushui',
   'shuofang', 'dai', 'hailing', 'shanhaiguan', 'daegwallyeong', 'cheolwon'];
 
+/* v5 — 인물 등장 연도 (data/generals.json의 debutYear).
+   아직 성인이 되지 않은 명장은 시나리오 시작과 매년 1월에 걸러진다. */
+SK.debutOk = function (g, year) {
+  if (!g) return false;
+  const d = Number(g.debutYear);
+  if (!d) return true;
+  return d <= Number(year || 0);
+};
+SK.hiddenByDebut = function (year) {
+  const out = [];
+  SK.GENERALS.forEach((g) => { if (g.debutYear && Number(g.debutYear) === Number(year)) out.push(g); });
+  return out;
+};
+
 SK.resolveScenario = function (sc) {
   if (!sc || !sc.factions || !SK.CITY_LIST.length) return null;
   const facs = {};
@@ -572,15 +604,11 @@ SK.resolveScenario = function (sc) {
     });
     owner[c.id] = best;
   });
+  // v5 — 주장하지 않은 거점은 탐욕적으로 가장 가까운 세력에 붙이지 않는다.
+  //       변방·남중·대만처럼 아무도 차지하지 않은 곳은 재야(공백지)로 남겨 확장의 맛을 살린다.
   SK.CITY_LIST.forEach((c) => {
     if (owner[c.id]) return;
-    const x = c.u * 2000, y = c.v * 1333;
-    let best = null, bd = Infinity;
-    facIds.forEach((fid) => {
-      const d = Math.hypot(x - facs[fid].cx, y - facs[fid].cy);
-      if (d < bd) { bd = d; best = fid; }
-    });
-    owner[c.id] = (best && bd <= 300) ? best : 'neutral';
+    owner[c.id] = 'neutral';
   });
   // 각 세력의 수도는 반드시 그 세력의 것이 되도록 확정한다
   facIds.forEach((fid) => {
@@ -647,8 +675,17 @@ SK.ptSrc = function (p) {
   return String(p).indexOf('/') >= 0 ? p : `assets/portraits/v2/${p}.webp`;
 };
 SK.unitSrc = function (u) {
-  const key = u || 'bobyung';
-  return String(key).indexOf('/') >= 0 ? key : `assets/units/v2/${key}.webp`;
+  const key = String(u || 'sword');
+  if (key.indexOf('/') >= 0) return key;                       // 전용 SD(상위 100명) 경로
+  let job = SK.JOB_UNIT[key];
+  if (!job && SK.CLASS_UNIT[key]) job = SK.JOB_UNIT[SK.CLASS_UNIT[key]];
+  if (!job) job = SK.CLASSES[key] ? (SK.JOB_UNIT[SK.CLASS_UNIT[key]] || 'sword') : 'sword';
+  return `assets/units/job_${job}.webp`;                        // v5 — 병과 공용 18종
+};
+/* 병과 → 공용 SD 파일 키 (없으면 검병) */
+SK.classUnitFile = function (cls) {
+  const job = SK.JOB_UNIT[cls] || 'sword';
+  return `assets/units/job_${job}.webp`;
 };
 SK.artPortrait = function (name) { const a = SK.ART[name]; return a && a.portrait ? a.portrait : null; };
 SK.artUnit = function (name) { const a = SK.ART[name]; return a && a.unit ? a.unit : null; };
@@ -785,7 +822,9 @@ SK.genUnit = function (g) {
   const art = SK.artUnit(g && g.name);
   if (art) return art;
   const core = Object.values(SK.HEROES).find((h) => h.name === g.name);
-  return (core && core.unit) || SK.CLASS_UNIT[SK.genClass(g)];
+  // v5 — 병과 공용 18종 SD로 통일한다 (옛 전용 키는 병과 그림으로 대신한다)
+  if (core && core.unit && SK.JOB_UNIT[core.unit]) return core.unit;
+  return SK.CLASS_UNIT[SK.genClass(g)];
 };
 SK.genStats = function (g) {
   return { wu: g.war, ji: g.intel, tong: g.leadership };
@@ -850,18 +889,44 @@ SK.setCities = function (list) {
   SK.buildRoads();
 };
 
+/* v5 — 육로로 이어서는 안 되는 짝 (바다를 건너는 길)
+   산해관과 북해·안시성 사이는 바다다. 육로는 산해관 → 요동 → 안시성으로 돌아간다.
+   섬(탐라·대만)은 배로만 오가고, 대만 안의 타이베이↔타이난만 육로다. */
+SK.SEA_ONLY_PAIRS = [['shanhaiguan', 'beihai'], ['shanhaiguan', 'ansiseong'],
+  ['liaodong', 'pyongyang'], ['langya', 'beihai']];
+/* 섬 — 육로는 섬 안에서만 난다. 바깥으로는 배(SEALANES)로만 오간다. */
+SK.ISLAND_GROUP = { tamna: '제주', taipei: '대만', tainan: '대만' };
+/* 반드시 있어야 하는 육로 — 끊기면 남중·서량·강동이 고립된다 */
+SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 'anding'],
+  ['yongan', 'jiangling'], ['jiangxia', 'hefei'], ['jiangxia', 'runan'], ['jianye', 'jianan'],
+  ['shishang', 'jianan'], ['shanhaiguan', 'liaodong'], ['liaodong', 'ansiseong'],
+  ['taipei', 'tainan'], ['xinye', 'xiangyang'], ['shangyong', 'hanzhong'], ['wuling', 'changsha'],
+  ['nanhai', 'changsha'], ['jianning', 'yunnan'], ['wuwei', 'tianshui']];
+
 SK.buildRoads = function () {
   const pts = SK.CITY_LIST;
   if (!pts.length) return;
+  SK.ROADS.length = 0;
+  pts.forEach((c) => { c.roads = []; c.sea = []; });
+  SK.SEALANES.length = 0;
   const dist = (a, b) => Math.hypot((a.u - b.u) * 2000, (a.v - b.v) * 1333);
+  const banned = new Set(SK.SEA_ONLY_PAIRS.map(([a, b]) => (a < b ? a + '|' + b : b + '|' + a)));
+  const pairKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+  function landOk(idA, idB) {
+    const ga = SK.ISLAND_GROUP[idA], gb = SK.ISLAND_GROUP[idB];
+    if (ga || gb) return !!ga && ga === gb;      // 섬은 같은 섬끼리만 육로
+    return true;
+  }
   const edges = new Set();
   const add = (a, b) => {
-    if (a === b) return;
-    const k = a.id < b.id ? a.id + '|' + b.id : b.id + '|' + a.id;
-    if (edges.has(k)) return;
+    if (!a || !b || a === b) return false;
+    const k = pairKey(a.id, b.id);
+    if (banned.has(k) || edges.has(k)) return false;
+    if (!landOk(a.id, b.id)) return false;
     edges.add(k);
     a.roads.push(b.id); b.roads.push(a.id);
     SK.ROADS.push([a.id, b.id]);
+    return true;
   };
   // 1) 최소 신장 트리 — 모든 거점 연결 보장
   const inTree = new Set([pts[0].id]);
@@ -887,11 +952,25 @@ SK.buildRoads = function () {
   }
   // 2) 가까운 두 이웃 추가 — 길이 갈라지고 순환로가 생긴다
   pts.forEach((a) => {
-    pts.filter((b) => b !== a).sort((x, y) => dist(a, x) - dist(a, y)).slice(0, 2).forEach((b) => add(a, b));
+    pts.filter((b) => b !== a && !banned.has(pairKey(a.id, b.id)) && landOk(a.id, b.id))
+      .sort((x, y) => dist(a, x) - dist(a, y)).slice(0, 2).forEach((b) => add(a, b));
   });
-  // 3) 해로
+  // 3) 반드시 있어야 할 길
+  SK.MUST_ROADS.forEach(([a, b]) => {
+    if (SK.CITY[a] && SK.CITY[b]) add(SK.CITY[a], SK.CITY[b]);
+  });
+  // 4) 막다른 길 보수 — 육로가 하나뿐인 거점은 가장 가까운 (금지되지 않은) 이웃과 하나 더 잇는다
+  pts.forEach((a) => {
+    if (a.roads.length >= 2) return;
+    const cand = pts.filter((b) => b !== a && !a.roads.includes(b.id) && !banned.has(pairKey(a.id, b.id)) && landOk(a.id, b.id))
+      .sort((x, y) => dist(a, x) - dist(a, y));
+    if (cand.length) add(a, cand[0]);
+  });
+  // 5) 해로 — 배로만 건너는 길은 모두 여기에 둔다
   const sea = [['tamna', 'busan'], ['tamna', 'jianye'], ['taipei', 'jianan'], ['tainan', 'nanhai'],
-    ['hailing', 'jianye'], ['liaodong', 'pyongyang'], ['busan', 'tainan'], ['langya', 'beihai']];
+    ['hailing', 'jianye'], ['liaodong', 'pyongyang'], ['busan', 'tainan'], ['langya', 'beihai'],
+    ['beihai', 'liaodong'], ['shanhaiguan', 'beihai'], ['tamna', 'haenam'],
+    ['tainan', 'jianan'], ['jianye', 'guangling'], ['kuaiji', 'jianan']];
   sea.forEach(([a, b]) => {
     if (!SK.CITY[a] || !SK.CITY[b]) return;
     SK.CITY[a].sea.push(b); SK.CITY[b].sea.push(a);
