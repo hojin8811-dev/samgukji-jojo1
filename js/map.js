@@ -466,7 +466,8 @@
   /* ───────────── 숲·산·강 레이어 (영토 위에 얹어 자연색을 지킨다) ───────────── */
   function renderFeatures(R) {
     if (!featCanvas || !SK.MAPGEO) return;
-    R = clamp(R, 0.8, 1.9);
+    /* 숲·산은 부드러운 덩어리라 1.35배면 충분하다 — 모바일 캔버스 메모리를 아낀다 */
+    R = clamp(R, 0.8, 1.35);
     const cw = Math.round(MAPW * R), ch = Math.round(MAPH * R);
     if (featCanvas.width !== cw || featCanvas.height !== ch) { featCanvas.width = cw; featCanvas.height = ch; }
     const g = fcx;
@@ -648,7 +649,7 @@
   /* ───────────── 길 레이어 (지형·영토 위에 늘 선명하게) ───────────── */
   function renderRoutes() {
     if (!routeCanvas) return;
-    const R = 1.5;
+    const R = 1.35;
     const cw = Math.round(MAPW * R), ch = Math.round(MAPH * R);
     routeCanvas.width = cw; routeCanvas.height = ch;
     const g = rcx;
