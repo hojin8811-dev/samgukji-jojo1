@@ -1035,8 +1035,10 @@ async function playerAttack(a, d) {
   renderBattleUI();
   await doAttack(a, d);
   a.moved = true; a.acted = true;
+  if (battle.over) { renderBattleUI(); return; }
   battle.busy = false;
-  if (!battle.over) { battle.selId = a.id; renderBattleUI(); }
+  battle.selId = a.id;
+  renderBattleUI();
 }
 
 async function playerMove(u, x, y) {
@@ -1069,6 +1071,10 @@ function startSkill(id) {
   const sk = SKILLS[id];
   if (!sk) return;
   if (u.mp < sk.mp) { toast('MP가 부족합니다'); sfx('nope'); return; }
+  if (sk.kind === 'healArea') {
+    const hurt = battle.units.filter((a) => a.side === 'ally' && !a.dead && a.hp < a.maxHp && cheb(u.x, u.y, a.x, a.y) <= sk.radius);
+    if (!hurt.length) { toast('회복할 아군이 없습니다'); sfx('nope'); return; }
+  }
   if (sk.kind === 'healArea' || sk.kind === 'buffAreaAllies') { castSkill(u, sk, null, null); return; }
   battle.pendingSkill = id;
   battle.mode = 'skill';
@@ -2210,16 +2216,16 @@ function openMenu() {
   m.el.querySelector('[data-close]').addEventListener('click', m.close);
   m.el.querySelector('#menu-reset').addEventListener('click', () => {
     m.close();
-    openModal(`
+    const m2 = openModal(`
       <h2>처음부터 시작</h2>
       <div class="sub">저장된 진행 상황이 사라집니다. 정말 새로 시작할까요?</div>
       <div class="row">
         <button class="btn ghost" id="reset-no">취소</button>
         <button class="btn primary" id="reset-yes">새로 시작</button>
       </div>
-    `).el.querySelector('#reset-no').addEventListener('click', closeAllModals);
-    const yes = $('#modal-root .modal .btn.primary');
-    if (yes) yes.addEventListener('click', () => { closeAllModals(); startNewGame(); });
+    `, { sticky: true });
+    m2.el.querySelector('#reset-no').addEventListener('click', m2.close);
+    m2.el.querySelector('#reset-yes').addEventListener('click', () => { m2.close(); startNewGame(); });
   });
 }
 
@@ -2272,6 +2278,7 @@ function boot() {
   $('#btn-help').addEventListener('click', openHelp);
   $('#btn-retreat').addEventListener('click', () => {
     if (!battle || battle.over) return;
+    if (battle.busy || battle.phase !== 'player') { toast('적의 차례에는 후퇴할 수 없습니다'); sfx('nope'); return; }
     const m = openModal(`
       <h2>후퇴</h2>
       <div class="sub">전장에서 물러나면 이번 출진은 실패로 처리됩니다.</div>
