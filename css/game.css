@@ -1262,3 +1262,21 @@ b { font-weight: 700; }
 .city-groups .cmd.next .cmd-ic { background: linear-gradient(180deg, #b4553f, #8a3629); border-color: #5e2018; color: #fff3dc; font-size: 13px; }
 .city-groups .cmd.next b { color: #8a2f22; }
 .city-next-btn { display: none; }
+
+/* 좁은 화면(390px 안팎) — 6칸 명령줄과 장수 상태판이 넘치지 않게 */
+@media (max-width: 430px) {
+  .city-groups { grid-template-columns: repeat(6, 1fr) !important; gap: 0; }
+  .city-groups .cmd { padding: 2px 0; }
+  .city-groups .cmd b { font-size: 9.5px; letter-spacing: -0.06em; }
+  .city-groups .cmd small { display: none; }
+  .city-groups .cmd-ic { width: 30px; height: 30px; font-size: 13px; border-radius: 8px; }
+  .slot-card { width: 92px; }
+  .slot-card .sc-main b { font-size: 9.5px; }
+  .slot-card .sc-lv { font-size: 6.5px; }
+  .slot-head em { display: none; }
+  .ap-row2 { flex-wrap: wrap; gap: 4px; }
+  .ap-dots em { margin-right: 3px; }
+  .slot-head b { font-size: 10px; }
+  .dev-bars { grid-template-columns: 1fr 1fr; }
+  .city-slots { padding: 3px 6px 5px; }
+}
