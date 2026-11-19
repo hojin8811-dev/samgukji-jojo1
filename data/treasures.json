@@ -1,0 +1,1802 @@
+[
+  {
+    "id": 1,
+    "name": "적토마",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 2,
+      "war": 5
+    },
+    "effect": "이동력 +2, 돌파 피해 +15%",
+    "dropHint": "여포 격파 또는 하비 점령 시 획득"
+  },
+  {
+    "id": 2,
+    "name": "절영",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 2,
+      "leadership": 4
+    },
+    "effect": "이동력 +2, 기습 피해 경감 -20%",
+    "dropHint": "완성 전투 또는 조조 진영 보물상자"
+  },
+  {
+    "id": 3,
+    "name": "적로",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 2,
+      "charm": 5
+    },
+    "effect": "이동력 +2, 위기 회피 확률 +25%",
+    "dropHint": "단계 시나리오 또는 유비 호위 이벤트"
+  },
+  {
+    "id": 4,
+    "name": "조황비전",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 2,
+      "war": 4
+    },
+    "effect": "이동력 +2, 야전 행군 시 사기 +15",
+    "dropHint": "장수 진영 토벌 또는 서량 정벌"
+  },
+  {
+    "id": 5,
+    "name": "천리마",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 3,
+      "leadership": 5
+    },
+    "effect": "이동력 +3, 험지 이동 페널티 무효",
+    "dropHint": "고구려 북방 원정 또는 만주 유적"
+  },
+  {
+    "id": 6,
+    "name": "백마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "war": 3
+    },
+    "effect": "이동력 +2, 궁기·기병 선제공격률 +15%",
+    "dropHint": "공손찬 잔당 소탕 또는 계교 전투"
+  },
+  {
+    "id": 7,
+    "name": "오추마",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 2,
+      "war": 6
+    },
+    "effect": "이동력 +2, 근접 치명타 피해 +20%",
+    "dropHint": "초원 유목 세력 격파 시 획득"
+  },
+  {
+    "id": 8,
+    "name": "자전마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "charm": 3
+    },
+    "effect": "이동력 +2, 아군 사기 회복량 +15%",
+    "dropHint": "손견·손책 강동 평정 이벤트"
+  },
+  {
+    "id": 9,
+    "name": "화류마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "intel": 3
+    },
+    "effect": "이동력 +2, 야간 매복 발각 확률 감소",
+    "dropHint": "서량·옹주 지역 정찰 이벤트"
+  },
+  {
+    "id": 10,
+    "name": "비전마",
+    "type": "명마",
+    "grade": "전설",
+    "statBonus": {
+      "move": 2,
+      "war": 5
+    },
+    "effect": "이동력 +2, 추격 공격 발동 확률 +20%",
+    "dropHint": "북방 기마전 승리 보상"
+  },
+  {
+    "id": 11,
+    "name": "청총마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "leadership": 3
+    },
+    "effect": "이동력 +2, 강하·도하 이동력 소모 감소",
+    "dropHint": "백제·신라 한강 유역 전투"
+  },
+  {
+    "id": 12,
+    "name": "흑풍마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "war": 4
+    },
+    "effect": "이동력 +2, 돌격 시 적 방어력 -10%",
+    "dropHint": "고구려 개마무사 부대 격파"
+  },
+  {
+    "id": 13,
+    "name": "청룡언월도",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "leadership": 4
+    },
+    "effect": "무력 +14, 횡일선 관통 베기 추가 피해",
+    "dropHint": "관우 영입 또는 맥성 전투 보상"
+  },
+  {
+    "id": 14,
+    "name": "장팔사모",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 15,
+      "charm": 2
+    },
+    "effect": "무력 +15, 단일 대상 연격 확률 +18%",
+    "dropHint": "장판교 전투 또는 장비 전속 장비"
+  },
+  {
+    "id": 15,
+    "name": "방천화극",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 16,
+      "leadership": 3
+    },
+    "effect": "무력 +16, 주변 1칸 범위 추가 피해",
+    "dropHint": "여포 일기토 승리 또는 서주 공방전"
+  },
+  {
+    "id": 16,
+    "name": "의천검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 12,
+      "intel": 5
+    },
+    "effect": "무력 +12, 지력 +5, 반격 피해 +25%",
+    "dropHint": "조조 개인 보물 또는 허창 보물고"
+  },
+  {
+    "id": 17,
+    "name": "청강검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 13,
+      "leadership": 3
+    },
+    "effect": "무력 +13, 중갑 대상 피해 +20%",
+    "dropHint": "장판교 구출 작전 또는 조운 이벤트"
+  },
+  {
+    "id": 18,
+    "name": "고정도",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 13,
+      "charm": 4
+    },
+    "effect": "무력 +13, 적 사기 저하 효과 부여",
+    "dropHint": "손견 남양·형주 원정 보상"
+  },
+  {
+    "id": 19,
+    "name": "사검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 11,
+      "leadership": 6
+    },
+    "effect": "무력 +11, 아군 전열 공격력 +10%",
+    "dropHint": "백제 근초고왕·고대 왕실 유물"
+  },
+  {
+    "id": 20,
+    "name": "오검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "intel": 3
+    },
+    "effect": "무력 +14, 야전 및 야습 공격력 +18%",
+    "dropHint": "고구려 연개소문 전속 유물"
+  },
+  {
+    "id": 21,
+    "name": "쌍철극",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 12,
+      "leadership": 2
+    },
+    "effect": "무력 +12, 근접 회피율 +12%",
+    "dropHint": "전위 호위 전투 또는 완성 수비전"
+  },
+  {
+    "id": 22,
+    "name": "선화부끼",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "leadership": 4
+    },
+    "effect": "무력 +14, 성벽·목책 공성 피해 +30%",
+    "dropHint": "서황 장안·번성 공략전"
+  },
+  {
+    "id": 23,
+    "name": "고릉보검",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "charm": 5
+    },
+    "effect": "무력 +10, 일기토 제안 성공률 상승",
+    "dropHint": "고구려 왕실 보물 또는 평양성"
+  },
+  {
+    "id": 24,
+    "name": "화랑신검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 12,
+      "charm": 6
+    },
+    "effect": "무력 +12, 기병 돌격 치명타율 +15%",
+    "dropHint": "신라 김유신·화랑도 유적"
+  },
+  {
+    "id": 25,
+    "name": "황산대검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "leadership": 3
+    },
+    "effect": "무력 +14, 병력 열세 시 공격력 +25%",
+    "dropHint": "백제 황산벌 결전 이벤트"
+  },
+  {
+    "id": 26,
+    "name": "백마궁",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "intel": 3
+    },
+    "effect": "무력 +11, 사거리 +1(원거리 한정)",
+    "dropHint": "공손찬·원소 하북 전투 보상"
+  },
+  {
+    "id": 27,
+    "name": "신궁주몽활",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "leadership": 4
+    },
+    "effect": "무력 +14, 원거리 치명타 피해 +25%",
+    "dropHint": "고구려 건국 신화·졸본 유적"
+  },
+  {
+    "id": 28,
+    "name": "백발궁",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 2
+    },
+    "effect": "무력 +11, 이동 후 사격 피해 감소 없음",
+    "dropHint": "정군산·한중 전투 또는 황충 이벤트"
+  },
+  {
+    "id": 29,
+    "name": "우모선",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 14,
+      "leadership": 4
+    },
+    "effect": "지력 +14, 책략 명중률 +18%, 사정거리 +1",
+    "dropHint": "제갈량·오장원 또는 남만 정벌"
+  },
+  {
+    "id": 30,
+    "name": "백우선",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 11,
+      "politics": 4
+    },
+    "effect": "지력 +11, 책략 소비 기력 -15%",
+    "dropHint": "형주·익주 책사 진영 획득"
+  },
+  {
+    "id": 31,
+    "name": "파초선",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 13,
+      "charm": 4
+    },
+    "effect": "지력 +13, 화계·풍계 책략 위력 +20%",
+    "dropHint": "적벽대전 또는 고대 도사 유적"
+  },
+  {
+    "id": 32,
+    "name": "낙양장창",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 2
+    },
+    "effect": "무력 +11, 기병 접근 시 반격 위력 +20%",
+    "dropHint": "낙양 공방전 또는 동탁군 토벌"
+  },
+  {
+    "id": 33,
+    "name": "명랑진검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 13,
+      "leadership": 6
+    },
+    "effect": "무력 +13, 해상·수변 전투 공격력 +25%",
+    "dropHint": "조선 수군·명량 해전 유물"
+  },
+  {
+    "id": 34,
+    "name": "신검지휘도",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "leadership": 4
+    },
+    "effect": "무력 +14, 연격 시 대상 방어력 무시",
+    "dropHint": "여진·북방 정벌 또는 척준경 유물"
+  },
+  {
+    "id": 35,
+    "name": "대부도끼",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 12,
+      "charm": 1
+    },
+    "effect": "무력 +12, 방패·등갑 대상 추가 피해 +20%",
+    "dropHint": "산적·남만 토벌전 보상"
+  },
+  {
+    "id": 36,
+    "name": "청동과",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "leadership": 4
+    },
+    "effect": "무력 +10, 고대 전열 공격력 +12%",
+    "dropHint": "가야·고조선 청동기 유적"
+  },
+  {
+    "id": 37,
+    "name": "금척검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 10,
+      "politics": 7
+    },
+    "effect": "지력 +10, 아군 상태이상 해제 확률 +20%",
+    "dropHint": "고대 건국 비기·왕실 유물"
+  },
+  {
+    "id": 38,
+    "name": "연노천궁",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "intel": 4
+    },
+    "effect": "무력 +11, 연노·궁수 연속 사격 확률 +15%",
+    "dropHint": "제갈량 공방전 또는 신라 국경"
+  },
+  {
+    "id": 39,
+    "name": "흑철모",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 12,
+      "leadership": 2
+    },
+    "effect": "무력 +12, 돌격 시 적 사기 -10",
+    "dropHint": "고구려 개마무사 무기고"
+  },
+  {
+    "id": 40,
+    "name": "일월쌍도",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "charm": 3
+    },
+    "effect": "무력 +14, 1턴 2회 근접 공격 가능(쿨타임)",
+    "dropHint": "강동·북방 맹장 격파 보상"
+  },
+  {
+    "id": 41,
+    "name": "만년갑",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 6,
+      "war": 6
+    },
+    "effect": "받는 물리 피해 -18%, 치명타 저항 +20%",
+    "dropHint": "고구려 개마무사·북방 대장군 유물"
+  },
+  {
+    "id": 42,
+    "name": "사자금갑",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 5,
+      "charm": 5
+    },
+    "effect": "받는 물리 피해 -15%, 아군 사기 감소 -15%",
+    "dropHint": "손견·손책 강동 제패 보상"
+  },
+  {
+    "id": 43,
+    "name": "등갑중장",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "war": 4
+    },
+    "effect": "물리 피해 -20%, 화계 피해 +25%",
+    "dropHint": "남만·오르도스 지역 전투"
+  },
+  {
+    "id": 44,
+    "name": "비연갑",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 3,
+      "war": 4
+    },
+    "effect": "받는 원거리 피해 -18%, 회피율 +10%",
+    "dropHint": "여포·흑산적 전투 전리품"
+  },
+  {
+    "id": 45,
+    "name": "명광개",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 7,
+      "politics": 3
+    },
+    "effect": "받는 피해 -16%, 성벽·주둔지 방어력 +20%",
+    "dropHint": "수성전 승리 또는 왕실 무기고"
+  },
+  {
+    "id": 46,
+    "name": "용린갑",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 6,
+      "war": 5
+    },
+    "effect": "받는 피해 -17%, 일기토·근접전 내성 상승",
+    "dropHint": "조운·장료 등 맹장 이벤트"
+  },
+  {
+    "id": 47,
+    "name": "금두투구",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "charm": 4
+    },
+    "effect": "헤드샷·치명타 피해 -20%, 사기 +10",
+    "dropHint": "위·촉·오 정예 장수 보물"
+  },
+  {
+    "id": 48,
+    "name": "백은투구",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "intel": 2
+    },
+    "effect": "받는 책략 피해 -12%, 물리 피해 -10%",
+    "dropHint": "백마·북방 원정 전리품"
+  },
+  {
+    "id": 49,
+    "name": "철가면투구",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 5,
+      "war": 5
+    },
+    "effect": "공포·혼란 상태이상 면역, 물리 피해 -15%",
+    "dropHint": "고구려·북방 고분 발굴"
+  },
+  {
+    "id": 50,
+    "name": "학창도포",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 7,
+      "charm": 4
+    },
+    "effect": "받는 책략 피해 -20%, 턴당 기력 회복 +5",
+    "dropHint": "제갈량·순욱·주유 등 책사 유물"
+  },
+  {
+    "id": 51,
+    "name": "청풍도포",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 5,
+      "politics": 3
+    },
+    "effect": "받는 책략 피해 -15%, 이동 시 지형 제약 경감",
+    "dropHint": "형주·강남 서원 및 유적"
+  },
+  {
+    "id": 52,
+    "name": "현무도포",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 6,
+      "leadership": 4
+    },
+    "effect": "받는 피해 -14%, 물·바람 책략 피해 -25%",
+    "dropHint": "고대 도사·풍수사 비보"
+  },
+  {
+    "id": 53,
+    "name": "청동방패",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 5,
+      "war": 2
+    },
+    "effect": "전면 물리 피해 -18%, 투사체 방어 +15%",
+    "dropHint": "가야·고조선 고분 유물"
+  },
+  {
+    "id": 54,
+    "name": "현무방패",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 7,
+      "intel": 3
+    },
+    "effect": "받는 피해 -18%, 반격 시 반사 피해 부여",
+    "dropHint": "고구려 성벽 방어전 보상"
+  },
+  {
+    "id": 55,
+    "name": "화랑전포",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 3,
+      "charm": 5
+    },
+    "effect": "받는 물리 피해 -12%, 아군 기병 사기 +10",
+    "dropHint": "신라 화랑 수련 이벤트"
+  },
+  {
+    "id": 56,
+    "name": "비단전포",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "charm": 5,
+      "politics": 3
+    },
+    "effect": "외교·회유 성공률 상승, 사기 저하 -10%",
+    "dropHint": "낙양·허창 상단 거래"
+  },
+  {
+    "id": 57,
+    "name": "철갑견갑",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "war": 3
+    },
+    "effect": "측면·후면 기습 피해 -20%",
+    "dropHint": "동탁·여포군 토벌 보상"
+  },
+  {
+    "id": 58,
+    "name": "옥환대",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "politics": 5,
+      "charm": 4
+    },
+    "effect": "내정 수입 +10%, 상태이상 저항 +10%",
+    "dropHint": "한·백제·신라 귀족 유물"
+  },
+  {
+    "id": 59,
+    "name": "금루갑",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 6,
+      "politics": 4
+    },
+    "effect": "물리·책략 피해 -15%, 부상 발생률 감소",
+    "dropHint": "고대 왕실 제례·능묘 유물"
+  },
+  {
+    "id": 60,
+    "name": "만리장성방패",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 6,
+      "war": 2
+    },
+    "effect": "진영 고정 방어 시 피해 -22%",
+    "dropHint": "북방 요새 공방전 승리"
+  },
+  {
+    "id": 61,
+    "name": "맹덕신서",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 8,
+      "leadership": 6
+    },
+    "effect": "아군 전체 공격력·방어력 +8%, 책략 위력 +12%",
+    "dropHint": "조조 진영 이벤트 또는 화용도·허창"
+  },
+  {
+    "id": 62,
+    "name": "태평요술서",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 9,
+      "charm": 5
+    },
+    "effect": "도술·기상 책략 위력 +25%, 범위 효과 확대",
+    "dropHint": "장각·황건적 토벌 또는 신비 유적"
+  },
+  {
+    "id": 63,
+    "name": "손자병법",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 9,
+      "intel": 7
+    },
+    "effect": "선제공격·기습 성공률 +20%, 전술 피해 +15%",
+    "dropHint": "강동·오나라 고서 또는 명장 이벤트"
+  },
+  {
+    "id": 64,
+    "name": "옥새",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "charm": 10,
+      "politics": 9
+    },
+    "effect": "세력 전체 사기 +20, 포로 등용·외교 성공률 상승",
+    "dropHint": "낙양 폐허 또는 손견·원술 이벤트"
+  },
+  {
+    "id": 65,
+    "name": "둔갑천서",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 10,
+      "leadership": 4
+    },
+    "effect": "안개·화계·낙뢰 책략 위력 +25%, 회피 +12%",
+    "dropHint": "제갈량·방통 또는 고대 은둔 도사"
+  },
+  {
+    "id": 66,
+    "name": "삼략육도",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 8,
+      "politics": 6
+    },
+    "effect": "부대 경험치 획득량 +25%, 진형 효율 +12%",
+    "dropHint": "위·촉·오 명장 연수 보상"
+  },
+  {
+    "id": 67,
+    "name": "오자병법",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 6,
+      "war": 4
+    },
+    "effect": "야전 전투 피해 +12%, 보급 소모 감소",
+    "dropHint": "북방·국경 전투 보상"
+  },
+  {
+    "id": 68,
+    "name": "천문도",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 8,
+      "politics": 5
+    },
+    "effect": "기상 변화 예측 및 아군 책략 명중률 +15%",
+    "dropHint": "고구려·신라 천문대 유물"
+  },
+  {
+    "id": 69,
+    "name": "화랑세기",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "charm": 7,
+      "leadership": 4
+    },
+    "effect": "아군 기병·보병 사기 회복량 +20%",
+    "dropHint": "경주·신라 고적 탐사"
+  },
+  {
+    "id": 70,
+    "name": "해동병법",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 7,
+      "intel": 6
+    },
+    "effect": "산악·수전 지형 아군 능력치 보정 강화",
+    "dropHint": "고구려·백제 군사 비전"
+  },
+  {
+    "id": 71,
+    "name": "청동거울",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 5,
+      "charm": 5
+    },
+    "effect": "은신·매복 적 탐지 범위 +1, 저주 저항 +15%",
+    "dropHint": "고대 제사·고분 유물"
+  },
+  {
+    "id": 72,
+    "name": "금관옥보",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "charm": 8,
+      "politics": 8
+    },
+    "effect": "도시 내정 효율 +18%, 군주 통솔 보정 +5",
+    "dropHint": "신라·가야 왕릉 발굴"
+  },
+  {
+    "id": 73,
+    "name": "만파식적",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 8,
+      "charm": 8
+    },
+    "effect": "전군 사기 최대치 상승, 적 기세 꺾기 효과",
+    "dropHint": "신라 삼보 설화 이벤트"
+  },
+  {
+    "id": 74,
+    "name": "주역비전",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 7,
+      "politics": 4
+    },
+    "effect": "치명타·책략 크리티컬 확률 +10%",
+    "dropHint": "학자·도사 진영 우호도 보상"
+  },
+  {
+    "id": 75,
+    "name": "용호비서",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "war": 7,
+      "intel": 7
+    },
+    "effect": "일기토·책략 양쪽 피해 +12%, 기력 회복 +3",
+    "dropHint": "최상위 난이도 시나리오 클리어 보상"
+  },
+  {
+    "id": 76,
+    "name": "고정장창",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 8,
+      "leadership": 2
+    },
+    "effect": "창병·보병 돌격 방어 +12%",
+    "dropHint": "형주·남양 병기창 획득"
+  },
+  {
+    "id": 77,
+    "name": "철척",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "intel": 3
+    },
+    "effect": "무기 해제·방어력 약화 확률 +14%",
+    "dropHint": "무예 고수 일기토 또는 북방 주둔지"
+  },
+  {
+    "id": 78,
+    "name": "쌍극",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 2
+    },
+    "effect": "연속 근접 반격 시 피해 +15%",
+    "dropHint": "서량·완성 전투 보상"
+  },
+  {
+    "id": 79,
+    "name": "비도주머니",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 7,
+      "intel": 3
+    },
+    "effect": "중거리 투척 공격 사용 가능, 회피 +8%",
+    "dropHint": "남만·산적 세력 전리품"
+  },
+  {
+    "id": 80,
+    "name": "청룡연월도",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 3
+    },
+    "effect": "전열 돌파 시 추가 피해 +12%",
+    "dropHint": "형주·익주 무기고 제작"
+  },
+  {
+    "id": 81,
+    "name": "호두대도",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 8,
+      "charm": 1
+    },
+    "effect": "근접 공격력 +8, 사기 저하 저항 +10%",
+    "dropHint": "위·오 국경 수비대 보급"
+  },
+  {
+    "id": 82,
+    "name": "철편",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 7,
+      "intel": 4
+    },
+    "effect": "둔타 공격 시 이동력 -1 디버프 부여",
+    "dropHint": "하북·원소군 전리품"
+  },
+  {
+    "id": 83,
+    "name": "팔모금강봉",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 3
+    },
+    "effect": "기절·위축 효과 부여 확률 +12%",
+    "dropHint": "사찰·무술 도장 이벤트"
+  },
+  {
+    "id": 84,
+    "name": "서량철창",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "charm": 2
+    },
+    "effect": "기병 돌격 피해 +16%",
+    "dropHint": "서량·마초·마등 진영 전투"
+  },
+  {
+    "id": 85,
+    "name": "천마신검",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 13,
+      "intel": 5
+    },
+    "effect": "기상·바람 계열 책략 및 검격 피해 +18%",
+    "dropHint": "고구려 북부 신단·고분 발굴"
+  },
+  {
+    "id": 86,
+    "name": "백제대도",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "politics": 3
+    },
+    "effect": "도하·연안 전투 공격력 +14%",
+    "dropHint": "백제 사비·한성 유물"
+  },
+  {
+    "id": 87,
+    "name": "신라금도",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "charm": 5
+    },
+    "effect": "아군 사기 +8, 치명타 확률 +10%",
+    "dropHint": "경주 왕릉 및 화랑 유적"
+  },
+  {
+    "id": 88,
+    "name": "가야철검",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 3
+    },
+    "effect": "무기 내구 손실 무효, 방어 관통 +10%",
+    "dropHint": "김해·가야 제철 유적 탐사"
+  },
+  {
+    "id": 89,
+    "name": "연노강궁",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "intel": 3
+    },
+    "effect": "다중 화살 공격 시 2번째 대상 피해 증가",
+    "dropHint": "촉한·남중 공방전 보상"
+  },
+  {
+    "id": 90,
+    "name": "옥선",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 11,
+      "charm": 5
+    },
+    "effect": "외교·등용 효율 상승, 아군 혼란 회복",
+    "dropHint": "강남 귀족·문관 진영 획득"
+  },
+  {
+    "id": 91,
+    "name": "묵선",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "intel": 8,
+      "politics": 3
+    },
+    "effect": "책략 명중률 +10%, 기력 소모 -10%",
+    "dropHint": "서원·학당 이벤트 보상"
+  },
+  {
+    "id": 92,
+    "name": "철골부채",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "intel": 7,
+      "war": 4
+    },
+    "effect": "지력 +7, 무력 +4, 근접 자위력 상승",
+    "dropHint": "군사 참모·유격대 장비"
+  },
+  {
+    "id": 93,
+    "name": "거북선포",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 14,
+      "leadership": 5
+    },
+    "effect": "해상·포차 공격 사거리 및 폭발 피해 증가",
+    "dropHint": "조선 수군·해전 특별 시나리오"
+  },
+  {
+    "id": 94,
+    "name": "신기전발사대",
+    "type": "무기",
+    "grade": "전설",
+    "statBonus": {
+      "war": 13,
+      "intel": 6
+    },
+    "effect": "장거리 화염·연속 투사체 공격 가능",
+    "dropHint": "화약 병기 연구 또는 조선 유물"
+  },
+  {
+    "id": 95,
+    "name": "벽력거부품",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "intel": 5
+    },
+    "effect": "공성·성벽 파괴 피해 +25%",
+    "dropHint": "유엽·위군 공성전 이벤트"
+  },
+  {
+    "id": 96,
+    "name": "목우유마설계도",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 9,
+      "politics": 6
+    },
+    "effect": "군량 소모 -25%, 보급 이동 효율 상승",
+    "dropHint": "북벌·한중 보급전 완료"
+  },
+  {
+    "id": 97,
+    "name": "호표기창",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 9,
+      "leadership": 2
+    },
+    "effect": "돌격 시 이동 거리 비례 추가 피해",
+    "dropHint": "조조 직속 호표기 전투"
+  },
+  {
+    "id": 98,
+    "name": "백마종창",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 8,
+      "leadership": 3
+    },
+    "effect": "기마 부대 기동력·선제 타격 보정",
+    "dropHint": "유주·북방 기병대 전리품"
+  },
+  {
+    "id": 99,
+    "name": "흑철도끼",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 9,
+      "leadership": 1
+    },
+    "effect": "목책·장애물 파괴 효율 +20%",
+    "dropHint": "산악·삼림 전투 보상"
+  },
+  {
+    "id": 100,
+    "name": "은장도",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 6,
+      "charm": 5
+    },
+    "effect": "암습·근접 위기 탈출 확률 +15%",
+    "dropHint": "조선·고려 규방 및 밀사 유물"
+  },
+  {
+    "id": 101,
+    "name": "청동갑",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 4,
+      "war": 2
+    },
+    "effect": "물리 피해 -10%, 사기 저하 -8%",
+    "dropHint": "고대 유적 및 지방 무기고"
+  },
+  {
+    "id": 102,
+    "name": "철린갑",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 5,
+      "war": 3
+    },
+    "effect": "받는 물리 피해 -12%",
+    "dropHint": "정규 보병·기병 부대 보급"
+  },
+  {
+    "id": 103,
+    "name": "가죽중갑",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 3,
+      "war": 2
+    },
+    "effect": "이동력 페널티 없이 물리 피해 -8%",
+    "dropHint": "유격대·궁기병 기본 장비"
+  },
+  {
+    "id": 104,
+    "name": "화공방화포",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "intel": 4
+    },
+    "effect": "화계·화살 불길 피해 -30%",
+    "dropHint": "적벽·강동 수군 전리품"
+  },
+  {
+    "id": 105,
+    "name": "금박투구",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 3,
+      "charm": 3
+    },
+    "effect": "아군 사기 감소 -10%, 치명타 저항 +8%",
+    "dropHint": "장군급 지휘관 전리품"
+  },
+  {
+    "id": 106,
+    "name": "철모",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 4,
+      "war": 1
+    },
+    "effect": "투사체·낙석 피해 -12%",
+    "dropHint": "성벽 수비대 보급품"
+  },
+  {
+    "id": 107,
+    "name": "수련도포",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "intel": 4,
+      "politics": 2
+    },
+    "effect": "받는 책략 피해 -10%, 기력 회복 +2",
+    "dropHint": "도사·책사 수련 보상"
+  },
+  {
+    "id": 108,
+    "name": "백마포",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 3,
+      "charm": 4
+    },
+    "effect": "설원·초원 이동 시 사기 유지",
+    "dropHint": "북방 유목·기병 진영"
+  },
+  {
+    "id": 109,
+    "name": "목둔방패",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 4,
+      "war": 1
+    },
+    "effect": "화살·투석 피해 -15%",
+    "dropHint": "공성·수성 보급품"
+  },
+  {
+    "id": 110,
+    "name": "철방패",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 5,
+      "war": 2
+    },
+    "effect": "전면 근접 피해 -14%",
+    "dropHint": "중장 보병 부대 전리품"
+  },
+  {
+    "id": 111,
+    "name": "금강완갑",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 6,
+      "leadership": 3
+    },
+    "effect": "반격 공격력 +18%, 무기 흘림 방지",
+    "dropHint": "무도가·맹장 이벤트 보상"
+  },
+  {
+    "id": 112,
+    "name": "옥대",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "politics": 4,
+      "charm": 3
+    },
+    "effect": "외교·내정 성공률 +8%",
+    "dropHint": "문관·지방 태수 보물"
+  },
+  {
+    "id": 113,
+    "name": "흑갑",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 5,
+      "war": 4
+    },
+    "effect": "야간 전투 시 물리·책략 피해 -15%",
+    "dropHint": "야습·매복 전투 승리"
+  },
+  {
+    "id": 114,
+    "name": "현무전갑",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 6,
+      "intel": 3
+    },
+    "effect": "강가·습지 방어력 +18%",
+    "dropHint": "강동·한강 유역 전투"
+  },
+  {
+    "id": 115,
+    "name": "관복포",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "politics": 5,
+      "charm": 2
+    },
+    "effect": "치안 유지·세수 징수 효율 +10%",
+    "dropHint": "관아·수도 행정 이벤트"
+  },
+  {
+    "id": 116,
+    "name": "사슴가죽갑",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 3,
+      "intel": 3
+    },
+    "effect": "산림·험지 회피율 +12%",
+    "dropHint": "산적·유격 세력 토벌"
+  },
+  {
+    "id": 117,
+    "name": "은린갑",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 5,
+      "charm": 4
+    },
+    "effect": "물리 피해 -14%, 아군 사기 +8",
+    "dropHint": "정예 호위 부대 전리품"
+  },
+  {
+    "id": 118,
+    "name": "화랑갑주",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "war": 4
+    },
+    "effect": "기병·보병 연계 공격 시 피해 +12%",
+    "dropHint": "신라 화랑 전적지 탐사"
+  },
+  {
+    "id": 119,
+    "name": "백제금관투구",
+    "type": "방어구",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 6,
+      "charm": 7
+    },
+    "effect": "아군 사기 +15, 치명타 저항 +20%",
+    "dropHint": "백제 왕릉 유물 발굴"
+  },
+  {
+    "id": 120,
+    "name": "고구려투구",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 5,
+      "war": 4
+    },
+    "effect": "돌격·충격 피해 경감 -16%",
+    "dropHint": "고구려 성곽 및 고분"
+  },
+  {
+    "id": 121,
+    "name": "갈색군마",
+    "type": "명마",
+    "grade": "희귀",
+    "statBonus": {
+      "move": 1,
+      "war": 2
+    },
+    "effect": "이동력 +1, 야전 기동력 보정",
+    "dropHint": "일반 기병 마구간 보급"
+  },
+  {
+    "id": 122,
+    "name": "점박이명마",
+    "type": "명마",
+    "grade": "희귀",
+    "statBonus": {
+      "move": 1,
+      "intel": 2
+    },
+    "effect": "이동력 +1, 정찰 이동력 소모 감소",
+    "dropHint": "정찰·척후 임무 보상"
+  },
+  {
+    "id": 123,
+    "name": "청마",
+    "type": "명마",
+    "grade": "희귀",
+    "statBonus": {
+      "move": 1,
+      "charm": 3
+    },
+    "effect": "이동력 +1, 행군 시 사기 감소 완화",
+    "dropHint": "지방 목장·거래상 구매"
+  },
+  {
+    "id": 124,
+    "name": "흑마",
+    "type": "명마",
+    "grade": "희귀",
+    "statBonus": {
+      "move": 1,
+      "war": 3
+    },
+    "effect": "이동력 +1, 야간 행군 속도 상승",
+    "dropHint": "북방·산악 진영 획득"
+  },
+  {
+    "id": 125,
+    "name": "설백마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "charm": 4
+    },
+    "effect": "이동력 +2, 설원·고원 이동 페널티 감소",
+    "dropHint": "북방 원정 또는 특수 이벤트"
+  },
+  {
+    "id": 126,
+    "name": "적토모조마",
+    "type": "명마",
+    "grade": "영웅",
+    "statBonus": {
+      "move": 2,
+      "war": 3
+    },
+    "effect": "이동력 +2, 돌파 이동 시 추격률 +10%",
+    "dropHint": "서량·하북 마필 상단"
+  },
+  {
+    "id": 127,
+    "name": "제주조랑말",
+    "type": "명마",
+    "grade": "희귀",
+    "statBonus": {
+      "move": 1,
+      "politics": 3
+    },
+    "effect": "이동력 +1, 구릉·초원 이동 안정성 상승",
+    "dropHint": "탐라·남해안 교역 보상"
+  },
+  {
+    "id": 128,
+    "name": "강동준마",
+    "type": "명마",
+    "grade": "희귀",
+    "statBonus": {
+      "move": 1,
+      "leadership": 2
+    },
+    "effect": "이동력 +1, 강남 구릉 지형 이동 보정",
+    "dropHint": "오나라 기마대 전리품"
+  },
+  {
+    "id": 129,
+    "name": "육도비록",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 6,
+      "politics": 5
+    },
+    "effect": "전술 운용 효율 +12%, 부대 경험치 +15%",
+    "dropHint": "고서 수집 또는 군사 학교"
+  },
+  {
+    "id": 130,
+    "name": "사기병법서",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 6,
+      "politics": 5
+    },
+    "effect": "역사적 전술 발동 확률 +12%",
+    "dropHint": "태학·문관 진영 우호도"
+  },
+  {
+    "id": 131,
+    "name": "춘추좌전",
+    "type": "병법서·보물",
+    "grade": "희귀",
+    "statBonus": {
+      "intel": 5,
+      "charm": 4
+    },
+    "effect": "외교·사신 임무 성공률 +10%",
+    "dropHint": "문인·학자 이벤트 보상"
+  },
+  {
+    "id": 132,
+    "name": "논어집주",
+    "type": "병법서·보물",
+    "grade": "희귀",
+    "statBonus": {
+      "politics": 5,
+      "charm": 5
+    },
+    "effect": "도시 민심 상승 및 반란 억제 +12%",
+    "dropHint": "내정 발전 마일스톤"
+  },
+  {
+    "id": 133,
+    "name": "도덕경",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 7,
+      "charm": 4
+    },
+    "effect": "책략 역풍·반격 피해 경감 -15%",
+    "dropHint": "은둔 도사·산사 탐방"
+  },
+  {
+    "id": 134,
+    "name": "삼국유사비본",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 8,
+      "charm": 7
+    },
+    "effect": "고대 설화·신비 책략 위력 및 사기 보정",
+    "dropHint": "고려·신라 고적 비밀 임무"
+  },
+  {
+    "id": 135,
+    "name": "징비록초고",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "leadership": 8,
+      "politics": 8
+    },
+    "effect": "위기 상황 방어력 +18%, 패전 피해 감소",
+    "dropHint": "전란 대비·수성 시나리오 보상"
+  },
+  {
+    "id": 136,
+    "name": "동의보감비방",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 7,
+      "charm": 8
+    },
+    "effect": "턴당 병력·부상 회복량 +25%, 역병 면역",
+    "dropHint": "의술·민생 구휼 이벤트"
+  },
+  {
+    "id": 137,
+    "name": "혼천의모형",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 7,
+      "politics": 4
+    },
+    "effect": "야간·기상 책략 명중률 +12%",
+    "dropHint": "천문대·과학 유물 발굴"
+  },
+  {
+    "id": 138,
+    "name": "측우기",
+    "type": "병법서·보물",
+    "grade": "희귀",
+    "statBonus": {
+      "politics": 6,
+      "intel": 3
+    },
+    "effect": "농업·수리 내정 효율 +14%",
+    "dropHint": "조선 내정·치수 임무"
+  },
+  {
+    "id": 139,
+    "name": "청자상감향로",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "charm": 7,
+      "politics": 4
+    },
+    "effect": "아군 사기 회복 +12%, 외교 호감도 상승",
+    "dropHint": "고려 도요지·고미술 수집"
+  },
+  {
+    "id": 140,
+    "name": "백자달항아리",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "charm": 6,
+      "politics": 6
+    },
+    "effect": "도시 상업 수입 +12%, 사기 안정 +10%",
+    "dropHint": "조선 왕실·명문가 보물"
+  },
+  {
+    "id": 141,
+    "name": "화랑금제허리띠",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "leadership": 4,
+      "charm": 5
+    },
+    "effect": "아군 기병·보병 이동력 보정 및 사기 +10",
+    "dropHint": "경주 고분군 발굴"
+  },
+  {
+    "id": 142,
+    "name": "비단망토",
+    "type": "방어구",
+    "grade": "희귀",
+    "statBonus": {
+      "charm": 5,
+      "intel": 2
+    },
+    "effect": "선봉 지휘 시 아군 사기 감소 -10%",
+    "dropHint": "귀족·장군 의상 보급"
+  },
+  {
+    "id": 143,
+    "name": "호피망토",
+    "type": "방어구",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 6,
+      "charm": 3
+    },
+    "effect": "일기토·근접전 위압 효과 부여",
+    "dropHint": "산악·북방 맹수 사냥 보상"
+  },
+  {
+    "id": 144,
+    "name": "청동령",
+    "type": "병법서·보물",
+    "grade": "희귀",
+    "statBonus": {
+      "leadership": 5,
+      "politics": 3
+    },
+    "effect": "부대 집결·명령 전달 효율 +10%",
+    "dropHint": "고대 제사·군령 유물"
+  },
+  {
+    "id": 145,
+    "name": "팔괘경",
+    "type": "병법서·보물",
+    "grade": "영웅",
+    "statBonus": {
+      "intel": 7,
+      "leadership": 3
+    },
+    "effect": "저주·화계·혼란 책략 저항 +18%",
+    "dropHint": "도사·풍수사 진영 획득"
+  },
+  {
+    "id": 146,
+    "name": "비전단창",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 8,
+      "leadership": 2
+    },
+    "effect": "기동 보병·창병 근접 피해 +10%",
+    "dropHint": "유격·기습 부대 전리품"
+  },
+  {
+    "id": 147,
+    "name": "철골부월",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 11,
+      "leadership": 3
+    },
+    "effect": "다수 적 상대 광역 베기 피해 +12%",
+    "dropHint": "북방·중원 맹장 격파"
+  },
+  {
+    "id": 148,
+    "name": "금장활",
+    "type": "무기",
+    "grade": "영웅",
+    "statBonus": {
+      "war": 10,
+      "charm": 4
+    },
+    "effect": "원거리 명중률 +14%, 사기 저하 효과",
+    "dropHint": "왕실·궁술 대회 보상"
+  },
+  {
+    "id": 149,
+    "name": "비도단검",
+    "type": "무기",
+    "grade": "희귀",
+    "statBonus": {
+      "war": 7,
+      "intel": 2
+    },
+    "effect": "은신·측면 공격 시 추가 피해 +14%",
+    "dropHint": "첩보·암행 임무 완료"
+  },
+  {
+    "id": 150,
+    "name": "대동여지도첩",
+    "type": "병법서·보물",
+    "grade": "전설",
+    "statBonus": {
+      "intel": 9,
+      "politics": 7
+    },
+    "effect": "전 지형 이동 페널티 경감 및 시야·행군 효율 대폭 상승",
+    "dropHint": "지리 탐험·최종 보물 완료"
+  }
+]

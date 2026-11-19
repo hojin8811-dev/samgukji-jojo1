@@ -3,114 +3,184 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#120d07" />
+<meta name="theme-color" content="#2c2415" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>삼국지 조조전 · 천하의 서막</title>
-<link rel="preload" as="image" href="assets/maps/web/worldmap.webp" />
-<link rel="preload" as="image" href="assets/portraits/web/caocao.webp" />
-<link rel="stylesheet" href="style.css" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23120d07'/%3E%3Crect x='6' y='11' width='20' height='15' fill='%23c9a44a'/%3E%3Crect x='13' y='18' width='6' height='8' fill='%23120d07'/%3E%3Crect x='6' y='11' width='20' height='3' fill='%23f0d79a'/%3E%3C/svg%3E" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<title>삼국지 조조전 · 천하통일</title>
+<link rel="stylesheet" href="css/game.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
 <div id="app">
 
-  <!-- ══════════ 화면 1 · 미니 전국 지도 & 내정 ══════════ -->
-  <section id="screen-map" class="screen active">
-    <header class="hud">
-      <div class="hud-stats">
-        <div class="stat gold" title="금">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="#d8b25a"/><circle cx="8" cy="8" r="6.4" fill="none" stroke="#7a5c26"/><rect x="6" y="6" width="4" height="4" fill="#120d07"/></svg>
-          <b id="hud-gold">0</b>
-        </div>
-        <div class="stat rice" title="군량">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7h12c0 4-2.6 6.4-6 6.4S2 11 2 7z" fill="#d8c48e"/><path d="M2 7h12" stroke="#7a5c26"/><path d="M5.6 4.4c0-1.2 1-1.6 2.4-1.6s2.4.4 2.4 1.6" fill="none" stroke="#e8d79a"/></svg>
-          <b id="hud-rice">0</b>
-        </div>
-        <div class="stat troop" title="병력">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 7c0-3 2.7-5 6-5s6 2 6 5v1H2z" fill="#9fb4c9"/><path d="M2 8h12l-1 4H3z" fill="#6d8399"/><path d="M6 12h4v2H6z" fill="#3c4a57"/></svg>
-          <b id="hud-troops">0</b>
-        </div>
+  <!-- ═══════════ 표지 ═══════════ -->
+  <section id="screen-title" class="screen active">
+    <div class="title-art"><img src="assets/maps/v2/terrain.webp" alt="" /></div>
+    <div class="title-veil"></div>
+    <div class="title-inner">
+      <div class="title-seal">魏</div>
+      <p class="title-kicker">삼국지 조조전 · 천하통일</p>
+      <h1 class="title-logo">三國志 <span>曹操傳</span></h1>
+      <p class="title-sub">전국을 누비고, 성을 다스리고, 전장을 지휘하라</p>
+      <div class="title-hero"><img src="assets/portraits/v2/caocao.webp" alt="조조" /></div>
+      <div class="title-actions">
+        <button id="btn-start" class="btn-primary">새로 시작</button>
+        <button id="btn-continue" class="btn-ghost" hidden>이어하기</button>
       </div>
-      <button id="btn-sound" class="icon-btn" aria-label="소리 켜기/끄기">♪</button>
-      <button id="btn-menu" class="icon-btn" aria-label="메뉴">☰</button>
+      <p class="title-foot">77개 거점 · 18 병과 · 499 장수 · 18×18 전장</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ 1단계 · 천하 지도 ═══════════ -->
+  <section id="screen-map" class="screen">
+    <header class="map-top">
+      <div class="flag-chip"><img id="lord-mini" src="assets/portraits/v2/caocao.webp" alt="" /><span>위</span></div>
+      <div class="res-group">
+        <span class="res gold"><i>金</i><b id="map-gold">0</b></span>
+        <span class="res food"><i>米</i><b id="map-food">0</b></span>
+        <span class="res troop"><i>兵</i><b id="map-troops">0</b></span>
+      </div>
+      <button id="btn-map-menu" class="icon-btn" aria-label="메뉴">☰</button>
     </header>
 
-    <div class="map-wrap">
-      <div class="map-frame">
-        <img class="map-art" src="assets/maps/web/worldmap.webp" alt="삼국지대 전국 지도" />
-        <svg id="worldmap" viewBox="0 0 360 320" preserveAspectRatio="xMidYMid meet" aria-label="전국 지도"></svg>
-        <div class="map-caption"><span id="date-label">건안 원년 정월</span><span class="dot">·</span><span id="fame-label">명성 0</span></div>
+    <div class="date-ribbon"><span id="map-date">건안 원년 정월</span><i></i><span id="map-fame">명성 0</span></div>
+
+    <div id="world-viewport" class="world-viewport">
+      <div id="world-layer" class="world-layer">
+        <img id="terrain-img" src="assets/maps/v2/terrain.webp" alt="삼국지대 지도" draggable="false" />
+        <svg id="roads-svg" viewBox="0 0 2000 1333" preserveAspectRatio="none"></svg>
+        <div id="city-markers"></div>
+      </div>
+      <div class="map-controls">
+        <button id="zoom-in" class="round-btn" aria-label="확대">＋</button>
+        <button id="zoom-out" class="round-btn" aria-label="축소">−</button>
+        <button id="zoom-fit" class="round-btn small" aria-label="전체 보기">⤢</button>
+        <button id="go-capital" class="round-btn small" aria-label="수도로">魏</button>
+      </div>
+      <div class="map-legend">
+        <span><i class="lg capital"></i>대도시</span>
+        <span><i class="lg town"></i>소도시</span>
+        <span><i class="lg pass"></i>관문</span>
+        <span><i class="lg fort"></i>요새</span>
       </div>
     </div>
 
-    <div class="city-panel panel" id="city-panel"></div>
+    <div id="city-sheet" class="city-sheet" hidden></div>
 
-    <footer class="map-footer">
-      <div class="next-hint" id="next-hint"></div>
-      <button id="btn-next-turn" class="btn next-turn">다음 달 <span class="arrow">▸</span></button>
+    <footer class="map-bottom">
+      <div id="map-hint" class="map-hint">성을 눌러 내정하거나, 적성 인근에서 출진하세요.</div>
+      <button id="btn-next-month" class="btn-next">다음 달 ▸</button>
     </footer>
   </section>
 
-  <!-- ══════════ 화면 2 · 조조전 격자 전장 ══════════ -->
-  <section id="screen-battle" class="screen">
-    <header class="battle-hud">
-      <button id="btn-retreat" class="icon-btn" aria-label="후퇴">‹</button>
-      <div class="battle-title">
-        <span id="battle-name">전장</span>
-        <span class="turn" id="battle-turn">1턴</span>
+  <!-- ═══════════ 2단계 · 내정 화면 ═══════════ -->
+  <section id="screen-city" class="screen">
+    <header class="city-top">
+      <button id="btn-city-back" class="icon-btn" aria-label="지도로">‹</button>
+      <div class="city-lord"><img id="city-lord-img" src="assets/portraits/v2/caocao.webp" alt="" /></div>
+      <div class="city-title-wrap">
+        <span class="faction-tag" id="city-faction">魏</span>
+        <h2 id="city-name">허창</h2>
+        <span id="city-hanja">許昌</span>
       </div>
-      <div class="battle-status ally" id="battle-phase">아군 페이즈</div>
-      <button id="btn-help" class="icon-btn" aria-label="조작법">?</button>
-      <button id="btn-sound2" class="icon-btn" aria-label="소리 켜기/끄기">♪</button>
+      <div class="city-res">
+        <span class="res gold"><i>金</i><b id="city-gold">0</b></span>
+        <span class="res food"><i>米</i><b id="city-food">0</b></span>
+        <span class="res troop"><i>兵</i><b id="city-troops">0</b></span>
+      </div>
     </header>
 
-    <div class="battle-main">
-      <div class="field-wrap" id="field-wrap">
-        <div class="war-strip">
-          <span class="ws-side ally">我軍</span>
-          <div class="ws-bar ally"><i id="ally-power"></i></div>
-          <span class="ws-vs">戰</span>
-          <div class="ws-bar enemy"><i id="enemy-power"></i></div>
-          <span class="ws-side enemy">敵軍</span>
-        </div>
-        <div class="field-stage" id="field-stage">
-          <canvas id="field"></canvas>
-          <div class="phase-banner" id="phase-banner"></div>
-        </div>
-        <div class="field-objective"><span id="objective-text">적을 모두 격파하라</span></div>
-      </div>
-      <aside class="battle-side">
-        <div class="unit-card panel" id="unit-card"></div>
-        <div class="actions" id="actions"></div>
-        <div class="foe-panel panel" id="foe-panel"></div>
-        <div class="log panel" id="log" aria-live="polite"></div>
-      </aside>
+    <div class="city-scene">
+      <img id="city-scene-img" src="assets/scenes/city_main.webp" alt="성내" />
+      <div class="scene-shade"></div>
+      <div id="scene-hotspots" class="scene-hotspots"></div>
+      <div id="city-weather" class="city-weather">맑음 · 민심 안정</div>
     </div>
+
+    <div class="city-stats">
+      <div class="stat-cell"><span>성벽</span><b id="stat-def">0</b><i><em id="bar-def"></em></i></div>
+      <div class="stat-cell"><span>민심</span><b id="stat-loyal">0</b><i><em id="bar-loyal"></em></i></div>
+      <div class="stat-cell"><span>주둔 장수</span><b id="stat-generals">0</b><i><em id="bar-gen"></em></i></div>
+    </div>
+
+    <div class="city-general-strip" id="city-generals"></div>
+
+    <nav class="city-commands" aria-label="내정 명령">
+      <button class="cmd" data-cmd="farm"><span class="cmd-ic ic-farm"></span><b>개간</b><small id="cmd-farm-cost">금 100</small></button>
+      <button class="cmd" data-cmd="trade"><span class="cmd-ic ic-trade"></span><b>상업</b><small id="cmd-trade-cost">미 80</small></button>
+      <button class="cmd" data-cmd="recruit"><span class="cmd-ic ic-troop"></span><b>징병</b><small id="cmd-recruit-cost">금 150</small></button>
+      <button class="cmd" data-cmd="train"><span class="cmd-ic ic-train"></span><b>훈련</b><small>금 80</small></button>
+      <button class="cmd" data-cmd="talent"><span class="cmd-ic ic-talent"></span><b>인재</b><small id="cmd-talent-cost">금 200</small></button>
+      <button class="cmd" data-cmd="repair"><span class="cmd-ic ic-repair"></span><b>보수</b><small id="cmd-repair-cost">금 120</small></button>
+      <button class="cmd sortie" data-cmd="sortie"><span class="cmd-ic ic-sortie"></span><b>출진</b><small>적성 공략</small></button>
+      <button class="cmd" data-cmd="map"><span class="cmd-ic ic-map"></span><b>지도</b><small>전국으로</small></button>
+    </nav>
+  </section>
+
+  <!-- ═══════════ 4단계 · 격자 전장 ═══════════ -->
+  <section id="screen-battle" class="screen">
+    <header class="battle-top">
+      <button id="btn-retreat" class="icon-btn" aria-label="후퇴">‹</button>
+      <div class="battle-title">
+        <b id="battle-name">전장</b>
+        <small id="battle-kind">공성전</small>
+      </div>
+      <div class="battle-turnbox">
+        <span id="battle-turn">1턴</span>
+        <em id="battle-phase">아군</em>
+      </div>
+      <button id="btn-battle-help" class="icon-btn" aria-label="도움말">?</button>
+    </header>
+
+    <div class="battle-armies">
+      <div class="army ally"><span class="army-flag">我</span><div class="army-bar"><i id="bar-ally"></i></div><b id="count-ally">0</b></div>
+      <div class="army enemy"><b id="count-enemy">0</b><div class="army-bar"><i id="bar-enemy"></i></div><span class="army-flag">敵</span></div>
+    </div>
+
+    <div class="battle-stage" id="battle-stage">
+      <canvas id="battle-canvas"></canvas>
+      <div class="battle-objective" id="battle-objective">적 전멸</div>
+      <div class="battle-zoom">
+        <button id="b-zoom-in" class="round-btn small">＋</button>
+        <button id="b-zoom-out" class="round-btn small">−</button>
+        <button id="b-zoom-fit" class="round-btn small">⤢</button>
+      </div>
+      <div class="battle-tip" id="battle-tip">화면을 끌어 이동 · 부대를 눌러 선택</div>
+      <div class="turn-banner" id="turn-banner"></div>
+    </div>
+
+    <div class="battle-bottom">
+      <div class="unit-card" id="unit-card">
+        <div class="uc-portrait"><img id="uc-img" src="assets/portraits/v2/caocao.webp" alt="" /><span id="uc-lv">Lv.1</span></div>
+        <div class="uc-main">
+          <div class="uc-row"><b id="uc-name">조조</b><span id="uc-cls">군웅</span><span id="uc-terrain">평지</span></div>
+          <div class="uc-bars">
+            <div class="hpbar"><i id="uc-hp"></i><em id="uc-hp-txt">0/0</em></div>
+            <div class="mpbar"><i id="uc-mp"></i><em id="uc-mp-txt">0/0</em></div>
+          </div>
+          <div class="uc-stats"><span>공 <b id="uc-atk">0</b></span><span>방 <b id="uc-def">0</b></span><span>이동 <b id="uc-mov">0</b></span><span>사거리 <b id="uc-rng">0</b></span></div>
+        </div>
+      </div>
+      <div class="battle-actions" id="battle-actions">
+        <button class="act atk" data-act="attack"><span>⚔</span><b>공격</b></button>
+        <button class="act skill" data-act="skill"><span>策</span><b>책략</b></button>
+        <button class="act item" data-act="item"><span>米</span><b>군량</b></button>
+        <button class="act wait" data-act="wait"><span>待</span><b>대기</b></button>
+        <button class="act endturn" id="btn-end-turn" data-act="endturn"><span>▶</span><b>턴 종료</b></button>
+      </div>
+    </div>
+
+    <div id="battle-overlay" class="battle-overlay" hidden></div>
   </section>
 
   <div id="modal-root"></div>
-  <div id="toast-root"></div>
-
-  <!-- ══════════ 타이틀 ══════════ -->
-  <div id="splash" class="splash">
-    <img class="splash-bg" src="assets/maps/web/worldmap.webp" alt="" />
-    <div class="splash-shade"></div>
-    <img class="splash-hero" src="assets/portraits/web/caocao.webp" alt="" />
-    <div class="splash-inner">
-      <div class="splash-seal">魏</div>
-      <h1 class="splash-title">三國志<span>曹操傳</span></h1>
-      <p class="splash-sub">천하의 서막</p>
-      <div class="splash-divider"><i></i></div>
-      <p class="splash-desc">전국 지도에서 내정을 다스리고,<br />출진하여 조조전의 격자 전장에서 싸운다.</p>
-      <button id="btn-start" class="btn primary big">새로 시작</button>
-      <button id="btn-continue" class="btn big hidden">이어서 하기</button>
-      <p class="splash-foot" id="splash-foot">전장을 그리는 중…</p>
-    </div>
-  </div>
-
+  <div id="toast" class="toast" hidden></div>
 </div>
-<script src="game.js"></script>
+<script src="js/city_geo.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script src="js/map.js"></script>
+<script src="js/battle.js"></script>
 </body>
 </html>

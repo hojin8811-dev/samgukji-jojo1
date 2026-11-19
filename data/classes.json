@@ -1,0 +1,668 @@
+[
+  {
+    "job": "군주",
+    "promotions": [
+      "왕후",
+      "제후",
+      "패왕",
+      "천하제왕"
+    ],
+    "moveRange": 4,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": 10,
+      "naval": 0,
+      "mountain": 0,
+      "fortress": 15
+    },
+    "skills": [
+      {
+        "name": "고무",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "아군 1부대 사기 +15 및 공격력 +10%"
+      },
+      {
+        "name": "호령",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "주변 아군 공격력·방어력 +12%"
+      },
+      {
+        "name": "제왕의 위엄",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "전군 사기 +25, 적 사기 -15 및 상태이상 해제"
+      }
+    ]
+  },
+  {
+    "job": "기병",
+    "promotions": [
+      "기마병",
+      "돌격기병",
+      "중장기병",
+      "철갑기병"
+    ],
+    "moveRange": 6,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": -15,
+      "naval": -20,
+      "mountain": -10,
+      "fortress": -10
+    },
+    "skills": [
+      {
+        "name": "돌격",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "이동 거리 비례 피해 증가, 적 밀치기 확률"
+      },
+      {
+        "name": "질풍참",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "단일 대상 1.6배 피해, 회피율 +15%"
+      },
+      {
+        "name": "천마돌파",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "직선 3칸 관통 돌격 및 방어력 25% 무시"
+      }
+    ]
+  },
+  {
+    "job": "궁기",
+    "promotions": [
+      "궁기병",
+      "유성궁기",
+      "비장궁기",
+      "신궁기병"
+    ],
+    "moveRange": 5,
+    "attackRange": "1~2",
+    "terrainBonus": {
+      "siege": 0,
+      "naval": -10,
+      "mountain": 10,
+      "fortress": 5
+    },
+    "skills": [
+      {
+        "name": "속사",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "명중 +20%, 선제 사격"
+      },
+      {
+        "name": "연사",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "2회 연속 사격"
+      },
+      {
+        "name": "유성시",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "방어 무시 관통 사격"
+      }
+    ]
+  },
+  {
+    "job": "창병",
+    "promotions": [
+      "장창병",
+      "극병",
+      "철창병",
+      "신창병"
+    ],
+    "moveRange": 4,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": 5,
+      "naval": -5,
+      "mountain": 5,
+      "fortress": 15
+    },
+    "skills": [
+      {
+        "name": "창진",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "기병 접근 시 반격 피해 +25%, 방어 +15%"
+      },
+      {
+        "name": "연격창",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "단일 대상 1.5배 피해, 이동력 -1 부여"
+      },
+      {
+        "name": "천장일섬",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "전방 1칸 대상 2.1배 피해 및 중갑 관통"
+      }
+    ]
+  },
+  {
+    "job": "검병",
+    "promotions": [
+      "검객",
+      "호위검병",
+      "청룡검병",
+      "검성"
+    ],
+    "moveRange": 5,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": 5,
+      "naval": 0,
+      "mountain": 10,
+      "fortress": 10
+    },
+    "skills": [
+      {
+        "name": "일섬",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "치명타율 +20%, 단일 대상 1.4배 피해"
+      },
+      {
+        "name": "검기참",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "2칸 거리 검기 공격, 출혈 효과 부여"
+      },
+      {
+        "name": "무형검무",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "주변 적 2회 타격 및 근접 회피율 +30%"
+      }
+    ]
+  },
+  {
+    "job": "산적",
+    "promotions": [
+      "유격대",
+      "산적두목",
+      "흑산호위",
+      "산왕유격대"
+    ],
+    "moveRange": 5,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": 0,
+      "naval": -5,
+      "mountain": 25,
+      "fortress": 5
+    },
+    "skills": [
+      {
+        "name": "기습",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "산악·삼림 지형 또는 측면 공격 시 피해 +25%"
+      },
+      {
+        "name": "약탈",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "공격 성공 시 금·군량 일부 획득, 적 사기 -10"
+      },
+      {
+        "name": "산악매복",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "은신 후 1.9배 기습 피해 및 적 이동력 -2"
+      }
+    ]
+  },
+  {
+    "job": "수적",
+    "promotions": [
+      "수군병",
+      "강동수적",
+      "철갑수군",
+      "해상제왕군"
+    ],
+    "moveRange": 4,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": -5,
+      "naval": 30,
+      "mountain": -15,
+      "fortress": 5
+    },
+    "skills": [
+      {
+        "name": "수습",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "수변·해상 지형 공격력 +25%, 회피 +15%"
+      },
+      {
+        "name": "파도격",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "물 속성 광역 피해 및 적 이동력 감소"
+      },
+      {
+        "name": "해일충격",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "수전·도하 시 2.2배 피해 및 적 사기 -20"
+      }
+    ]
+  },
+  {
+    "job": "책사",
+    "promotions": [
+      "군사",
+      "참모",
+      "대책사",
+      "신산군사"
+    ],
+    "moveRange": 3,
+    "attackRange": "1~3",
+    "terrainBonus": {
+      "siege": 10,
+      "naval": 0,
+      "mountain": 0,
+      "fortress": 15
+    },
+    "skills": [
+      {
+        "name": "화계",
+        "mp": 10,
+        "unlockLv": 1,
+        "effect": "지력 비례 화염 책략 피해, 지형 연소 부여"
+      },
+      {
+        "name": "혼란",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "적 1부대 혼란 상태 부여(아군 공격 유도)"
+      },
+      {
+        "name": "천지붕괴",
+        "mp": 28,
+        "unlockLv": 20,
+        "effect": "범위 내 적에게 강력한 책략 피해 및 방어 -20%"
+      }
+    ]
+  },
+  {
+    "job": "풍수사",
+    "promotions": [
+      "점성사",
+      "지관",
+      "천문풍수사",
+      "현명풍수사"
+    ],
+    "moveRange": 3,
+    "attackRange": "1~3",
+    "terrainBonus": {
+      "siege": 5,
+      "naval": 5,
+      "mountain": 15,
+      "fortress": 10
+    },
+    "skills": [
+      {
+        "name": "지맥회복",
+        "mp": 10,
+        "unlockLv": 1,
+        "effect": "아군 1부대 병력 회복 및 지형 방어 보정"
+      },
+      {
+        "name": "풍향조절",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "아군 원거리·화계 명중 및 위력 +20%"
+      },
+      {
+        "name": "산천진법",
+        "mp": 26,
+        "unlockLv": 20,
+        "effect": "범위 내 아군 방어력 +25%, 적 이동력 -1"
+      }
+    ]
+  },
+  {
+    "job": "도사",
+    "promotions": [
+      "술사",
+      "방사",
+      "현도사",
+      "신선도사"
+    ],
+    "moveRange": 3,
+    "attackRange": "1~3",
+    "terrainBonus": {
+      "siege": 0,
+      "naval": 0,
+      "mountain": 15,
+      "fortress": 10
+    },
+    "skills": [
+      {
+        "name": "낙뢰",
+        "mp": 10,
+        "unlockLv": 1,
+        "effect": "단일·인접 대상 뇌전 피해, 기절 확률 25%"
+      },
+      {
+        "name": "안개술",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "아군 범위 회피율 +25%, 원거리 피격 감소"
+      },
+      {
+        "name": "천벌강림",
+        "mp": 28,
+        "unlockLv": 20,
+        "effect": "광역 뇌전·혼란 피해 및 적 사기 -20"
+      }
+    ]
+  },
+  {
+    "job": "궁수",
+    "promotions": [
+      "석궁병",
+      "장궁병",
+      "신궁병",
+      "천궁정예"
+    ],
+    "moveRange": 4,
+    "attackRange": "2~3",
+    "terrainBonus": {
+      "siege": 15,
+      "naval": -5,
+      "mountain": 15,
+      "fortress": 20
+    },
+    "skills": [
+      {
+        "name": "조준사격",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "명중 +25%, 치명타율 +15% 원거리 타격"
+      },
+      {
+        "name": "화시",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "불화살 사격으로 추가 화염 피해 및 연소"
+      },
+      {
+        "name": "백발백중",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "사거리 +1, 회피 무시 및 1.8배 정밀 사격"
+      }
+    ]
+  },
+  {
+    "job": "무도가",
+    "promotions": [
+      "권사",
+      "격투가",
+      "금강무사",
+      "천하무도"
+    ],
+    "moveRange": 5,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": 5,
+      "naval": 0,
+      "mountain": 15,
+      "fortress": 10
+    },
+    "skills": [
+      {
+        "name": "연환권",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "단일 대상 2연타 근접 공격, 반격 회피 +15%"
+      },
+      {
+        "name": "금강체",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "받는 물리 피해 -30%, 무기 해제 면역"
+      },
+      {
+        "name": "파천격",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "방어력 35% 무시 강타 및 기절 확률 35%"
+      }
+    ]
+  },
+  {
+    "job": "야수병",
+    "promotions": [
+      "맹수조련사",
+      "야수기병",
+      "남만맹수대",
+      "신수병단"
+    ],
+    "moveRange": 5,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": -5,
+      "naval": -10,
+      "mountain": 25,
+      "fortress": 0
+    },
+    "skills": [
+      {
+        "name": "맹수습격",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "출혈·공포 유발 근접 공격, 산악·밀림 보정"
+      },
+      {
+        "name": "포효",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "인접 적 사기 -15, 공격력 -12% 위축"
+      },
+      {
+        "name": "광폭화",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "공격력 +35%, 이동력 +1(방어력 -10% 패널티)"
+      }
+    ]
+  },
+  {
+    "job": "무희",
+    "promotions": [
+      "가무사",
+      "현녀무희",
+      "천상무희",
+      "선녀무희"
+    ],
+    "moveRange": 4,
+    "attackRange": "1~2",
+    "terrainBonus": {
+      "siege": 0,
+      "naval": 0,
+      "mountain": 5,
+      "fortress": 10
+    },
+    "skills": [
+      {
+        "name": "고무의 춤",
+        "mp": 9,
+        "unlockLv": 1,
+        "effect": "아군 1부대 재행동 부여 또는 사기 +20"
+      },
+      {
+        "name": "매혹의 선율",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "적 1부대 공격력 -20%, 사기 -15"
+      },
+      {
+        "name": "천상의 가무",
+        "mp": 26,
+        "unlockLv": 20,
+        "effect": "주변 아군 HP·MP 회복 및 상태이상 해제"
+      }
+    ]
+  },
+  {
+    "job": "포차",
+    "promotions": [
+      "투석차",
+      "벽력거",
+      "대공성차",
+      "천둥포차"
+    ],
+    "moveRange": 3,
+    "attackRange": "2~4",
+    "terrainBonus": {
+      "siege": 35,
+      "naval": -15,
+      "mountain": -20,
+      "fortress": 25
+    },
+    "skills": [
+      {
+        "name": "투석",
+        "mp": 10,
+        "unlockLv": 1,
+        "effect": "대상 및 인접 1칸 범위 물리 포격"
+      },
+      {
+        "name": "작렬석",
+        "mp": 18,
+        "unlockLv": 10,
+        "effect": "성벽·목책 1.8배 피해, 범위 화염 피해"
+      },
+      {
+        "name": "벽력일격",
+        "mp": 28,
+        "unlockLv": 20,
+        "effect": "광역 중폭격 및 적 방어력 25% 감소"
+      }
+    ]
+  },
+  {
+    "job": "연노병",
+    "promotions": [
+      "연노수",
+      "중연노병",
+      "신연노대",
+      "천노병단"
+    ],
+    "moveRange": 4,
+    "attackRange": "2~3",
+    "terrainBonus": {
+      "siege": 15,
+      "naval": -5,
+      "mountain": 10,
+      "fortress": 20
+    },
+    "skills": [
+      {
+        "name": "연발사격",
+        "mp": 9,
+        "unlockLv": 1,
+        "effect": "단일 대상 2회 연속 사격, 근접 반격 불가"
+      },
+      {
+        "name": "집중노사",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "동일 대상 3회 연사, 방어력 15% 관통"
+      },
+      {
+        "name": "노우폭풍",
+        "mp": 26,
+        "unlockLv": 20,
+        "effect": "부채꼴 범위 다중 연사 및 적 이동력 -1"
+      }
+    ]
+  },
+  {
+    "job": "등갑병",
+    "promotions": [
+      "중갑보병",
+      "등갑중장",
+      "철벽등갑",
+      "불침등갑병"
+    ],
+    "moveRange": 3,
+    "attackRange": "1",
+    "terrainBonus": {
+      "siege": 15,
+      "naval": -15,
+      "mountain": 10,
+      "fortress": 20
+    },
+    "skills": [
+      {
+        "name": "철벽방어",
+        "mp": 8,
+        "unlockLv": 1,
+        "effect": "받는 물리 피해 -35% (화계 피해 +20%)"
+      },
+      {
+        "name": "방패돌진",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "적 밀치기 및 기절 확률 20%, 방어 증가"
+      },
+      {
+        "name": "불침진형",
+        "mp": 24,
+        "unlockLv": 20,
+        "effect": "인접 아군 피격 일부 대신 흡수 및 방어 +25%"
+      }
+    ]
+  },
+  {
+    "job": "군악대",
+    "promotions": [
+      "고수대",
+      "군악대장",
+      "진군악대",
+      "천군악대"
+    ],
+    "moveRange": 4,
+    "attackRange": "1~2",
+    "terrainBonus": {
+      "siege": 5,
+      "naval": 5,
+      "mountain": 5,
+      "fortress": 15
+    },
+    "skills": [
+      {
+        "name": "진군북",
+        "mp": 9,
+        "unlockLv": 1,
+        "effect": "아군 1부대 이동력 +1 및 사기 +12"
+      },
+      {
+        "name": "사기진작",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "범위 내 아군 사기 +18, 공포 상태 해제"
+      },
+      {
+        "name": "승리의 교향곡",
+        "mp": 26,
+        "unlockLv": 20,
+        "effect": "전군 공격·방어 +15%, 사기 +20, MP 회복"
+      }
+    ]
+  }
+]
