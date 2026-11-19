@@ -1,0 +1,458 @@
+[
+  {
+    "id": "mil_1",
+    "category": "군사",
+    "tier": 1,
+    "name": "군제 정비",
+    "costGold": 400,
+    "turns": 2,
+    "prereq": null,
+    "summary": "전군 공격력 +5%, 출진 부대 사기 상승",
+    "bonus": {
+      "atkPct": 5,
+      "defPct": 0,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "mil_2",
+    "category": "군사",
+    "tier": 2,
+    "name": "봉시진 연구",
+    "costGold": 800,
+    "turns": 3,
+    "prereq": "mil_1",
+    "summary": "봉시진 전술 해금, 기병 돌격 피해 +10%",
+    "bonus": {
+      "atkPct": 10,
+      "defPct": 0,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "mil_3",
+    "category": "군사",
+    "tier": 3,
+    "name": "병종 정예화",
+    "costGold": 1500,
+    "turns": 4,
+    "prereq": "mil_2",
+    "summary": "보병과 기병 공격력 및 방어력 +10%",
+    "bonus": {
+      "atkPct": 10,
+      "defPct": 10,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "mil_4",
+    "category": "군사",
+    "tier": 4,
+    "name": "대군 증편",
+    "costGold": 3000,
+    "turns": 6,
+    "prereq": "mil_3",
+    "summary": "부대 최대 병력 +30%, 전군 공격력 +15%",
+    "bonus": {
+      "atkPct": 15,
+      "defPct": 5,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 30
+    }
+  },
+  {
+    "id": "pol_1",
+    "category": "치안",
+    "tier": 1,
+    "name": "치안 관리",
+    "costGold": 350,
+    "turns": 2,
+    "prereq": null,
+    "summary": "도시 치안 안정화, 민심 회복 효과 +5%",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 5,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "pol_2",
+    "category": "치안",
+    "tier": 2,
+    "name": "수비 체계 강화",
+    "costGold": 750,
+    "turns": 3,
+    "prereq": "pol_1",
+    "summary": "도시 방어력 +10%, 적의 기습 피해 감소",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 10,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 5,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "pol_3",
+    "category": "치안",
+    "tier": 3,
+    "name": "모병 제도 확립",
+    "costGold": 1400,
+    "turns": 4,
+    "prereq": "pol_2",
+    "summary": "병력 모집 효율 +15%, 모병 소요 비용 감소",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 5,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 15
+    }
+  },
+  {
+    "id": "pol_4",
+    "category": "치안",
+    "tier": 4,
+    "name": "백성 안위",
+    "costGold": 2800,
+    "turns": 5,
+    "prereq": "pol_3",
+    "summary": "민심 및 인구 성장 +20%, 도시 치안 대폭 상승",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 10,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 20,
+      "wallPct": 5,
+      "recruitPct": 10
+    }
+  },
+  {
+    "id": "eco_1",
+    "category": "경제",
+    "tier": 1,
+    "name": "농업 안정화",
+    "costGold": 400,
+    "turns": 2,
+    "prereq": null,
+    "summary": "농업 생산량 +10%, 매년 군량 수입 증가",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 0,
+      "foodPct": 10,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "eco_2",
+    "category": "경제",
+    "tier": 2,
+    "name": "상업 안정화",
+    "costGold": 800,
+    "turns": 3,
+    "prereq": "eco_1",
+    "summary": "상업 수입 +15%, 시장 거래 활성화",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 15,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "eco_3",
+    "category": "경제",
+    "tier": 3,
+    "name": "군량 비축",
+    "costGold": 1500,
+    "turns": 4,
+    "prereq": "eco_2",
+    "summary": "군량 생산량 +20%, 전쟁 중 식량 소모량 감소",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 5,
+      "foodPct": 20,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "eco_4",
+    "category": "경제",
+    "tier": 4,
+    "name": "대교역망",
+    "costGold": 3200,
+    "turns": 6,
+    "prereq": "eco_3",
+    "summary": "금 수입 +30%, 군량 수입 +20%, 교역 효율 극대화",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 30,
+      "foodPct": 20,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "dev_1",
+    "category": "개발",
+    "tier": 1,
+    "name": "증축 기반",
+    "costGold": 500,
+    "turns": 2,
+    "prereq": null,
+    "summary": "도시 건설 비용 -5%, 건축 효율 상승",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 5,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 5,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "dev_2",
+    "category": "개발",
+    "tier": 2,
+    "name": "성벽 강화",
+    "costGold": 1000,
+    "turns": 3,
+    "prereq": "dev_1",
+    "summary": "성벽 내구도 +20%, 공성전 방어 효율 상승",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 5,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 20,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "dev_3",
+    "category": "개발",
+    "tier": 3,
+    "name": "보급로 개선",
+    "costGold": 1800,
+    "turns": 4,
+    "prereq": "dev_2",
+    "summary": "군대 보급 효율 +20%, 원정 중 군량 소모 감소",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 5,
+      "goldPct": 5,
+      "foodPct": 15,
+      "popPct": 0,
+      "wallPct": 5,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "dev_4",
+    "category": "개발",
+    "tier": 4,
+    "name": "대도성 축조",
+    "costGold": 4000,
+    "turns": 7,
+    "prereq": "dev_3",
+    "summary": "도시 최대 발전 단계 해금, 성벽 내구도 +30%",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 15,
+      "goldPct": 10,
+      "foodPct": 10,
+      "popPct": 10,
+      "wallPct": 30,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "gov_1",
+    "category": "정무",
+    "tier": 1,
+    "name": "공론 수렴",
+    "costGold": 400,
+    "turns": 2,
+    "prereq": null,
+    "summary": "정무 효율 +5%, 장수 충성도 하락 확률 감소",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 5,
+      "foodPct": 0,
+      "popPct": 5,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "gov_2",
+    "category": "정무",
+    "tier": 2,
+    "name": "사교 의전",
+    "costGold": 850,
+    "turns": 3,
+    "prereq": "gov_1",
+    "summary": "외교 관계 개선 효과 +15%, 동맹 협상 성공률 상승",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 5,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "gov_3",
+    "category": "정무",
+    "tier": 3,
+    "name": "하급 봉작",
+    "costGold": 1700,
+    "turns": 4,
+    "prereq": "gov_2",
+    "summary": "장수 충성도 +10%, 관직 수여를 통한 인재 등용 효과 상승",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 5,
+      "goldPct": 10,
+      "foodPct": 0,
+      "popPct": 5,
+      "wallPct": 0,
+      "recruitPct": 5
+    }
+  },
+  {
+    "id": "gov_4",
+    "category": "정무",
+    "tier": 4,
+    "name": "천하 호령",
+    "costGold": 3500,
+    "turns": 6,
+    "prereq": "gov_3",
+    "summary": "외교 영향력 +30%, 전 영토의 충성도 및 민심 상승",
+    "bonus": {
+      "atkPct": 5,
+      "defPct": 5,
+      "goldPct": 15,
+      "foodPct": 10,
+      "popPct": 15,
+      "wallPct": 0,
+      "recruitPct": 5
+    }
+  },
+  {
+    "id": "str_1",
+    "category": "계략",
+    "tier": 1,
+    "name": "수색 강화",
+    "costGold": 450,
+    "turns": 2,
+    "prereq": null,
+    "summary": "적군 및 재야 인재 탐색 성공률 +10%",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 0,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 5
+    }
+  },
+  {
+    "id": "str_2",
+    "category": "계략",
+    "tier": 2,
+    "name": "매복 전술",
+    "costGold": 900,
+    "turns": 3,
+    "prereq": "str_1",
+    "summary": "매복 전술 해금, 적군 선제 공격 시 피해량 +15%",
+    "bonus": {
+      "atkPct": 10,
+      "defPct": 0,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  },
+  {
+    "id": "str_3",
+    "category": "계략",
+    "tier": 3,
+    "name": "재야 탐문",
+    "costGold": 1600,
+    "turns": 4,
+    "prereq": "str_2",
+    "summary": "재야 인재 발견 확률 +25%, 적 장수 정보 획득 효율 상승",
+    "bonus": {
+      "atkPct": 0,
+      "defPct": 5,
+      "goldPct": 5,
+      "foodPct": 0,
+      "popPct": 5,
+      "wallPct": 0,
+      "recruitPct": 10
+    }
+  },
+  {
+    "id": "str_4",
+    "category": "계략",
+    "tier": 4,
+    "name": "연환계",
+    "costGold": 3500,
+    "turns": 6,
+    "prereq": "str_3",
+    "summary": "연환계 전술 해금, 적 부대 연쇄 혼란 및 행동력 저하",
+    "bonus": {
+      "atkPct": 15,
+      "defPct": 10,
+      "goldPct": 0,
+      "foodPct": 0,
+      "popPct": 0,
+      "wallPct": 0,
+      "recruitPct": 0
+    }
+  }
+]
