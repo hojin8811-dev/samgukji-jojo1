@@ -16,6 +16,7 @@
   const pointers = new Map();
   let drag = { on: false, moved: 0, sx: 0, sy: 0, lx: 0, ly: 0 };
   let pinch = null;
+  let inertia = null;
 
   function city(id) { return SK.CITY[id]; }
   function st(id) { return SK.state.cities[id]; }
@@ -142,6 +143,24 @@
     cam.tx = Math.min(maxTx, Math.max(minTx, cam.tx));
     cam.ty = Math.min(maxTy, Math.max(minTy, cam.ty));
   }
+  function stopInertia() {
+    if (inertia) { cancelAnimationFrame(inertia); inertia = null; }
+  }
+
+  /* 지도를 손으로 튕기면 관성으로 미끄러진다 */
+  function startInertia(vx, vy) {
+    if (Math.abs(vx) < 0.5 && Math.abs(vy) < 0.5) return;
+    stopInertia();
+    const step = () => {
+      cam.tx += vx; cam.ty += vy;
+      vx *= 0.92; vy *= 0.92;
+      clampCam(); apply();
+      if (Math.abs(vx) > 0.3 || Math.abs(vy) > 0.3) inertia = requestAnimationFrame(step);
+      else inertia = null;
+    };
+    inertia = requestAnimationFrame(step);
+  }
+
   function setZoom(ns, fx, fy) {
     const { w, h } = viewSize();
     ns = Math.min(3.2, Math.max(fitScale() * 0.92, ns));
@@ -195,7 +214,9 @@
       vp.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
-        drag = { on: true, moved: 0, sx: e.clientX, sy: e.clientY, lx: cam.tx, ly: cam.ty };
+        stopInertia();
+        drag = { on: true, moved: 0, sx: e.clientX, sy: e.clientY, lx: cam.tx, ly: cam.ty,
+          px: e.clientX, py: e.clientY, pt: e.timeStamp || performance.now(), vx: 0, vy: 0 };
       } else if (pointers.size === 2) {
         const pts = Array.from(pointers.values());
         pinch = { d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), s: cam.s,
@@ -217,6 +238,13 @@
       if (drag.on) {
         const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
         drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
+        const now = e.timeStamp || performance.now();
+        const dt = Math.max(8, now - (drag.pt || now - 16));
+        const ivx = (e.clientX - (drag.px == null ? e.clientX : drag.px)) / dt * 16;
+        const ivy = (e.clientY - (drag.py == null ? e.clientY : drag.py)) / dt * 16;
+        drag.vx = (drag.vx || 0) * 0.35 + ivx * 0.65;
+        drag.vy = (drag.vy || 0) * 0.35 + ivy * 0.65;
+        drag.px = e.clientX; drag.py = e.clientY; drag.pt = now;
         cam.tx = drag.lx + dx; cam.ty = drag.ly + dy;
         clampCam(); apply();
       }
@@ -229,6 +257,8 @@
           const sheet = $('#city-sheet');
           if (sheet && !sheet.hidden) SK.closeCitySheet();
           $$markers().forEach((m) => m.classList.remove('sel'));
+        } else if (drag.on) {
+          startInertia(drag.vx || 0, drag.vy || 0);
         }
         drag.on = false;
       }

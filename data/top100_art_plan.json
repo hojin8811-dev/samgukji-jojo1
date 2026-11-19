@@ -1,0 +1,802 @@
+[
+  {
+    "rank": 1,
+    "id": 354,
+    "name": "이순신",
+    "faction": "한국",
+    "tier": "S",
+    "job": "수적"
+  },
+  {
+    "rank": 2,
+    "id": 66,
+    "name": "광개토대왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 3,
+    "id": 76,
+    "name": "김유신",
+    "faction": "한국",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 4,
+    "id": 181,
+    "name": "동명성왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "궁기"
+  },
+  {
+    "rank": 5,
+    "id": 195,
+    "name": "진흥왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 6,
+    "id": 302,
+    "name": "왕건",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 7,
+    "id": 337,
+    "name": "이성계",
+    "faction": "한국",
+    "tier": "S",
+    "job": "궁기"
+  },
+  {
+    "rank": 8,
+    "id": 197,
+    "name": "문무왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "수적"
+  },
+  {
+    "rank": 9,
+    "id": 1,
+    "name": "조조",
+    "faction": "위",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 10,
+    "id": 67,
+    "name": "을지문덕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 11,
+    "id": 184,
+    "name": "장수왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 12,
+    "id": 73,
+    "name": "근초고왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 13,
+    "id": 183,
+    "name": "대무신왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 14,
+    "id": 38,
+    "name": "주유",
+    "faction": "오",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 15,
+    "id": 191,
+    "name": "무령왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 16,
+    "id": 303,
+    "name": "강감찬",
+    "faction": "한국",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 17,
+    "id": 41,
+    "name": "육손",
+    "faction": "오",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 18,
+    "id": 185,
+    "name": "명림답부",
+    "faction": "한국",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 19,
+    "id": 346,
+    "name": "세종대왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 20,
+    "id": 192,
+    "name": "성왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 21,
+    "id": 372,
+    "name": "안중근",
+    "faction": "한국",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 22,
+    "id": 376,
+    "name": "장보고",
+    "faction": "한국",
+    "tier": "S",
+    "job": "수적"
+  },
+  {
+    "rank": 23,
+    "id": 15,
+    "name": "사마의",
+    "faction": "위",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 24,
+    "id": 68,
+    "name": "연개소문",
+    "faction": "한국",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 25,
+    "id": 190,
+    "name": "온조왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 26,
+    "id": 340,
+    "name": "이방원",
+    "faction": "한국",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 27,
+    "id": 375,
+    "name": "김좌진",
+    "faction": "한국",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 28,
+    "id": 146,
+    "name": "육항",
+    "faction": "오",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 29,
+    "id": 69,
+    "name": "양만춘",
+    "faction": "한국",
+    "tier": "S",
+    "job": "궁수"
+  },
+  {
+    "rank": 30,
+    "id": 81,
+    "name": "김수로",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 31,
+    "id": 305,
+    "name": "윤관",
+    "faction": "한국",
+    "tier": "S",
+    "job": "창병"
+  },
+  {
+    "rank": 32,
+    "id": 348,
+    "name": "김종서",
+    "faction": "한국",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 33,
+    "id": 373,
+    "name": "김구",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 34,
+    "id": 21,
+    "name": "관우",
+    "faction": "촉",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 35,
+    "id": 71,
+    "name": "계백",
+    "faction": "한국",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 36,
+    "id": 355,
+    "name": "권율",
+    "faction": "한국",
+    "tier": "S",
+    "job": "포차"
+  },
+  {
+    "rank": 37,
+    "id": 40,
+    "name": "여몽",
+    "faction": "오",
+    "tier": "S",
+    "job": "창병"
+  },
+  {
+    "rank": 38,
+    "id": 111,
+    "name": "등애",
+    "faction": "위",
+    "tier": "S",
+    "job": "산적"
+  },
+  {
+    "rank": 39,
+    "id": 357,
+    "name": "김시민",
+    "faction": "한국",
+    "tier": "S",
+    "job": "연노병"
+  },
+  {
+    "rank": 40,
+    "id": 374,
+    "name": "홍범도",
+    "faction": "한국",
+    "tier": "S",
+    "job": "궁수"
+  },
+  {
+    "rank": 41,
+    "id": 356,
+    "name": "곽재우",
+    "faction": "한국",
+    "tier": "S",
+    "job": "산적"
+  },
+  {
+    "rank": 42,
+    "id": 26,
+    "name": "제갈량",
+    "faction": "촉",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 43,
+    "id": 29,
+    "name": "강유",
+    "faction": "촉",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 44,
+    "id": 37,
+    "name": "손책",
+    "faction": "오",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 45,
+    "id": 77,
+    "name": "김춘추",
+    "faction": "한국",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 46,
+    "id": 315,
+    "name": "양규",
+    "faction": "한국",
+    "tier": "S",
+    "job": "궁기"
+  },
+  {
+    "rank": 47,
+    "id": 79,
+    "name": "이사부",
+    "faction": "한국",
+    "tier": "S",
+    "job": "수적"
+  },
+  {
+    "rank": 48,
+    "id": 301,
+    "name": "고선지",
+    "faction": "한국",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 49,
+    "id": 36,
+    "name": "손견",
+    "faction": "오",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 50,
+    "id": 23,
+    "name": "조운",
+    "faction": "촉",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 51,
+    "id": 39,
+    "name": "노숙",
+    "faction": "오",
+    "tier": "S",
+    "job": "풍수사"
+  },
+  {
+    "rank": 52,
+    "id": 3,
+    "name": "손권",
+    "faction": "오",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 53,
+    "id": 101,
+    "name": "조비",
+    "faction": "위",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 54,
+    "id": 72,
+    "name": "흑치상지",
+    "faction": "한국",
+    "tier": "S",
+    "job": "산적"
+  },
+  {
+    "rank": 55,
+    "id": 6,
+    "name": "장료",
+    "faction": "위",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 56,
+    "id": 2,
+    "name": "유비",
+    "faction": "촉",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 57,
+    "id": 334,
+    "name": "최무선",
+    "faction": "한국",
+    "tier": "S",
+    "job": "포차"
+  },
+  {
+    "rank": 58,
+    "id": 338,
+    "name": "정도전",
+    "faction": "한국",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 59,
+    "id": 339,
+    "name": "정몽주",
+    "faction": "한국",
+    "tier": "S",
+    "job": "풍수사"
+  },
+  {
+    "rank": 60,
+    "id": 112,
+    "name": "종회",
+    "faction": "위",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 61,
+    "id": 4,
+    "name": "하후돈",
+    "faction": "위",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 62,
+    "id": 196,
+    "name": "선덕여왕",
+    "faction": "한국",
+    "tier": "S",
+    "job": "풍수사"
+  },
+  {
+    "rank": 63,
+    "id": 54,
+    "name": "원소",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 64,
+    "id": 43,
+    "name": "태사자",
+    "faction": "오",
+    "tier": "S",
+    "job": "궁기"
+  },
+  {
+    "rank": 65,
+    "id": 57,
+    "name": "장각",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "도사"
+  },
+  {
+    "rank": 66,
+    "id": 10,
+    "name": "장합",
+    "faction": "위",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 67,
+    "id": 370,
+    "name": "정약용",
+    "faction": "한국",
+    "tier": "S",
+    "job": "포차"
+  },
+  {
+    "rank": 68,
+    "id": 304,
+    "name": "서희",
+    "faction": "한국",
+    "tier": "S",
+    "job": "풍수사"
+  },
+  {
+    "rank": 69,
+    "id": 9,
+    "name": "서황",
+    "faction": "위",
+    "tier": "S",
+    "job": "창병"
+  },
+  {
+    "rank": 70,
+    "id": 14,
+    "name": "가후",
+    "faction": "위",
+    "tier": "S",
+    "job": "도사"
+  },
+  {
+    "rank": 71,
+    "id": 16,
+    "name": "조인",
+    "faction": "위",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 72,
+    "id": 25,
+    "name": "황충",
+    "faction": "촉",
+    "tier": "S",
+    "job": "궁기"
+  },
+  {
+    "rank": 73,
+    "id": 11,
+    "name": "순욱",
+    "faction": "위",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 74,
+    "id": 12,
+    "name": "순유",
+    "faction": "위",
+    "tier": "S",
+    "job": "풍수사"
+  },
+  {
+    "rank": 75,
+    "id": 5,
+    "name": "하후연",
+    "faction": "위",
+    "tier": "S",
+    "job": "궁기"
+  },
+  {
+    "rank": 76,
+    "id": 27,
+    "name": "방통",
+    "faction": "촉",
+    "tier": "S",
+    "job": "도사"
+  },
+  {
+    "rank": 77,
+    "id": 410,
+    "name": "방덕",
+    "faction": "위",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 78,
+    "id": 59,
+    "name": "축융",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "야수병"
+  },
+  {
+    "rank": 79,
+    "id": 30,
+    "name": "위연",
+    "faction": "촉",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 80,
+    "id": 28,
+    "name": "법정",
+    "faction": "촉",
+    "tier": "S",
+    "job": "책사"
+  },
+  {
+    "rank": 81,
+    "id": 58,
+    "name": "맹획",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "야수병"
+  },
+  {
+    "rank": 82,
+    "id": 13,
+    "name": "곽가",
+    "faction": "위",
+    "tier": "S",
+    "job": "도사"
+  },
+  {
+    "rank": 83,
+    "id": 42,
+    "name": "감녕",
+    "faction": "오",
+    "tier": "S",
+    "job": "수적"
+  },
+  {
+    "rank": 84,
+    "id": 24,
+    "name": "마초",
+    "faction": "촉",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 85,
+    "id": 44,
+    "name": "주태",
+    "faction": "오",
+    "tier": "S",
+    "job": "수적"
+  },
+  {
+    "rank": 86,
+    "id": 306,
+    "name": "척준경",
+    "faction": "한국",
+    "tier": "S",
+    "job": "검병"
+  },
+  {
+    "rank": 87,
+    "id": 347,
+    "name": "장영실",
+    "faction": "한국",
+    "tier": "S",
+    "job": "포차"
+  },
+  {
+    "rank": 88,
+    "id": 31,
+    "name": "주창",
+    "faction": "촉",
+    "tier": "S",
+    "job": "산적"
+  },
+  {
+    "rank": 89,
+    "id": 53,
+    "name": "동탁",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "군주"
+  },
+  {
+    "rank": 90,
+    "id": 52,
+    "name": "초선",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "무희"
+  },
+  {
+    "rank": 91,
+    "id": 22,
+    "name": "장비",
+    "faction": "촉",
+    "tier": "S",
+    "job": "창병"
+  },
+  {
+    "rank": 92,
+    "id": 7,
+    "name": "전위",
+    "faction": "위",
+    "tier": "S",
+    "job": "무도가"
+  },
+  {
+    "rank": 93,
+    "id": 8,
+    "name": "허저",
+    "faction": "위",
+    "tier": "S",
+    "job": "산적"
+  },
+  {
+    "rank": 94,
+    "id": 51,
+    "name": "여포",
+    "faction": "군웅",
+    "tier": "S",
+    "job": "기병"
+  },
+  {
+    "rank": 95,
+    "id": 292,
+    "name": "고이왕",
+    "faction": "한국",
+    "tier": "A",
+    "job": "군주"
+  },
+  {
+    "rank": 96,
+    "id": 199,
+    "name": "김인문",
+    "faction": "한국",
+    "tier": "A",
+    "job": "책사"
+  },
+  {
+    "rank": 97,
+    "id": 115,
+    "name": "양호",
+    "faction": "위",
+    "tier": "A",
+    "job": "풍수사"
+  },
+  {
+    "rank": 98,
+    "id": 113,
+    "name": "사마사",
+    "faction": "위",
+    "tier": "A",
+    "job": "검병"
+  },
+  {
+    "rank": 99,
+    "id": 187,
+    "name": "고국천왕",
+    "faction": "한국",
+    "tier": "A",
+    "job": "군주"
+  },
+  {
+    "rank": 100,
+    "id": 296,
+    "name": "법흥왕",
+    "faction": "한국",
+    "tier": "A",
+    "job": "군주"
+  }
+]

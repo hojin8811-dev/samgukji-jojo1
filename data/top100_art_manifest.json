@@ -1,0 +1,242 @@
+{
+  "이순신": {
+    "id": 354,
+    "rank": 1,
+    "portrait": "assets/portraits/top100/354.webp",
+    "unit": "assets/units/top100/354.webp"
+  },
+  "광개토대왕": {
+    "id": 66,
+    "rank": 2,
+    "portrait": "assets/portraits/top100/66.webp",
+    "unit": "assets/units/top100/66.webp"
+  },
+  "김유신": {
+    "id": 76,
+    "rank": 3,
+    "portrait": "assets/portraits/top100/76.webp",
+    "unit": "assets/units/top100/76.webp"
+  },
+  "동명성왕": {
+    "id": 181,
+    "rank": 4,
+    "portrait": "assets/portraits/top100/181.webp",
+    "unit": "assets/units/top100/181.webp"
+  },
+  "진흥왕": {
+    "id": 195,
+    "rank": 5,
+    "portrait": "assets/portraits/top100/195.webp",
+    "unit": "assets/units/top100/195.webp"
+  },
+  "왕건": {
+    "id": 302,
+    "rank": 6,
+    "portrait": "assets/portraits/top100/302.webp",
+    "unit": "assets/units/top100/302.webp"
+  },
+  "이성계": {
+    "id": 337,
+    "rank": 7,
+    "portrait": "assets/portraits/top100/337.webp",
+    "unit": "assets/units/top100/337.webp"
+  },
+  "문무왕": {
+    "id": 197,
+    "rank": 8,
+    "portrait": "assets/portraits/top100/197.webp",
+    "unit": "assets/units/top100/197.webp"
+  },
+  "조조": {
+    "id": 1,
+    "rank": 9,
+    "portrait": "assets/portraits/top100/1.webp",
+    "unit": "assets/units/top100/1.webp"
+  },
+  "을지문덕": {
+    "id": 67,
+    "rank": 10,
+    "portrait": "assets/portraits/top100/67.webp",
+    "unit": "assets/units/top100/67.webp"
+  },
+  "장수왕": {
+    "id": 184,
+    "rank": 11,
+    "portrait": "assets/portraits/top100/184.webp",
+    "unit": "assets/units/top100/184.webp"
+  },
+  "근초고왕": {
+    "id": 73,
+    "rank": 12,
+    "portrait": "assets/portraits/top100/73.webp",
+    "unit": "assets/units/top100/73.webp"
+  },
+  "대무신왕": {
+    "id": 183,
+    "rank": 13,
+    "portrait": "assets/portraits/top100/183.webp",
+    "unit": "assets/units/top100/183.webp"
+  },
+  "주유": {
+    "id": 38,
+    "rank": 14,
+    "portrait": "assets/portraits/top100/38.webp",
+    "unit": "assets/units/top100/38.webp"
+  },
+  "무령왕": {
+    "id": 191,
+    "rank": 15,
+    "portrait": "assets/portraits/top100/191.webp",
+    "unit": "assets/units/top100/191.webp"
+  },
+  "강감찬": {
+    "id": 303,
+    "rank": 16,
+    "portrait": "assets/portraits/top100/303.webp",
+    "unit": "assets/units/top100/303.webp"
+  },
+  "육손": {
+    "id": 41,
+    "rank": 17,
+    "portrait": "assets/portraits/top100/41.webp",
+    "unit": "assets/units/top100/41.webp"
+  },
+  "명림답부": {
+    "id": 185,
+    "rank": 18,
+    "portrait": "assets/portraits/top100/185.webp",
+    "unit": "assets/units/top100/185.webp"
+  },
+  "세종대왕": {
+    "id": 346,
+    "rank": 19,
+    "portrait": "assets/portraits/top100/346.webp",
+    "unit": "assets/units/top100/346.webp"
+  },
+  "성왕": {
+    "id": 192,
+    "rank": 20,
+    "portrait": "assets/portraits/top100/192.webp",
+    "unit": "assets/units/top100/192.webp"
+  },
+  "안중근": {
+    "id": 372,
+    "rank": 21,
+    "portrait": "assets/portraits/top100/372.webp",
+    "unit": "assets/units/top100/372.webp"
+  },
+  "장보고": {
+    "id": 376,
+    "rank": 22,
+    "portrait": "assets/portraits/top100/376.webp",
+    "unit": "assets/units/top100/376.webp"
+  },
+  "사마의": {
+    "id": 15,
+    "rank": 23,
+    "portrait": "assets/portraits/top100/15.webp",
+    "unit": "assets/units/top100/15.webp"
+  },
+  "연개소문": {
+    "id": 68,
+    "rank": 24,
+    "portrait": "assets/portraits/top100/68.webp",
+    "unit": "assets/units/top100/68.webp"
+  },
+  "온조왕": {
+    "id": 190,
+    "rank": 25,
+    "portrait": "assets/portraits/top100/190.webp",
+    "unit": "assets/units/top100/190.webp"
+  },
+  "이방원": {
+    "id": 340,
+    "rank": 26,
+    "portrait": "assets/portraits/top100/340.webp",
+    "unit": "assets/units/top100/340.webp"
+  },
+  "김좌진": {
+    "id": 375,
+    "rank": 27,
+    "portrait": "assets/portraits/top100/375.webp",
+    "unit": "assets/units/top100/375.webp"
+  },
+  "육항": {
+    "id": 146,
+    "rank": 28,
+    "portrait": "assets/portraits/top100/146.webp",
+    "unit": "assets/units/top100/146.webp"
+  },
+  "양만춘": {
+    "id": 69,
+    "rank": 29,
+    "portrait": "assets/portraits/top100/69.webp",
+    "unit": "assets/units/top100/69.webp"
+  },
+  "김수로": {
+    "id": 81,
+    "rank": 30,
+    "portrait": "assets/portraits/top100/81.webp",
+    "unit": "assets/units/top100/81.webp"
+  },
+  "윤관": {
+    "id": 305,
+    "rank": 31,
+    "portrait": "assets/portraits/top100/305.webp",
+    "unit": "assets/units/top100/305.webp"
+  },
+  "김종서": {
+    "id": 348,
+    "rank": 32,
+    "portrait": "assets/portraits/top100/348.webp",
+    "unit": "assets/units/top100/348.webp"
+  },
+  "김구": {
+    "id": 373,
+    "rank": 33,
+    "portrait": "assets/portraits/top100/373.webp",
+    "unit": "assets/units/top100/373.webp"
+  },
+  "관우": {
+    "id": 21,
+    "rank": 34,
+    "portrait": "assets/portraits/top100/21.webp",
+    "unit": "assets/units/top100/21.webp"
+  },
+  "계백": {
+    "id": 71,
+    "rank": 35,
+    "portrait": "assets/portraits/top100/71.webp",
+    "unit": "assets/units/top100/71.webp"
+  },
+  "권율": {
+    "id": 355,
+    "rank": 36,
+    "portrait": "assets/portraits/top100/355.webp",
+    "unit": "assets/units/top100/355.webp"
+  },
+  "여몽": {
+    "id": 40,
+    "rank": 37,
+    "portrait": "assets/portraits/top100/40.webp",
+    "unit": "assets/units/top100/40.webp"
+  },
+  "등애": {
+    "id": 111,
+    "rank": 38,
+    "portrait": "assets/portraits/top100/111.webp",
+    "unit": "assets/units/top100/111.webp"
+  },
+  "김시민": {
+    "id": 357,
+    "rank": 39,
+    "portrait": "assets/portraits/top100/357.webp",
+    "unit": "assets/units/top100/357.webp"
+  },
+  "홍범도": {
+    "id": 374,
+    "rank": 40,
+    "portrait": "assets/portraits/top100/374.webp",
+    "unit": "assets/units/top100/374.webp"
+  }
+}

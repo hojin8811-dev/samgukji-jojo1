@@ -360,6 +360,79 @@ SK.applyScenario = function (cities, sc) {
 
 SK.EVENTS = [];
 SK.setEvents = function (list) { SK.EVENTS = list || []; };
+
+/* ───────────── 내정 계절 이벤트 (data/domestic_events.json) ──────────── */
+SK.DOMESTIC_EVENTS = [];
+SK.setDomesticEvents = function (list) { SK.DOMESTIC_EVENTS = (list || []).filter((e) => e && e.title); };
+
+/* ───────────── 전용 일러스트 (data/top100_art_manifest.json) ──────────── */
+SK.ART = {};
+SK.setTopArt = function (manifest) {
+  SK.ART = {};
+  if (!manifest) return;
+  Object.keys(manifest).forEach((name) => {
+    const a = manifest[name];
+    if (a && (a.portrait || a.unit)) SK.ART[name] = a;
+  });
+};
+SK.artFor = function (name) { return SK.ART[name] || null; };
+SK.ptSrc = function (p) {
+  if (!p) return 'assets/portraits/v2/gen_bobyung.webp';
+  return String(p).indexOf('/') >= 0 ? p : `assets/portraits/v2/${p}.webp`;
+};
+SK.unitSrc = function (u) {
+  const key = u || 'bobyung';
+  return String(key).indexOf('/') >= 0 ? key : `assets/units/v2/${key}.webp`;
+};
+SK.artPortrait = function (name) { const a = SK.ART[name]; return a && a.portrait ? a.portrait : null; };
+SK.artUnit = function (name) { const a = SK.ART[name]; return a && a.unit ? a.unit : null; };
+
+/* ───────────── 관작·대사 (data/quotes_and_ranks.json) ──────────── */
+SK.RANKS = [];
+SK.QUOTES = {};
+SK.setQuotesAndRanks = function (data) {
+  if (!data) return;
+  SK.RANKS = (data.ranks || []).slice().sort((a, b) => a.minRenown - b.minRenown);
+  SK.QUOTES = data.quotes || {};
+};
+SK.rankFor = function (fame) {
+  const f = fame || 0;
+  let cur = { level: 1, title: '현령', minRenown: 0, salaryGold: 0, maxTroopsBonus: 0 };
+  SK.RANKS.forEach((r) => { if (f >= r.minRenown) cur = r; });
+  return cur;
+};
+SK.nextRank = function (fame) {
+  const f = fame || 0;
+  return SK.RANKS.find((r) => r.minRenown > f) || null;
+};
+SK.quoteOf = function (name, kind) {
+  const q = SK.QUOTES[name];
+  if (!q) return '';
+  return q[kind] || '';
+};
+
+/* ───────────── 인연 · 숙적 (data/bonds.json) ──────────── */
+SK.BONDS = [];
+SK.BOND_BY_NAME = {};
+SK.setBonds = function (list) {
+  SK.BONDS = (list || []).filter((b) => b && b.a && b.b);
+  SK.BOND_BY_NAME = {};
+  SK.BONDS.forEach((b) => {
+    (SK.BOND_BY_NAME[b.a] = SK.BOND_BY_NAME[b.a] || []).push(b);
+    (SK.BOND_BY_NAME[b.b] = SK.BOND_BY_NAME[b.b] || []).push(b);
+  });
+};
+SK.bondsOf = function (name) { return SK.BOND_BY_NAME[name] || []; };
+SK.bondBetween = function (a, b) {
+  if (!a || !b || a === b) return null;
+  const list = SK.BOND_BY_NAME[a] || [];
+  for (let i = 0; i < list.length; i++) {
+    const x = list[i];
+    if ((x.a === a && x.b === b) || (x.a === b && x.b === a)) return x;
+  }
+  return null;
+};
+SK.bondPartner = function (bond, name) { return bond.a === name ? bond.b : bond.a; };
 SK.EVENT_ALIASES = {
   '호로관': ['huluguan'], '하비': ['xiapi'], '완성': ['wan'], '서주': ['xiapi', 'xiaopei'],
   '장판교': ['xinye', 'xiangyang'], '적벽': ['jiangxia', 'wu'], '관도': ['xuchang', 'puyang', 'yanjin'],
@@ -398,10 +471,14 @@ SK.setGenerals = function (list) {
 SK.genClass = function (g) { return (g && SK.JOB_CLASS[g.job]) || 'geombyung'; };
 SK.genLv = function (g) { return (g && SK.TIER_LV[g.tier]) || 3; };
 SK.genPortrait = function (g) {
+  const art = SK.artPortrait(g && g.name);
+  if (art) return art;
   const core = Object.values(SK.HEROES).find((h) => h.name === g.name);
   return core ? core.pt : (SK.CLASS_PORTRAIT[SK.genClass(g)] || 'gen_bobyung');
 };
 SK.genUnit = function (g) {
+  const art = SK.artUnit(g && g.name);
+  if (art) return art;
   const core = Object.values(SK.HEROES).find((h) => h.name === g.name);
   return (core && core.unit) || SK.CLASS_UNIT[SK.genClass(g)];
 };

@@ -23,7 +23,7 @@
       <p class="title-kicker">삼국지 조조전 · 천하통일</p>
       <h1 class="title-logo">三國志 <span>曹操傳</span></h1>
       <p class="title-sub">전국을 누비고, 성을 다스리고, 전장을 지휘하라</p>
-      <div class="title-hero"><img src="assets/portraits/v2/caocao.webp" alt="조조" /></div>
+      <div class="title-hero"><img id="title-lord" src="assets/portraits/v2/caocao.webp" alt="조조" /></div>
       <div class="title-actions">
         <button id="btn-start" class="btn-primary">새로 시작</button>
         <button id="btn-continue" class="btn-ghost" hidden>이어하기</button>
@@ -41,10 +41,11 @@
         <span class="res food"><i>米</i><b id="map-food">0</b></span>
         <span class="res troop"><i>兵</i><b id="map-troops">0</b></span>
       </div>
+      <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>
       <button id="btn-map-menu" class="icon-btn" aria-label="메뉴">☰</button>
     </header>
 
-    <div class="date-ribbon"><span id="map-date">건안 원년 정월</span><i></i><span id="map-fame">명성 0</span></div>
+    <div class="date-ribbon"><span id="map-date">건안 원년 정월</span><i></i><span id="map-season" class="season-chip">춘</span><i></i><span id="map-rank" class="rank-chip">현령</span><i></i><span id="map-fame">명성 0</span></div>
 
     <div id="world-viewport" class="world-viewport">
       <div id="world-layer" class="world-layer">
@@ -83,18 +84,22 @@
         <span class="faction-tag" id="city-faction">魏</span>
         <h2 id="city-name">허창</h2>
         <span id="city-hanja">許昌</span>
+        <span id="city-rank" class="rank-chip sm">현령</span>
       </div>
       <div class="city-res">
         <span class="res gold"><i>金</i><b id="city-gold">0</b></span>
         <span class="res food"><i>米</i><b id="city-food">0</b></span>
         <span class="res troop"><i>兵</i><b id="city-troops">0</b></span>
       </div>
+      <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>
     </header>
 
     <div class="city-scene">
       <img id="city-scene-img" src="assets/scenes/city_main.webp" alt="성내" />
       <div class="scene-shade"></div>
       <div id="scene-hotspots" class="scene-hotspots"></div>
+      <div id="city-floats" class="city-floats"></div>
+      <div id="city-cutin" class="city-cutin"></div>
       <div id="city-weather" class="city-weather">맑음 · 민심 안정</div>
     </div>
 
@@ -105,6 +110,8 @@
     </div>
 
     <div class="city-general-strip" id="city-generals"></div>
+
+    <div class="city-ap" id="city-ap"></div>
 
     <nav class="city-commands" aria-label="내정 명령">
       <button class="cmd" data-cmd="farm"><span class="cmd-ic ic-farm"></span><b>개간</b><small id="cmd-farm-cost">금 100</small></button>
@@ -130,6 +137,7 @@
         <span id="battle-turn">1턴</span>
         <em id="battle-phase">아군</em>
       </div>
+      <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>
       <button id="btn-battle-help" class="icon-btn" aria-label="도움말">?</button>
     </header>
 
@@ -147,6 +155,8 @@
         <button id="b-zoom-fit" class="round-btn small">⤢</button>
       </div>
       <div class="battle-tip" id="battle-tip">화면을 끌어 이동 · 부대를 눌러 선택</div>
+      <div class="battle-feed" id="battle-feed"></div>
+      <div class="battle-callout" id="battle-callout"></div>
       <div class="turn-banner" id="turn-banner"></div>
     </div>
 
@@ -179,6 +189,8 @@
 </div>
 <script src="js/city_geo.js"></script>
 <script src="js/data.js"></script>
+<script src="js/bgm.js"></script>
+<script src="js/sfx.js"></script>
 <script src="js/app.js"></script>
 <script src="js/map.js"></script>
 <script src="js/battle.js"></script>
