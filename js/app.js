@@ -683,6 +683,19 @@
   SK.refreshHud = function () {
     const s = SK.state;
     if (!s) return;
+    // 상단 깃발 — 플레이 세력의 색·한자·군주 초상
+    const pfInfo = SK.factionInfo(PF());
+    const chip = $('.flag-chip');
+    if (chip) {
+      chip.style.borderColor = pfInfo.color || '#b8862f';
+      const span = chip.querySelector('span');
+      if (span) { span.textContent = pfInfo.hanja || '在'; span.title = pfInfo.name || ''; }
+      const mini = $('#lord-mini');
+      const lordG = pfInfo.lord ? SK.GEN_BY_NAME[pfInfo.lord] : null;
+      if (mini && lordG) mini.src = SK.ptSrc(SK.genPortrait(lordG));
+    }
+    const capBtn = $('#go-capital');
+    if (capBtn) capBtn.textContent = pfInfo.hanja || '都';
     $('#map-gold').textContent = fmt(s.gold);
     $('#map-food').textContent = fmt(s.food);
     $('#map-troops').textContent = fmt(totalTroops());
