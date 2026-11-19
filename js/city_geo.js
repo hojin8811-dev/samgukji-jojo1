@@ -89,6 +89,6 @@ SK.CITY_GEO = {};
     var m = SK.CITY_META[name];
     var xy = geo[name];
     if (!xy) return;
-    SK.CITY_GEO[name] = [m[0], m[1], xy[0], xy[1], m[2]];
+    SK.CITY_GEO[name] = [m[0], m[1], xy[0], xy[1], m[4] || '중원'];
   });
 })();

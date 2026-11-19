@@ -61,7 +61,13 @@
     return null;
   }
 
-  /* ───────────── 전장 시작 ───────────── */
+  /* 회복량 — 대상 최대 병력의 12~22%만. 표준 공격 피해를 넘지 않게 상한을 둔다 (v4.2) */
+  function healAmount(sk, target) {
+    const maxHp = target && target.maxHp ? target.maxHp : 0;
+    const pct = clamp(sk && sk.healPct != null ? sk.healPct : 0.16, 0.12, 0.22);
+    return Math.max(1, Math.min(Math.round(maxHp * pct), Math.round(maxHp * 0.22)));
+  }
+  SK.healAmount = healAmount;
   SK.startBattle = function (opts) {
     document.querySelectorAll('#modal-root .modal-layer').forEach((m) => m.remove());
     const s = SK.state;
@@ -73,7 +79,7 @@
     const faction = s.cities[opts.targetId].owner;
     const bossInfo = bossOfFaction(faction);
 
-    const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i) : makeRegiment(spec, i)));
+    const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i, opts.origin) : makeRegiment(spec, i)));
 
     const cityTroops = s.cities[opts.targetId].troops;
     const enemyCount = clamp(5 + Math.floor(cityTroops / 2600), 5, 8);
@@ -123,7 +129,7 @@
   }
   SK.trainOf = trainOf;
 
-  function makeAlly(spec, i) {
+  function makeAlly(spec, i, origin) {
     const h = SK.state.heroes.find((x) => x.uid === spec.uid);
     const C = SK.CLASSES[h.cls];
     const eq = SK.equipBonus(h);
@@ -137,9 +143,17 @@
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
-      train: trainOf(h.lv, h.tier),
+      train: allyTrain(origin, h),
     };
   }
+
+  /* 출진한 성의 시작 훈련도(50)를 부대에 그대로 넘긴다 — 훈련으로 올라간 만큼 강해진다 */
+  function allyTrain(origin, h) {
+    const cs = SK.state && SK.state.cities ? SK.state.cities[origin] : null;
+    const base = cs && cs.train != null ? cs.train : 50;
+    return clamp(Math.round(base + Math.max(0, (h.lv || 1) - 1) * 1.5), 20, 100);
+  }
+  SK.allyTrain = allyTrain;
 
   function makeRegiment(spec, i) {
     const C = SK.CLASSES[spec.cls];
@@ -1548,8 +1562,9 @@
     if (sk.kind === 'healArea') {
       B.units.forEach((t) => {
         if (t.alive && t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= sk.radius) {
-          t.hp = Math.min(t.maxHp, t.hp + sk.power);
-          addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, '+' + sk.power, '#a8f0b8');
+          const heal = healAmount(sk, t);
+          t.hp = Math.min(t.maxHp, t.hp + heal);
+          addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, '+' + heal, '#a8f0b8');
           addFx({ kind: 'heal', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 620 });
         }
       });
@@ -1604,8 +1619,9 @@
       castCircle(u, sk.kind === 'heal' ? '150,240,180' : '255,215,120');
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
       if (sk.kind === 'heal') {
-        target.hp = Math.min(target.maxHp, target.hp + sk.power);
-        addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + Math.round(sk.power), '#a8f0b8');
+        const heal = healAmount(sk, target);
+        target.hp = Math.min(target.maxHp, target.hp + heal);
+        addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + heal, '#a8f0b8');
         addFx({ kind: 'heal', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 700 });
       } else {
         target.buffs.atk = { v: sk.atk, t: sk.turns };
@@ -1813,12 +1829,13 @@
     const rng = effRng(e);
 
     // cast a heal on a wounded ally if priest
-    if (e.cls === 'pungsusa' && e.mp >= 8) {
+    if (e.cls === 'pungsusa' && e.mp >= 10) {
       const hurt = B.units.filter((u) => u.side === 'enemy' && u.alive && u.hp < u.maxHp * 0.6)
         .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
       if (hurt && cheb(e.x, e.y, hurt.x, hurt.y) <= 2) {
-        e.mp -= 8; hurt.hp = Math.min(hurt.maxHp, hurt.hp + 30);
-        addFloat((hurt.x + 0.5) * TILE, (hurt.y + 0.4) * TILE, '+30', '#a8f0b8');
+        const heal = healAmount({ healPct: 0.15 }, hurt);
+        e.mp -= 10; hurt.hp = Math.min(hurt.maxHp, hurt.hp + heal);
+        addFloat((hurt.x + 0.5) * TILE, (hurt.y + 0.4) * TILE, '+' + heal, '#a8f0b8');
         addFx({ kind: 'heal', x: (hurt.x + 0.5) * TILE, y: (hurt.y + 0.5) * TILE, life: 600 });
         e.acted = true; done(); return;
       }
@@ -1923,6 +1940,12 @@
     st.troops = Math.max(1200, Math.round(troopsLeft));
     st.def = Math.max(30, Math.round(st.def * 0.8));
     st.loyalty = 55;
+    st.governor = null;
+    st.advisor = null;
+    st.auto = true;
+    st.bandit = false;
+    if (st.train == null) st.train = 50;
+    if (SK.refillTalents) { try { SK.refillTalents(B.targetId); } catch (e) { /* ignore */ } }
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=6" />
+<link rel="stylesheet" href="css/game.css?v=7" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -73,7 +73,7 @@
         <button id="btn-start" class="btn-primary">새로 시작</button>
         <button id="btn-continue" class="btn-ghost" hidden>이어하기</button>
       </div>
-      <p class="title-foot">77개 거점 · 18 병과 · 499 장수 · 18×18 전장</p>
+      <p class="title-foot">77개 거점 · 18 병과 · 585 장수 · 18×18 전장</p>
     </div>
   </section>
 
@@ -108,6 +108,7 @@
         <span><i class="lg town"></i>소도시</span>
         <span><i class="lg pass"></i>관문</span>
         <span><i class="lg fort"></i>요새</span>
+        <span><i class="lg neutral"></i>재야(공백지)</span>
       </div>
     </div>
 
@@ -115,6 +116,7 @@
 
     <footer class="map-bottom">
       <div id="map-hint" class="map-hint">성을 눌러 내정하거나, 적성 인근에서 출진하세요.</div>
+      <button id="btn-capital" class="btn-capital" aria-label="내 본성으로">내 본성 ▶</button>
       <button id="btn-next-month" class="btn-next">다음 달 ▸</button>
     </footer>
   </section>
@@ -161,7 +163,7 @@
       <button class="cmd" data-cmd="trade"><span class="cmd-ic ic-trade"></span><b>상업</b><small id="cmd-trade-cost">미 80</small></button>
       <button class="cmd" data-cmd="recruit"><span class="cmd-ic ic-troop"></span><b>징병</b><small id="cmd-recruit-cost">금 150</small></button>
       <button class="cmd" data-cmd="train"><span class="cmd-ic ic-train"></span><b>훈련</b><small>금 80</small></button>
-      <button class="cmd" data-cmd="talent"><span class="cmd-ic ic-talent"></span><b>인재</b><small id="cmd-talent-cost">금 200</small></button>
+      <button class="cmd" data-cmd="talent"><span class="cmd-ic ic-talent"></span><b>인재</b><small id="cmd-talent-cost">주점 등용</small></button>
       <button class="cmd" data-cmd="repair"><span class="cmd-ic ic-repair"></span><b>보수</b><small id="cmd-repair-cost">금 120</small></button>
       <button class="cmd sortie" data-cmd="sortie"><span class="cmd-ic ic-sortie"></span><b>출진</b><small>적성 공략</small></button>
       <button class="cmd" data-cmd="map"><span class="cmd-ic ic-map"></span><b>지도</b><small>전국으로</small></button>
@@ -234,13 +236,13 @@
   <div id="modal-root"></div>
   <div id="toast" class="toast" hidden></div>
 </div>
-<script src="js/mapgeo.js?v=6"></script>
-<script src="js/city_geo.js?v=6"></script>
-<script src="js/data.js?v=6"></script>
-<script src="js/bgm.js?v=6"></script>
-<script src="js/sfx.js?v=6"></script>
-<script src="js/app.js?v=6"></script>
-<script src="js/map.js?v=6"></script>
-<script src="js/battle.js?v=6"></script>
+<script src="js/mapgeo.js?v=7"></script>
+<script src="js/city_geo.js?v=7"></script>
+<script src="js/data.js?v=7"></script>
+<script src="js/bgm.js?v=7"></script>
+<script src="js/sfx.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
+<script src="js/map.js?v=7"></script>
+<script src="js/battle.js?v=7"></script>
 </body>
 </html>

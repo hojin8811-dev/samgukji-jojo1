@@ -70,10 +70,10 @@ SK.SKILLS = {
     desc: '사거리 안의 적 하나를 집중 사격' },
   gwantung: { name: '관통창', hanja: '貫通槍', mp: 8, kind: 'power', range: 2, power: 1.4, vsMount: 0.4,
     desc: '2칸 찌르기. 기병에게 +40% 추가 피해' },
-  sobogeup: { name: '소보급', hanja: '小補給', mp: 8, kind: 'heal', range: 2, power: 520,
-    desc: '아군 1명의 병력을 520 회복' },
-  daebogeup: { name: '대보급', hanja: '大補給', mp: 18, kind: 'healArea', radius: 2, power: 360,
-    desc: '주변 2칸 아군 전원 병력 360 회복' },
+  sobogeup: { name: '소보급', hanja: '小補給', mp: 10, kind: 'heal', range: 2, healPct: 0.16,
+    desc: '아군 1명의 병력을 최대 병력의 16% 회복 (최대 22%)' },
+  daebogeup: { name: '대보급', hanja: '大補給', mp: 20, kind: 'healArea', radius: 2, healPct: 0.13,
+    desc: '주변 2칸 아군 전원을 최대 병력의 13% 회복' },
   gomu: { name: '고무', hanja: '鼓舞', mp: 12, kind: 'buffAlly', range: 2, atk: 0.3, turns: 2,
     desc: '아군 1명 공격 +30% (2턴)' },
   pungsu: { name: '풍수', hanja: '風水', mp: 16, kind: 'debuffDef', range: 3, radius: 2, turns: 2, amount: -0.25,
@@ -158,6 +158,30 @@ SK.affinity = function (cls, ch) {
   return { atk, def, rng, label };
 };
 
+/* ───────────── 지역 구분 (v4.2) ─────────────
+   한국 장수는 한국 세력·한국 성 주점에만, 중국(위·촉·오·군웅) 장수는 중국 세력·중국 성에만 쓴다.
+   인물이 섞이면 삼국지와 삼한이 한 주점에 서는 꼴이 되므로 철저히 나눈다. */
+SK.KOREAN_FACTIONS = ['goguryeo', 'baekje', 'silla'];
+SK.FACTION_GROUP = {
+  caocao: '위', cao_wei_pre: '위', cao_wei: '위',
+  liubei: '촉', shu_han: '촉',
+  sunjian: '오', sunquan: '오', sun_wu: '오',
+};
+SK.factionGroup = function (fid) {
+  if (SK.KOREAN_FACTIONS.indexOf(fid) >= 0) return '한국';
+  return SK.FACTION_GROUP[fid] || '군웅';
+};
+/* 인물의 지역 — generals.json의 faction(위·촉·오·군웅·한국)을 따른다 */
+SK.generalGroup = function (g) {
+  if (!g) return '중국';
+  if (g.region) return g.region === '한국' ? '한국' : '중국';
+  return g.faction === '한국' ? '한국' : '중국';
+};
+SK.cityGroup = function (cityId) {
+  const c = SK.CITY[cityId];
+  return c && c.region === '한국' ? '한국' : '중국';
+};
+
 /* ───────────── 인물 (코어·지원·범용) ───────────── */
 SK.HEROES = {
   jojo: { name: '조조', hanja: '曹操', cls: 'gunwoong', lv: 4, wu: 78, ji: 92, tong: 90,
@@ -217,14 +241,20 @@ SK.markOf = function (f) {
   return String(f.name || '재야').replace(/군$/, '').charAt(0) || '야';
 };
 
-/* 데이터 색이 지도에서 너무 밝거나 어두운 경우 보정 */
+/* 세력 색 — 지도·UI에서 한눈에 갈리도록 고대비로 고정한다 (v4.2)
+   위=군청 · 촉=에메랄드 · 오=크림슨 · 여포=보라먹 · 원소=금 · 동탁=숯회색
+   고구려=인디고 · 백제=틸 · 신라=주황, 나머지 군웅은 서로 겹치지 않는 밝은 색 */
 SK.FACTION_COLOR = {
-  caocao: '#2f57a6', cao_wei_pre: '#2f57a6', gongsunzan: '#8e9bae', liubei: '#2b7fc9',
-  sunjian: '#c0392b', sunquan: '#2f8f7d', sun_wu: '#2f8f7d', yuanshao: '#c99a20',
-  dongzhuo: '#7b3fbf', mateng: '#b8834d', hansui: '#7d6a5c', liubiao: '#7a6bb5',
-  liuzong: '#9a8cc8', liuyan: '#8a5a3a', liuzhang: '#8a5a3a', shu_han: '#3f8a52',
-  yuanshu: '#a0662c', goguryeo: '#5b4a9a', baekje: '#a97b12', silla: '#e0b45c',
-  zhanglu: '#6f7a3f', gongsunkang: '#6a7fa8', shi_xie: '#8a7f5a', meng_huo: '#5c7a3a',
+  caocao: '#1D4ED8', cao_wei_pre: '#1D4ED8', cao_wei: '#1D4ED8',
+  liubei: '#15803D', shu_han: '#15803D',
+  sunjian: '#DC2626', sunquan: '#DC2626', sun_wu: '#B91C1C',
+  lubu: '#7E22CE', lvbu: '#7E22CE',
+  yuanshao: '#CA8A04', dongzhuo: '#374151',
+  goguryeo: '#4338CA', baekje: '#0F766E', silla: '#EA580C',
+  yuanshu: '#BE185D', liubiao: '#0891B2', liuzong: '#9333EA', liuyan: '#92400E',
+  liuzhang: '#92400E', mateng: '#B45309', hansui: '#78716C', gongsunzan: '#475569',
+  taoqian: '#65A30D', zhanglu: '#3F6212', gongsunkang: '#64748B', shi_xie: '#A16207',
+  meng_huo: '#4D7C0F', neutral: '#8B8777',
 };
 
 SK.factionInfo = function (key) {
@@ -285,6 +315,8 @@ SK.cityIdByName = function (name) {
 };
 
 /* ───────────── 499장수 밖 인물 (시나리오 데이터의 누락 인명) ──────── */
+/* region: '한국' 인 인물만 한국 성·세력에 배치된다 */
+SK.KOREAN_EXTRA = ['초고왕', '구수왕', '벌휴이사금', '내해이사금', '산상왕', '구수', '내해', '명림어수', '석우로', '사반왕'];
 SK.EXTRA_GENERALS = {
   '유언': { job: '군주', tier: 'A', war: 40, intel: 66, lead: 58 },
   '초고왕': { job: '군주', tier: 'A', war: 72, intel: 70, lead: 74 },
@@ -443,7 +475,11 @@ SK.applyClassData = function (list) {
       const eff = sk.effect || '';
       const def = { name: sk.name, hanja: '', mp: sk.mp, unlockLv: sk.unlockLv || 1, desc: eff, range: rng.max, minRange: rng.min };
       if (/회복/.test(eff) || /회복/.test(sk.name)) {
-        def.kind = 'heal'; def.power = 420 + sk.mp * 14; def.range = Math.max(2, rng.max);
+        const area = /범위|주변|전군/.test(eff);
+        def.kind = area ? 'healArea' : 'heal';
+        def.healPct = area ? 0.13 : 0.16;
+        if (area) def.radius = 2;
+        def.range = Math.max(2, rng.max);
       } else if (/아군/.test(eff) && /(공격|사기|방어|진형)/.test(eff)) {
         def.kind = 'buffAreaAllies'; def.radius = 2; def.atk = 0.2; def.turns = 2;
       } else if (/적/.test(eff) && /(방어|사기|공격|혼란|매혹)/.test(eff) && !/피해/.test(eff)) {
@@ -476,6 +512,12 @@ SK.normName = function (n) { return SK.NAME_ALIAS[n] || n; };
    · faction.cities 이름을 77거점으로 별칭 변환
    · 여러 세력이 같은 거점을 주장하면 "자기 영지 중심"이 가까운 세력이 가져간다
    · 아무도 주장하지 않은 거점은 가장 가까운 세력(300px 이내), 그 밖은 재야 */
+/* 변방·요새·섬 — 시나리오가 비워 두는 공백지(재야) 후보.
+   처음부터 전국이 다 나뉘어 있으면 확장할 맛이 없으므로, 변두리 거점은 산적·호족이
+   지키는 재야로 남긴다. (수도이거나 그 세력의 마지막 성이면 그대로 둔다) */
+SK.NEUTRAL_KEEP = ['tamna', 'taipei', 'tainan', 'nanhai', 'yunnan', 'yongchang', 'lushui',
+  'shuofang', 'dai', 'hailing', 'shanhaiguan', 'daegwallyeong', 'cheolwon'];
+
 SK.resolveScenario = function (sc) {
   if (!sc || !sc.factions || !SK.CITY_LIST.length) return null;
   const facs = {};
@@ -545,6 +587,17 @@ SK.resolveScenario = function (sc) {
     const cap = facs[fid].capital;
     if (!cap) return;
     owner[cap] = fid;
+  });
+  // v4.2 — 변방·섬은 재야의 공백지로 남긴다
+  SK.NEUTRAL_KEEP.forEach((id) => {
+    if (!SK.CITY[id]) return;
+    const fid = owner[id];
+    if (!fid || fid === 'neutral') return;
+    const f = facs[fid];
+    if (!f || f.capital === id) return;
+    const owned = SK.CITY_LIST.filter((c) => owner[c.id] === fid).length;
+    if (owned <= 3) return;            // 마지막 성들을 빼앗지는 않는다
+    owner[id] = 'neutral';
   });
   if (!facs.neutral) {
     facs.neutral = { id: 'neutral', name: '재야', lord: '', hanja: '在', color: '#8b8677',
@@ -713,6 +766,7 @@ SK.registerExtras = function () {
       id: base + i, name, faction: '재야', tier: e.tier || 'B', job: e.job || '검병',
       leadership: e.lead, war: e.war, intel: e.intel,
       politics: Math.round((e.war + e.intel + e.lead) / 3), charm: 62, skill: e.skill || '',
+      region: SK.KOREAN_EXTRA.indexOf(name) >= 0 ? '한국' : '중국',
     };
     SK.GENERALS.push(g);
     SK.GEN_BY_ID[g.id] = g;

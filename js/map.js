@@ -657,7 +657,7 @@
     $('#zoom-in').onclick = () => animatedZoom(cam.s * 1.5);
     $('#zoom-out').onclick = () => animatedZoom(cam.s / 1.5);
     $('#zoom-fit').onclick = fitAll;
-    $('#go-capital').onclick = () => { labelAnchorDirty = true; focusCity(SK.state.lastCity || 'xuchang', false); };
+    $('#go-capital').onclick = () => { labelAnchorDirty = true; focusCity((SK.state && SK.state.playerCapital) || SK.state.lastCity || 'xuchang', false); };
     window.addEventListener('resize', () => {
       if (!built) return;
       clampCam();
