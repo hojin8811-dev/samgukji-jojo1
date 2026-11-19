@@ -194,13 +194,13 @@
   {
     "id": 17,
     "name": "평원",
-    "type": "소도시",
+    "type": "대도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 7400,
     "food": 10800,
-    "troops": 9000,
-    "defense": 71,
+    "troops": 12000,
+    "defense": 72,
     "governor": "우금"
   },
   {
@@ -698,13 +698,13 @@
   {
     "id": 59,
     "name": "타이베이",
-    "type": "소도시",
+    "type": "대도시",
     "faction": "오",
     "battleType": "naval",
     "gold": 6800,
     "food": 9600,
-    "troops": 7800,
-    "defense": 71,
+    "troops": 11000,
+    "defense": 74,
     "governor": "전종"
   },
   {
