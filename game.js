@@ -254,6 +254,7 @@ function refreshSoundButtons() {
     b.textContent = soundOn ? '♪' : '♪';
     b.classList.toggle('off', !soundOn);
     b.setAttribute('aria-label', soundOn ? '소리 끄기' : '소리 켜기');
+    b.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
   });
 }
 function toggleSound() {
@@ -452,53 +453,53 @@ function renderCityPanel() {
   const canTrain = isPlayer && !cs.acted && state.gold >= 250 && cs.train < 100;
   const canDev = isPlayer && !cs.acted && state.gold >= 500 && cs.dev < 6;
 
-  let html = `<div class="city-head">
+  let info = `<div class="city-head">
     <span class="hanja">${c.hanja}</span>
     <span class="name">${c.name}</span>
     <span class="badge ${isPlayer ? 'player' : 'enemy'}">${isPlayer ? '아군' : '적군'}</span>
     <span class="owner-note">${isPlayer ? '통치 중' : '황건 잔당 점령'}</span>
   </div>`;
 
+  let actions = '';
+
   if (isPlayer) {
-    html += `<div class="city-stats">
+    info += `<div class="city-stats">
       <div class="cs"><i>병력</i><b>${fmt(cs.troops)}</b></div>
       <div class="cs"><i>훈련도</i><b>${cs.train}</b></div>
       <div class="cs"><i>개발</i><b>${cs.dev}</b></div>
       <div class="cs"><i>수입</i><b>${fmt(inc.gold)}金</b></div>
     </div>
-    <div class="city-generals">배치 장수 ${gens.length ? gens.map((g) => `<span class="gchip">${g.name} <span style="opacity:.65">${CLASSES[g.cls].name}</span></span>`).join('') : '<b>없음</b> — 장수를 배치해야 출진할 수 있다.'}</div>
-    <div class="city-actions">
-      <button class="btn" data-act="recruit" ${canRecruit ? '' : 'disabled'}>징병 <em>400金 · +600</em></button>
+    <div class="city-generals">배치 장수 ${gens.length ? gens.map((g) => `<span class="gchip">${g.name} <span style="opacity:.65">${CLASSES[g.cls].name}</span></span>`).join('') : '<b>없음</b> — 장수를 배치해야 출진할 수 있다.'}</div>`;
+    const targets = neighbors(c.id).filter((id) => cityState(id).owner === 'enemy');
+    const targetLabel = targets.length ? targets.map((id) => cityDef(id).name).join(' · ') + ' 방면' : '인접한 적 도시 없음';
+    actions = `<button class="btn" data-act="recruit" ${canRecruit ? '' : 'disabled'}>징병 <em>400金 · +600</em></button>
       <button class="btn" data-act="train" ${canTrain ? '' : 'disabled'}>훈련 <em>250金 · +8</em></button>
       <button class="btn" data-act="develop" ${canDev ? '' : 'disabled'}>개발 <em>500金 · +1</em></button>
       <button class="btn ghost" data-act="deploy" ${cs.acted ? 'disabled' : ''}>장수 배치</button>
-      <button class="btn primary full" data-act="sortie" ${gens.length ? '' : 'disabled'}>출진 <em>${(() => {
-        const targets = neighbors(c.id).filter((id) => cityState(id).owner === 'enemy');
-        return targets.length ? targets.map((id) => cityDef(id).name).join(' · ') + ' 방면' : '인접한 적 도시 없음';
-      })()}</em></button>
-    </div>`;
+      <button class="btn primary span2" data-act="sortie" ${gens.length ? '' : 'disabled'}>출진 <em>${targetLabel}</em></button>`;
   } else {
     const bkey = c.battle;
     const bdef = BATTLES[bkey];
-    const canAttack = neighbors(c.id).some((n) => cityState(n).owner === 'player' && state.roster.some((r) => r.city === n));
-    html += `<div class="city-stats">
+    const sources = neighbors(c.id).filter((n) => cityState(n).owner === 'player' && state.roster.some((r) => r.city === n));
+    info += `<div class="city-stats">
       <div class="cs"><i>수비 병력</i><b>${fmt(cs.troops)}</b></div>
       <div class="cs"><i>성 방어</i><b>${cs.dev + 1}</b></div>
       <div class="cs"><i>지형</i><b>${bkey === 'geonup' ? '수전' : bkey === 'eop' ? '성문' : '산림'}</b></div>
       <div class="cs"><i>수입</i><b>${fmt(inc.gold)}金</b></div>
     </div>
     <div class="city-generals">수비 장수 ${bdef.enemies.filter((e) => e.boss).map((e) => `<span class="gchip">${e.name} <span style="opacity:.65">${CLASSES[e.cls].name}</span></span>`).join('')}</div>
-    <div class="city-actions">
-      <button class="btn primary full" data-act="attack" ${canAttack ? '' : 'disabled'}>출진 <em>${canAttack ? neighbors(c.id).filter((n) => cityState(n).owner === 'player').map((n) => cityDef(n).name).join('·') + '에서 공격' : '인접한 아군 도시가 필요'}</em></button>
-    </div>
     <div class="city-note">적의 거점이다. 인접한 아군 도시에서 장수를 이끌고 출진해 점령할 수 있다.</div>`;
+    actions = `<button class="btn primary full" data-act="attack" ${sources.length ? '' : 'disabled'}>출진 <em>${sources.length ? sources.map((n) => cityDef(n).name).join('·') + '에서 공격' : '인접한 아군 도시가 필요'}</em></button>`;
   }
 
-  // 월간 보고
+  // 월간 보고는 스크롤 영역 안에
   if (state.log.length) {
-    html += `<div class="city-note" style="border-top:1px dotted rgba(201,164,74,.18);margin-top:8px;padding-top:6px">${state.log.slice(0, 2).map((t) => '· ' + t).join('<br/>')}</div>`;
+    info += `<div class="city-note" style="border-top:1px dotted rgba(201,164,74,.18);margin-top:8px;padding-top:6px">${state.log.slice(0, 2).map((t) => '· ' + t).join('<br/>')}</div>`;
   }
-  panel.innerHTML = html;
+
+  panel.innerHTML = `<div class="city-scroll">${info}</div><div class="city-actions">${actions}</div>`;
+  const sc = panel.querySelector('.city-scroll');
+  if (sc) requestAnimationFrame(() => sc.classList.toggle('scrollable', sc.scrollHeight > sc.clientHeight + 2));
 
   panel.querySelectorAll('[data-act]').forEach((btn) => {
     btn.addEventListener('click', () => {
