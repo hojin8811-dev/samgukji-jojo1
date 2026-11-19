@@ -847,13 +847,14 @@
       const bsz = Math.max(7, Math.round(7.4 * k));
       ctx.save();
       ctx.font = `800 ${bsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
-      const btxt = `${badge[0]} ${badge[1]}`.trim();
-      const bw2 = ctx.measureText(btxt).width + Math.round(7 * k);
+      const btxt = badge[1];
+      const bw2 = ctx.measureText(btxt).width + Math.round(8 * k);
       const bh2 = Math.round(12 * k);
-      const bx2 = pillX - bw2 - Math.round(3 * k);
-      const by2 = pillY + (pillH - bh2) / 2;
+      // HP 배지 위쪽에 작게 얹어 이웃 부대와 겹치지 않게 한다
+      const bx2 = bx - bw2 / 2;
+      const by2 = pillY - bh2 - Math.round(2 * k);
       ctx.fillStyle = BADGE_BG[u.side] || BADGE_BG.enemy;
-      ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.6)' : 'rgba(255,170,150,0.55)';
+      ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.55)' : 'rgba(255,170,150,0.5)';
       ctx.lineWidth = 1;
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx2, by2, bw2, bh2, bh2 / 2); ctx.fill(); ctx.stroke(); }
       else { ctx.fillRect(bx2, by2, bw2, bh2); ctx.strokeRect(bx2, by2, bw2, bh2); }

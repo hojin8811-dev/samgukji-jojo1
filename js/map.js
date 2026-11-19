@@ -175,10 +175,10 @@
 
     /* 육지 */
     const landGrad = g.createLinearGradient(0, 0, MAPW * 0.2, MAPH);
-    landGrad.addColorStop(0, '#c9c689');
-    landGrad.addColorStop(0.4, '#c3c184');
-    landGrad.addColorStop(0.72, '#b9bb7c');
-    landGrad.addColorStop(1, '#a9b273');
+    landGrad.addColorStop(0, '#cecb8c');
+    landGrad.addColorStop(0.4, '#c7c382');
+    landGrad.addColorStop(0.72, '#bec078');
+    landGrad.addColorStop(1, '#aeb876');
     g.fillStyle = landGrad;
     g.fill(landPath);
 
@@ -187,10 +187,11 @@
 
     /* 지형 색조 — 경계가 드러나지 않게 부드럽게 */
     (SK.MAPGEO.tints || []).forEach(([x, y, r, color, a]) => {
+      const aa = Math.min(0.9, a * 1.22);
       const rg = g.createRadialGradient(x, y, r * 0.05, x, y, r);
-      rg.addColorStop(0, rgba(color, a));
-      rg.addColorStop(0.45, rgba(color, a * 0.72));
-      rg.addColorStop(0.75, rgba(color, a * 0.3));
+      rg.addColorStop(0, rgba(color, aa));
+      rg.addColorStop(0.45, rgba(color, aa * 0.75));
+      rg.addColorStop(0.75, rgba(color, aa * 0.32));
       rg.addColorStop(1, rgba(color, 0));
       g.fillStyle = rg;
       g.beginPath();
