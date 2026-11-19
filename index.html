@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>삼국지 조조전 · 천하의 서막</title>
+<link rel="preload" as="image" href="assets/maps/web/worldmap.webp" />
+<link rel="preload" as="image" href="assets/portraits/web/caocao.webp" />
 <link rel="stylesheet" href="style.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23120d07'/%3E%3Crect x='6' y='11' width='20' height='15' fill='%23c9a44a'/%3E%3Crect x='13' y='18' width='6' height='8' fill='%23120d07'/%3E%3Crect x='6' y='11' width='20' height='3' fill='%23f0d79a'/%3E%3C/svg%3E" />
 </head>
@@ -37,6 +39,7 @@
 
     <div class="map-wrap">
       <div class="map-frame">
+        <img class="map-art" src="assets/maps/web/worldmap.webp" alt="삼국지대 전국 지도" />
         <svg id="worldmap" viewBox="0 0 360 320" preserveAspectRatio="xMidYMid meet" aria-label="전국 지도"></svg>
         <div class="map-caption"><span id="date-label">건안 원년 정월</span><span class="dot">·</span><span id="fame-label">명성 0</span></div>
       </div>
@@ -65,14 +68,6 @@
 
     <div class="battle-main">
       <div class="field-wrap" id="field-wrap">
-        <div class="field-deco" aria-hidden="true">
-          <div class="deco-sun"></div>
-          <div class="deco-hill h1"></div>
-          <div class="deco-hill h2"></div>
-          <div class="deco-hill h3"></div>
-          <div class="deco-fog"></div>
-        </div>
-        <div class="field-objective"><span>적을 모두 격파하라</span></div>
         <div class="war-strip">
           <span class="ws-side ally">我軍</span>
           <div class="ws-bar ally"><i id="ally-power"></i></div>
@@ -80,18 +75,17 @@
           <div class="ws-bar enemy"><i id="enemy-power"></i></div>
           <span class="ws-side enemy">敵軍</span>
         </div>
-        <canvas id="field"></canvas>
-        <div class="field-legend">
-          <span><i class="lg move"></i>이동</span>
-          <span><i class="lg atk"></i>공격</span>
-          <span><i class="lg heal"></i>회복</span>
+        <div class="field-stage" id="field-stage">
+          <canvas id="field"></canvas>
+          <div class="phase-banner" id="phase-banner"></div>
         </div>
-        <div class="phase-banner" id="phase-banner"></div>
+        <div class="field-objective"><span id="objective-text">적을 모두 격파하라</span></div>
       </div>
       <aside class="battle-side">
         <div class="unit-card panel" id="unit-card"></div>
-        <div class="log panel" id="log" aria-live="polite"></div>
         <div class="actions" id="actions"></div>
+        <div class="foe-panel panel" id="foe-panel"></div>
+        <div class="log panel" id="log" aria-live="polite"></div>
       </aside>
     </div>
   </section>
@@ -101,6 +95,9 @@
 
   <!-- ══════════ 타이틀 ══════════ -->
   <div id="splash" class="splash">
+    <img class="splash-bg" src="assets/maps/web/worldmap.webp" alt="" />
+    <div class="splash-shade"></div>
+    <img class="splash-hero" src="assets/portraits/web/caocao.webp" alt="" />
     <div class="splash-inner">
       <div class="splash-seal">魏</div>
       <h1 class="splash-title">三國志<span>曹操傳</span></h1>
@@ -109,7 +106,7 @@
       <p class="splash-desc">전국 지도에서 내정을 다스리고,<br />출진하여 조조전의 격자 전장에서 싸운다.</p>
       <button id="btn-start" class="btn primary big">새로 시작</button>
       <button id="btn-continue" class="btn big hidden">이어서 하기</button>
-      <p class="splash-foot">1단계 프로토타입 · 모바일 웹</p>
+      <p class="splash-foot" id="splash-foot">전장을 그리는 중…</p>
     </div>
   </div>
 

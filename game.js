@@ -22,6 +22,7 @@ const TERRAIN = {
   F: { name: '숲', def: 0.15, note: '이동 2 · 방어 +15%' },
   M: { name: '산지', def: 0.30, note: '이동 2 · 방어 +30%' },
   W: { name: '강물', def: 0.15, note: '수적만 통행' },
+  S: { name: '여울', def: 0.05, note: '이동 2 · 방어 +5%' },
   B: { name: '다리', def: 0, note: '이동 1' },
   G: { name: '성문', def: 0.35, note: '이동 1 · 방어 +35%' },
   C: { name: '성벽', def: 0.5, note: '통행 불가' },
@@ -29,23 +30,31 @@ const TERRAIN = {
 
 const CLASSES = {
   gunwoong: { name: '군웅', hanja: '群雄', role: '지휘 · 균형', hp: 118, mp: 40, atk: 25, def: 18, mov: 4, rng: 1, weapon: 'sword', skills: ['jihwi'],
+    wu: 78, ji: 84, tong: 88,
     desc: '아군 전체를 지휘하는 군주 병과. 지휘 책략으로 부대를 강화한다.' },
   gibi: { name: '기병', hanja: '騎兵', role: '돌격 · 기동', hp: 116, mp: 20, atk: 28, def: 16, mov: 6, rng: 1, weapon: 'spear', mount: true,
+    wu: 88, ji: 52, tong: 74,
     desc: '이동 6의 돌격 병과. 숲은 3, 산지는 통행할 수 없다.' },
   gunggi: { name: '궁기병', hanja: '弓騎兵', role: '원거리 · 기동', hp: 102, mp: 24, atk: 24, def: 13, mov: 5, rng: 3, weapon: 'bow', mount: true,
+    wu: 80, ji: 62, tong: 72,
     desc: '대각선을 포함해 3칸까지 사격한다. 산지에 오르면 사거리 +1.' },
   pungsusa: { name: '풍수사', hanja: '風水師', role: '회복 · 보조', hp: 86, mp: 60, atk: 14, def: 11, mov: 4, rng: 2, weapon: 'staff',
-    skills: ['sobogeup', 'daebogeup', 'gomu', 'pungsu'],
+    wu: 32, ji: 90, tong: 58, skills: ['sobogeup', 'daebogeup', 'gomu', 'pungsu'],
     desc: '소·대보급으로 아군을 살리고, 고무와 풍수로 전장을 뒤집는다.' },
   sanjeok: { name: '산적', hanja: '山賊', role: '산지 · 숲 특화', hp: 128, mp: 16, atk: 30, def: 13, mov: 5, rng: 1, weapon: 'axe',
+    wu: 86, ji: 38, tong: 52,
     desc: '산지·숲에서 이동 1, 공격 +25%, 회심 확률 상승. 산에서는 최강.' },
   sujeok: { name: '수적', hanja: '水賊', role: '수전 특화', hp: 122, mp: 20, atk: 26, def: 15, mov: 5, rng: 1, weapon: 'trident',
+    wu: 82, ji: 48, tong: 66,
     desc: '강물 위를 자유롭게 누비며 공격 +20%, 방어 보정을 받는다.' },
   bobyung: { name: '보병', hanja: '步兵', role: '방어 · 균형', hp: 112, mp: 10, atk: 22, def: 18, mov: 4, rng: 1, weapon: 'sword',
+    wu: 68, ji: 46, tong: 70,
     desc: '튼튼한 방어의 기본 병과. 성문과 평지를 지키는 데 알맞다.' },
   gungbyung: { name: '궁병', hanja: '弓兵', role: '원거리', hp: 92, mp: 14, atk: 21, def: 12, mov: 4, rng: 3, weapon: 'bow',
+    wu: 62, ji: 50, tong: 60,
     desc: '3칸 밖에서 일방적으로 공격한다. 붙으면 약하다.' },
   chaeksa: { name: '책사', hanja: '策士', role: '책략', hp: 80, mp: 56, atk: 15, def: 10, mov: 4, rng: 2, weapon: 'fan', skills: ['hwagye'],
+    wu: 30, ji: 88, tong: 62,
     desc: '화계로 방어를 무시하는 피해를 준다. 근접전에는 취약하다.' },
 };
 
@@ -64,21 +73,27 @@ const SKILLS = {
     desc: '불을 질러 방어를 무시하는 피해' },
 };
 
+/* 아군 장수 — pt: 초상화 키 */
 const HEROES = [
-  { id: 'jojo', name: '조조', hanja: '曹操', cls: 'gunwoong', lv: 6, quote: '천하는 넓고, 내 길은 멀다.' },
-  { id: 'hahoudon', name: '하후돈', hanja: '夏侯惇', cls: 'gibi', lv: 5, quote: '한 번 뚫으면 멈추지 않는다.' },
-  { id: 'hahouyeon', name: '하후연', hanja: '夏侯淵', cls: 'gunggi', lv: 5, quote: '세 번의 화살이면 충분하다.' },
-  { id: 'sunyoo', name: '순유', hanja: '荀攸', cls: 'pungsusa', lv: 5, quote: '하늘과 땅을 읽으면 이길 수 있습니다.' },
-  { id: 'johong', name: '조홍', hanja: '曹洪', cls: 'bobyung', lv: 4, quote: '성이 무너져도 내가 버틴다.' },
+  { id: 'jojo', name: '조조', hanja: '曹操', cls: 'gunwoong', lv: 6, wu: 78, ji: 90, tong: 90,
+    pt: 'caocao', quote: '천하는 넓고, 내 길은 멀다.' },
+  { id: 'hahoudon', name: '하후돈', hanja: '夏侯惇', cls: 'gibi', lv: 5, wu: 94, ji: 55, tong: 80,
+    pt: 'xiahoudun', quote: '한 번 뚫으면 멈추지 않는다.' },
+  { id: 'hahouyeon', name: '하후연', hanja: '夏侯淵', cls: 'gunggi', lv: 5, wu: 88, ji: 66, tong: 78,
+    pt: 'xiahouyuan', quote: '세 번의 화살이면 충분하다.' },
+  { id: 'sunyoo', name: '순유', hanja: '荀攸', cls: 'pungsusa', lv: 5, wu: 26, ji: 94, tong: 62,
+    pt: 'xunyou', quote: '하늘과 땅을 읽으면 이길 수 있습니다.' },
+  { id: 'johong', name: '조홍', hanja: '曹洪', cls: 'bobyung', lv: 4, wu: 76, ji: 44, tong: 78,
+    pt: 'caohong', quote: '성이 무너져도 내가 버틴다.' },
 ];
 const HERO_MAP = Object.fromEntries(HEROES.map((h) => [h.id, h]));
 
 const CITY_DEFS = [
-  { id: 'heochang', name: '허창', hanja: '許昌', x: 82, y: 128, gold: 360, rice: 420 },
-  { id: 'wan', name: '완', hanja: '宛', x: 108, y: 214, gold: 250, rice: 300 },
-  { id: 'yeonan', name: '여남', hanja: '汝南', x: 176, y: 244, gold: 320, rice: 360, battle: 'yeonan' },
-  { id: 'geonup', name: '건업', hanja: '建業', x: 282, y: 238, gold: 380, rice: 430, battle: 'geonup' },
-  { id: 'eop', name: '업', hanja: '鄴', x: 214, y: 62, gold: 340, rice: 380, battle: 'eop' },
+  { id: 'heochang', name: '허창', hanja: '許昌', x: 132, y: 148, gold: 360, rice: 420 },
+  { id: 'wan', name: '완', hanja: '宛', x: 96, y: 219, gold: 250, rice: 300 },
+  { id: 'yeonan', name: '여남', hanja: '汝南', x: 168, y: 247, gold: 320, rice: 360, battle: 'yeonan' },
+  { id: 'geonup', name: '건업', hanja: '建業', x: 276, y: 236, gold: 380, rice: 430, battle: 'geonup' },
+  { id: 'eop', name: '업', hanja: '鄴', x: 196, y: 66, gold: 340, rice: 380, battle: 'eop' },
 ];
 const CITY_MAP = Object.fromEntries(CITY_DEFS.map((c) => [c.id, c]));
 const ROADS = [
@@ -86,101 +101,190 @@ const ROADS = [
   ['wan', 'yeonan'], ['yeonan', 'geonup'], ['eop', 'geonup'],
 ];
 
+/* ── 전장 지형도 (생성한 배경 아트와 타일을 일치시켜 설계) ──
+   P 평지 · R 도로 · F 숲 · M 산지 · W 강물 · S 여울 · B 다리 · G 성문 · C 성벽
+   여남: 완만한 강이 가로지르고 중앙 다리 하나, 좌상단 숲, 우하단 산맥
+   건업: 온 화면을 채우는 큰 강 + 좌우 두 개의 다리, 위쪽 버드나무 숲
+   업성: 오른쪽으로 기우는 성벽과 성문, 그 앞 진입로                        */
 const MAP_YEONAN = [
-  'PPPPPPPPPPPP',
-  'PFFPPPMMMMPP',
-  'PFFPPMMMMMGP',
-  'PPPPWWBWWGPP',
-  'PPMPWWBWWPPP',
-  'PPMPWWBWWPPP',
-  'PPPPWWBWWPPP',
-  'PFFPPPPPGGPP',
-  'PFFPPMMMPPPP',
-  'PPPPPPMMPPPP',
+  'FFFFPPPPPPPP',
+  'FFFFFPRPPPPP',
+  'FFFFPPRPPPPP',
+  'FFPPPRPPPPPP',
+  'WWWWWWBWWWMM',
+  'WWWWWWBWWMMM',
+  'PPPPPPRPPPMM',
+  'PPPPPPRPMMMM',
+  'PPPPPPPPMMMM',
+  'FPPPPPRMMMMM',
 ];
 const MAP_GEONUP = [
-  'PPPPPPPPPPPP',
-  'PFFPPPPPPPPP',
-  'PPPPPPPMMPPP',
-  'WWBWWWWWWBWW',
-  'WWBWWWWWWBWW',
-  'WWBWWWWWWBWW',
-  'PPPPPPPPPPPP',
-  'PFFPPMMMPPPP',
-  'PPPMMMMMPPPP',
+  'FFFFFFFFFFFF',
+  'FFFRFFFFFRFF',
+  'SSSBSSSSSBSS',
+  'WWWBWWWWWBWW',
+  'WWWBWWWWWBWW',
+  'WWWBWWWWWBWW',
+  'WWWBWWWWWBWW',
+  'SSSBSSSSSBSS',
+  'RRRRRRRRRRRR',
   'PPPPPPPPPPPP',
 ];
 const MAP_EOP = [
-  'PPPPPPPPPPPP',
-  'PFFPPPMMMMCP',
-  'PFFPPMMMMMGP',
-  'PPPPWWBWWPCP',
-  'PPMPWWBWWPGP',
-  'PPMPWWBWWPCP',
-  'PPPPWWBWWPCP',
-  'PFFPPPPPCCCP',
-  'PFFPPMMMPPPP',
-  'PPPPPPMMPPPP',
+  'PPPPPPCCCCCC',
+  'PPPPPPPCCCCC',
+  'PPPPPPPPCCCC',
+  'PPPPPPPPPCCC',
+  'PPPPPPPPPGCC',
+  'PPPPPPPPPPCC',
+  'PPPPPPPPPPCC',
+  'PPPPPPPPPPPC',
+  'PPPPPPPPPPPC',
+  'PPPPPPPPPPPC',
 ];
 
 const BATTLES = {
   yeonan: {
-    title: '여남 공방전', subtitle: '황건 잔당 토벌', map: MAP_YEONAN,
+    title: '여남 공방전', subtitle: '황건 잔당 토벌', map: MAP_YEONAN, bg: 'battle_yeonan',
     enemies: [
-      { id: 'juchang', name: '주창', hanja: '周倉', cls: 'sanjeok', lv: 6, boss: true, x: 8, y: 2 },
-      { id: 'jutaek', name: '주태', hanja: '周泰', cls: 'sujeok', lv: 6, boss: true, x: 7, y: 4 },
-      { id: 'hg1', name: '황건적', hanja: '黃巾', cls: 'bobyung', lv: 2, x: 9, y: 7 },
+      { id: 'juchang', name: '주창', hanja: '周倉', cls: 'sanjeok', lv: 6, boss: true, x: 10, y: 8, pt: 'zhoucang',
+        line: '이 산에서… 내가 질 리가 없다…' },
+      { id: 'jutaek', name: '주태', hanja: '周泰', cls: 'sujeok', lv: 6, boss: true, x: 8, y: 4, pt: 'zhoutai',
+        line: '강물이… 나를 버렸구나…' },
+      { id: 'hg1', name: '황건적', hanja: '黃巾', cls: 'bobyung', lv: 2, x: 8, y: 2 },
       { id: 'hg2', name: '황건 궁수', hanja: '黃巾', cls: 'gungbyung', lv: 2, x: 10, y: 1 },
       { id: 'hg3', name: '황건 술사', hanja: '黃巾', cls: 'chaeksa', lv: 3, x: 9, y: 3 },
-      { id: 'hg4', name: '황건적', hanja: '黃巾', cls: 'bobyung', lv: 2, x: 11, y: 4 },
+      { id: 'hg4', name: '황건적', hanja: '黃巾', cls: 'bobyung', lv: 2, x: 7, y: 6 },
     ],
     intro: [
-      { who: '조조', hanja: '曹操', cls: 'gunwoong', side: 'ally', text: '여남의 황건 잔당… 오늘로 끝내겠다.' },
-      { who: '주창', hanja: '周倉', cls: 'sanjeok', side: 'enemy', text: '허! 이 산에서 우리를 잡을 수 있을까?' },
-      { who: '주태', hanja: '周泰', cls: 'sujeok', side: 'enemy', text: '강물을 건너온 자는 다시 돌아가지 못한다.' },
-      { who: '순유', hanja: '荀攸', cls: 'pungsusa', side: 'ally', text: '산지와 강물이 길을 막고 있습니다. 병과의 지형 상성을 살펴야 합니다.' },
+      { who: '조조', hanja: '曹操', cls: 'gunwoong', side: 'ally', pt: 'caocao', text: '여남의 황건 잔당… 오늘로 끝내겠다.' },
+      { who: '주창', hanja: '周倉', cls: 'sanjeok', side: 'enemy', pt: 'zhoucang', text: '허! 이 산에서 우리를 잡을 수 있을까?' },
+      { who: '주태', hanja: '周泰', cls: 'sujeok', side: 'enemy', pt: 'zhoutai', text: '강물을 건너온 자는 다시 돌아가지 못한다.' },
+      { who: '순유', hanja: '荀攸', cls: 'pungsusa', side: 'ally', pt: 'xunyou', text: '강을 건너려면 저 다리 하나뿐입니다. 산지와 강물의 상성을 살피십시오.' },
     ],
     winLine: '여남을 평정했다. 황건의 잔불이 꺼졌다.',
     reward: { gold: 900, rice: 500 },
   },
   geonup: {
-    title: '건업 수전', subtitle: '수적 소탕 · 강을 건너라', map: MAP_GEONUP,
+    title: '건업 수전', subtitle: '수적 소탕 · 강을 건너라', map: MAP_GEONUP, bg: 'battle_geonup',
     enemies: [
-      { id: 'gamnyeong', name: '수적 두목', hanja: '水賊', cls: 'sujeok', lv: 6, boss: true, x: 3, y: 4 },
-      { id: 'su1', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 4, x: 3, y: 5 },
-      { id: 'su2', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 4, x: 8, y: 4 },
-      { id: 'su3', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 3, x: 8, y: 5 },
-      { id: 'gb1', name: '수적 궁수', hanja: '水賊', cls: 'gungbyung', lv: 4, x: 2, y: 2 },
-      { id: 'bb1', name: '수적 보병', hanja: '水賊', cls: 'bobyung', lv: 4, x: 9, y: 2 },
-      { id: 'cs1', name: '수적 책사', hanja: '水賊', cls: 'chaeksa', lv: 4, x: 10, y: 1 },
+      { id: 'gamnyeong', name: '수적 두목', hanja: '水賊', cls: 'sujeok', lv: 5, boss: true, x: 6, y: 5, pt: 'shuizei',
+        line: '이 강은… 영원히 우리 것인데…' },
+      { id: 'su1', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 3, x: 5, y: 4 },
+      { id: 'su2', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 3, x: 7, y: 6 },
+      { id: 'su3', name: '수군', hanja: '水軍', cls: 'sujeok', lv: 3, x: 2, y: 4 },
+      { id: 'gb1', name: '수적 궁수', hanja: '水賊', cls: 'gungbyung', lv: 3, x: 1, y: 1 },
+      { id: 'bb1', name: '수적 보병', hanja: '水賊', cls: 'bobyung', lv: 3, x: 10, y: 2 },
+      { id: 'cs1', name: '수적 책사', hanja: '水賊', cls: 'chaeksa', lv: 3, x: 10, y: 1 },
     ],
     intro: [
-      { who: '조조', hanja: '曹操', cls: 'gunwoong', side: 'ally', text: '강을 건너야 건업에 닿는다. 다리를 지켜라.' },
-      { who: '수적 두목', hanja: '水賊', cls: 'sujeok', side: 'enemy', text: '이 강은 우리 집이다. 물 위에서 덤벼라!' },
-      { who: '하후연', hanja: '夏侯淵', cls: 'gunggi', side: 'ally', text: '물 위의 적도 화살은 피하지 못합니다.' },
+      { who: '조조', hanja: '曹操', cls: 'gunwoong', side: 'ally', pt: 'caocao', text: '강을 건너야 건업에 닿는다. 다리를 지켜라.' },
+      { who: '수적 두목', hanja: '水賊', cls: 'sujeok', side: 'enemy', pt: 'shuizei', text: '이 강은 우리 집이다. 물 위에서 덤벼라!' },
+      { who: '하후연', hanja: '夏侯淵', cls: 'gunggi', side: 'ally', pt: 'xiahouyuan', text: '물 위의 적도 화살은 피하지 못합니다.' },
     ],
     winLine: '강줄기를 장악했다. 건업의 수적이 흩어졌다.',
     reward: { gold: 1200, rice: 600 },
   },
   eop: {
-    title: '업성 공략', subtitle: '성문을 뚫어라', map: MAP_EOP,
+    title: '업성 공략', subtitle: '성문을 뚫어라', map: MAP_EOP, bg: 'battle_eop',
     enemies: [
-      { id: 'hwangduk', name: '황건 두목', hanja: '黃巾', cls: 'bobyung', lv: 6, boss: true, x: 11, y: 4 },
-      { id: 'eop_cs', name: '황건 책사', hanja: '黃巾', cls: 'chaeksa', lv: 4, x: 11, y: 2 },
-      { id: 'eop_bb1', name: '황건 보병', hanja: '黃巾', cls: 'bobyung', lv: 4, x: 9, y: 1 },
-      { id: 'eop_bb2', name: '황건 보병', hanja: '黃巾', cls: 'bobyung', lv: 4, x: 9, y: 8 },
-      { id: 'eop_gb1', name: '황건 궁수', hanja: '黃巾', cls: 'gungbyung', lv: 4, x: 8, y: 2 },
-      { id: 'eop_gb2', name: '황건 궁수', hanja: '黃巾', cls: 'gungbyung', lv: 3, x: 6, y: 8 },
+      { id: 'hwangduk', name: '황건 두목', hanja: '黃巾', cls: 'bobyung', lv: 6, boss: true, x: 9, y: 4, pt: 'huangjin',
+        line: '하늘에… 복이 없도다…' },
+      { id: 'eop_cs', name: '황건 책사', hanja: '黃巾', cls: 'chaeksa', lv: 4, x: 7, y: 2 },
+      { id: 'eop_bb1', name: '황건 보병', hanja: '黃巾', cls: 'bobyung', lv: 4, x: 8, y: 3 },
+      { id: 'eop_bb2', name: '황건 보병', hanja: '黃巾', cls: 'bobyung', lv: 4, x: 7, y: 4 },
+      { id: 'eop_gb1', name: '황건 궁수', hanja: '黃巾', cls: 'gungbyung', lv: 4, x: 8, y: 5 },
+      { id: 'eop_gb2', name: '황건 궁수', hanja: '黃巾', cls: 'gungbyung', lv: 3, x: 6, y: 6 },
     ],
     intro: [
-      { who: '조조', hanja: '曹操', cls: 'gunwoong', side: 'ally', text: '업성의 성문은 좁다. 한 번에 밀어붙인다.' },
-      { who: '황건 두목', hanja: '黃巾', cls: 'bobyung', side: 'enemy', text: '성벽을 넘어와 봐라! 여기가 너희 무덤이다.' },
-      { who: '하후돈', hanja: '夏侯惇', cls: 'gibi', side: 'ally', text: '성문 하나면 충분하다.' },
+      { who: '조조', hanja: '曹操', cls: 'gunwoong', side: 'ally', pt: 'caocao', text: '업성의 성문은 좁다. 한 번에 밀어붙인다.' },
+      { who: '황건 두목', hanja: '黃巾', cls: 'bobyung', side: 'enemy', pt: 'huangjin', text: '성문 앞에 서 봐라! 여기가 너희 무덤이다.' },
+      { who: '하후돈', hanja: '夏侯惇', cls: 'gibi', side: 'ally', pt: 'xiahoudun', text: '성문 하나면 충분하다.' },
     ],
     winLine: '업성의 성문이 열렸다. 하북으로 가는 길이 트였다.',
     reward: { gold: 1000, rice: 700 },
   },
 };
+
+/* 초상화 해석: 장수 키 → 초상화, 없으면 병과+진영으로 */
+const HERO_PORTRAIT = {
+  jojo: 'caocao', hahoudon: 'xiahoudun', hahouyeon: 'xiahouyuan', sunyoo: 'xunyou', johong: 'caohong',
+  juchang: 'zhoucang', jutaek: 'zhoutai', gamnyeong: 'shuizei', hwangduk: 'huangjin',
+};
+const CLASS_PORTRAIT_ALLY = { gunwoong: 'caocao', gibi: 'xiahoudun', gunggi: 'xiahouyuan', pungsusa: 'xunyou', bobyung: 'caohong' };
+const CLASS_PORTRAIT_ENEMY = {
+  bobyung: 'gen_bobyung', gungbyung: 'gen_gungbyung', chaeksa: 'gen_chaeksa', sujeok: 'gen_sujeok',
+  sanjeok: 'zhoucang', gunwoong: 'huangjin',
+};
+function portraitKeyFor(def, side, clsKey) {
+  return def.pt || HERO_PORTRAIT[def.id] || def.portrait ||
+    (side === 'ally' ? CLASS_PORTRAIT_ALLY[clsKey] : CLASS_PORTRAIT_ENEMY[clsKey]) || 'gen_bobyung';
+}
+
+/* ────────────────────────── 1.5 아트 에셋 ────────────────────────── */
+const PORTRAIT_SRC = {
+  caocao: 'assets/portraits/web/caocao.webp',
+  xiahoudun: 'assets/portraits/web/xiahoudun.webp',
+  xiahouyuan: 'assets/portraits/web/xiahouyuan.webp',
+  xunyou: 'assets/portraits/web/xunyou.webp',
+  caohong: 'assets/portraits/web/caohong.webp',
+  zhoucang: 'assets/portraits/web/zhoucang.webp',
+  zhoutai: 'assets/portraits/web/zhoutai.webp',
+  huangjin: 'assets/portraits/web/huangjin.webp',
+  shuizei: 'assets/portraits/web/shuizei.webp',
+  gen_bobyung: 'assets/portraits/web/gen_bobyung.webp',
+  gen_gungbyung: 'assets/portraits/web/gen_gungbyung.webp',
+  gen_chaeksa: 'assets/portraits/web/gen_chaeksa.webp',
+  gen_sujeok: 'assets/portraits/web/gen_sujeok.webp',
+};
+const SPRITE_CLASSES = ['gunwoong', 'gibi', 'gunggi', 'pungsusa', 'sanjeok', 'sujeok', 'bobyung', 'gungbyung', 'chaeksa'];
+/* 병과별 스프라이트 크기 보정 — 무기 길이 때문에 인물이 작게 보이는 병과를 키운다 */
+const SPRITE_SCALE = {
+  gunwoong: 1.06, gibi: 1.02, gunggi: 1.02, pungsusa: 1.08,
+  sanjeok: 1.02, sujeok: 0.98, bobyung: 1.24, gungbyung: 1.16, chaeksa: 1.08,
+};
+const MAP_SRC = {
+  battle_yeonan: 'assets/maps/web/battle_yeonan.webp',
+  battle_geonup: 'assets/maps/web/battle_geonup.webp',
+  battle_eop: 'assets/maps/web/battle_eop.webp',
+};
+const WORLD_SRC = 'assets/maps/web/worldmap.webp';
+
+const IMG = { portrait: {}, sprite: {}, map: {}, worldmap: null, ready: false, failed: [] };
+
+function loadImg(src) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.decoding = 'async';
+    im.onload = () => resolve(im);
+    im.onerror = () => { IMG.failed.push(src); resolve(null); };
+    im.src = src;
+  });
+}
+
+async function preloadAssets(onProgress) {
+  const jobs = [];
+  Object.entries(PORTRAIT_SRC).forEach(([k, src]) => jobs.push(loadImg(src).then((im) => { IMG.portrait[k] = im; })));
+  SPRITE_CLASSES.forEach((c) => {
+    ['ally', 'enemy'].forEach((side) => {
+      const src = `assets/sprites/web/${c}${side === 'enemy' ? '_enemy' : ''}.webp`;
+      jobs.push(loadImg(src).then((im) => { (IMG.sprite[c] = IMG.sprite[c] || {})[side] = im; }));
+    });
+  });
+  Object.entries(MAP_SRC).forEach(([k, src]) => jobs.push(loadImg(src).then((im) => { IMG.map[k] = im; })));
+  jobs.push(loadImg(WORLD_SRC).then((im) => { IMG.worldmap = im; }));
+  let done = 0;
+  jobs.forEach((j) => j.then(() => { done += 1; if (onProgress) onProgress(done, jobs.length); }));
+  await Promise.all(jobs);
+  IMG.ready = true;
+}
+
+function spriteImg(clsKey, side) {
+  const set = IMG.sprite[clsKey];
+  if (!set) return null;
+  return side === 'enemy' ? (set.enemy || set.ally) : set.ally;
+}
+function portraitImg(key) { return IMG.portrait[key] || null; }
 
 /* ────────────────────────── 2. 사운드 ────────────────────────── */
 let audioCtx = null;
@@ -244,6 +348,8 @@ const SFX = {
   victory: () => { [392, 523, 659, 784, 1046].forEach((f, i) => tone(f, 0.28, 'triangle', 0.05, i * 0.13)); },
   defeat: () => { [330, 294, 262, 196].forEach((f, i) => tone(f, 0.34, 'sine', 0.05, i * 0.17)); },
   talk: () => tone(420 + Math.random() * 90, 0.03, 'square', 0.012),
+  shoot: () => { noiseBurst(0.06, 0.03); tone(900, 0.08, 'sawtooth', 0.022, 0, 380); },
+  shake: () => tone(90, 0.18, 'sawtooth', 0.03, 0, 45),
   coin: () => { tone(880, 0.06, 'square', 0.03); tone(1174, 0.09, 'square', 0.025, 0.05); },
 };
 function sfx(name) { ensureAudio(); if (SFX[name]) SFX[name](); }
@@ -346,86 +452,83 @@ function hudUpdate() {
 function citySVG(c) {
   const cs = cityState(c.id);
   const own = cs.owner;
-  const main = own === 'player' ? '#3f74b8' : '#a8452f';
-  const light = own === 'player' ? '#7fb2e8' : '#e08a6a';
+  const main = own === 'player' ? '#2f66ad' : '#a83a26';
+  const light = own === 'player' ? '#9ecdf5' : '#f3ab92';
+  const deep = own === 'player' ? '#16335c' : '#5c1a10';
   const glowId = own === 'player' ? 'glowBlue' : 'glowRed';
   const attackable = own === 'enemy' && neighbors(c.id).some((n) => cityState(n).owner === 'player');
   const sel = selectedCityId === c.id;
+  const cs2 = cs.troops >= 3000;
   return `
-  <g class="city" data-city="${c.id}" transform="translate(${c.x},${c.y})" style="cursor:pointer">
-    <circle r="30" fill="url(#${glowId})"/>
-    ${attackable ? `<circle r="26" fill="none" stroke="#c9a44a" stroke-width="1.2" stroke-dasharray="3 4" opacity=".85">
-        <animate attributeName="opacity" values="0.25;0.9;0.25" dur="2s" repeatCount="indefinite"/></circle>` : ''}
-    ${sel ? `<circle r="22" fill="none" stroke="#ffe9a8" stroke-width="1.6" opacity=".9"/>` : ''}
-    <rect x="-30" y="-24" width="60" height="60" fill="rgba(255,255,255,0.001)"/>
-    <rect x="-15" y="-4" width="30" height="15" fill="${main}" stroke="#2a1a0e" stroke-width="1.4"/>
-    <rect x="-15" y="-4" width="30" height="3" fill="${light}"/>
-    <rect x="-15" y="-4" width="3" height="15" fill="${light}" opacity=".7"/>
-    <rect x="12" y="-4" width="3" height="15" fill="${light}" opacity=".7"/>
-    <rect x="-5" y="3" width="10" height="8" fill="#241708"/>
-    <rect x="-18" y="-9" width="4" height="5" fill="${main}" stroke="#2a1a0e" stroke-width="1"/>
-    <rect x="14" y="-9" width="4" height="5" fill="${main}" stroke="#2a1a0e" stroke-width="1"/>
-    <rect x="-14" y="-8" width="28" height="3" fill="${light}" opacity=".55"/>
-    <rect x="-21" y="-21" width="2" height="17" fill="#3a2410"/>
-    <path d="M-19,-21 L-5,-18 L-19,-15 Z" fill="${main}" stroke="#2a1a0e" stroke-width=".8"/>
-    <text x="0" y="26" text-anchor="middle" font-family="serif" font-size="12" font-weight="600"
-      fill="#3a2a12" stroke="#e9d7ab" stroke-width="2.6" paint-order="stroke">${c.name}</text>
-    <text x="0" y="-26" text-anchor="middle" font-family="serif" font-size="9.5" fill="#6b5230">${c.hanja}</text>
+  <g class="city" data-city="${c.id}" transform="translate(${c.x},${c.y}) scale(.86)" style="cursor:pointer">
+    <ellipse cx="0" cy="16" rx="19" ry="5.5" fill="rgba(40,26,10,.35)"/>
+    <circle r="31" fill="url(#${glowId})"/>
+    ${attackable ? `<circle r="25" fill="none" stroke="#c9a44a" stroke-width="1.6" stroke-dasharray="4 5" opacity=".9">
+        <animate attributeName="opacity" values="0.2;0.95;0.2" dur="2.2s" repeatCount="indefinite"/></circle>` : ''}
+    ${sel ? `<circle r="21" fill="none" stroke="#ffe9a8" stroke-width="1.8" opacity=".95"/>` : ''}
+    <rect x="-30" y="-26" width="60" height="56" fill="rgba(255,255,255,0.001)"/>
+    <!-- 성곽 기단 -->
+    <path d="M-16,12 L-16,-2 L16,-2 L16,12 Z" fill="${deep}" stroke="#2a1a0e" stroke-width="1.3"/>
+    <path d="M-16,-2 L16,-2 L13,-7 L-13,-7 Z" fill="${main}" stroke="#2a1a0e" stroke-width="1.1"/>
+    <!-- 담장 톱니 -->
+    <path d="M-16,-7 L-16,-11 L-11,-11 L-11,-8 L-6,-8 L-6,-11 L-1,-11 L-1,-8 L4,-8 L4,-11 L9,-11 L9,-8 L14,-8 L14,-7 Z"
+      fill="${light}" stroke="#2a1a0e" stroke-width="1"/>
+    <!-- 망루 -->
+    <rect x="-6" y="-20" width="12" height="13" fill="${main}" stroke="#2a1a0e" stroke-width="1.2"/>
+    <path d="M-9,-20 L0,-27 L9,-20 Z" fill="${light}" stroke="#2a1a0e" stroke-width="1.1"/>
+    <rect x="-2.4" y="-13" width="4.8" height="8" fill="#20140a"/>
+    <!-- 군기 -->
+    <rect x="13" y="-26" width="1.6" height="24" fill="#3a2410"/>
+    <path d="M14.6,-26 L26,-22.5 L14.6,-19 Z" fill="${main}" stroke="#2a1a0e" stroke-width=".9"/>
+    <circle cx="13.8" cy="-26.5" r="1.6" fill="#e8c877" stroke="#6b4a1a" stroke-width=".6"/>
+    ${attackable ? `<text x="0" y="-30" text-anchor="middle" font-family="serif" font-size="12" fill="#8a2a16"
+      stroke="#ffd9a0" stroke-width="2.6" paint-order="stroke">戰</text>` : ''}
+    <g class="city-plate" transform="translate(0,21)">
+      <rect x="-26" y="-8" width="52" height="16" rx="2" fill="rgba(28,18,8,.82)" stroke="${main}" stroke-width="1"/>
+      <text x="0" y="4" text-anchor="middle" font-family="serif" font-size="11.5" font-weight="700"
+        fill="#f4e6c4" letter-spacing="1">${c.name}</text>
+    </g>
+    <text x="0" y="-29" text-anchor="middle" font-family="serif" font-size="9" fill="#6b5230" opacity=".9">${c.hanja}</text>
   </g>`;
 }
 
 function buildMapSVG() {
   const s = [];
   s.push(`<defs>
-    <linearGradient id="parch" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0" stop-color="#ead8ad"/><stop offset="0.55" stop-color="#e0c99a"/><stop offset="1" stop-color="#cdb281"/>
-    </linearGradient>
-    <radialGradient id="glowBlue"><stop offset="0" stop-color="rgba(70,130,200,.42)"/><stop offset="1" stop-color="rgba(70,130,200,0)"/></radialGradient>
-    <radialGradient id="glowRed"><stop offset="0" stop-color="rgba(170,60,40,.38)"/><stop offset="1" stop-color="rgba(170,60,40,0)"/></radialGradient>
-    <linearGradient id="riverG" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8fb4c8"/><stop offset="1" stop-color="#6f9ab4"/>
-    </linearGradient>
+    <radialGradient id="glowBlue"><stop offset="0" stop-color="rgba(70,130,200,.5)"/><stop offset="1" stop-color="rgba(70,130,200,0)"/></radialGradient>
+    <radialGradient id="glowRed"><stop offset="0" stop-color="rgba(190,60,40,.46)"/><stop offset="1" stop-color="rgba(190,60,40,0)"/></radialGradient>
+    <radialGradient id="vign" cx="50%" cy="46%" r="72%">
+      <stop offset="60%" stop-color="rgba(60,38,14,0)"/><stop offset="100%" stop-color="rgba(48,28,10,.42)"/>
+    </radialGradient>
   </defs>`);
-  s.push(`<rect x="0" y="0" width="360" height="320" fill="url(#parch)"/>`);
-  // 바람결 같은 종이 결
-  for (let i = 0; i < 26; i++) {
-    const y = (i * 53) % 316, x = (i * 97) % 340;
-    s.push(`<ellipse cx="${x}" cy="${y}" rx="${18 + (i % 7) * 5}" ry="${2 + (i % 3)}" fill="rgba(160,130,80,.05)"/>`);
-  }
-  // 강
-  s.push(`<path d="M-6,18 C60,54 96,74 132,108 C168,142 190,196 236,232 C272,260 310,268 366,282"
-      fill="none" stroke="url(#riverG)" stroke-width="7.5" stroke-linecap="round" opacity=".85"/>`);
-  s.push(`<path d="M-6,18 C60,54 96,74 132,108 C168,142 190,196 236,232 C272,260 310,268 366,282"
-      fill="none" stroke="#dceaf2" stroke-width="1" stroke-linecap="round" opacity=".5"/>`);
-  // 산맥
-  const mountains = [[40, 60], [58, 48], [246, 88], [262, 100], [300, 120], [132, 286], [150, 292], [318, 168]];
-  mountains.forEach(([x, y], i) => {
-    s.push(`<path d="M${x - 14},${y + 8} L${x},${y - 9} L${x + 14},${y + 8} Z" fill="#a89a7a" stroke="#7d6f52" stroke-width="1"/>`);
-    s.push(`<path d="M${x - 5},${y + 3} L${x},${y - 9} L${x + 5},${y + 3} Z" fill="#c3b697" opacity=".8"/>`);
-  });
-  // 숲
-  for (let i = 0; i < 16; i++) {
-    const x = 30 + ((i * 71) % 300), y = 40 + ((i * 47) % 250);
-    if (Math.abs(x - 82) < 34 && Math.abs(y - 128) < 34) continue;
-    s.push(`<circle cx="${x}" cy="${y}" r="3.2" fill="#7d9163" opacity=".55"/>`);
-  }
-  // 도로
+  // 길 — 점선 대신 옅은 붓길
   ROADS.forEach(([a, b]) => {
     const A = CITY_MAP[a], B = CITY_MAP[b];
-    s.push(`<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="#8d7143" stroke-width="2.4"
-      stroke-dasharray="5 5" opacity=".55" stroke-linecap="round"/>`);
+    const mx = (A.x + B.x) / 2 + (B.y - A.y) * 0.09;
+    const my = (A.y + B.y) / 2 - (B.x - A.x) * 0.09;
+    s.push(`<path d="M${A.x},${A.y} Q${mx},${my} ${B.x},${B.y}" fill="none" stroke="rgba(96,68,30,.5)"
+      stroke-width="2.2" stroke-linecap="round" stroke-dasharray="7 6"/>`);
   });
-  // 테두리
-  s.push(`<rect x="4" y="4" width="352" height="312" fill="none" stroke="#8a6a3a" stroke-width="2.5"/>`);
-  s.push(`<rect x="8" y="8" width="344" height="304" fill="none" stroke="#b99a63" stroke-width="1" opacity=".8"/>`);
-  // 도시
+  s.push(`<rect x="0" y="0" width="360" height="320" fill="url(#vign)" pointer-events="none"/>`);
   CITY_DEFS.forEach((c) => s.push(citySVG(c)));
   return s.join('');
+}
+/* 지도 액자 — 화면 비율을 지키면서 남는 공간에 맞춘다 (가로/세로 모두) */
+function fitMapFrame() {
+  const wrap = document.querySelector('.map-wrap');
+  const frame = document.querySelector('.map-frame');
+  if (!wrap || !frame) return;
+  const W = wrap.clientWidth - 16, H = wrap.clientHeight - 16;
+  if (W < 40 || H < 40) return;
+  const w = Math.min(W, 600, H * 360 / 320);
+  frame.style.width = Math.round(w) + 'px';
+  frame.style.height = Math.round(w * 320 / 360) + 'px';
 }
 
 function renderMapScreen() {
   if (!state) return;
   hudUpdate();
+  fitMapFrame();
   const svg = $('#worldmap');
   svg.innerHTML = buildMapSVG();
   svg.querySelectorAll('.city').forEach((g) => {
@@ -723,6 +826,7 @@ const PAL = {
 function terrainCost(clsKey, ch) {
   if (ch === 'C') return Infinity;
   if (ch === 'W') return clsKey === 'sujeok' ? 1 : Infinity;
+  if (ch === 'S') return clsKey === 'sujeok' ? 1 : 2;
   if (ch === 'M') {
     if (clsKey === 'sanjeok') return 1;
     if (clsKey === 'gibi' || clsKey === 'gunggi') return Infinity;
@@ -747,6 +851,8 @@ function makeUnit(d, side, x, y) {
     id: (side === 'ally' ? 'a' : 'e') + (++unitSeq),
     key: d.id, name: d.name, hanja: d.hanja || '',
     clsKey: d.cls, cls, side, lv, exp: 0,
+    wu: d.wu || cls.wu, ji: d.ji || cls.ji, tong: d.tong || cls.tong,
+    pt: portraitKeyFor(d, side, d.cls),
     maxHp: Math.round((cls.hp + g * 6) * (d.hpMul || 1)),
     maxMp: cls.mp + g * 2,
     atk: Math.round((cls.atk + g * 2) * (d.atkMul || 1)),
@@ -754,7 +860,7 @@ function makeUnit(d, side, x, y) {
     mov: cls.mov, rng: cls.rng,
     x, y, px: null, py: null,
     moved: false, acted: false, dead: false,
-    buffs: [], boss: !!d.boss, quote: d.quote || '',
+    buffs: [], boss: !!d.boss, quote: d.quote || '', line: d.line || '',
     skills: (cls.skills || []).slice(),
   };
   u.hp = u.maxHp;
@@ -925,12 +1031,10 @@ async function startBattle(bkey, cityId, srcCityId, heroIds) {
   await sleep(30);
   resizeField();
   renderBattleUI();
-  sfx('turn');
-
+  await showBattleCard(bdef);
   await showDialogue(bdef.intro);
   battle.busy = false;
   banner('아군의 차례');
-  toast('아군 유닛을 눌러 이동하고, 적을 눌러 공격하세요');
   renderBattleUI();
 }
 
@@ -949,7 +1053,7 @@ function findStartSlot(clsKey, used) {
   for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
     if (used.has(key(x, y))) continue;
     if (!isFinite(terrainCost(clsKey, battle.map[y][x]))) continue;
-    const d = Math.abs(x - 1) * 1.15 + Math.abs(y - 7);
+    const d = Math.abs(x - 2) * 1.0 + Math.abs(y - 8) * 1.1;
     if (!best || d < best.d) best = { x, y, d };
   }
   return best || { x: 0, y: 0 };
@@ -1007,18 +1111,33 @@ async function lunge(a, d) {
 }
 async function doAttack(a, d) {
   const res = calcDamage(a, d, a.x, a.y);
-  await lunge(a, d);
+  const ranged = manh(a.x, a.y, d.x, d.y) > 1;
+  if (ranged) {
+    addFx({ kind: 'arrow', sx: a.x, sy: a.y, x: d.x, y: d.y, life: 24 });
+    sfx('shoot');
+    await sleep(210);
+  } else {
+    await lunge(a, d);
+  }
   addFx({ kind: 'slash', x: d.x, y: d.y, life: 24 });
+  addFx({ kind: 'spark', x: d.x, y: d.y, life: 16 });
+  shakeScreen(res.crit ? 6.5 : 3.2);
   applyDamage(d, res.dmg, res.crit);
   sfx(res.crit ? 'crit' : 'hit');
   logLine(`${a.name}의 공격 — ${d.name}에게 ${res.dmg} 피해${res.crit ? ' (회심의 일격!)' : ''}`,
     a.side === 'ally' ? 'good' : 'bad');
   gainExp(a, res.crit ? 16 : 12);
   await sleep(170);
+  if (d.dead && d.boss && d.side === 'enemy' && d.line) {
+    await sleep(240);
+    await showDialogue([{ who: d.name, hanja: d.hanja, cls: d.clsKey, side: 'enemy', pt: d.pt, text: d.line }]);
+  }
   if (!d.dead && inRangeFrom(d, d.x, d.y, a)) {
     const c = calcDamage(d, a, d.x, d.y);
     const cd = Math.max(2, Math.round(c.dmg * 0.55));
     await lunge(d, a);
+    addFx({ kind: 'spark', x: a.x, y: a.y, life: 14 });
+    shakeScreen(2.2);
     applyDamage(a, cd, false);
     sfx('hit');
     logLine(`${d.name}의 반격 — ${a.name}에게 ${cd} 피해`, d.side === 'ally' ? 'good' : 'bad');
@@ -1026,6 +1145,11 @@ async function doAttack(a, d) {
     await sleep(140);
   }
   checkBattleEnd();
+}
+
+function shakeScreen(power) {
+  if (!battle) return;
+  battle.shake = { t: 12, life: 12, power };
 }
 
 async function playerAttack(a, d) {
@@ -1119,7 +1243,7 @@ async function castSkill(u, sk, target, tile, opts = {}) {
     target.hp = Math.min(target.maxHp, target.hp + amt);
     const real = target.hp - before;
     floatText(target.x, target.y, '+' + real, '#a8e08a');
-    addFx({ kind: 'ring', x: target.x, y: target.y, color: 'rgba(140,230,150,.9)', life: 34 });
+    addFx({ kind: 'heal', x: target.x, y: target.y, life: 40 });
     sfx('heal');
     logLine(`${target.name}의 HP ${real} 회복`, 'good');
     gainExp(u, 8);
@@ -1132,7 +1256,7 @@ async function castSkill(u, sk, target, tile, opts = {}) {
         a.hp = Math.min(a.maxHp, a.hp + amt);
         total += a.hp - before;
         floatText(a.x, a.y, '+' + (a.hp - before), '#a8e08a');
-        addFx({ kind: 'ring', x: a.x, y: a.y, color: 'rgba(140,230,150,.85)', life: 34 });
+        addFx({ kind: 'heal', x: a.x, y: a.y, life: 40 });
       }
     });
     sfx('heal');
@@ -1141,7 +1265,7 @@ async function castSkill(u, sk, target, tile, opts = {}) {
   } else if (sk.kind === 'buff') {
     addBuff(target, 'atk', sk.atk, sk.turns);
     floatText(target.x, target.y, '공격↑', '#ffe08a');
-    addFx({ kind: 'ring', x: target.x, y: target.y, color: 'rgba(255,215,110,.9)', life: 30 });
+    addFx({ kind: 'buff', x: target.x, y: target.y, life: 36 });
     sfx('buff');
     logLine(`${target.name}의 공격력 +${Math.round(sk.atk * 100)}% (${sk.turns}턴)`, 'good');
     gainExp(u, 6);
@@ -1149,7 +1273,7 @@ async function castSkill(u, sk, target, tile, opts = {}) {
     aliveUnits('ally').forEach((a) => {
       if (cheb(u.x, u.y, a.x, a.y) <= sk.radius) {
         addBuff(a, 'atk', sk.atk, sk.turns);
-        addFx({ kind: 'ring', x: a.x, y: a.y, color: 'rgba(255,215,110,.8)', life: 28 });
+        addFx({ kind: 'buff', x: a.x, y: a.y, life: 34 });
       }
     });
     sfx('buff');
@@ -1161,17 +1285,19 @@ async function castSkill(u, sk, target, tile, opts = {}) {
       if (cheb(cx, cy, e.x, e.y) <= sk.radius) {
         addBuff(e, 'def', -0.25, sk.turns);
         floatText(e.x, e.y, '방어↓', '#c9a9ff');
-        addFx({ kind: 'ring', x: e.x, y: e.y, color: 'rgba(180,140,240,.8)', life: 30 });
+        addFx({ kind: 'debuff', x: e.x, y: e.y, life: 34 });
         n++;
       }
     });
     addFx({ kind: 'ring', x: cx, y: cy, color: 'rgba(180,140,240,.6)', life: 40, big: true });
+    shakeScreen(2.4);
     sfx('cast');
     logLine(`적 ${n}명의 방어력 -25% (${sk.turns}턴)`, 'good');
     gainExp(u, 8);
   } else if (sk.kind === 'magic') {
     const dmg = Math.max(6, Math.round((sk.power + u.lv * 3) * rnd(0.92, 1.08) - effDef(target) * 0.15));
     addFx({ kind: 'flame', x: target.x, y: target.y, life: 34 });
+    shakeScreen(5.5);
     applyDamage(target, dmg, false);
     sfx('cast');
     logLine(`화계 — ${target.name}에게 ${dmg} 피해 (방어 무시)`, 'good');
@@ -1328,6 +1454,7 @@ function showBattleResult(win, reason) {
   const b = battle;
   const reward = b.bdef.reward || { gold: 0, rice: 0 };
   const defeated = b.units.filter((u) => u.side === 'enemy' && u.dead).length;
+  const survivors = b.units.filter((u) => u.side === 'ally' && !u.dead).length;
   const rw = win
     ? `<div class="cost-line"><span>노획 금</span><b>+${fmt(reward.gold)}</b></div>
        <div class="cost-line"><span>노획 군량</span><b>+${fmt(reward.rice)}</b></div>
@@ -1335,9 +1462,13 @@ function showBattleResult(win, reason) {
     : `<div class="cost-line bad"><span>${b.srcCityId ? cityDef(b.srcCityId).name : '본진'} 병력</span><b>-500</b></div>
        <div class="cost-line bad"><span>군량</span><b>-100</b></div>`;
   const m = openModal(`
-    <h2 style="color:${win ? '#ffe9a8' : '#f0a58c'}">${win ? '승 리' : '패 배'}</h2>
-    <div class="sub">${b.bdef.title} · ${Math.min(b.turn, TURN_LIMIT)}턴 · 격파 ${defeated}/${b.bdef.enemies.length}</div>
+    <div class="res-head ${win ? 'win' : 'lose'}">
+      <div class="res-seal">${win ? '勝' : '敗'}</div>
+      <div class="res-title">${win ? '승 리' : '패 배'}</div>
+      <div class="res-sub">${b.bdef.title} · ${Math.min(b.turn, TURN_LIMIT)}턴 · 격파 ${defeated}/${b.bdef.enemies.length}</div>
+    </div>
     <div class="rule"></div>
+    <div class="cost-line"><span>생존 부대</span><b>${survivors} / ${b.units.filter((u) => u.side === 'ally').length}</b></div>
     ${rw}
     <div class="row"><button class="btn primary" id="res-ok">${win ? '지도로 돌아가기' : '본진으로 돌아가기'}</button></div>
   `, { sticky: true });
@@ -1410,20 +1541,29 @@ let terrainCanvas = null;
 function resizeField() {
   if (!battle) return;
   const wrap = $('#field-wrap');
-  const W = wrap.clientWidth, H = wrap.clientHeight;
-  if (W < 20 || H < 20) return;
-  const tile = Math.max(12, Math.floor(Math.min((W - 10) / MAP_W, (H - 10) / MAP_H)));
+  const stage = $('#field-stage');
+  const W = stage.clientWidth || wrap.clientWidth;
+  const landscape = window.innerWidth > window.innerHeight;
+  const availH = landscape
+    ? Math.max(120, wrap.clientHeight - 44)
+    : Math.max(120, window.innerHeight * 0.58 - 46);
+  if (W < 20) return;
+  const tile = Math.max(12, Math.floor(Math.min((W - 8) / MAP_W, (availH - 8) / MAP_H)));
   const cssW = tile * MAP_W, cssH = tile * MAP_H;
   const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
   field.width = Math.round(cssW * dpr);
   field.height = Math.round(cssH * dpr);
   field.style.width = cssW + 'px';
   field.style.height = cssH + 'px';
+  const strip = $('.war-strip');
+  if (strip) strip.style.width = cssW + 'px';
+  const obj = $('.field-objective');
+  if (obj) obj.style.maxWidth = cssW + 'px';
   view = { tile, dpr, w: cssW, h: cssH };
-  const gapY = (H - cssH) / 2;
-  wrap.classList.toggle('tight', gapY < 34);
+  wrap.classList.toggle('tight', availH - cssH < 20);
   fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  fctx.imageSmoothingEnabled = false;
+  fctx.imageSmoothingEnabled = true;
+  fctx.imageSmoothingQuality = 'high';
   buildTerrain();
 }
 
@@ -1432,120 +1572,20 @@ function h2(x, y, s = 0) {
   return n - Math.floor(n);
 }
 
-function drawTile(ctx, tx, ty, ch, T) {
-  const x = tx * T, y = ty * T;
-  const base = { P: '#50693c', R: '#9b8055', F: '#3a5430', M: '#6b6252', W: '#224e6d', B: '#2f5471', G: '#6d6455', C: '#453d33' }[ch] || '#50693c';
-  ctx.fillStyle = base;
-  ctx.fillRect(x, y, T, T);
-  const r1 = h2(tx, ty, 1), r2 = h2(tx, ty, 2), r3 = h2(tx, ty, 3);
-
-  if (ch === 'P' || ch === 'R' || ch === 'F' || ch === 'G') {
-    if (ch === 'P') {
-      ctx.fillStyle = '#476034';
-      for (let i = 0; i < 3; i++) {
-        const px = x + 3 + h2(tx, ty, i + 5) * (T - 8);
-        const py = y + 4 + h2(tx, ty, i + 9) * (T - 10);
-        ctx.fillRect(px, py, Math.max(2, T * 0.09), Math.max(2, T * 0.03));
-      }
-      if (r1 > 0.82) {
-        ctx.fillStyle = '#78915a';
-        ctx.fillRect(x + T * 0.2, y + T * 0.3, T * 0.08, T * 0.08);
-        ctx.fillRect(x + T * 0.62, y + T * 0.66, T * 0.08, T * 0.08);
-      }
-    } else if (ch === 'R') {
-      ctx.fillStyle = '#8a7048';
-      ctx.fillRect(x, y + T * 0.46, T, T * 0.08);
-      ctx.fillStyle = '#b09565';
-      for (let i = 0; i < 3; i++) {
-        ctx.fillRect(x + h2(tx, ty, i + 3) * (T - 4), y + h2(tx, ty, i + 7) * (T - 4), Math.max(2, T * 0.06), Math.max(2, T * 0.06));
-      }
-    } else if (ch === 'F') {
-      for (let i = 0; i < 2; i++) {
-        const cx = x + T * (0.27 + i * 0.42) + (r2 - 0.5) * T * 0.08;
-        const cy = y + T * (0.68 - i * 0.1);
-        ctx.fillStyle = '#4a3320';
-        ctx.fillRect(cx - T * 0.035, cy, Math.max(1, T * 0.07), T * 0.24);
-        ctx.fillStyle = '#2b4626';
-        ctx.beginPath(); ctx.arc(cx, cy - T * 0.1, T * 0.2, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#3d6234';
-        ctx.beginPath(); ctx.arc(cx - T * 0.07, cy - T * 0.2, T * 0.13, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(20,30,15,.35)';
-        ctx.beginPath(); ctx.arc(cx + T * 0.06, cy - T * 0.04, T * 0.12, 0, Math.PI * 2); ctx.fill();
-      }
-    } else if (ch === 'G') {
-      ctx.fillStyle = '#7b7060';
-      for (let i = 0; i < 3; i++) ctx.fillRect(x, y + T * (0.18 + i * 0.26), T, Math.max(1, T * 0.03));
-      ctx.fillStyle = '#554c3f';
-      ctx.fillRect(x + T * 0.22, y + T * 0.36, T * 0.56, T * 0.64);
-      ctx.fillStyle = '#2a2118';
-      ctx.beginPath();
-      ctx.moveTo(x + T * 0.28, y + T);
-      ctx.lineTo(x + T * 0.28, y + T * 0.58);
-      ctx.quadraticCurveTo(x + T * 0.5, y + T * 0.38, x + T * 0.72, y + T * 0.58);
-      ctx.lineTo(x + T * 0.72, y + T);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#c9a44a';
-      ctx.fillRect(x + T * 0.34, y + T * 0.24, Math.max(1, T * 0.05), Math.max(1, T * 0.05));
-      ctx.fillRect(x + T * 0.62, y + T * 0.24, Math.max(1, T * 0.05), Math.max(1, T * 0.05));
-      ctx.fillStyle = '#8c3a24';
-      ctx.fillRect(x, y, T, T * 0.1);
-    }
-  } else if (ch === 'M') {
-    const peak = 0.34 + r1 * 0.26;
-    ctx.fillStyle = '#5b5444';
-    ctx.beginPath();
-    ctx.moveTo(x + T * (peak - 0.44), y + T);
-    ctx.lineTo(x + T * (peak - 0.1), y + T * 0.36);
-    ctx.lineTo(x + T * (peak + 0.3), y + T);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#7e7565';
-    ctx.beginPath();
-    ctx.moveTo(x + T * (peak - 0.28), y + T);
-    ctx.lineTo(x + T * peak, y + T * (0.16 + r2 * 0.08));
-    ctx.lineTo(x + T * (peak + 0.36), y + T);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#a89d88';
-    ctx.beginPath();
-    ctx.moveTo(x + T * peak, y + T * (0.16 + r2 * 0.08));
-    ctx.lineTo(x + T * (peak + 0.11), y + T * 0.56);
-    ctx.lineTo(x + T * (peak - 0.03), y + T * 0.56);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(40,34,24,.30)';
-    ctx.beginPath();
-    ctx.moveTo(x + T * (peak + 0.36), y + T);
-    ctx.lineTo(x + T * peak, y + T * (0.16 + r2 * 0.08));
-    ctx.lineTo(x + T * (peak + 0.08), y + T * 0.72);
-    ctx.closePath(); ctx.fill();
-  } else if (ch === 'W') {
-    ctx.fillStyle = '#2c6285';
-    for (let i = 0; i < 3; i++) {
-      const wy = y + T * (0.22 + i * 0.28);
-      const off = Math.sin((tx + ty) * 1.7 + i) * T * 0.08;
-      ctx.fillRect(x + T * 0.14 + off, wy, T * 0.34, Math.max(1, T * 0.045));
-      ctx.fillRect(x + T * 0.54 - off, wy + T * 0.08, T * 0.3, Math.max(1, T * 0.04));
-    }
-    ctx.fillStyle = 'rgba(160,210,230,.12)';
-    ctx.fillRect(x, y + T * 0.5 + Math.sin(tx * 2) * T * 0.06, T, Math.max(1, T * 0.05));
-  } else if (ch === 'B') {
-    ctx.fillStyle = '#2c6285';
-    ctx.fillRect(x, y, T, T);
-    ctx.fillStyle = '#7d5f39';
-    ctx.fillRect(x + T * 0.08, y, T * 0.84, T);
-    ctx.fillStyle = '#5a4226';
-    for (let i = 0; i < 5; i++) ctx.fillRect(x + T * 0.08, y + T * (0.1 + i * 0.2), T * 0.84, Math.max(1, T * 0.03));
-    ctx.fillStyle = '#4a3320';
-    ctx.fillRect(x + T * 0.06, y, Math.max(1, T * 0.06), T);
-    ctx.fillRect(x + T * 0.88, y, Math.max(1, T * 0.06), T);
-  } else if (ch === 'C') {
-    ctx.fillStyle = '#574e42';
-    for (let i = 0; i < 4; i++) ctx.fillRect(x, y + T * (0.14 + i * 0.24), T, Math.max(1, T * 0.05));
-    ctx.fillStyle = 'rgba(0,0,0,.28)';
-    ctx.fillRect(x, y, T, T * 0.12);
-  }
-
-  ctx.strokeStyle = 'rgba(0,0,0,.16)';
+/* 지형 아트 위에 얹는 얇은 격자 — 타일 경계를 알려주되 그림을 해치지 않게 */
+function drawGridOverlay(ctx, T) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(14,9,3,.22)';
   ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, T - 1, T - 1);
+  for (let x = 1; x < MAP_W; x++) {
+    ctx.beginPath(); ctx.moveTo(Math.round(x * T) + 0.5, 0); ctx.lineTo(Math.round(x * T) + 0.5, MAP_H * T); ctx.stroke();
+  }
+  for (let y = 1; y < MAP_H; y++) {
+    ctx.beginPath(); ctx.moveTo(0, Math.round(y * T) + 0.5); ctx.lineTo(MAP_W * T, Math.round(y * T) + 0.5); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255,232,180,.09)';
+  ctx.strokeRect(0.5, 0.5, MAP_W * T - 1, MAP_H * T - 1);
+  ctx.restore();
 }
 
 function buildTerrain() {
@@ -1555,7 +1595,21 @@ function buildTerrain() {
   c.height = Math.round(view.h * view.dpr);
   const ctx = c.getContext('2d');
   ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
-  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) drawTile(ctx, x, y, battle.map[y][x], view.tile);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const im = IMG.map[battle.bdef.bg];
+  if (im) {
+    ctx.drawImage(im, 0, 0, view.w, view.h);
+  } else {
+    const base = { P: '#50693c', R: '#9b8055', F: '#3a5430', M: '#6b6252', W: '#224e6d', S: '#3d7d92', B: '#2f5471', G: '#6d6455', C: '#453d33' };
+    for (let y = 0; y < MAP_H; y++) {
+      for (let x = 0; x < MAP_W; x++) {
+        ctx.fillStyle = base[battle.map[y][x]] || '#50693c';
+        ctx.fillRect(x * view.tile, y * view.tile, view.tile, view.tile);
+      }
+    }
+  }
+  drawGridOverlay(ctx, view.tile);
   terrainCanvas = c;
 }
 
@@ -1572,143 +1626,45 @@ function strokeTile(x, y, stroke, lw = 1.4) {
   fctx.strokeRect(r.x + 1.5, r.y + 1.5, r.s - 3, r.s - 3);
 }
 
-function drawSprite(ctx, t, u) {
-  const s = t / 16;
-  const P = PAL[u.side] || PAL.ally;
-  const cls = u.clsKey;
-  const mounted = cls === 'gibi' || cls === 'gunggi';
-  const skin = '#e9c39a', skinD = '#c99a70', ink = '#241708';
-  const R = (x, y, w, h, c) => {
-    ctx.fillStyle = c;
-    ctx.fillRect(Math.round(x * s), Math.round(y * s), Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)));
-  };
-  ctx.fillStyle = 'rgba(0,0,0,.32)';
+function drawUnitSprite(ctx, T, u) {
+  const img = spriteImg(u.clsKey, u.side);
+  const cx = T / 2, baseY = T * 0.97;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,.36)';
   ctx.beginPath();
-  ctx.ellipse(8 * s, 15.3 * s, 5.2 * s, 1.9 * s, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, baseY - T * 0.02, T * 0.30, T * 0.115, 0, 0, Math.PI * 2);
   ctx.fill();
-
-  if (mounted) {
-    R(1, 8.2, 2, 3.4, P.horseD);
-    R(2.4, 7.6, 9, 4, P.horse);
-    R(2.4, 7.6, 9, 0.8, P.horseD);
-    R(11, 5.2, 2.6, 3.6, P.horse);
-    R(12.6, 4.0, 3.0, 2.6, P.horse);
-    R(14.8, 3.4, 1, 1.4, P.horseD);
-    R(13.4, 4.9, 1, 1, ink);
-    R(11.4, 4.4, 1, 2.2, P.horseD);
-    R(3, 11.4, 1.6, 3.2, P.horseD);
-    R(6.4, 11.4, 1.6, 3.2, P.horseD);
-    R(9.6, 11.4, 1.6, 3.2, P.horseD);
-    R(4.4, 7.3, 5, 1.5, P.dark);
-  }
-  const oy = mounted ? -1.2 : 0;
-
-  if (!mounted) {
-    R(6, 11.4, 2, 3.2, P.dark);
-    R(9, 11.4, 2, 3.2, P.dark);
-    R(5.2, 14.4, 3, 1.1, ink);
-    R(8.8, 14.4, 3, 1.1, ink);
-  }
-  // 몸통
-  R(5, 6.6 + oy, 6, 5.2, P.main);
-  R(6, 7.2 + oy, 4, 1, P.light);
-  R(5, 10.8 + oy, 6, 1.1, P.dark);
-  R(4, 6.6 + oy, 1.6, 2.6, P.dark);
-  R(10.4, 6.6 + oy, 1.6, 2.6, P.dark);
-  R(4, 6.6 + oy, 1.6, 0.7, P.trim);
-  R(10.4, 6.6 + oy, 1.6, 0.7, P.trim);
-  // 머리
-  R(6, 2.6 + oy, 4, 4, skin);
-  R(6, 5.4 + oy, 4, 0.8, skinD);
-  R(7, 4.3 + oy, 1, 1, ink);
-  R(8.9, 4.3 + oy, 1, 1, ink);
-  // 투구
-  R(5.2, 1.4 + oy, 5.6, 1.6, P.main);
-  R(7.2, 0.4 + oy, 1.6, 1.2, P.trim);
-  R(5.2, 2.6 + oy, 1.2, 0.9, P.dark);
-  R(9.6, 2.6 + oy, 1.2, 0.9, P.dark);
-
-  // 망토
-  if (cls === 'gunwoong') R(3.8, 7.2 + oy, 1.4, 4.2, P.light);
-  if (cls === 'chaeksa') R(3.9, 7.0 + oy, 1.2, 4.4, '#e6dbc0');
-  if (cls === 'pungsusa') R(3.9, 7.0 + oy, 1.2, 4.4, '#8fd6c8');
-
-  if (cls === 'gunwoong' || cls === 'bobyung') {
-    R(12.2, 2.8 + oy, 0.9, 6.4, '#d6dde6');
-    R(11.4, 9.0 + oy, 2.6, 0.9, P.trim);
-    R(12.2, 9.9 + oy, 0.9, 1.6, '#6b4a2a');
-  } else if (cls === 'gibi') {
-    R(13.4, 0.4, 0.9, 14.4, '#8a6238');
-    ctx.fillStyle = '#d6dde6';
+  if (img) {
+    const boost = SPRITE_SCALE[u.clsKey] || 1;
+    const maxH = T * 1.52 * boost, maxW = T * 1.55 * boost;
+    const sc = Math.min(maxH / img.naturalHeight, maxW / img.naturalWidth);
+    const dw = img.naturalWidth * sc, dh = img.naturalHeight * sc;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, cx - dw / 2, baseY - dh, dw, dh);
+  } else {
+    // 폴백: 단순 실루엣
+    const P = u.side === 'ally' ? { m: '#3f74b8', d: '#284a76' } : { m: '#a8452f', d: '#6f2a1c' };
+    ctx.fillStyle = P.d;
+    ctx.fillRect(cx - T * 0.18, baseY - T * 0.62, T * 0.36, T * 0.6);
+    ctx.fillStyle = P.m;
+    ctx.fillRect(cx - T * 0.22, baseY - T * 0.5, T * 0.44, T * 0.3);
     ctx.beginPath();
-    ctx.moveTo(13.85 * s, 0 * s);
-    ctx.lineTo(14.7 * s, 2.3 * s);
-    ctx.lineTo(13.0 * s, 2.3 * s);
-    ctx.closePath(); ctx.fill();
-  } else if (cls === 'gunggi' || cls === 'gungbyung') {
-    const bx = 12.4, by = 6.4, br = 3.1, a1 = -0.36 * Math.PI, a2 = 0.36 * Math.PI;
-    ctx.strokeStyle = '#c9a44a';
-    ctx.lineWidth = Math.max(1, 0.85 * s);
-    ctx.beginPath();
-    ctx.arc(bx * s, by * s, br * s, a1, a2);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(240,232,200,.85)';
-    ctx.lineWidth = Math.max(1, 0.3 * s);
-    ctx.beginPath();
-    ctx.moveTo((bx + br * Math.cos(a1)) * s, (by + br * Math.sin(a1)) * s);
-    ctx.lineTo((bx + br * Math.cos(a2)) * s, (by + br * Math.sin(a2)) * s);
-    ctx.stroke();
-  } else if (cls === 'sanjeok') {
-    R(12.6, 1.6, 0.9, 12, '#6b4a2a');
-    R(12.9, 2.2, 2.6, 2.4, '#b8c0c8');
-    R(12.9, 2.2, 2.6, 0.6, '#e6eef5');
-  } else if (cls === 'sujeok') {
-    R(13.4, 1.4, 0.9, 12, '#6b4a2a');
-    R(12.2, 0.8, 0.8, 2.6, '#c8d0d8');
-    R(13.4, 0.2, 0.9, 3.4, '#c8d0d8');
-    R(14.6, 0.8, 0.8, 2.6, '#c8d0d8');
-  } else if (cls === 'pungsusa') {
-    R(13.2, 2.0 + oy, 0.9, 11, '#5b3a1e');
-    ctx.fillStyle = '#8fe0ff';
-    ctx.beginPath();
-    ctx.arc(13.65 * s, (1.5 + oy) * s, 1.5 * s, 0, Math.PI * 2);
+    ctx.arc(cx, baseY - T * 0.72, T * 0.14, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(143,224,255,.35)';
-    ctx.beginPath();
-    ctx.arc(13.65 * s, (1.5 + oy) * s, 2.4 * s, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (cls === 'chaeksa') {
-    ctx.fillStyle = '#efe6cf';
-    ctx.beginPath();
-    ctx.moveTo(13 * s, 3.2 * s);
-    ctx.lineTo(15.4 * s, 7.4 * s);
-    ctx.lineTo(10.6 * s, 7.4 * s);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#b9ab8c';
-    ctx.fillRect(12.4 * s, 7.0 * s, 1.2 * s, 2.2 * s);
   }
+  ctx.restore();
 }
 
-function makePortrait(clsKey, side) {
-  const c = document.createElement('canvas');
-  c.width = 100; c.height = 120;
-  c.className = 'portrait';
-  const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(50, 50, 6, 50, 56, 72);
-  g.addColorStop(0, side === 'ally' ? '#2b3f5e' : '#4a2419');
-  g.addColorStop(1, '#0b0704');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 100, 120);
-  ctx.fillStyle = 'rgba(0,0,0,.35)';
-  ctx.beginPath(); ctx.ellipse(50, 104, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(201,164,74,.5)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(1, 1, 98, 118);
-  ctx.save();
-  ctx.translate(2, 6);
-  drawSprite(ctx, 96, { clsKey, side });
-  ctx.restore();
-  return c;
+function makePortrait(key, side) {
+  const el = document.createElement('img');
+  el.className = 'portrait';
+  el.alt = '';
+  el.draggable = false;
+  const src = PORTRAIT_SRC[key];
+  if (src) el.src = src;
+  else el.style.background = 'radial-gradient(60% 60% at 50% 40%,#2c1f13,#0d0803)';
+  return el;
 }
 
 function drawUnit(u) {
@@ -1728,48 +1684,61 @@ function drawUnit(u) {
   fctx.save();
   fctx.translate(px + T / 2, py + T / 2);
   if (u.side === 'enemy') fctx.scale(-1, 1);
-  fctx.globalAlpha = u.acted ? 0.55 : 1;
+  fctx.globalAlpha = u.acted ? 0.58 : 1;
+  if (u.side === 'enemy' && battle.phase === 'player' && !u.acted) {
+    // 적이 살아 움직이는 느낌: 아주 미세한 숨쉬기
+    fctx.translate(0, Math.sin(performance.now() / 700 + u.x) * T * 0.006);
+  }
   fctx.translate(-T / 2, -T / 2);
-  drawSprite(fctx, T, u);
+  drawUnitSprite(fctx, T, u);
   fctx.restore();
 
   if (u.acted && !u.dead) {
-    fctx.fillStyle = 'rgba(10,7,4,.22)';
+    fctx.fillStyle = 'rgba(10,7,4,.20)';
     fctx.fillRect(px + 1, py + 1, T - 2, T - 2);
   }
-  // 선택 표시
+  // 선택 표시 — 금빛 모서리
   if (sel) {
-    const pulse = 0.55 + Math.sin(performance.now() / 220) * 0.35;
+    const pulse = 0.6 + Math.sin(performance.now() / 220) * 0.3;
     fctx.strokeStyle = `rgba(255,224,140,${pulse})`;
-    fctx.lineWidth = 2;
-    fctx.strokeRect(px + 1.5, py + 1.5, T - 3, T - 3);
+    fctx.lineWidth = Math.max(1.5, T * 0.05);
+    const g = T * 0.26, o = 1;
+    fctx.beginPath();
+    fctx.moveTo(px + o, py + o + g); fctx.lineTo(px + o, py + o); fctx.lineTo(px + o + g, py + o);
+    fctx.moveTo(px + T - o - g, py + o); fctx.lineTo(px + T - o, py + o); fctx.lineTo(px + T - o, py + o + g);
+    fctx.moveTo(px + T - o, py + T - o - g); fctx.lineTo(px + T - o, py + T - o); fctx.lineTo(px + T - o - g, py + T - o);
+    fctx.moveTo(px + o + g, py + T - o); fctx.lineTo(px + o, py + T - o); fctx.lineTo(px + o, py + T - o - g);
+    fctx.stroke();
   }
   // HP 바
-  const bw = T * 0.72, bh = Math.max(3, T * 0.075);
-  const bx = px + (T - bw) / 2, by = py + T * 0.03;
-  fctx.fillStyle = 'rgba(8,5,2,.8)';
+  const bw = T * 0.74, bh = Math.max(3, T * 0.075);
+  const bx = px + (T - bw) / 2, by = py + T * 0.015;
+  fctx.fillStyle = 'rgba(8,5,2,.82)';
   fctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
   const ratio = clamp(u.hp / u.maxHp, 0, 1);
-  fctx.fillStyle = u.side === 'ally' ? (ratio > 0.5 ? '#6fbf5b' : ratio > 0.25 ? '#d9b64a' : '#c0503a') : '#c0503a';
+  fctx.fillStyle = u.side === 'ally' ? (ratio > 0.5 ? '#77cf62' : ratio > 0.25 ? '#ddba4c' : '#cf5539') : '#c8503a';
   fctx.fillRect(bx, by, bw * ratio, bh);
-  fctx.strokeStyle = 'rgba(255,235,190,.35)';
+  fctx.strokeStyle = 'rgba(255,235,190,.4)';
   fctx.lineWidth = 1;
   fctx.strokeRect(bx - 0.5, by - 0.5, bw + 1, bh + 1);
 
+  // 지휘관 표식 — 금빛 깃발
   if (u.boss) {
-    fctx.fillStyle = '#ffd76a';
+    const sx = px + T * 0.12, sy = py + T * 0.10;
+    fctx.strokeStyle = '#3a2410';
+    fctx.lineWidth = Math.max(1, T * 0.035);
+    fctx.beginPath(); fctx.moveTo(sx, sy); fctx.lineTo(sx, sy + T * 0.26); fctx.stroke();
+    fctx.fillStyle = u.side === 'ally' ? '#6fa8e8' : '#e8a03a';
     fctx.beginPath();
-    const sx = px + T / 2, sy = py - T * 0.06;
-    fctx.moveTo(sx, sy - T * 0.09);
-    fctx.lineTo(sx + T * 0.09, sy);
-    fctx.lineTo(sx, sy + T * 0.09);
-    fctx.lineTo(sx - T * 0.09, sy);
+    fctx.moveTo(sx, sy);
+    fctx.lineTo(sx + T * 0.2, sy + T * 0.05);
+    fctx.lineTo(sx, sy + T * 0.11);
     fctx.closePath(); fctx.fill();
   }
   if (u.side === 'ally' && !u.acted && battle.phase === 'player' && !battle.over) {
     const blink = 0.35 + Math.sin(performance.now() / 380) * 0.3;
     fctx.fillStyle = `rgba(140,210,255,${blink})`;
-    fctx.fillRect(px + T * 0.44, py + T * 0.92, T * 0.12, T * 0.05);
+    fctx.fillRect(px + T * 0.42, py + T * 0.95, T * 0.16, T * 0.045);
   }
 }
 
@@ -1781,46 +1750,181 @@ function drawFx() {
     if (p >= 1) continue;
     const cx = f.x * T + T / 2, cy = f.y * T + T / 2;
     if (f.kind === 'text') {
-      fctx.globalAlpha = 1 - p * p;
-      fctx.font = `700 ${Math.round(T * (f.big ? 0.5 : 0.4))}px "Noto Sans KR", sans-serif`;
+      const rise = p * T * 0.85;
+      const pop = 1 + (1 - Math.min(1, p * 6)) * 0.35;
+      fctx.globalAlpha = Math.min(1, (1 - p) * 1.5);
+      fctx.save();
+      fctx.translate(cx, cy - T * 0.22 - rise);
+      fctx.scale(pop, pop);
+      fctx.font = `900 ${Math.round(T * (f.big ? 0.66 : 0.54))}px "Noto Sans KR", system-ui, sans-serif`;
       fctx.textAlign = 'center';
-      fctx.lineWidth = 3;
-      fctx.strokeStyle = 'rgba(0,0,0,.85)';
-      fctx.strokeText(f.text, cx, cy - T * 0.15 - p * T * 0.7);
+      fctx.textBaseline = 'middle';
+      fctx.lineWidth = Math.max(3, T * 0.13);
+      fctx.strokeStyle = 'rgba(10,5,2,.95)';
+      fctx.strokeText(f.text, 0, 0);
       fctx.fillStyle = f.color;
-      fctx.fillText(f.text, cx, cy - T * 0.15 - p * T * 0.7);
+      fctx.fillText(f.text, 0, 0);
+      fctx.restore();
       fctx.globalAlpha = 1;
     } else if (f.kind === 'slash') {
-      fctx.globalAlpha = 1 - p;
-      fctx.strokeStyle = '#fff2c0';
-      fctx.lineWidth = Math.max(2, T * 0.11);
-      fctx.beginPath();
-      fctx.moveTo(cx - T * 0.34, cy - T * 0.34);
-      fctx.lineTo(cx + T * 0.34, cy + T * 0.34);
-      fctx.moveTo(cx + T * 0.28, cy - T * 0.38);
-      fctx.lineTo(cx - T * 0.2, cy + T * 0.1);
-      fctx.stroke();
+      // 참격 — 굵은 궤적이 베고 지나간다
+      for (let i = 0; i < 3; i++) {
+        const q = clamp(p * 2.4 - i * 0.18, 0, 1);
+        if (q <= 0) continue;
+        fctx.globalAlpha = (1 - p * 0.9) * (1 - i * 0.25);
+        fctx.strokeStyle = i === 0 ? '#ffffff' : (i === 1 ? '#ffdf9a' : '#ff9a6a');
+        fctx.lineWidth = Math.max(2, T * (0.15 - i * 0.04));
+        fctx.lineCap = 'round';
+        fctx.beginPath();
+        const a1 = -Math.PI * 0.72, a2 = Math.PI * 0.44;
+        const rr = T * 0.62;
+        fctx.arc(cx, cy, rr, a1, a1 + (a2 - a1) * q);
+        fctx.stroke();
+      }
+      fctx.lineCap = 'butt';
       fctx.globalAlpha = 1;
+      if (p < 0.16) {
+        fctx.fillStyle = `rgba(255,250,235,${(0.16 - p) * 4})`;
+        fctx.beginPath(); fctx.arc(cx, cy, T * 0.42, 0, Math.PI * 2); fctx.fill();
+      }
+    } else if (f.kind === 'spark') {
+      fctx.globalAlpha = 1 - p * 0.9;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + h2(f.x, f.y, i) * 1.4;
+        const d = T * (0.14 + p * (0.55 + h2(i, f.y, 3) * 0.5));
+        fctx.strokeStyle = i % 3 ? '#ffe9a8' : '#fffbe8';
+        fctx.lineWidth = Math.max(1.2, T * 0.055 * (1 - p));
+        fctx.lineCap = 'round';
+        fctx.beginPath();
+        fctx.moveTo(cx + Math.cos(a) * d * 0.55, cy + Math.sin(a) * d * 0.55);
+        fctx.lineTo(cx + Math.cos(a) * d, cy + Math.sin(a) * d);
+        fctx.stroke();
+      }
+      fctx.lineCap = 'butt';
+      fctx.globalAlpha = 1;
+    } else if (f.kind === 'arrow') {
+      const sx = f.sx * T + T / 2, sy = f.sy * T + T * 0.45;
+      const ex = cx, ey = cy;
+      const arc = T * 0.62;
+      const pos = (q) => [sx + (ex - sx) * q, sy + (ey - sy) * q - Math.sin(q * Math.PI) * arc];
+      // 궤적 잔상
+      fctx.globalAlpha = 0.55;
+      fctx.strokeStyle = 'rgba(255,248,220,.7)';
+      fctx.lineWidth = Math.max(1.2, T * 0.045);
+      fctx.lineCap = 'round';
+      fctx.beginPath();
+      for (let q = 0; q <= 1.001; q += 0.08) {
+        const qq = clamp(p - 0.22 * (1 - q), 0, 1);
+        const [px, py] = pos(qq);
+        if (q === 0) fctx.moveTo(px, py); else fctx.lineTo(px, py);
+      }
+      fctx.stroke();
+      fctx.lineCap = 'butt';
+      // 화살
+      const [x, y] = pos(p);
+      const [x2, y2] = pos(Math.min(1, p + 0.06));
+      const ang = Math.atan2(y2 - y, x2 - x);
+      fctx.globalAlpha = 1;
+      fctx.save();
+      fctx.translate(x, y);
+      fctx.rotate(ang);
+      fctx.fillStyle = 'rgba(255,240,190,.35)';
+      fctx.fillRect(-T * 0.42, -T * 0.035, T * 0.5, T * 0.07);
+      fctx.fillStyle = '#2a1c0e';
+      fctx.fillRect(-T * 0.30, -T * 0.022, T * 0.46, T * 0.044);
+      fctx.fillStyle = '#f8f0d2';
+      fctx.beginPath();
+      fctx.moveTo(T * 0.22, 0);
+      fctx.lineTo(T * 0.06, -T * 0.085);
+      fctx.lineTo(T * 0.06, T * 0.085);
+      fctx.closePath();
+      fctx.fill();
+      fctx.fillStyle = '#e8d7a8';
+      fctx.beginPath();
+      fctx.moveTo(-T * 0.30, 0);
+      fctx.lineTo(-T * 0.16, -T * 0.07);
+      fctx.lineTo(-T * 0.24, 0);
+      fctx.lineTo(-T * 0.16, T * 0.07);
+      fctx.closePath();
+      fctx.fill();
+      fctx.restore();
     } else if (f.kind === 'ring') {
       fctx.globalAlpha = (1 - p) * 0.9;
       fctx.strokeStyle = f.color;
       fctx.lineWidth = Math.max(1.5, T * 0.08 * (1 - p));
       fctx.beginPath();
-      fctx.arc(cx, cy, T * (0.15 + p * (f.big ? 0.75 : 0.5)), 0, Math.PI * 2);
+      fctx.arc(cx, cy, T * (0.15 + p * (f.big ? 0.85 : 0.55)), 0, Math.PI * 2);
       fctx.stroke();
       fctx.globalAlpha = 1;
+    } else if (f.kind === 'heal') {
+      // 회복 — 번지는 초록빛과 솟아오르는 빛 입자
+      fctx.globalAlpha = 1;
+      const R = T * (0.42 + p * 0.75);
+      const grd = fctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      grd.addColorStop(0, `rgba(225,255,230,${0.85 * (1 - p)})`);
+      grd.addColorStop(0.4, `rgba(150,245,175,${0.45 * (1 - p)})`);
+      grd.addColorStop(1, 'rgba(120,225,140,0)');
+      fctx.fillStyle = grd;
+      fctx.beginPath(); fctx.arc(cx, cy, R, 0, Math.PI * 2); fctx.fill();
+      fctx.strokeStyle = `rgba(200,255,210,${0.8 * (1 - p)})`;
+      fctx.lineWidth = Math.max(1.5, T * 0.06 * (1 - p));
+      fctx.beginPath(); fctx.arc(cx, cy + T * 0.12, T * (0.2 + p * 0.55), 0, Math.PI * 2); fctx.stroke();
+      for (let i = 0; i < 14; i++) {
+        const ox = (h2(i, f.x, 1) - 0.5) * T * 1.0;
+        const oy = (h2(i, f.y, 2) - 0.5) * T * 0.55 - p * T * 1.15;
+        const r = Math.max(2, T * 0.085 * (1 - p * 0.5));
+        fctx.fillStyle = i % 3 === 0 ? 'rgba(255,255,235,1)' : 'rgba(185,252,196,.95)';
+        fctx.beginPath(); fctx.arc(cx + ox, cy + oy, r / 2, 0, Math.PI * 2); fctx.fill();
+      }
+      fctx.globalAlpha = 1;
+    } else if (f.kind === 'buff') {
+      fctx.globalAlpha = 1 - p * 0.75;
+      for (let i = 0; i < 3; i++) {
+        const oy = -p * T * 1.0 + i * T * 0.18;
+        const oA = T * 0.24 * (1 - Math.abs(i - 1) * 0.25);
+        fctx.strokeStyle = i === 1 ? 'rgba(255,244,200,1)' : 'rgba(255,200,105,.85)';
+        fctx.lineWidth = Math.max(2, T * 0.065);
+        fctx.beginPath();
+        fctx.moveTo(cx - oA, cy + oy + T * 0.09);
+        fctx.lineTo(cx, cy + oy - T * 0.05);
+        fctx.lineTo(cx + oA, cy + oy + T * 0.09);
+        fctx.stroke();
+      }
+      fctx.globalAlpha = 1;
     } else if (f.kind === 'flame') {
-      fctx.globalAlpha = (1 - p) * 0.95;
-      for (let i = 0; i < 5; i++) {
-        const fx = cx + (h2(i, f.t, 3) - 0.5) * T * 0.6;
-        const fy = cy - p * T * (0.3 + h2(i, f.t, 7) * 0.7);
-        const rr = T * 0.14 * (1 - p);
+      fctx.globalAlpha = (1 - p) * 0.98;
+      // 바닥 불길
+      const base = fctx.createRadialGradient(cx, cy + T * 0.18, 0, cx, cy + T * 0.18, T * 0.42);
+      base.addColorStop(0, `rgba(255,220,140,${0.8 * (1 - p)})`);
+      base.addColorStop(1, 'rgba(220,70,20,0)');
+      fctx.fillStyle = base;
+      fctx.beginPath(); fctx.arc(cx, cy + T * 0.18, T * 0.42, 0, Math.PI * 2); fctx.fill();
+      for (let i = 0; i < 9; i++) {
+        const fx = cx + (h2(i, f.t, 3) - 0.5) * T * 0.72;
+        const fy = cy + T * 0.24 - p * T * (0.45 + h2(i, f.t, 7) * 1.0);
+        const rr = T * 0.26 * (1 - p * 0.85) * (0.7 + h2(i, f.t, 11) * 0.6);
         const grd = fctx.createRadialGradient(fx, fy, 0, fx, fy, Math.max(1, rr));
-        grd.addColorStop(0, 'rgba(255,235,150,.95)');
-        grd.addColorStop(0.5, 'rgba(255,140,60,.8)');
-        grd.addColorStop(1, 'rgba(200,60,30,0)');
+        grd.addColorStop(0, 'rgba(255,250,210,.98)');
+        grd.addColorStop(0.35, 'rgba(255,175,60,.9)');
+        grd.addColorStop(0.75, 'rgba(220,70,25,.5)');
+        grd.addColorStop(1, 'rgba(150,30,10,0)');
         fctx.fillStyle = grd;
         fctx.beginPath(); fctx.arc(fx, fy, Math.max(1, rr), 0, Math.PI * 2); fctx.fill();
+      }
+      if (p < 0.35) {
+        fctx.fillStyle = `rgba(255,225,150,${(0.35 - p) * 1.6})`;
+        fctx.beginPath(); fctx.arc(cx, cy, T * 0.6, 0, Math.PI * 2); fctx.fill();
+      }
+      fctx.globalAlpha = 1;
+    } else if (f.kind === 'debuff') {
+      fctx.globalAlpha = (1 - p) * 0.9;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 - p * 2.4;
+        const rr = T * (0.3 + p * 0.36);
+        fctx.fillStyle = i % 2 ? 'rgba(200,160,255,.9)' : 'rgba(150,110,220,.85)';
+        fctx.beginPath();
+        fctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, Math.max(1.5, T * 0.065 * (1 - p)), 0, Math.PI * 2);
+        fctx.fill();
       }
       fctx.globalAlpha = 1;
     }
@@ -1831,7 +1935,14 @@ function drawFx() {
 function drawField() {
   if (!battle || !terrainCanvas) return;
   const T = view.tile;
+  fctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
   fctx.clearRect(0, 0, view.w, view.h);
+  fctx.save();
+  if (battle.shake && battle.shake.t > 0) {
+    battle.shake.t -= 1;
+    const k = battle.shake.power * (battle.shake.t / battle.shake.life);
+    fctx.translate(rnd(-k, k), rnd(-k, k));
+  }
   fctx.drawImage(terrainCanvas, 0, 0, view.w, view.h);
 
   const sel = selectedUnit();
@@ -1842,8 +1953,8 @@ function drawField() {
       battle.reach.forEach((n) => {
         if (n.x === sel.x && n.y === sel.y) return;
         if (!canStopAt(n.x, n.y, sel)) return;
-        fillTile(n.x, n.y, 'rgba(86,150,230,.30)');
-        strokeTile(n.x, n.y, 'rgba(150,205,255,.55)');
+        fillTile(n.x, n.y, 'rgba(96,158,236,.28)');
+        strokeTile(n.x, n.y, 'rgba(170,215,255,.34)');
       });
     }
   }
@@ -1854,8 +1965,8 @@ function drawField() {
       if (x === sel.x && y === sel.y) continue;
       const enemy = battle.units.find((u) => !u.dead && u.side === 'enemy' && u.x === x && u.y === y);
       if (enemy && inRangeFrom(sel, sel.x, sel.y, enemy)) {
-        fillTile(x, y, 'rgba(220,80,60,.34)');
-        strokeTile(x, y, 'rgba(255,140,110,.8)', 2);
+        fillTile(x, y, 'rgba(226,86,60,.32)');
+        strokeTile(x, y, 'rgba(255,150,120,.9)', 2);
       }
     }
   }
@@ -1872,13 +1983,13 @@ function drawField() {
       if (sk.kind === 'magic' && u && u.side === 'enemy') valid = true;
       if (sk.kind === 'debuffArea') valid = true;
       if (!valid) continue;
-      const color = (sk.kind === 'heal' || sk.kind === 'buff') ? 'rgba(90,210,130,.32)' : 'rgba(220,90,70,.30)';
-      const line = (sk.kind === 'heal' || sk.kind === 'buff') ? 'rgba(160,255,190,.8)' : 'rgba(255,150,120,.8)';
+      const color = (sk.kind === 'heal' || sk.kind === 'buff') ? 'rgba(96,214,138,.30)' : 'rgba(226,96,72,.30)';
+      const line = (sk.kind === 'heal' || sk.kind === 'buff') ? 'rgba(170,255,196,.85)' : 'rgba(255,158,128,.85)';
       fillTile(x, y, color);
       strokeTile(x, y, line, 2);
       if (sk.kind === 'debuffArea') {
         for (let yy = 0; yy < MAP_H; yy++) for (let xx = 0; xx < MAP_W; xx++) {
-          if (cheb(x, y, xx, yy) <= sk.radius && cheb(x, y, xx, yy) > 0) fillTile(xx, yy, 'rgba(170,120,240,.12)');
+          if (cheb(x, y, xx, yy) <= sk.radius && cheb(x, y, xx, yy) > 0) fillTile(xx, yy, 'rgba(176,128,246,.13)');
         }
       }
     }
@@ -1887,6 +1998,7 @@ function drawField() {
   const units = battle.units.filter((u) => !u.dead).sort((a, b) => (a.py != null ? a.py : a.y) - (b.py != null ? b.py : b.y));
   units.forEach(drawUnit);
   drawFx();
+  fctx.restore();
 }
 
 /* ────────────────────────── 8. 전장 UI ────────────────────────── */
@@ -1901,8 +2013,7 @@ function banner(text, enemy = false) {
 }
 
 function renderBattleUI() {
-  if (!battle) return;
-  $('#battle-turn').textContent = `${Math.min(battle.turn, TURN_LIMIT)}턴 / ${TURN_LIMIT}`;
+  if (!battle) return;  $('#battle-turn').textContent = `${Math.min(battle.turn, TURN_LIMIT)}턴 / ${TURN_LIMIT}`;
   const ph = $('#battle-phase');
   const enemyN = aliveUnits('enemy').length;
   const narrow = window.innerWidth < 430;
@@ -1921,6 +2032,29 @@ function renderBattleUI() {
   renderLog();
   renderUnitCard();
   renderActions();
+  renderFoePanel();
+}
+
+function renderFoePanel() {
+  const el = $('#foe-panel');
+  if (!el) return;
+  const foes = battle.units.filter((u) => u.side === 'enemy');
+  const left = foes.filter((u) => !u.dead).length;
+  el.innerHTML = `<div class="fp-head"><span class="fp-tag">敵</span><span>적 장수</span><b>${left} / ${foes.length}</b></div>
+    <div class="fp-list">${foes.map((u) => `
+      <div class="foe-row ${u.dead ? 'dead' : ''} ${u.boss ? 'boss' : ''}" data-foe="${u.id}">
+        <img class="fp-p" src="${PORTRAIT_SRC[u.pt] || ''}" alt="" />
+        <span class="fn">${u.name}</span>
+        <span class="fc">${u.cls.name}</span>
+        <span class="flv">Lv.${u.lv}</span>
+        <span class="fp-hp"><i style="width:${Math.round(100 * Math.max(0, u.hp) / u.maxHp)}%"></i></span>
+      </div>`).join('')}</div>`;
+  el.querySelectorAll('[data-foe]').forEach((row) => {
+    row.addEventListener('click', () => {
+      const unit = battle.units.find((q) => q.id === row.getAttribute('data-foe'));
+      if (unit) { battle.infoId = unit.id; battle.selId = null; battle.reach = new Map(); renderBattleUI(); }
+    });
+  });
 }
 
 function renderLog() {
@@ -1952,12 +2086,15 @@ function renderUnitCard() {
   if (!u) {
     const remaining = battle.units.filter((q) => q.side === 'ally' && !q.dead && !q.acted).length;
     el.innerHTML = `<div class="u-body">
-      <div class="u-top"><span class="u-name">${battle.bdef.title}</span></div>
-      <div class="u-empty">지도 위의 <b>아군 유닛</b>을 눌러 이동하고,<br/>붉게 표시된 <b>적</b>을 눌러 공격하세요.<br/>
-      <span style="color:#8f7f62">아직 행동 가능한 부대 ${remaining}개 · ${battle.phase === 'player' ? '아군 차례' : '적 차례'}</span></div>
+      <div class="u-top"><span class="u-name">${battle.bdef.title}</span>
+        <span class="u-hanja">${battle.bdef.subtitle}</span>
+        <span class="u-lv">${battle.phase === 'player' ? '아군 차례' : '적 차례'}</span></div>
+      <div class="u-hint-line">지도에서 <b>아군</b>을 눌러 이동하고, <b>붉게 빛나는 적</b>을 눌러 공격합니다. · 남은 부대 <b>${remaining}</b></div>
       <div class="allies">${battle.units.filter((q) => q.side === 'ally').map((q) => `
         <span class="ally-chip ${q.acted || q.dead ? 'done' : ''}" data-sel="${q.id}">
-          ${q.dead ? '✕ ' : ''}${q.name}<span class="hp"><i style="width:${Math.round(100 * q.hp / q.maxHp)}%"></i></span>
+          <img class="chip-p" src="${PORTRAIT_SRC[q.pt] || ''}" alt="" />
+          <span class="cn">${q.dead ? '✕ ' : ''}${q.name}</span>
+          <span class="hp"><i style="width:${Math.round(100 * q.hp / q.maxHp)}%"></i></span>
         </span>`).join('')}</div>
     </div>`;
     el.querySelectorAll('[data-sel]').forEach((chip) => {
@@ -1972,21 +2109,28 @@ function renderUnitCard() {
   const t = terrainAt(u.x, u.y);
   const atkMod = atkTerrainMod(u, u.x, u.y);
   const buffs = u.buffs.map((b) => `${b.stat === 'atk' ? '공격' : '방어'}${b.value > 0 ? '+' : ''}${Math.round(b.value * 100)}%(${b.turns})`).join(' · ');
+  const tdef = Math.round(t.def * 100);
   el.innerHTML = `<div class="p-slot"></div>
     <div class="u-body">
       <div class="u-top">
         <span class="u-name">${u.name}</span>
         <span class="u-hanja">${u.hanja}</span>
-        <span class="u-class">${u.cls.name}</span>
         <span class="u-lv">Lv.${u.lv}${u.boss ? ' · 장수' : ''}</span>
+      </div>
+      <div class="u-classline"><span class="u-class">${u.cls.name}</span><span class="u-hanja-sm">${u.cls.hanja}</span><span class="u-role">${u.cls.role}</span></div>
+      <div class="u-stats">
+        <span class="st"><i>무력</i><b>${u.wu}</b></span>
+        <span class="st"><i>지력</i><b>${u.ji}</b></span>
+        <span class="st"><i>통솔</i><b>${u.tong}</b></span>
+        <span class="st sep"><i>공</i><b>${Math.round(effAtk(u))}</b></span>
+        <span class="st"><i>방</i><b>${Math.round(effDef(u))}</b></span>
+        <span class="st"><i>이동</i><b>${u.mov}</b></span>
       </div>
       <div class="u-bar"><span class="lab">HP</span><div class="bar hp"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i></div><span class="u-val">${u.hp}/${u.maxHp}</span></div>
       <div class="u-bar"><span class="lab">MP</span><div class="bar mp"><i style="width:${Math.round(100 * u.mp / u.maxMp)}%"></i></div><span class="u-val">${u.mp}/${u.maxMp}</span></div>
-      <div class="u-meta"><span>공 <b>${Math.round(effAtk(u))}</b></span><span>방 <b>${Math.round(effDef(u))}</b></span>
-        <span>이동 <b>${u.mov}</b></span><span>사거리 <b>${effectiveRange(u)}</b></span></div>
-      <div class="u-terrain">${t.name} · 방어 ${t.def >= 0 ? '+' : ''}${Math.round(t.def * 100)}%${atkMod > 0 ? ` · 공격 +${Math.round(atkMod * 100)}%` : ''}${buffs ? ` · ${buffs}` : ''}</div>
+      <div class="u-terrain"><b>${t.name}</b> · 방어 ${tdef >= 0 ? '+' : ''}${tdef}%${atkMod > 0 ? ` · 공격 +${Math.round(atkMod * 100)}%` : ''}${buffs ? ` · ${buffs}` : ''}</div>
     </div>`;
-  el.querySelector('.p-slot').appendChild(makePortrait(u.clsKey, u.side));
+  el.querySelector('.p-slot').appendChild(makePortrait(u.pt));
 }
 
 function renderActions() {
@@ -2112,6 +2256,27 @@ function openModal(html, opts = {}) {
 }
 function closeAllModals() { $$('#modal-root .modal-layer').forEach((l) => l.remove()); }
 
+/* 조조전식 전장 개시 타이틀 카드 */
+async function showBattleCard(bdef) {
+  return new Promise((resolve) => {
+    const layer = document.createElement('div');
+    layer.className = 'battle-card';
+    layer.innerHTML = `
+      <div class="bc-inner">
+        <div class="bc-seal">戰</div>
+        <div class="bc-title">${bdef.title}</div>
+        <div class="bc-rule"><i></i></div>
+        <div class="bc-sub">${bdef.subtitle}</div>
+      </div>`;
+    $('#modal-root').appendChild(layer);
+    sfx('turn');
+    setTimeout(() => {
+      layer.classList.add('out');
+      setTimeout(() => { layer.remove(); resolve(); }, 420);
+    }, 1250);
+  });
+}
+
 function showDialogue(lines) {
   return new Promise((resolve) => {
     if (!lines || !lines.length) { resolve(); return; }
@@ -2119,18 +2284,21 @@ function showDialogue(lines) {
     let idx = 0, typing = false, timer = null;
     const layer = document.createElement('div');
     layer.className = 'dialogue-layer';
-    layer.innerHTML = `<div class="dialogue panel">
-      <div class="p-slot"></div>
-      <div class="d-body">
-        <div class="who"><span class="w-name"></span><span class="hanja"></span></div>
-        <div class="text"></div>
-        <div class="next">▼ 터치</div>
-      </div>
-    </div>`;
+    layer.innerHTML = `<div class="cine-bar top"></div>
+      <div class="cine-bar bottom"></div>
+      <div class="dialogue panel">
+        <div class="d-portrait"><div class="p-slot"></div></div>
+        <div class="d-body">
+          <div class="who"><span class="w-name"></span><span class="hanja"></span><span class="w-cls"></span></div>
+          <div class="text"></div>
+          <div class="next">▼ 터치</div>
+        </div>
+      </div>`;
     root.appendChild(layer);
     const slot = layer.querySelector('.p-slot');
     const nameEl = layer.querySelector('.w-name');
     const hanjaEl = layer.querySelector('.who .hanja');
+    const clsEl = layer.querySelector('.w-cls');
     const textEl = layer.querySelector('.text');
 
     const showLine = () => {
@@ -2138,8 +2306,10 @@ function showDialogue(lines) {
       if (!line) { finish(); return; }
       nameEl.textContent = line.who;
       hanjaEl.textContent = line.hanja || '';
+      clsEl.textContent = (line.side === 'enemy' ? '적' : '아군') + ' · ' + (CLASSES[line.cls] ? CLASSES[line.cls].name : '');
+      layer.classList.toggle('enemy', line.side === 'enemy');
       slot.innerHTML = '';
-      slot.appendChild(makePortrait(line.cls || 'bobyung', line.side || 'ally'));
+      slot.appendChild(makePortrait(line.pt || portraitKeyFor(line, line.side, line.cls)));
       textEl.textContent = '';
       typing = true;
       let i = 0;
@@ -2148,7 +2318,7 @@ function showDialogue(lines) {
         i += 1;
         textEl.textContent = line.text.slice(0, i);
         if (i >= line.text.length) { clearInterval(timer); typing = false; }
-      }, 24);
+      }, 26);
       sfx('talk');
     };
     const advance = () => {
@@ -2311,16 +2481,16 @@ function boot() {
   const saved = loadGame();
   if (saved) $('#btn-continue').classList.remove('hidden');
 
-  window.addEventListener('resize', () => { if (battle) resizeField(); });
-  window.addEventListener('orientationchange', () => { setTimeout(() => { if (battle) resizeField(); }, 250); });
+  window.addEventListener('resize', () => { fitMapFrame(); if (battle) resizeField(); });
+  window.addEventListener('orientationchange', () => { setTimeout(() => { fitMapFrame(); if (battle) resizeField(); }, 250); });
 
   let lastW = 0, lastH = 0;
   const ro = new ResizeObserver(() => {
     if (!battle) return;
-    const w = $('#field-wrap').clientWidth, h = $('#field-wrap').clientHeight;
+    const w = $('#field-stage').clientWidth, h = window.innerHeight;
     if (Math.abs(w - lastW) > 2 || Math.abs(h - lastH) > 2) { lastW = w; lastH = h; resizeField(); }
   });
-  ro.observe($('#field-wrap'));
+  ro.observe($('#field-stage'));
 
   function loop() {
     if (battle) {
@@ -2332,6 +2502,18 @@ function boot() {
   requestAnimationFrame(loop);
 
   $('#splash').classList.remove('hidden');
+
+  const startBtn = $('#btn-start');
+  startBtn.disabled = true;
+  $('#splash-foot').textContent = '전장을 그리는 중… 0%';
+  preloadAssets((d, t) => {
+    if (d < t) $('#splash-foot').textContent = `전장을 그리는 중… ${Math.round((d / t) * 100)}%`;
+  }).then(() => {
+    startBtn.disabled = false;
+    $('#splash-foot').textContent = '1단계 프로토타입 · 모바일 웹';
+    if (saved || loadGame()) $('#btn-continue').classList.remove('hidden');
+    if (IMG.failed.length) console.warn('에셋 로드 실패', IMG.failed);
+  });
 }
 
 /* 테스트·디버그용 (게임에는 영향 없음) */
@@ -2349,6 +2531,19 @@ window.__SK = {
     battle.units.filter((u) => u.side === side).forEach((u) => { u.hp = Math.max(1, u.hp - amount); });
   },
   tap(x, y) { if (battle) handleTileTap(x, y); },
+  warp(id, x, y) {
+    const u = battle && battle.units.find((q) => q.id === id);
+    if (u) { u.x = x; u.y = y; u.px = null; u.py = null; }
+    renderBattleUI();
+  },
+  fx(kind, x, y) { if (battle) addFx({ kind, x, y, life: 40 }); },
+  cast(id, skillId, targetId) {
+    if (!battle) return null;
+    const u = battle.units.find((q) => q.id === id);
+    const sk = SKILLS[skillId];
+    const t = targetId ? battle.units.find((q) => q.id === targetId) : null;
+    return castSkill(u, sk, t, t ? undefined : { x: u.x, y: u.y });
+  },
   selectFirst() { const u = battle && battle.units.find((q) => q.side === 'ally' && !q.dead && !q.acted); if (u) selectUnit(u); return u ? u.name : null; },
 };
 

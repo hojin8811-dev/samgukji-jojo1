@@ -1,2 +1,13 @@
 node_modules/
 .DS_Store
+
+# 개발용 원본 이미지(64MB) — 웹 배포에는 assets/*/web/ 만 사용
+assets/_source/
+
+# 개발·검증 도구와 미리보기 캡처 — 배포 대상 아님
+tools/
+preview/
+*.pyc
+
+# 단일 파일 빌드 산출물(개발용 백업)
+samgukji-jojo-standalone.html
