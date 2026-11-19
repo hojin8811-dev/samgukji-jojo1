@@ -147,59 +147,65 @@ b { font-weight: 700; }
   will-change: transform; backface-visibility: hidden;
   box-shadow: 0 0 0 2px rgba(227, 189, 99, 0.35), 0 18px 60px rgba(0, 0, 0, 0.55);
 }
-#map-terrain { display: block; width: 2000px; height: 1333px; }
+#map-terrain, #map-territory, #map-features, #map-routes {
+  position: absolute; left: 0; top: 0; display: block;
+  width: 2000px; height: 1333px; pointer-events: none;
+}
 
-/* ── 거점 마커 (화면 좌표계 · 라벨 항상 표시) ── */
-.city-markers { position: absolute; inset: 0; pointer-events: none; --fs: 11px; --ih: 32px; }
+/* ── 거점 마커 (화면 좌표계 · 라벨 항상 표시 · 겹치면 자리를 옮기거나 잠시 감춤) ── */
+.city-markers { position: absolute; inset: 0; pointer-events: none; --fs: 11px; --ih: 22px; --iw: 32px; }
 .marker {
   position: absolute; left: 0; top: 0; width: 0; height: 0; border: 0; background: none; padding: 0;
   pointer-events: auto; overflow: visible;
 }
+.marker .m-hit {
+  position: absolute; left: -21px; width: 42px; top: calc(var(--ih) * -1 - 8px);
+  height: calc(var(--ih) + 16px); background: transparent; border-radius: 8px;
+}
 .marker .m-icon {
   position: absolute; left: 0; bottom: 0; width: auto; height: var(--ih);
-  transform: translateX(-50%); filter: drop-shadow(0 3px 3px rgba(24, 18, 6, 0.42));
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 2px rgba(24, 18, 6, 0.45));
   transition: transform 0.14s ease;
 }
-.marker:active .m-icon { transform: translateX(-50%) scale(0.94); }
+.marker:active .m-icon { transform: translateX(-50%) scale(0.95); }
 .marker .m-flag {
-  position: absolute; left: 50%; bottom: calc(var(--ih) - 4px); width: 15px; height: 17px;
-  transform: translateX(-50%); display: grid; place-items: center;
+  position: absolute; left: calc(var(--iw) * -0.46); top: calc(var(--ih) * -1 + 1px);
+  width: 12px; height: 13px; display: grid; place-items: center;
   background: var(--fc, #8d8d8d);
-  clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%);
-  filter: drop-shadow(0 1px 2px rgba(20, 14, 4, 0.5));
-}
-.marker .m-flag::before {
-  content: ""; position: absolute; inset: 0;
-  clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%);
-  box-shadow: inset 0 0 0 1.4px rgba(255, 250, 232, 0.92);
+  border: 1.4px solid rgba(255, 250, 232, 0.95);
+  border-radius: 3px 3px 5px 5px;
+  box-shadow: 0 1px 2px rgba(20, 14, 4, 0.55);
 }
 .marker .m-lv {
-  position: relative; z-index: 1; font-family: var(--sans); font-size: 9.5px; font-weight: 800;
-  color: #fffdf4; line-height: 1; padding-bottom: 2px;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+  font-family: var(--sans); font-size: 8px; font-weight: 800;
+  color: #fffdf4; line-height: 1; letter-spacing: -0.02em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
 }
-.marker.lv-hi .m-flag { background: linear-gradient(180deg, var(--fc, #8d8d8d), #f3d477); }
+.marker.lv-hi .m-flag { background: linear-gradient(180deg, var(--fc, #8d8d8d) 40%, #f3d477); }
 .marker .m-label {
-  position: absolute; white-space: nowrap; font-family: var(--serif); font-weight: 800;
-  font-size: var(--fs); line-height: 1.12; color: #fffaee; letter-spacing: -0.01em;
-  padding: 0 1px; background: none; border: 0;
+  position: absolute; left: 0; top: 0; white-space: nowrap; font-family: var(--serif); font-weight: 800;
+  font-size: var(--fs); line-height: 1.1; color: #fffaee; letter-spacing: -0.01em;
+  padding: 0; background: none; border: 0;
   text-shadow:
-    -1.2px -1.2px 0 #2a1e0c, 1.2px -1.2px 0 #2a1e0c, -1.2px 1.2px 0 #2a1e0c, 1.2px 1.2px 0 #2a1e0c,
-    0 0 3px rgba(28, 20, 6, 0.85), 0 2px 3px rgba(0, 0, 0, 0.55);
+    -1.1px -1.1px 0 #2a1e0c, 1.1px -1.1px 0 #2a1e0c, -1.1px 1.1px 0 #2a1e0c, 1.1px 1.1px 0 #2a1e0c,
+    0 0 3px rgba(28, 20, 6, 0.9), 0 1px 3px rgba(0, 0, 0, 0.6);
+  will-change: left, top;
 }
-.marker[data-a="0"] .m-label { left: 7px; top: calc(var(--ih) * -0.62); transform: translateY(-50%); }
-.marker[data-a="1"] .m-label { right: 7px; top: calc(var(--ih) * -0.62); transform: translateY(-50%); }
-.marker[data-a="2"] .m-label { left: 0; bottom: calc(var(--ih) + 1px); transform: translateX(-50%); }
-.marker[data-a="3"] .m-label { left: 0; top: 2px; transform: translateX(-50%); }
+.marker .m-label.off { opacity: 0; visibility: hidden; }
+.marker.off { opacity: 0; pointer-events: none; }
+.marker { transition: opacity 0.16s ease; }
 
-.marker.mine .m-label { color: #fff4cf; text-shadow: -1.2px -1.2px 0 #3a2208, 1.2px -1.2px 0 #3a2208, -1.2px 1.2px 0 #3a2208, 1.2px 1.2px 0 #3a2208, 0 0 4px rgba(28, 20, 6, 0.9); }
-.marker.enemy .m-label { color: #f4efe2; }
-.marker.mine .m-icon { filter: drop-shadow(0 3px 4px rgba(24, 18, 6, 0.5)) drop-shadow(0 0 5px rgba(255, 226, 150, 0.75)); }
+.marker.mine .m-label { color: #fff6d6; }
+.marker.enemy .m-label { color: #f6f1e4; }
+.marker.neutral .m-label { color: #e6e0cd; }
+.marker.mine .m-icon { filter: drop-shadow(0 2px 2px rgba(24, 18, 6, 0.45)) drop-shadow(0 0 4px rgba(255, 226, 150, 0.6)); }
+.marker.sel { z-index: 6; }
 .marker.sel .m-label { color: #ffe9b8; text-decoration: underline; text-decoration-color: rgba(255, 214, 120, 0.9); text-underline-offset: 2px; }
-.marker.sel .m-icon { transform: translateX(-50%) scale(1.1); }
+.marker.sel .m-icon { transform: translateX(-50%) scale(1.08); }
 .marker.target::after {
-  content: ""; position: absolute; left: 0; bottom: -3px; width: 30px; height: 9px;
-  transform: translateX(-50%); border-radius: 50%; border: 2px solid rgba(198, 62, 46, 0.88);
+  content: ""; position: absolute; left: 0; bottom: -2px; width: 24px; height: 7px;
+  transform: translateX(-50%); border-radius: 50%; border: 2px solid rgba(198, 62, 46, 0.85);
   animation: targetPulse 1.7s infinite;
 }
 @keyframes targetPulse { 0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.85); } 50% { opacity: 1; transform: translateX(-50%) scale(1.2); } }
@@ -212,6 +218,8 @@ b { font-weight: 700; }
 }
 .map-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .lg { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.lg-img { width: 18px; height: 13px; object-fit: contain; display: inline-block; vertical-align: -2px;
+  filter: drop-shadow(0 1px 1px rgba(20, 14, 4, 0.4)); }
 .lg.capital { background: #e3bd63; }
 .lg.town { background: #cbb180; }
 .lg.pass { background: #a9b6a0; }

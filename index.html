@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=9" />
+<link rel="stylesheet" href="css/game.css?v=10" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -95,6 +95,9 @@
     <div id="world-viewport" class="world-viewport">
       <div id="world-layer" class="world-layer">
         <canvas id="map-terrain"></canvas>
+        <canvas id="map-territory"></canvas>
+        <canvas id="map-features"></canvas>
+        <canvas id="map-routes"></canvas>
       </div>
       <div id="city-markers" class="city-markers"></div>
       <div class="map-controls">
@@ -104,10 +107,10 @@
         <button id="go-capital" class="round-btn small" aria-label="수도로">위</button>
       </div>
       <div class="map-legend">
-        <span><i class="lg capital"></i>대도시</span>
-        <span><i class="lg town"></i>소도시</span>
-        <span><i class="lg pass"></i>관문</span>
-        <span><i class="lg fort"></i>요새</span>
+        <span><img class="lg-img" src="assets/icons/capital.webp" alt="" />대도시</span>
+        <span><img class="lg-img" src="assets/icons/town.webp" alt="" />소도시</span>
+        <span><img class="lg-img" src="assets/icons/pass.webp" alt="" />관문</span>
+        <span><img class="lg-img" src="assets/icons/fortress.webp" alt="" />요새</span>
         <span><i class="lg neutral"></i>재야(공백지)</span>
       </div>
     </div>
@@ -243,13 +246,13 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=9"></script>
-<script src="js/city_geo.js?v=9"></script>
-<script src="js/data.js?v=9"></script>
-<script src="js/bgm.js?v=9"></script>
-<script src="js/sfx.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
-<script src="js/map.js?v=9"></script>
-<script src="js/battle.js?v=9"></script>
+<script src="js/mapgeo.js?v=10"></script>
+<script src="js/city_geo.js?v=10"></script>
+<script src="js/data.js?v=10"></script>
+<script src="js/bgm.js?v=10"></script>
+<script src="js/sfx.js?v=10"></script>
+<script src="js/app.js?v=10"></script>
+<script src="js/map.js?v=10"></script>
+<script src="js/battle.js?v=10"></script>
 </body>
 </html>
