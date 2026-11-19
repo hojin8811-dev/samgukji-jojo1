@@ -735,7 +735,7 @@ function terrainCost(clsKey, ch) {
   }
   return 1;
 }
-function terrainAt(x, y) { return TERRAIN[battle.map[y][x]] || TERRAIN.P; }
+function terrainAt(x, y) { const row = battle.map[y] || ''; return TERRAIN[row[x]] || TERRAIN.P; }
 function cheb(x1, y1, x2, y2) { return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2)); }
 function manh(x1, y1, x2, y2) { return Math.abs(x1 - x2) + Math.abs(y1 - y2); }
 
@@ -827,7 +827,7 @@ function buffValue(u, stat) {
   return u.buffs.filter((b) => b.stat === stat).reduce((s, b) => s + b.value, 0);
 }
 function atkTerrainMod(u, x, y) {
-  const ch = battle.map[y][x];
+  const ch = (battle.map[y] || '')[x];
   let m = 0;
   if (u.clsKey === 'sanjeok' && (ch === 'M' || ch === 'F')) m += 0.25;
   if (u.clsKey === 'sujeok' && ch === 'W') m += 0.20;
@@ -838,7 +838,7 @@ function effAtk(u, x = u.x, y = u.y) {
   return Math.max(1, u.atk * (1 + atkTerrainMod(u, x, y) + buffValue(u, 'atk')));
 }
 function effDef(u) {
-  const ch = battle.map[u.y][u.x];
+  const ch = (battle.map[u.y] || '')[u.x] || 'P';
   let mul = 1 + TERRAIN[ch].def + buffValue(u, 'def');
   if (u.clsKey === 'sanjeok' && (ch === 'M' || ch === 'F')) mul += 0.10;
   if (u.clsKey === 'sujeok' && ch === 'W') mul += 0.10;
@@ -846,7 +846,7 @@ function effDef(u) {
 }
 function effectiveRange(u, x = u.x, y = u.y) {
   let r = u.rng;
-  if ((u.clsKey === 'gunggi' || u.clsKey === 'gungbyung') && battle.map[y][x] === 'M') r += 1;
+  if ((u.clsKey === 'gunggi' || u.clsKey === 'gungbyung') && (battle.map[y] || '')[x] === 'M') r += 1;
   return r;
 }
 function inRangeFrom(u, x, y, target) {
@@ -855,7 +855,7 @@ function inRangeFrom(u, x, y, target) {
   return d >= 1 && d <= effectiveRange(u, x, y);
 }
 function critChance(u, x = u.x, y = u.y) {
-  const ch = battle.map[y][x];
+  const ch = (battle.map[y] || '')[x];
   let c = 0.08;
   if (u.clsKey === 'sanjeok' && (ch === 'M' || ch === 'F')) c += 0.15;
   return c;

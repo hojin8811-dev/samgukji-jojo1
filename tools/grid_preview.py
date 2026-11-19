@@ -12,5 +12,5 @@ for name in sys.argv[1:]:
             box = im.crop((x*tw+10, y*th+10, (x+1)*tw-10, (y+1)*th-10)).resize((1,1), Image.BOX).getpixel((0,0))
             d.text((x*tw+8, y*th+6), f'{x},{y}', fill=(255,255,255,230))
             d.text((x*tw+8, y*th+20), str(box), fill=(255,255,0,240))
-    im.save(f'/tmp/grid_{name}.png')
+    im.save(f'../preview/grid_{name}.png')
     print(name, 'ok')
