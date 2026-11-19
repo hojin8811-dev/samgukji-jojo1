@@ -1721,14 +1721,14 @@
         const g = slotOwner(c.id, sl);
         const mul = slotMul(cs, sl, g);
         const lv = sl.lv;
-        if (sl.key === 'market') gold += Math.round((55 + lv * 45) * mul);
-        else if (sl.key === 'farm') food += Math.round((80 + lv * 55) * mul);
-        else if (sl.key === 'barracks') troops += Math.round((45 + lv * 32) * mul);
+        if (sl.key === 'market') gold += Math.round((90 + lv * 70) * mul);
+        else if (sl.key === 'farm') food += Math.round((130 + lv * 90) * mul);
+        else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul);
         else if (sl.key === 'training') { train += 0.5 * lv * mul; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
         else if (sl.key === 'patrol') loyalty += 0.5 * lv * mul;
         else if (sl.key === 'wall') def += 0.6 * lv * mul;
         else if (sl.key === 'lab') rp += 1;
-        else if (sl.key === 'workshop') gold += Math.round((25 + lv * 25) * mul);
+        else if (sl.key === 'workshop') gold += Math.round((40 + lv * 40) * mul);
         else if (sl.key === 'tavern') { if (g) SK.gainExp(g, 20); }
         if (g && sl.key !== 'training' && sl.key !== 'tavern') SK.gainExp(g, Math.round(16 * lv * mul));
       });
@@ -1778,7 +1778,7 @@
       if (pool.length) {
         const g2 = pool[Math.floor(Math.random() * pool.length)];
         s.treasures.push(g2.id);
-        return { ok: true, kind: 'treasure', title: `보물을 찾았다 — ${g2.name}`, text: `${c.name} 근방 산야에서 ${g2.grade} 등급의 ${g2.name}을(를) 캐냈습니다. ${g2.effect}`, gain: '보관함에 넣었습니다' };
+        return { ok: true, kind: 'treasure', title: `보물을 찾았다 — ${g2.name}`, text: `${c.name} 근방 산야에서 ${g2.grade} 등급의 ${josa(g2.name, 'eul')} 캐냈습니다. ${g2.effect}`, gain: '보관함에 넣었습니다' };
       }
     }
     // 2) 은거 인재
@@ -1792,7 +1792,7 @@
         const g2 = pool[Math.floor(Math.random() * pool.length)];
         cs.talents = cs.talents || [];
         cs.talents.unshift(g2.id);
-        return { ok: true, kind: 'talent', title: `은거하던 인재 — ${g2.name}`, text: `${c.name} 인근에서 ${g2.name}(${g2.tier}급 ${SK.CLASSES[SK.genClass(g2)].name})을(를) 만났습니다. 주점에 소문을 내 두었습니다.`, gain: '주점에 등장' };
+        return { ok: true, kind: 'talent', title: `은거하던 인재 — ${g2.name}`, text: `${c.name} 인근에서 ${g2.name}(${g2.tier}급 ${SK.CLASSES[SK.genClass(g2)].name})${josa(g2.name, 'eul')} 만났습니다. 주점에 소문을 내 두었습니다.`, gain: '주점에 등장' };
       }
     }
     // 3) 금·군량
@@ -3491,7 +3491,7 @@
         <div class="mr-row"><span>군량</span><b class="plus">미 +${fmt(food)}</b></div>
         <div class="mr-row"><span>징집</span><b>병 +${fmt(pop)}</b></div>
         <div class="mr-row"><span>봉급 · ${rank.title}</span><b class="plus">금 +${fmt(salary)}</b></div>
-        <div class="mr-row"><span>인구</span><b class="${popGrowth ? 'plus' : ''}">인구 성장 +${fmt(popGrowth)}${unrest ? ` · 민심 흔들리는 성 ${unrest}곳` : ''}</b></div>
+        <div class="mr-row"><span>인구</span><b class="${popGrowth ? 'plus' : ''}">${popGrowth ? `인구 성장 +${fmt(popGrowth)}` : '인구 유지'}${unrest ? ` · 민심 흔들리는 성 ${unrest}곳` : ''}</b></div>
         <div class="mr-row"><span>명성</span><b>+3</b></div>
         ${autoLog.length ? `<div class="mr-auto">
           <p class="mr-auto-title">태수 내정 보고</p>
