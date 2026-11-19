@@ -86,10 +86,21 @@
     const per = clamp(Math.round(cityTroops / enemyCount / 100) * 100, 800, 2200);
     const defGens = (s.cities[opts.targetId].genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
     const enemies = [];
+    /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
+    const SUPPORT_CLS = { gunakdae: 1, muhui: 1, pungsusa: 1 };
+    let supportUsed = 0;
+    const combatType = type === 'naval' ? 'naval' : (type === 'mountain' ? 'mountain' : 'siege');
     for (let i = 0; i < enemyCount; i++) {
-      if (defGens[i]) enemies.push(makeNamedEnemy(defGens[i], per, i === 0));
-      else if (i === 0 && bossInfo && !defGens.length) enemies.push(makeBoss(bossInfo, faction, per));
-      else enemies.push(makeEnemy(i, type, faction, per));
+      if (defGens[i]) { enemies.push(makeNamedEnemy(defGens[i], per, i === 0)); continue; }
+      if (i === 0 && bossInfo && !defGens.length) { enemies.push(makeBoss(bossInfo, faction, per)); continue; }
+      let cls = SK.enemyClassesFor(combatType, i);
+      if (SUPPORT_CLS[cls]) {
+        supportUsed += 1;
+        if (supportUsed > 1) cls = SK.enemyClassesFor(combatType, i + 3);
+        if (SUPPORT_CLS[cls]) cls = 'changbyung';
+      }
+      const spec = { kind: 'enemy', cls };
+      enemies.push(makeEnemyCls(spec.cls, i, type, faction, per));
     }
 
     B = {
@@ -208,7 +219,10 @@
   }
 
   function makeEnemy(i, type, faction, per) {
-    const cls = SK.enemyClassesFor(type, i);
+    return makeEnemyCls(SK.enemyClassesFor(type, i), i, type, faction, per);
+  }
+
+  function makeEnemyCls(cls, i, type, faction, per) {
     const C = SK.CLASSES[cls];
     const season = Math.floor(((SK.state && SK.state.turn) || 1) / 6);
     const lv = clamp(2 + Math.floor(per / 900) + season, 2, 10);
@@ -332,6 +346,35 @@
     cam.y = h / 2 - (ty + 0.5) * TILE * cam.s;
     camClamp();
   }
+
+  /* v5.0.1 — 턴이 바뀔 때마다 지금 차례인 장수로 부드럽게 카메라를 옮긴다 */
+  let camGlide = null;
+  function glideCam(tx, ty, dur) {
+    if (!canvas) return;
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    const gx = w / 2 - (tx + 0.5) * TILE * cam.s;
+    const gy = h / 2 - (ty + 0.5) * TILE * cam.s;
+    if (camGlide) { cancelAnimationFrame(camGlide); camGlide = null; }
+    const x0 = cam.x, y0 = cam.y;
+    const t0 = performance.now();
+    const d = dur || 420;
+    camGlide = requestAnimationFrame(function step() {
+      const p = Math.min(1, (performance.now() - t0) / d);
+      const e = 1 - Math.pow(1 - p, 3);
+      cam.x = x0 + (gx - x0) * e;
+      cam.y = y0 + (gy - y0) * e;
+      camClamp();
+      camGlide = p < 1 ? requestAnimationFrame(step) : null;
+    });
+  }
+  function trackTurn(u, force) {
+    if (!u || !canvas) return;
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    const sx = (rxOf(u) + 0.5) * TILE * cam.s + cam.x;
+    const sy = (rxOf(u) + 0.5) * TILE * cam.s + cam.y;
+    const near = Math.abs(sx - w / 2) < w * 0.26 && Math.abs(sy - h / 2) < h * 0.26;
+    if (force || !near) glideCam(rxOf(u), ryOf(u));
+  }
   function screenToWorld(px, py) {
     return { x: (px - cam.x) / cam.s, y: (py - cam.y) / cam.s };
   }
@@ -422,6 +465,7 @@
   }
   function stopInertia() {
     if (inertia) { cancelAnimationFrame(inertia); inertia = null; }
+    if (camGlide) { cancelAnimationFrame(camGlide); camGlide = null; }
   }
 
   /* 전장을 손으로 튕기면 관성으로 미끄러진다 */
@@ -759,7 +803,7 @@
     const ready = img.complete && img.naturalWidth;
     // 스프라이트를 보이는 높이 기준으로 통일 (넓은 말·공성차는 살짝 줄여 무게를 맞춘다)
     const box = ready ? unitBox(img) : { x: 0, y: 0, w: 3, h: 4 };
-    const targetH = TILE * 1.2;
+    const targetH = TILE * 0.9;
     let sc = targetH / Math.max(1, box.h);
     const ar = box.w / Math.max(1, box.h);
     if (ar > 0.82) sc *= Math.max(0.76, 0.82 / ar);
@@ -809,7 +853,7 @@
       ctx.beginPath(); ctx.ellipse(bx, by - 2, TILE * 0.31, TILE * 0.14, 0, 0, Math.PI * 2); ctx.fill();
     }
     // 배지(아/적) + 병력 숫자 + 병력 바 — 화면 배율과 무관하게 읽히도록
-    const k = clamp(1 / Math.max(0.5, cam.s), 1, 2.1);
+    const k = clamp(1 / Math.max(0.5, cam.s), 1, 1.55);
     const num = Math.round(u.hp).toLocaleString('ko-KR');
     const bh = 6;
     const bw = Math.max(TILE * 0.66, 0);
@@ -850,9 +894,9 @@
       const btxt = badge[1];
       const bw2 = ctx.measureText(btxt).width + Math.round(8 * k);
       const bh2 = Math.round(12 * k);
-      // HP 배지 위쪽에 작게 얹어 이웃 부대와 겹치지 않게 한다
-      const bx2 = bx - bw2 / 2;
-      const by2 = pillY - bh2 - Math.round(2 * k);
+      // HP 배지 같은 줄 왼쪽에 작게 붙여 위아래 겹침을 줄인다
+      const bx2 = pillX - bw2 - Math.round(3 * k);
+      const by2 = pillY + (pillH - bh2) / 2;
       ctx.fillStyle = BADGE_BG[u.side] || BADGE_BG.enemy;
       ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.55)' : 'rgba(255,170,150,0.5)';
       ctx.lineWidth = 1;
@@ -1268,6 +1312,40 @@
     while (el.children.length > 3) el.firstChild.remove();
   }
 
+  /* v5.0.1 — [공격]·[책략]을 누르면 사거리 안의 대상을 버튼으로 보여 준다 */
+  function renderTargetBar() {
+    const tb = $('#battle-targets');
+    if (!tb) return;
+    const u = B && B.sel;
+    const active = B && B.phase === 'ally' && !B.over && u && !u.acted && (mode === 'attack' || mode === 'skillTarget');
+    if (!active) { tb.hidden = true; tb.innerHTML = ''; return; }
+    const heal = pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly');
+    const rng = pendingSkill && pendingSkill.range ? pendingSkill.range : u.rng;
+    const minR = pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1);
+    const list = B.units.filter((t) => {
+      if (!t.alive) return false;
+      if (heal) return t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= rng;
+      if (t.side === u.side) return false;
+      const d = cheb(u.x, u.y, t.x, t.y);
+      return d >= minR && d <= rng;
+    });
+    tb.hidden = false;
+    if (!list.length) {
+      tb.innerHTML = `<span class="bt-hint">${heal ? '사거리 안 아군' : '사거리 안 적'}이 없습니다 — 한 칸 더 붙으세요</span>`;
+      return;
+    }
+    tb.innerHTML = `<span class="bt-hint">${heal ? '아군' : '적'} 선택</span>`
+      + list.map((t) => `<button class="bt-chip ${t.side}" data-id="${t.id}"><b>${t.name}</b><em>${Math.round(t.hp).toLocaleString('ko-KR')}</em></button>`).join('');
+    tb.querySelectorAll('.bt-chip').forEach((b) => {
+      b.onclick = () => {
+        const t = B.units.find((x) => x.id === b.dataset.id);
+        if (!t) return;
+        if (mode === 'attack') openAttackPreview(u, t);
+        else trySkillAt(t.x, t.y);
+      };
+    });
+  }
+
   function showCallout(text, kind) {
     const el = $('#battle-callout');
     if (!el) return;
@@ -1434,6 +1512,11 @@
       showUnitInfo(t);
       return;
     }
+    /* v5.0.1 — 적을 살짝 빗나가게 눌러도 사거리 안의 적을 잡아 준다 */
+    if (!t && u && u.side === 'ally' && !u.acted && mode === 'attack') {
+      const near = B.units.filter((o) => o.alive && o.side !== u.side && Math.abs(o.x - x) <= 1 && Math.abs(o.y - y) <= 1 && canHit(u, o));
+      if (near.length) { openAttackPreview(u, near[0]); return; }
+    }
     if (u && mode === 'move' && !u.acted) {
       const reach = B.reachCache && B.reachCache.uid === u.id ? B.reachCache.set : null;
       if (reach && reach.has(x + ',' + y)) { moveUnit(u, x, y); return; }
@@ -1454,7 +1537,7 @@
     if (!u || !u.alive) return;
     if (u.rx == null) { u.rx = u.x; u.ry = u.y; }
     B.sel = u;
-    ensureVisible(u);
+    trackTurn(u);
     B.reachCache = { uid: u.id, set: reachSet(u) };
     mode = u.side === 'ally' && !u.acted ? 'move' : 'idle';
     pendingSkill = null;
@@ -1893,6 +1976,7 @@
 
   function enemyAct(e, done) {
     if (!e.alive) { done(); return; }
+    if (e.x != null) trackTurn(e, true);
     const targets = B.units.filter((u) => u.side === 'ally' && u.alive);
     if (!targets.length) { done(); return; }
     let target = targets.reduce((best, t) => {
@@ -2115,6 +2199,7 @@
   /* ───────────── 전장 UI ───────────── */
   function banner(text, side) {
     const el = $('#turn-banner');
+    if (!el) return;
     el.textContent = text;
     el.className = 'turn-banner show ' + side;
     setTimeout(() => { el.className = 'turn-banner ' + side; }, 1200);
@@ -2164,12 +2249,15 @@
       $('#battle-turn').textContent = B.turn + '턴';
       $('#battle-phase').textContent = B.phase === 'ally' ? '아군' : '적군';
       $('#battle-phase').className = B.phase;
-      $('#count-ally').textContent = allies.length;
-      $('#count-enemy').textContent = enemies.length;
-      const aMax = Math.max(1, B.units.filter((u) => u.side === 'ally').length);
-      const eMax = Math.max(1, B.units.filter((u) => u.side === 'enemy').length);
-      $('#bar-ally').style.width = Math.round(allies.length / aMax * 100) + '%';
-      $('#bar-enemy').style.width = Math.round(enemies.length / eMax * 100) + '%';
+      /* v5.0.1 — 상단은 부대 수가 아니라 총 병력 수 + 병력 비율 게이지 */
+      const allyHp = B.units.filter((u) => u.side === 'ally' && u.alive).reduce((sum, u) => sum + Math.max(0, u.hp), 0);
+      const enemyHp = B.units.filter((u) => u.side === 'enemy' && u.alive).reduce((sum, u) => sum + Math.max(0, u.hp), 0);
+      const allyStart = B.units.filter((u) => u.side === 'ally').reduce((sum, u) => sum + Math.max(0, u.maxHp), 0);
+      const enemyStart = B.units.filter((u) => u.side === 'enemy').reduce((sum, u) => sum + Math.max(0, u.maxHp), 0);
+      $('#count-ally').textContent = Math.round(allyHp).toLocaleString('ko-KR');
+      $('#count-enemy').textContent = Math.round(enemyHp).toLocaleString('ko-KR');
+      $('#bar-ally').style.width = Math.round(allyStart ? allyHp / allyStart * 100 : 0) + '%';
+      $('#bar-enemy').style.width = Math.round(enemyStart ? enemyHp / enemyStart * 100 : 0) + '%';
       const u = B.sel;
       const card = $('#unit-card');
       if (u) {
@@ -2207,6 +2295,7 @@
         if (b.dataset.act === 'attack') b.classList.toggle('active', mode === 'attack');
         if (b.dataset.act === 'skill') b.classList.toggle('active', mode === 'skillTarget');
       });
+      renderTargetBar();
     },
     endTurn,
     retreat,

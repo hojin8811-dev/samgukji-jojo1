@@ -82,7 +82,7 @@
       "신궁기병"
     ],
     "moveRange": 5,
-    "attackRange": "1~2",
+    "attackRange": "1~3",
     "terrainBonus": {
       "siege": 0,
       "naval": -10,
@@ -526,7 +526,7 @@
       "천둥포차"
     ],
     "moveRange": 3,
-    "attackRange": "2~4",
+    "attackRange": "2~5",
     "terrainBonus": {
       "siege": 35,
       "naval": -15,

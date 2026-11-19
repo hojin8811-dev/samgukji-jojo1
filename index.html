@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=8" />
+<link rel="stylesheet" href="css/game.css?v=9" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -149,6 +149,7 @@
       <div id="city-floats" class="city-floats"></div>
       <div id="city-cutin" class="city-cutin"></div>
       <div id="city-weather" class="city-weather">맑음 · 민심 안정</div>
+      <button id="btn-city-map" class="btn-city-map" aria-label="지도로 돌아가기">지도</button>
     </div>
 
     <div class="city-dev" id="city-dev"></div>
@@ -205,6 +206,7 @@
     </div>
 
     <div class="battle-bottom">
+      <div id="battle-targets" class="battle-targets" hidden></div>
       <div class="unit-card" id="unit-card">
         <div class="uc-portrait"><img id="uc-img" src="assets/portraits/v2/caocao.webp" alt="" /><span id="uc-lv">Lv.1</span></div>
         <div class="uc-main">
@@ -232,6 +234,7 @@
     <div id="battle-overlay" class="battle-overlay" hidden></div>
   </section>
 
+  <div id="month-banner" class="month-banner" aria-live="polite"><span></span></div>
   <div id="modal-root"></div>
   <div id="toast" class="toast" hidden></div>
 </div>
@@ -240,13 +243,13 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=8"></script>
-<script src="js/city_geo.js?v=8"></script>
-<script src="js/data.js?v=8"></script>
-<script src="js/bgm.js?v=8"></script>
-<script src="js/sfx.js?v=8"></script>
-<script src="js/app.js?v=8"></script>
-<script src="js/map.js?v=8"></script>
-<script src="js/battle.js?v=8"></script>
+<script src="js/mapgeo.js?v=9"></script>
+<script src="js/city_geo.js?v=9"></script>
+<script src="js/data.js?v=9"></script>
+<script src="js/bgm.js?v=9"></script>
+<script src="js/sfx.js?v=9"></script>
+<script src="js/app.js?v=9"></script>
+<script src="js/map.js?v=9"></script>
+<script src="js/battle.js?v=9"></script>
 </body>
 </html>

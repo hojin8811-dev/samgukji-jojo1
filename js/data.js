@@ -383,6 +383,42 @@ SK.NAME_ALIAS = {
 
 SK.BOSS_PORTRAITS = {};   // 세력 우두머리 초상화는 factionInfo().lord 로 찾는다
 
+
+/* v5.0.1 — 세력별 초기 식구. enrichFactions가 이 목록 밖의 장수를 끌어오지 않는다.
+   (190년 유비 평원에 황충·이엄·엄안·곽준이 따라오던 문제) */
+SK.EARLY_RETAINERS = {
+  dongzhuo: ['동탁', '여포', '이유', '화웅', '번조', '이각', '곽사', '장제', '서영', '가후'],
+  yuanshao: ['원소', '저수', '전풍', '안량', '문추', '국의', '심배', '봉기', '곽도', '장합', '원담', '원희', '원상'],
+  caocao: ['조조', '하후돈', '하후연', '조인', '조홍', '악진', '이전', '순욱', '순유', '전위', '정욱', '유엽', '하후상', '조순'],
+  liubei: ['유비', '관우', '장비', '간옹', '손건', '미축', '미방', '유염', '진도'],
+  sunjian: ['손견', '손책', '정보', '황개', '한당', '조무', '주치', '주유', '손권'],
+  yuanshu: ['원술', '기령', '양홍', '장훈', '뇌박', '진란', '교유'],
+  liubiao: ['유표', '괴량', '괴월', '채모', '황조', '문빙', '유종', '황충', '장윤'],
+  liuyan: ['유언', '장로', '장수', '번민', '장임', '엄안', '황권', '법정', '이엄', '곽준', '맹달', '오의', '오란'],
+  mateng: ['마등', '마초', '방덕', '마휴', '마철', '한수', '성의', '마대'],
+  gongsunzan: ['공손찬', '조운', '엄강', '선우보', '전해', '공손속'],
+  taoqian: ['도겸', '미축', '미방', '진규', '조표'],
+  hansui: ['한수', '염행', '양추', '이감'],
+  kongrong: ['공융', '왕수', '무안국'],
+  liuyao: ['유요', '태사자', '우번'],
+  yanbaihu: ['엄백호', '엄여'],
+  wanglang: ['왕랑', '우번'],
+  zhanglu: ['장로', '양송', '염포', '양백', '양임', '장위'],
+  goguryeo: ['고국천왕', '을파소', '을지문덕', '연개소문', '동천왕', '광개토대왕'],
+  baekje: ['초고왕', '구수', '사반왕', '구수왕', '근초고왕'],
+  silla: ['벌휴이사금', '내해', '내해이사금', '석우로', '김유신'],
+  cao_wei_pre: ['조조', '조인', '조홍', '하후돈', '하후연', '장료', '장합', '서황', '악진', '우금', '허저', '전위', '조진', '조휴', '사마의', '곽가', '순욱', '순유', '정욱', '가후', '진군', '종요', '하후상', '조비'],
+  cao_wei: ['조비', '조진', '조휴', '조인', '하후상', '장료', '장합', '서황', '악진', '문빙', '사마의', '진군', '종요', '가후', '하후돈', '하후연'],
+  shu_han: ['유비', '관우', '장비', '조운', '제갈량', '황충', '위연', '마초', '마량', '법정', '장완', '비의', '관평', '장포', '손건', '간옹', '미축'],
+  sunquan: ['손권', '주유', '노숙', '여몽', '육손', '정보', '황개', '한당', '감녕', '능통', '주태', '서성', '정봉', '장소', '태사자', '장흠', '장굉', '능조', '제갈근'],
+  sun_wu: ['손권', '주유', '노숙', '여몽', '육손', '정보', '황개', '한당', '감녕', '능통', '주태', '서성', '정봉', '장소', '제갈근'],
+  liuzong: ['유종', '채모', '괴월', '괴량', '문빙'],
+  liuzhang: ['유장', '장임', '엄안', '황권', '법정', '맹달', '오의', '오란', '이엄'],
+  gongsunkang: ['공손강', '공손도', '공손공'],
+  shi_xie: ['사섭', '사흠', '사휘', '사일'],
+  meng_huo: ['남중 호족', '옹개', '고정', '주포'],
+};
+
 /* ───────────── 시나리오 (data/historical_scenarios.json) ───────────── */
 SK.HIST = [];
 SK.setHistorical = function (list) {
@@ -893,7 +929,9 @@ SK.setCities = function (list) {
    산해관과 북해·안시성 사이는 바다다. 육로는 산해관 → 요동 → 안시성으로 돌아간다.
    섬(탐라·대만)은 배로만 오가고, 대만 안의 타이베이↔타이난만 육로다. */
 SK.SEA_ONLY_PAIRS = [['shanhaiguan', 'beihai'], ['shanhaiguan', 'ansiseong'],
-  ['liaodong', 'pyongyang'], ['langya', 'beihai']];
+  ['liaodong', 'pyongyang'], ['langya', 'beihai'],
+  /* v5.0.1 — 지도에서 겹치던 관통 직통선을 없앤다 (장사→남해·강주, 무위→한중) */
+  ['changsha', 'nanhai'], ['changsha', 'gangju'], ['wuwei', 'hanzhong']];
 /* 섬 — 육로는 섬 안에서만 난다. 바깥으로는 배(SEALANES)로만 오간다. */
 SK.ISLAND_GROUP = { tamna: '제주', taipei: '대만', tainan: '대만' };
 /* 반드시 있어야 하는 육로 — 끊기면 남중·서량·강동이 고립된다 */
@@ -901,7 +939,8 @@ SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 
   ['yongan', 'jiangling'], ['jiangxia', 'hefei'], ['jiangxia', 'runan'], ['jianye', 'jianan'],
   ['shishang', 'jianan'], ['shanhaiguan', 'liaodong'], ['liaodong', 'ansiseong'],
   ['taipei', 'tainan'], ['xinye', 'xiangyang'], ['shangyong', 'hanzhong'], ['wuling', 'changsha'],
-  ['nanhai', 'changsha'], ['jianning', 'yunnan'], ['wuwei', 'tianshui']];
+  ['nanhai', 'guiyang'], ['nanhai', 'gangju'], ['gangju', 'guiyang'],
+  ['jianning', 'yunnan'], ['wuwei', 'tianshui'], ['lushui', 'chengdu'], ['lushui', 'jianning']];
 
 SK.buildRoads = function () {
   const pts = SK.CITY_LIST;
@@ -1022,6 +1061,9 @@ function navalMap() {
   for (let y = 5; y <= 10; y++) for (let x = 0; x < 18; x++) g[y][x] = 'W';
   for (let x = 0; x < 18; x++) { g[4][x] = 'S'; g[11][x] = 'S'; }
   for (let y = 3; y <= 12; y++) { g[y][4] = 'B'; g[y][5] = 'B'; g[y][12] = 'B'; g[y][13] = 'B'; }
+  /* v5.0.1 — 오른쪽 나무다리(그림 x 78~96%)를 실제로 건널 수 있게 다리 타일로 바꿈 */
+  for (let y = 4; y <= 11; y++) { g[y][15] = 'B'; g[y][16] = 'B'; }
+  g[4][14] = 'B'; g[5][14] = 'B'; g[10][17] = 'B'; g[11][17] = 'B';
   paint(g, [[0, 0], [0, 1], [1, 0], [1, 1], [0, 16], [0, 17], [1, 16], [1, 17], [16, 0], [16, 1], [17, 0], [17, 1], [16, 16], [16, 17], [17, 16], [17, 17]], 'F');
   paint(g, [[2, 2], [3, 2], [2, 15], [3, 15], [14, 2], [15, 2], [14, 15], [15, 15]], 'F');
   paint(g, [[6, 8], [6, 9], [7, 8], [1, 9], [16, 8]], 'R');
@@ -1088,17 +1130,12 @@ SK.BATTLE_TYPES = {
     objective: '목책의 성문을 부수고 적을 전멸시켜라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
 };
 
-/* 도시 유형·지역으로 전장 결정 */
+/* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.
+   수전·산전은 강·바다를 건너는 길과 행군 요격전(2단계)에서 쓴다. */
 SK.battleTypeFor = function (city) {
   if (!city) return 'siege';
-  if (city.type === 'pass' || city.type === 'fortress') return 'fortress';
-  const coastal = ['jianye', 'wu', 'kuaiji', 'haichang', 'shishang', 'jianan', 'guangling', 'shouchun',
-    'hefei', 'lujiang', 'jiangxia', 'jiangling', 'nanhai', 'jiangzhou', 'yongan', 'pyongyang',
-    'nangnang', 'daebang', 'hanseong', 'busan', 'tamna', 'taipei', 'tainan', 'bohai', 'beihai'];
-  const mountain = ['hanzhong', 'shangyong', 'wuling', 'lingling', 'jianning', 'yunnan', 'yongchang',
-    'luoshui', 'zhidong', 'ansiseong', 'gaeseong', 'gyeongju', 'jianwei'];
-  if (coastal.includes(city.id)) return 'naval';
-  if (mountain.includes(city.id)) return 'mountain';
+  if (city.type === 'pass') return 'mountain';
+  if (city.type === 'fortress') return 'fortress';
   return 'siege';
 };
 

@@ -1280,3 +1280,170 @@ b { font-weight: 700; }
   .dev-bars { grid-template-columns: 1fr 1fr; }
   .city-slots { padding: 3px 6px 5px; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   v5.0.1 — 성 마당 건물 · 지도 버튼 · 월 전환 · 전장 편의
+   ══════════════════════════════════════════════════════════════ */
+/* 숙적 배지 — 빨간 바탕에 흰 글씨 (기존 .hb-row span 색에 먹히지 않게) */
+.hi-bonds .hb-row span.hb-rel, .battle-info .hb-row span.hb-rel {
+  color: #fff; background: #a8443a; text-shadow: 0 1px 1px rgba(60, 10, 6, 0.45);
+}
+.hi-bonds .hb-row.friend span.hb-rel { background: #4d6b34; color: #fff; }
+
+/* 장수 상세 — 5대 능력치 */
+.hi-attrs.five { gap: 4px; }
+.hi-attrs.five div { padding: 3px 0; }
+.hi-attrs.five b { font-size: 13px; }
+
+/* 성 마당 — 지어진 건물·공터 */
+.city-scene { min-height: 186px; }
+.scene-hotspots { pointer-events: none; }
+.scene-hotspots > * { pointer-events: auto; }
+.yard-b {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 56px; padding: 0; border: 0; background: none;
+  display: flex; flex-direction: column; align-items: center;
+  filter: drop-shadow(0 3px 4px rgba(30, 22, 8, 0.45));
+}
+.yard-b .yb-ico {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 32%, rgba(255, 248, 226, 0.96), rgba(232, 208, 158, 0.92));
+  border: 1.5px solid #a9873f;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), 0 2px 5px rgba(30, 22, 8, 0.35);
+}
+.yard-b .yb-ico img { width: 38px; height: 38px; object-fit: contain; }
+.yard-b .yb-lv {
+  position: absolute; top: -4px; right: -2px; min-width: 22px;
+  font-size: 8px; font-weight: 900; color: #fff6e2;
+  background: linear-gradient(180deg, #8a6220, #5e4315);
+  border: 1px solid #e3bd63; border-radius: 7px; padding: 0 3px; line-height: 13px;
+}
+.yard-b .yb-face {
+  position: absolute; left: -4px; bottom: 10px; width: 20px; height: 20px;
+  border-radius: 50%; overflow: hidden; border: 1.5px solid #f2e2bc; background: #f6ead0;
+}
+.yard-b .yb-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.yard-b .yb-tag {
+  margin-top: 1px; font-size: 9px; font-weight: 800; color: #fff8e4; white-space: nowrap;
+  padding: 1px 6px; border-radius: 9px; background: rgba(40, 32, 16, 0.72);
+  border: 1px solid rgba(227, 189, 99, 0.45);
+}
+.yard-b:active .yb-ico { transform: scale(0.94); }
+.yard-b.bump .yb-ico { animation: hopBump 0.55s ease; }
+.yard-b.empty .yb-ico {
+  background: rgba(255, 248, 226, 0.42); border: 1.5px dashed rgba(120, 92, 40, 0.75);
+  box-shadow: none;
+}
+.yard-b.empty .yb-plus { font-size: 22px; font-weight: 900; color: #6b4f1c; line-height: 1; }
+.yard-b.empty .yb-tag { background: rgba(40, 32, 16, 0.55); }
+
+/* 내성 시설 — 가로 줄 (마당 건물과 연동) */
+.city-slots { padding: 3px 8px 5px; }
+.slot-head { display: flex; align-items: baseline; gap: 6px; }
+.slot-head b { font-family: var(--serif); font-size: 11px; color: #4a3a1a; }
+.slot-head span { font-size: 8.5px; color: #7b6538; }
+.slot-head em { margin-left: auto; font-size: 8px; color: #9a8a66; font-style: normal; }
+.slot-row { display: flex; gap: 5px; overflow-x: auto; padding: 3px 0 1px; scrollbar-width: none; }
+.slot-row::-webkit-scrollbar { display: none; }
+.slot-card { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; border: 1px solid #d3bb8a; border-radius: 9px; background: rgba(255, 252, 244, 0.85); padding: 3px 7px 3px 3px; }
+.slot-card .sc-ico { width: 26px; height: 26px; object-fit: contain; }
+.slot-card .sc-main b { display: block; font-size: 10px; color: #33280f; line-height: 1.15; }
+.slot-card .sc-main small { font-size: 8px; color: #8a7448; }
+.slot-card .sc-main em { display: flex; align-items: center; gap: 2px; font-size: 7.5px; color: #7b6538; font-style: normal; }
+.slot-card .sc-face { width: 12px; height: 12px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; }
+.slot-card.empty { border-style: dashed; color: #8a7448; padding: 3px 8px; }
+.slot-card.empty .sc-empty { font-size: 15px; font-weight: 900; color: #7d5a1d; }
+.slot-card.empty b { font-size: 9.5px; }
+.slot-card.empty small { display: block; font-size: 7.5px; }
+
+/* 내정 화면 — 오른쪽 아래 지도 버튼 (엄지 접근) */
+.btn-city-map {
+  position: absolute; right: 9px; bottom: 9px;
+  z-index: 6; display: flex; align-items: center; gap: 5px;
+  padding: 8px 12px; border-radius: 22px;
+  border: 1px solid #e3bd63; color: #ffe6ac;
+  background: linear-gradient(180deg, #4a3a1c, #2e2410);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 226, 160, 0.2);
+  font-size: 12px; font-weight: 800; letter-spacing: -0.02em;
+}
+.btn-city-map::before {
+  content: ""; width: 16px; height: 16px; background-repeat: no-repeat; background-position: center;
+  background-size: 16px 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffe6ac' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z'/%3E%3Cpath d='M9 4v14M15 6v14'/%3E%3C/svg%3E");
+}
+.btn-city-map:active { transform: translateY(1px); }
+
+/* 월 전환 배너 */
+.month-banner {
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
+  pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
+}
+.month-banner span {
+  font-family: var(--serif); font-size: 30px; font-weight: 900; letter-spacing: 0.08em;
+  color: #fff4d4; padding: 14px 26px; border-radius: 14px;
+  background: rgba(32, 25, 12, 0.86);
+  border: 1.5px solid #e3bd63;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 226, 160, 0.25);
+  transform: scale(0.86);
+}
+.month-banner.show { opacity: 1; }
+.month-banner.show span { animation: monthPop 1.5s ease; }
+@keyframes monthPop {
+  0% { transform: scale(0.8); letter-spacing: 0.3em; }
+  22% { transform: scale(1.04); letter-spacing: 0.08em; }
+  40% { transform: scale(1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 다음 달 확인 창 */
+.next-month-confirm { text-align: center; padding: 4px 2px 2px; }
+.nm-main { font-family: var(--serif); font-size: 15px; line-height: 1.6; color: #2e2510; margin: 0 0 8px; }
+.nm-main b { color: #a8443a; font-size: 17px; }
+.nm-sub { font-size: 10px; line-height: 1.5; color: #7b6538; margin: 0; }
+
+/* 출진 — 장수별 병력 조절 */
+.hp-step { display: flex; align-items: center; gap: 3px; }
+.hp-step button {
+  width: 24px; height: 24px; border-radius: 7px; border: 1px solid #c3a568;
+  background: #f6ebd2; color: #5c4a24; font-size: 14px; font-weight: 900; line-height: 1;
+}
+.hp-step .hp-count { min-width: 40px; text-align: center; font-size: 10px; color: #8a5f2a; font-weight: 800; }
+.hero-pick { cursor: pointer; }
+
+/* 보물 — 등급 색 + 능력치 + 효과 */
+.tr-slot .ts-grade { display: inline-block; margin-top: 1px; font-size: 7.5px; font-weight: 800; color: var(--gc, #9a8a66); }
+.tr-slot .ts-bonus { display: block; font-size: 8px; color: #6b5830; }
+.tr-slot .ts-effect { display: block; font-size: 7.5px; color: #8a7448; line-height: 1.3; }
+.tr-item .tr-bonus { display: block; font-size: 8px; color: #6b5830; }
+.tr-item .tr-eff { display: block; font-size: 8px; color: #8a7448; }
+
+/* 전장 — 사거리 안 대상 선택 줄 */
+.battle-targets {
+  display: flex; align-items: center; gap: 5px; overflow-x: auto;
+  padding: 4px 8px 5px; background: rgba(24, 19, 9, 0.92);
+  border-top: 1px solid rgba(227, 189, 99, 0.3);
+}
+.battle-targets[hidden] { display: none; }
+.battle-targets .bt-hint { flex: 0 0 auto; font-size: 9px; font-weight: 800; color: #e6cf9a; }
+.bt-chip {
+  flex: 0 0 auto; display: flex; align-items: baseline; gap: 4px;
+  padding: 4px 9px; border-radius: 14px; border: 1px solid #ff9d84;
+  background: rgba(120, 36, 24, 0.55); color: #ffe9de; font-size: 10px;
+}
+.bt-chip.ally { border-color: #7fc59b; background: rgba(28, 88, 58, 0.55); color: #dcf6e6; }
+.bt-chip b { font-size: 10.5px; }
+.bt-chip em { font-size: 8.5px; font-style: normal; color: #f3d6c2; }
+.bt-chip.ally em { color: #cbead8; }
+.bt-chip:active { transform: translateY(1px); }
+
+@media (max-width: 420px) {
+  .yard-b { width: 50px; }
+  .yard-b .yb-ico { width: 40px; height: 40px; border-radius: 11px; }
+  .yard-b .yb-ico img { width: 33px; height: 33px; }
+  .yard-b .yb-tag { font-size: 8px; padding: 0 5px; }
+  .month-banner span { font-size: 25px; }
+}
+
+/* 큰 초상화 틀에서는 머리가 조금 더 차게 (작은 카드와 같은 구도를 유지하면서) */
+.intro-portrait img, .hi-portrait img { transform: scale(1.18); transform-origin: 50% 22%; }
