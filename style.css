@@ -356,7 +356,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;}
 }
 
 /* ══════════ 모달 · 대사 · 토스트 ══════════ */
-#modal-root{position:absolute;inset:0;pointer-events:none;z-index:50;}
+#modal-root{position:absolute;inset:0;pointer-events:none;z-index:90;}
 .modal-layer{
   position:absolute;inset:0;pointer-events:auto;
   display:flex;align-items:center;justify-content:center;

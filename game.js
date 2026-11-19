@@ -2289,7 +2289,19 @@ function boot() {
     m.el.querySelector('[data-close]').addEventListener('click', m.close);
     m.el.querySelector('#retreat-yes').addEventListener('click', () => { m.close(); endBattle(false, '스스로 후퇴했다'); });
   });
-  $('#btn-start').addEventListener('click', startNewGame);
+  $('#btn-start').addEventListener('click', () => {
+    if (!loadGame()) { startNewGame(); return; }
+    const m = openModal(`
+      <h2>새로 시작</h2>
+      <div class="sub">저장된 진행이 있습니다. 새로 시작하면 지금까지의 진행이 사라집니다.</div>
+      <div class="row">
+        <button class="btn ghost" id="new-no">취소</button>
+        <button class="btn primary" id="new-yes">새로 시작</button>
+      </div>
+    `, { sticky: true });
+    m.el.querySelector('#new-no').addEventListener('click', m.close);
+    m.el.querySelector('#new-yes').addEventListener('click', () => { m.close(); startNewGame(); });
+  });
   document.addEventListener('pointerdown', () => ensureAudio(), { passive: true });
   $('#btn-continue').addEventListener('click', () => {
     const s = loadGame();
