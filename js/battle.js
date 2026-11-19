@@ -116,6 +116,13 @@
     showIntro();
   };
 
+  /* 훈련도 — 부대의 숙련도 (레벨·등급이 높을수록 단단하다) */
+  function trainOf(lv, tierKey) {
+    const t = SK.TIER_LV[tierKey] || 3;
+    return clamp(Math.round(42 + (Number(lv) || 1) * 2.6 + t * 5), 30, 100);
+  }
+  SK.trainOf = trainOf;
+
   function makeAlly(spec, i) {
     const h = SK.state.heroes.find((x) => x.uid === spec.uid);
     const C = SK.CLASSES[h.cls];
@@ -130,6 +137,7 @@
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
+      train: trainOf(h.lv, h.tier),
     };
   }
 
@@ -142,6 +150,7 @@
       atk: C.atk + 1, def: C.def + 1, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
       wu: 66, ji: 58, tong: 62, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
       skills: C.skills.slice(), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
+      train: 58,
     };
   }
 
@@ -156,6 +165,7 @@
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv, tong: 80, boss: true,
       portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: C.skills.slice(),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
+      train: 82,
     };
   }
 
@@ -174,6 +184,7 @@
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
+      train: trainOf(lv, g.tier),
     };
   }
 
@@ -192,6 +203,7 @@
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 60 + lv * 3, ji: 55 + lv * 2, tong: 60 + lv * 2,
       portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: C.skills.slice(),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
+      train: trainOf(lv, 'B'),
     };
   }
 
@@ -659,11 +671,52 @@
         ctx.fillStyle = '#6b3f10';
         ctx.font = 'bold 8px "Noto Serif CJK KR", serif';
         ctx.textAlign = 'center';
-        ctx.fillText('緣', mx, my + 3);
+        ctx.fillText('연', mx, my + 3);
         ctx.restore();
       }
     }
   }
+
+  /* ── SD 스프라이트 크기 정규화 ──
+     그림마다 캔버스 여백과 가로세로 비율이 달라 같은 타일 위에서도 키가 들쭉날쭉했다.
+     이미지를 한 번 뜯어 보이는 부분(알파 경계)을 재 두고, 그 높이를 언제나 같게 그린다. */
+  const spriteBox = {};
+  function unitBox(img) {
+    const key = img.currentSrc || img.src;
+    if (spriteBox[key]) return spriteBox[key];
+    let box = null;
+    try {
+      const nw = img.naturalWidth, nh = img.naturalHeight;
+      if (nw && nh) {
+        const cv = document.createElement('canvas');
+        cv.width = nw; cv.height = nh;
+        const c2 = cv.getContext('2d', { willReadFrequently: true });
+        c2.drawImage(img, 0, 0);
+        const d = c2.getImageData(0, 0, nw, nh).data;
+        let x0 = nw, y0 = nh, x1 = -1, y1 = -1;
+        for (let y = 0; y < nh; y++) {
+          const row = y * nw * 4;
+          for (let x = 0; x < nw; x++) {
+            if (d[row + x * 4 + 3] > 40) {
+              if (x < x0) x0 = x;
+              if (x > x1) x1 = x;
+              if (y < y0) y0 = y;
+              if (y > y1) y1 = y;
+            }
+          }
+        }
+        if (x1 >= x0 && y1 >= y0) box = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+      }
+    } catch (e) { /* 캔버스를 읽을 수 없으면 원본 크기 그대로 */ }
+    if (!box) box = { x: 0, y: 0, w: img.naturalWidth || 1, h: img.naturalHeight || 1 };
+    spriteBox[key] = box;
+    return box;
+  }
+
+  const SIDE_TINT = {
+    ally: { ring: '#3d8bff', ringSoft: 'rgba(90,160,255,0.30)', bar: ['#4f9bff', '#a9d2ff'], chip: '#2f6fd0', label: '아' },
+    enemy: { ring: '#ff4a34', ringSoft: 'rgba(255,90,60,0.28)', bar: ['#e2452f', '#ff9d84'], chip: '#bf3325', label: '적' },
+  };
 
   function drawUnit(u) {
     const ux = u.rx == null ? u.x : u.rx;
@@ -671,31 +724,47 @@
     const bx = (ux + 0.5) * TILE;
     const by = (uy + 1) * TILE - 4;
     const img = unitImgFor(u);
-    const h = TILE * 1.28;
-    const w = img.complete && img.naturalWidth ? (img.width / img.height) * h : h * 0.75;
-    // shadow + side ring
+    const tint = SIDE_TINT[u.side] || SIDE_TINT.enemy;
+    const ready = img.complete && img.naturalWidth;
+    // 스프라이트를 보이는 높이 기준으로 통일 (넓은 말·공성차는 살짝 줄여 무게를 맞춘다)
+    const box = ready ? unitBox(img) : { x: 0, y: 0, w: 3, h: 4 };
+    const targetH = TILE * 1.2;
+    let sc = targetH / Math.max(1, box.h);
+    const ar = box.w / Math.max(1, box.h);
+    if (ar > 0.82) sc *= Math.max(0.76, 0.82 / ar);
+    const dh = box.h * sc, dw = box.w * sc;
+    const dx = bx - dw / 2;
+    const dy = by - dh;
+    const topY = by - dh;
     ctx.save();
     if (u.shake > 0) ctx.translate(rnd(-3, 3) * Math.min(1, u.shake / 240), rnd(-2, 2) * Math.min(1, u.shake / 240));
-    ctx.fillStyle = 'rgba(28,24,14,0.28)';
+    // 발밑 그림자 + 진영 발판 (아군 파랑 · 적군 빨강)
+    ctx.fillStyle = 'rgba(22,18,10,0.30)';
     ctx.beginPath();
-    ctx.ellipse(bx, by - 2, TILE * 0.26, TILE * 0.11, 0, 0, Math.PI * 2);
+    ctx.ellipse(bx, by - 1, TILE * 0.27, TILE * 0.115, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = u.side === 'ally' ? 'rgba(70,130,220,0.9)' : 'rgba(190,60,50,0.9)';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = tint.ringSoft;
     ctx.beginPath();
-    ctx.ellipse(bx, by - 2, TILE * 0.27, TILE * 0.12, 0, 0, Math.PI * 2);
+    ctx.ellipse(bx, by - 2, TILE * 0.3, TILE * 0.135, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.shadowColor = tint.ring;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = tint.ring;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(bx, by - 2, TILE * 0.3, TILE * 0.135, 0, 0, Math.PI * 2);
     ctx.stroke();
-    if (img.complete && img.naturalWidth) {
+    ctx.restore();
+    if (ready) {
       ctx.save();
-      if (u.side === 'enemy') {
-        ctx.filter = 'saturate(0.85) brightness(0.97)';
-      }
-      ctx.drawImage(img, bx - w / 2, by - h, w, h);
+      if (u.side === 'enemy') ctx.filter = 'saturate(0.9) brightness(0.99)';
+      ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
       if (u.flash > 0) {
         ctx.save();
         ctx.globalAlpha = Math.min(0.85, u.flash);
         if ('filter' in ctx) ctx.filter = 'brightness(0.5) sepia(1) saturate(8) hue-rotate(-18deg)';
-        ctx.drawImage(img, bx - w / 2, by - h, w, h);
+        ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
         ctx.restore();
       }
       ctx.restore();
@@ -703,29 +772,68 @@
       ctx.fillStyle = u.side === 'ally' ? '#40609a' : '#9a4038';
       ctx.fillRect(bx - 12, by - 40, 24, 38);
     }
-    // acted veil
+    // 행동 완료 표시
     if (u.side === 'ally' && u.acted) {
-      ctx.fillStyle = 'rgba(30,30,30,0.22)';
-      ctx.beginPath(); ctx.ellipse(bx, by - 2, TILE * 0.3, TILE * 0.13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(20,26,40,0.26)';
+      ctx.beginPath(); ctx.ellipse(bx, by - 2, TILE * 0.31, TILE * 0.14, 0, 0, Math.PI * 2); ctx.fill();
     }
-    // hp bar
-    const bw = TILE * 0.62, bh = 5;
+    // 배지(아/적) + 병력 숫자 + 병력 바 — 화면 배율과 무관하게 읽히도록
+    const k = clamp(1 / Math.max(0.5, cam.s), 1, 2.1);
+    const num = Math.round(u.hp).toLocaleString('ko-KR');
+    const bh = 6;
+    const bw = Math.max(TILE * 0.66, 0);
+    const barY = topY - 8 - bh;
+    const fsz = Math.round(9 * k);
+    ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
+    const numW = ctx.measureText(num).width;
+    const chipW = Math.round(11 * k);
+    const pillW = chipW + numW + Math.round(9 * k);
+    const pillH = Math.round(13 * k);
+    const pillX = bx - pillW / 2;
+    const pillY = barY - pillH - Math.round(2 * k);
+    ctx.save();
+    ctx.fillStyle = 'rgba(24,19,11,0.86)';
+    ctx.strokeStyle = u.side === 'ally' ? 'rgba(130,180,255,0.75)' : 'rgba(255,150,130,0.7)';
+    ctx.lineWidth = 1;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill(); ctx.stroke(); }
+    else { ctx.fillRect(pillX, pillY, pillW, pillH); ctx.strokeRect(pillX, pillY, pillW, pillH); }
+    ctx.fillStyle = tint.chip;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX + 1, pillY + 1, chipW, pillH - 2, (pillH - 2) / 2); ctx.fill(); }
+    else ctx.fillRect(pillX + 1, pillY + 1, chipW, pillH - 2);
+    ctx.fillStyle = '#fff6e2';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${Math.round(fsz * 0.82)}px "Noto Sans CJK KR", sans-serif`;
+    ctx.fillText(tint.label, pillX + 1 + chipW / 2, pillY + pillH / 2 + 0.5);
+    ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fffaf0';
+    ctx.fillText(num, pillX + chipW + Math.round(4 * k), pillY + pillH / 2 + 0.5);
+    ctx.restore();
+    // 병력 바
     const p = clamp(u.hp / u.maxHp, 0, 1);
-    ctx.fillStyle = 'rgba(20,16,10,0.65)';
-    ctx.fillRect(bx - bw / 2 - 1, by - h - 9, bw + 2, bh + 2);
-    ctx.fillStyle = p > 0.55 ? '#5fb86a' : p > 0.28 ? '#d4a73c' : '#c9503f';
-    ctx.fillRect(bx - bw / 2, by - h - 8, bw * p, bh);
-    // boss crown
+    ctx.fillStyle = 'rgba(18,14,8,0.8)';
+    ctx.fillRect(bx - bw / 2 - 1, barY - 1, bw + 2, bh + 2);
+    const grad = ctx.createLinearGradient(bx - bw / 2, barY, bx + bw / 2, barY + bh);
+    grad.addColorStop(0, tint.bar[0]);
+    grad.addColorStop(1, tint.bar[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(bx - bw / 2, barY, bw * p, bh);
+    ctx.strokeStyle = tint.ring;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - bw / 2 - 1.5, barY - 1.5, bw + 3, bh + 3);
+    // 적장 표시
     if (u.boss) {
-      ctx.fillStyle = '#e0b94e';
-      ctx.font = `bold ${Math.round(TILE * 0.22)}px "Noto Serif CJK KR", serif`;
+      ctx.fillStyle = '#ffd766';
+      ctx.font = `bold ${Math.round(TILE * 0.2)}px "Noto Serif CJK KR", serif`;
       ctx.textAlign = 'center';
-      ctx.fillText('◆', bx, by - h - 14);
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('◆', bx, pillY - 3 * k);
     }
-    // buff dot
+    // 강화 표시
     if (u.buffs.atk || u.buffs.def) {
       ctx.fillStyle = '#8fd0ff';
-      ctx.beginPath(); ctx.arc(bx + bw / 2 - 2, by - h - 8, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx + bw / 2, barY + bh / 2, 3.2 * k, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
@@ -1405,7 +1513,7 @@
       const dis = u.mp < sk.mp;
       return `<button class="skill-row ${dis ? 'off' : ''}" data-k="${k}" ${dis ? 'disabled' : ''}>
         <span class="sk-mp">${sk.mp}</span>
-        <div><b>${sk.name} <em>${sk.hanja}</em></b><span>${sk.desc}</span></div>
+        <div><b>${sk.name}</b><span>${sk.desc}</span></div>
       </button>`;
     }).join('');
     const m = SK.modal({
@@ -1644,8 +1752,8 @@
         <img src="${SK.ptSrc(t.portrait)}" alt="">
         <div class="bi-main">
           <p class="bi-cls">${C.name} · Lv.${t.lv} ${t.boss ? '· 적장' : ''}${t.tier ? ` · ${t.tier}급` : ''}</p>${t.skillName ? `<p class="bi-skill">특기 — ${t.skillName}</p>` : ''}
-          <div class="bi-hp"><i style="width:${Math.round(t.hp / t.maxHp * 100)}%"></i><span>HP ${t.hp}/${t.maxHp}</span></div>
-          <div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>이동 ${t.mov}</span><span>사거리 ${effRng(t)}</span></div>
+          <div class="bi-hp"><i style="width:${Math.round(t.hp / t.maxHp * 100)}%"></i><span>병력 ${Math.round(t.hp).toLocaleString('ko-KR')} / ${Math.round(t.maxHp).toLocaleString('ko-KR')}</span></div>
+          <p class="bi-train">훈련도 ${t.train == null ? trainOf(t.lv, t.tier) : t.train}</p><div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>이동 ${t.mov}</span><span>사거리 ${effRng(t)}</span></div>
           <p class="bi-terr">지형 ${tr.name} · 방어 ${Math.round(tr.def * 100)}%${bondAllyMul(t) > 1 ? ' · 인연 공격 +15%' : ''}</p>
         </div>
       </div>${bonds ? `<div class="hi-bonds">${bonds}</div>` : ''}`,
@@ -1836,10 +1944,10 @@
     SKBattle.refreshUI();
     const owned = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
     SK.modal({
-      kicker: '勝',
+      kicker: '승리',
       title: `${c.name} 함락`,
       body: `<div class="result-modal win">
-        <div class="rm-seal">勝</div>
+        <div class="rm-seal">승</div>
         <p class="rm-line">${SK.factionName(prevOwner)}을(를) 무찌르고 <b>${c.name}</b>을(를) 차지했습니다.</p>
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
@@ -1881,9 +1989,9 @@
     });
     SK.save();
     SK.modal({
-      kicker: '敗',
+      kicker: '패배',
       title: '퇴각',
-      body: `<div class="result-modal lose"><div class="rm-seal">敗</div>
+      body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
         <p class="rm-note">보유 금 -200 · 부상병이 생겼습니다.</p></div>`,
@@ -1927,7 +2035,7 @@
       if (L.event) {
         const ev = L.event;
         ov.innerHTML = `<div class="event-card">
-          <div class="ev-seal">緣</div>
+          <div class="ev-seal">연</div>
           <div class="ev-main"><span class="ev-type">${ev.type || '특별 이벤트'}</span>
             <h4>${ev.title}</h4>
             <p class="ev-dialogue">“${ev.dialogue}”</p>
@@ -1940,7 +2048,7 @@
       ov.innerHTML = `<div class="intro-card ${L.side}">
         <img class="ic-portrait" src="${SK.ptSrc(L.pt)}" alt="">
         <div class="ic-box">
-          <div class="ic-name">${L.who} <em>${L.hanja || ''}</em></div>
+          <div class="ic-name">${L.who}</div>
           <p class="ic-text">${L.text}</p>
           <span class="ic-tap">터치하여 계속 ▸</span>
         </div>
@@ -1980,6 +2088,8 @@
         $('#uc-hp-txt').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-mp').style.width = Math.round(u.mp / u.maxMp * 100) + '%';
         $('#uc-mp-txt').textContent = `${u.mp}/${u.maxMp}`;
+        $('#uc-troops').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
+        $('#uc-train').textContent = `${u.train == null ? trainOf(u.lv, u.tier) : u.train}`;
         $('#uc-atk').textContent = Math.round(effAtk(u));
         $('#uc-def').textContent = Math.round(effDef(u));
         $('#uc-mov').textContent = u.mov;
@@ -1993,6 +2103,7 @@
         $('#uc-terrain').textContent = '';
         $('#uc-hp').style.width = '0%'; $('#uc-mp').style.width = '0%';
         $('#uc-hp-txt').textContent = ''; $('#uc-mp-txt').textContent = '';
+        $('#uc-troops').textContent = '0'; $('#uc-train').textContent = '-';
         $('#uc-atk').textContent = '-'; $('#uc-def').textContent = '-';
         $('#uc-mov').textContent = '-'; $('#uc-rng').textContent = '-';
       }

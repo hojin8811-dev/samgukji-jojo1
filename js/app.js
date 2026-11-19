@@ -21,7 +21,7 @@
     return word + (m[kind] || '');
   }
   SK.josa = josa;
-  const MONTHS = ['정월', '이월', '삼월', '사월', '오월', '유월', '칠월', '팔월', '구월', '시월', '동월', '섣달'];
+  const MONTHS = SK.MONTH_NAMES;
   const SAVE_KEY = 'samgukji-jojo-v4-save';
 
   /* ───────────── 도시 런타임 ───────────── */
@@ -101,7 +101,7 @@
       version: 5, year: 1, month: 0, gold: 0, food: 0, fame: 0, turn: 1,
       cities, heroes: [], citiesOwned: 0, log: [], lastCity: 'xuchang', treasures: [],
       playerFaction: factionId || 'caocao', factions: {}, scenario: sc ? Number(sc.id) : null,
-      eraYear: sc ? Number(sc.year) : 200, timelineSeen: [], talentLuck: 0,
+      eraYear: sc ? Number(sc.year) : 200, timelineSeen: [], talentLuck: 0, talentsVersion: 2,
     };
     SK.CITY_LIST.forEach((c) => enforceStartLevel(cities[c.id], c));
     if (sc) {
@@ -113,7 +113,7 @@
       st.factions = st.factions || {};
       if (!st.factions[st.playerFaction]) {
         st.factions[st.playerFaction] = { id: st.playerFaction, name: SK.factionInfo(st.playerFaction).name,
-          lord: SK.factionInfo(st.playerFaction).lord, hanja: SK.factionInfo(st.playerFaction).hanja,
+          lord: SK.factionInfo(st.playerFaction).lord, mark: SK.markOf(SK.factionInfo(st.playerFaction)),
           color: SK.factionInfo(st.playerFaction).color, generals: [], cities: [], capital: null, allies: [], enemies: [] };
       }
     }
@@ -126,7 +126,7 @@
       const anyOwned = SK.CITY_LIST.find((c) => st.cities[c.id].owner === st.playerFaction);
       if (anyOwned) {
         st.factions[st.playerFaction] = { id: st.playerFaction, name: SK.factionInfo(st.playerFaction).name,
-          lord: SK.factionInfo(st.playerFaction).lord, hanja: SK.factionInfo(st.playerFaction).hanja,
+          lord: SK.factionInfo(st.playerFaction).lord, mark: SK.markOf(SK.factionInfo(st.playerFaction)),
           color: SK.factionInfo(st.playerFaction).color, generals: [], cities: [], capital: anyOwned.id, allies: [], enemies: [] };
       }
     }
@@ -236,41 +236,51 @@
     });
   }
 
-  /* 재야 인재 — 성마다 고정된 지역 인재 풀 (전국 풀에서 텔레포트하지 않는다) */
+  /* 재야 인재 — 성마다 고정된 지역 인재 풀 (전국 풀에서 텔레포트하지 않는다)
+     v4.1: 보통(B·C급)이 주류, A급은 가끔, S급은 다섯 성에 하나꼴로만 숨어 있게 나눈다. */
   function seedTalents(st) {
     const used = new Set();
     st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
     SK.CITY_LIST.forEach((c) => (st.cities[c.id].genIds || []).forEach((id) => used.add(id)));
-    const rank = { S: 0, A: 1, B: 2, C: 3 };
     const pool = SK.GENERALS.filter((g) => !used.has(g.id) && g.name !== (st.factions[st.playerFaction] || {}).lord);
-    pool.sort((a, b) => (rank[b.tier] - rank[a.tier]) || (a.id - b.id));
-    // 상급 인재가 한 곳에 몰리지 않도록 등급을 섞어 성마다 나눈다
-    const ordered = [];
     const buckets = { S: [], A: [], B: [], C: [] };
-    pool.forEach((g) => { (buckets[g.tier] || buckets.B).push(g); });
+    pool.forEach((g) => { (buckets[g.tier] || buckets.C).push(g); });
+    ['S', 'A', 'B', 'C'].forEach((t) => buckets[t].sort((a, b) => SK.genScore(b) - SK.genScore(a) || a.id - b.id));
+    // 한 성이 2~4명씩 가져가도록 B·C를 촘촘히, A를 드문드문 섞은 순서
+    const MIX = ['C', 'B', 'C', 'C', 'B', 'A', 'C', 'B', 'C', 'C', 'B', 'A', 'C', 'C', 'B', 'B', 'C', 'A', 'B', 'C',
+      'C', 'B', 'C', 'C', 'B'];
+    const ordered = [];
     let guard = 0;
-    while (ordered.length < pool.length && guard++ < pool.length * 4) {
-      ['B', 'C', 'A', 'B', 'S', 'C'].forEach((t) => {
-        const b = buckets[t];
-        if (b && b.length) ordered.push(b.shift());
-      });
+    while (guard++ < 200) {
+      let moved = 0;
+      MIX.forEach((t) => { const b = buckets[t]; if (b && b.length) { ordered.push(b.shift()); moved += 1; } });
+      if (!moved) break;
     }
-    Object.keys(buckets).forEach((t) => { ordered.push(...buckets[t]); });
+    // 남은 인재는 뒤에 붙인다 (S는 여기서 따로 나눠 준다)
+    const spare = buckets.C.concat(buckets.B, buckets.A);
+    const sPool = buckets.S;
     SK.CITY_LIST.forEach((c, ci) => {
       const cs = st.cities[c.id];
       cs.talents = cs.talents || [];
       if (cs.talents.length) return;
-      const n = 2 + (hashStr(c.id) % 3);
+      const h = hashStr(c.id);
+      const n = 2 + (h % 3);
       const take = [];
-      for (let k = 0; k < n && ordered.length; k++) {
-        const idx = (ci * 3 + k * 29) % ordered.length;
+      for (let k = 0; k < n; k++) {
+        if (!ordered.length && spare.length) ordered.push(spare.shift());
+        if (!ordered.length) break;
+        const idx = (ci * 3 + k * 29 + (h % 7)) % ordered.length;
         const g = ordered.splice(idx, 1)[0];
-        if (!g || used.has(g.id)) { k -= 1; if (!ordered.length) break; continue; }
+        if (!g || used.has(g.id)) { k -= 1; continue; }
         take.push(g.id); used.add(g.id);
+      }
+      // S급은 다섯 성에 한 곳꼴 — 만나면 확실히 사건이 된다
+      if (sPool.length && h % 5 === 0) {
+        const g = sPool.shift();
+        if (g && !used.has(g.id)) { take.unshift(g.id); used.add(g.id); }
       }
       cs.talents = take;
     });
-    void rank;
   }
 
   /* 그 성에 지금 있는 재야 인재 (주점) */
@@ -326,6 +336,12 @@
       s.treasures = s.treasures || [];
       (s.heroes || []).forEach((h) => { h.equip = h.equip || {}; });
       SK.state = s;
+      // v4.1 인재 분포로 옮겨 온다 (예전 저장은 고급 인재만 남아 있었다)
+      if (s.talentsVersion !== 2 && SK.GENERALS.length) {
+        s.talentsVersion = 2;
+        SK.CITY_LIST.forEach((c) => { const cs = s.cities[c.id]; if (cs) cs.talents = []; });
+        try { seedTalents(s); } catch (e) { /* ignore */ }
+      }
       return true;
     } catch (e) { return false; }
   };
@@ -540,7 +556,7 @@
     setTimeout(() => {
       if (false) {
         SK.modal({
-          kicker: '건안 원년 정월',
+          kicker: '190년 1월',
           title: '천하의 서막',
           body: `<div class="intro-modal">
             <div class="intro-portrait"><img src="assets/portraits/v2/caocao.webp" alt="조조"></div>
@@ -563,7 +579,7 @@
   function factionCard(f) {
     const n = (f.cities || []).length;
     return `<button class="fac-card" data-fid="${f.id}" style="--fc:${f.color}">
-      <span class="fc-seal">${f.hanja}</span>
+      <span class="fc-seal">${SK.markOf(f)}</span>
       <div class="fc-main">
         <b>${f.name}</b>
         <span>${f.lord} · ${SK.typeName((SK.CITY[f.capital] || {}).type || 'capital')}</span>
@@ -606,12 +622,12 @@
       .map((k) => res.factions[k])
       .sort((a, b) => b.cities.length - a.cities.length);
     const cards = facs.map((f) => factionCard({
-      id: f.id, name: f.name, lord: f.lord, color: f.color, hanja: f.hanja,
+      id: f.id, name: f.name, lord: f.lord, color: f.color, mark: SK.markOf(f),
       capital: f.capital, capitalName: (SK.CITY[f.capital] || {}).name || '-',
       cities: f.cities, generals: f.generals,
     })).join('');
     const m = SK.modal({
-      kicker: `서기 ${sc.year}년 · ${sc.title}`,
+      kicker: `${sc.year}년 · ${sc.title}`,
       title: '어느 세력으로 일어설까',
       body: `<p class="talent-note">${(sc.historyNote || '').slice(0, 150)}</p>
         <div class="fac-list">${cards}</div>`,
@@ -639,7 +655,7 @@
     const cap = SK.CITY[s.playerCapital];
     setTimeout(() => {
       SK.modal({
-        kicker: sc ? `서기 ${sc.year}년` : '난세의 시작',
+        kicker: sc ? `${sc.year}년` : '난세의 시작',
         title: sc ? sc.title : '천하의 서막',
         body: `<div class="intro-modal">
           <div class="intro-portrait" style="border-color:${f.color || '#b8862f'}"><img src="${SK.ptSrc(lord ? SK.genPortrait(lord) : 'caocao')}" alt=""></div>
@@ -670,9 +686,9 @@
       kicker: intro ? '난세의 기록' : '역사의 흐름',
       title: ev.title,
       body: `<div class="timeline-card">
-        <span class="tl-seal">史</span>
+        <span class="tl-seal">사</span>
         <p>${ev.text}</p>
-        <p class="tl-date">서기 ${ev.year}년 ${ev.month}월</p>
+        <p class="tl-date">${ev.year}년 ${ev.month}월</p>
       </div>`,
       actions: [{ label: '기억해 두겠다', primary: true }],
       wide: true,
@@ -689,17 +705,17 @@
     if (chip) {
       chip.style.borderColor = pfInfo.color || '#b8862f';
       const span = chip.querySelector('span');
-      if (span) { span.textContent = pfInfo.hanja || '在'; span.title = pfInfo.name || ''; }
+      if (span) { span.textContent = SK.markOf(pfInfo); span.title = pfInfo.name || ''; }
       const mini = $('#lord-mini');
       const lordG = pfInfo.lord ? SK.GEN_BY_NAME[pfInfo.lord] : null;
       if (mini && lordG) mini.src = SK.ptSrc(SK.genPortrait(lordG));
     }
     const capBtn = $('#go-capital');
-    if (capBtn) capBtn.textContent = pfInfo.hanja || '都';
+    if (capBtn) capBtn.textContent = SK.markOf(pfInfo);
     $('#map-gold').textContent = fmt(s.gold);
     $('#map-food').textContent = fmt(s.food);
     $('#map-troops').textContent = fmt(totalTroops());
-    $('#map-date').textContent = s.eraYear ? `서기 ${s.eraYear}년 ${MONTHS[s.month]}` : `건안 ${s.year}년 ${MONTHS[s.month]}`;
+    $('#map-date').textContent = SK.dateLabel(s.eraYear || (195 + s.year), s.month);
     $('#map-fame').textContent = '명성 ' + fmt(s.fame);
     const rank = SK.rankFor(s.fame);
     const rk = $('#map-rank');
@@ -710,7 +726,7 @@
     }
     const se = $('#map-season');
     if (se) {
-      se.textContent = ['춘', '하', '추', '동'][Math.min(3, Math.floor(s.month / 3))];
+      se.textContent = ['봄', '여름', '가을', '겨울'][Math.min(3, Math.floor(s.month / 3))];
       se.title = `${['봄', '여름', '가을', '겨울'][Math.min(3, Math.floor(s.month / 3))]} 계절`;
     }
     const owned = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).length;
@@ -745,8 +761,8 @@
     sheet.innerHTML = `
       <div class="sheet-grip"></div>
       <div class="sheet-head">
-        <span class="faction-badge" style="--fc:${f.color}">${f.hanja}</span>
-        <div class="sheet-title"><h3>${c.name} <em>${c.hanja}</em></h3>
+        <span class="faction-badge" style="--fc:${f.color}">${SK.markOf(f)}</span>
+        <div class="sheet-title"><h3>${c.name}</h3>
           <p>${f.name} · ${typeName(c.type)} · ${c.region}</p></div>
         <button class="sheet-close" aria-label="닫기">✕</button>
       </div>
@@ -804,8 +820,8 @@
     SK.save();
     const f = SK.factionInfo(st.owner);
     $('#city-name').textContent = c.name;
-    $('#city-hanja').textContent = c.hanja;
-    $('#city-faction').textContent = f.hanja;
+    $('#city-hanja').textContent = typeName(c.type);
+    $('#city-faction').textContent = SK.markOf(f);
     $('#city-faction').style.background = f.color;
     $('#city-lord-img').src = `${SK.ptSrc(heroPortrait(id))}`;
     const scene = sceneFor(c);
@@ -1093,7 +1109,7 @@
         const gens = s.heroes.filter((h) => h.city === c.id);
         return `<button class="rs-citycard" data-c="${c.id}">
           <span class="rc-badge" style="background:${SK.factionColor(PF())}">${cityLevel(cs)}</span>
-          <div class="rc-main"><b>${c.name} <em>${c.hanja}</em></b>
+          <div class="rc-main"><b>${c.name}</b>
             <span>인구 ${fmt(cs.pop)} · 병력 ${fmt(cs.troops)}/${fmt(cityCap(cs))} · 민심 ${cs.loyalty}</span></div>
           <span class="rc-gens">${gens.length}명</span>
         </button>`;
@@ -1124,7 +1140,7 @@
     const C = SK.CLASSES[g.cls];
     const hpM = maxHpOf(g.cls, g.lv), mpM = maxMpOf(g.cls, g.lv);
     SK.modal({
-      title: `${g.name} <em class="hanja">${g.hanja || ''}</em>`,
+      title: `${g.name}`,
       body: `<div class="hero-info">
         <div class="hi-portrait"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
         <div class="hi-body">
@@ -1158,8 +1174,8 @@
     const towns = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === 'wei' && c.id !== g.city);
     if (!towns.length) { SK.toast('옮겨 갈 다른 성이 없습니다.'); return; }
     const rows = towns.map((c) => `<button class="target-card" data-c="${c.id}">
-      <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.factionInfo(PF()).hanja}</span>
-      <div class="tc-main"><b>${c.name} <em>${c.hanja}</em></b><span>${typeName(c.type)} · 주둔 ${s.heroes.filter((h) => h.city === c.id).length}명</span></div>
+      <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
+      <div class="tc-main"><b>${c.name}</b><span>${typeName(c.type)} · 주둔 ${s.heroes.filter((h) => h.city === c.id).length}명</span></div>
       <span class="tc-troops"><span>수비병</span><b>${fmt(s.cities[c.id].troops)}</b></span>
       <span class="tc-go">▸</span></button>`).join('');
     const m = SK.modal({ kicker: `${g.name} 이동`, title: '어느 성으로 갈까', body: `<div class="target-list">${rows}</div>`, chest: true, actions: [{ label: '취소' }], wide: true });
@@ -1316,7 +1332,7 @@
       cityActorUid = ready.length ? ready[0].uid : null;
     }
     const el = $('#city-generals');
-    const allChip = `<button class="gen-chip all" data-all="1"><span class="gc-all">全</span><div><b>장수 명부</b><span>전체 보기</span></div></button>`;
+    const allChip = `<button class="gen-chip all" data-all="1"><span class="gc-all">전</span><div><b>장수 명부</b><span>전체 보기</span></div></button>`;
     el.innerHTML = (gens.map((g) => {
       const done = !!g.actedThisMonth;
       const sel = !done && g.uid === cityActorUid;
@@ -1358,23 +1374,22 @@
     bar.innerHTML = `
       <div class="ap-head">
         <span class="ap-title">이번 달 행동</span>
-        <b class="ap-count ${ready.length ? '' : 'none'}">행동 가능 장수 ${ready.length}/${gens.length}</b>
+        <b class="ap-count ${ready.length ? '' : 'none'}">행동 ${ready.length}/${gens.length}</b>
         <span class="ap-actor">${actor
           ? `<img src="${SK.ptSrc(actor.portrait)}" alt="">${actor.name} 차례`
           : (ready.length ? '장수를 고르세요' : '다음 달에 다시')}</span>
       </div>
       <div class="ap-row2">
         <div class="ap-dots">${gens.map((g) => `<i class="${g.actedThisMonth ? 'spent' : 'ready'}" title="${g.name}"></i>`).join('')}</div>
-        <button class="ap-delegate ${ready.length ? '' : 'off'}" id="btn-delegate" title="군사를 임명해 남은 내정을 자동 처리">
-          <span>軍師</span>${advisor ? `${advisor.name} 위임` : '군사 임명'}
+        <button class="ap-delegate" id="btn-delegate" title="군사에게 지금 성에 필요한 조언을 듣는다 (행동력은 쓰지 않습니다)">
+          <span>${advisor ? advisor.name : '군사'}</span>${advisor ? '조언' : '임명'}
         </button>
       </div>`;
     const del = bar.querySelector('#btn-delegate');
     if (del) {
       del.onclick = () => {
-        if (!ready.length) { SK.sfx.play('deny'); SK.toast('이번 달 남은 행동이 없습니다.'); return; }
-        if (!advisor) { openOffice(cityId); openAdvisorPick(cityId); return; }
-        runDelegation(cityId);
+        if (!advisor) { openAdvisorPick(cityId); return; }
+        openAdvice(cityId);
       };
     }
     const nav = $('.city-commands');
@@ -1502,7 +1517,7 @@
     talent: { name: '인재', run(cityId, actor) {
       const s = SK.state;
       if (cityGens(cityId).length >= 10) return fail('이 성에는 더 이상 장수를 둘 수 없습니다.');
-      if (!localTalents(cityId).length) return fail('주점에 소문난 인재가 없습니다. 다른 성의 주점을 찾아보세요.');
+      if (!tavernPool(cityId).length) return fail('주점에 소문난 인재가 없습니다. 다른 성의 주점을 찾아보세요.');
       openTavern(cityId, actor);
       return { pending: true };
     } },
@@ -1519,8 +1534,8 @@
     } },
   };
 
-  /* ── 주점 — 이 성에 있는 재야 인재만 (다른 성으로 순간이동하지 않는다) ── */
-  const TALENT_COST = { S: 1800, A: 1100, B: 700, C: 420 };
+  /* ── 주점 — 이 성과 길로 이어진 옆 성의 재야 인재까지 만난다 (v4.1) ── */
+  const TALENT_COST = { S: 1600, A: 1000, B: 620, C: 380 };
   const RUMORS = {
     S: ['천하에 이름을 떨치는 큰 인물이라 합니다', '한 번 앉히면 일이 척척 풀린다더군요', '제후들이 앞다퉈 청했다는 소문이 있습니다'],
     A: ['관가에서도 눈여겨보는 인물입니다', '글과 무예를 겸비했다 합니다', '요즘 주점마다 이 이름이 오릅니다'],
@@ -1529,29 +1544,61 @@
   };
   const TALENT_LIMIT = 10;
 
+  /* 이 성 + 길로 이어진 성의 재야 인재 (주점 진열) */
+  function tavernPool(cityId) {
+    const out = [];
+    const seen = new Set();
+    localTalents(cityId).forEach((g) => {
+      if (seen.has(g.id)) return;
+      seen.add(g.id);
+      out.push({ g, cityId, here: true });
+    });
+    SK.allNeighbors(cityId).forEach((nid) => {
+      if (!SK.CITY[nid] || nid === cityId) return;
+      localTalents(nid).forEach((g) => {
+        if (seen.has(g.id)) return;
+        seen.add(g.id);
+        out.push({ g, cityId: nid, here: false });
+      });
+    });
+    const rank = { S: 0, A: 1, B: 2, C: 3 };
+    out.sort((a, b) => {
+      if (a.here !== b.here) return a.here ? -1 : 1;
+      const d = (rank[a.g.tier] || 3) - (rank[b.g.tier] || 3);
+      return d || String(a.g.name).localeCompare(String(b.g.name));
+    });
+    return out;
+  }
+  SK.tavernPool = tavernPool;
+
   function openTavern(cityId, actor) {
     const s = SK.state;
     const c = CITY[cityId];
-    const pool = localTalents(cityId);
-    const rows = pool.map((g) => {
+    const pool = tavernPool(cityId);
+    const hereN = pool.filter((p) => p.here).length;
+    const rows = pool.map(({ g, cityId: fromId, here }) => {
       const cls = SK.genClass(g);
-      const cost = TALENT_COST[g.tier] || 700;
+      const cost = TALENT_COST[g.tier] || 620;
       const refuse = lordRival(g.name);
       const ok = s.gold >= cost && !refuse && cityGens(cityId).length < TALENT_LIMIT;
       const rumor = RUMORS[g.tier][hashStr(g.name) % RUMORS[g.tier].length];
-      return `<button class="gen-pick ${ok ? '' : 'off'} ${refuse ? 'refuse' : ''}" data-gid="${g.id}">
+      const from = here ? '현재 성' : `${CITY[fromId].name} · 인접`;
+      return `<button class="gen-pick ${ok ? '' : 'off'} ${refuse ? 'refuse' : ''}" data-gid="${g.id}" data-city="${fromId}">
         <span class="tier t${g.tier}">${g.tier}</span>
         <img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
-        <div class="gp-main"><b>${g.name}</b><span>${SK.CLASSES[cls].name} · ${g.skill || '특기 없음'}</span>
+        <div class="gp-main">
+          <b>${g.name}<em class="gp-city ${here ? 'here' : ''}">${from}</em></b>
+          <span>${SK.CLASSES[cls].name} · ${g.skill || '특기 없음'}</span>
           <em class="gp-rumor">“${rumor}”</em>
-          <em>통 ${g.leadership} 무 ${g.war} 지 ${g.intel}</em></div>
+          <em>통 ${g.leadership} 무 ${g.war} 지 ${g.intel}</em>
+        </div>
         <span class="gp-cost">${refuse ? '등용 거부' : `금 ${fmt(cost)}`}</span>
       </button>`;
-    }).join('') || '<p class="tr-empty">주점이 조용합니다. 이 성에 소문난 인재가 없습니다.</p>';
+    }).join('') || '<p class="tr-empty">주점이 조용합니다. 이 성과 옆 성에도 소문난 인재가 없습니다.</p>';
     const m = SK.modal({
       kicker: `${c.name} 주점`,
       title: '어떤 인재가 있나',
-      body: `<p class="talent-note">${actor ? `${josa(actor.name, 'i')} 이번 달 주점을 찾았습니다. ` : ''}이 성에서만 만날 수 있는 인재 ${pool.length}명입니다. 등용하면 ${actor ? actor.name + ' 님과 새로 온 장수 모두' : '새로 온 장수는'} 이번 달을 마칩니다.</p>
+      body: `<p class="talent-note">${actor ? `${josa(actor.name, 'i')} 이번 달 주점을 찾았습니다. ` : ''}이 성에서 ${hereN}명, 길로 이어진 옆 성에서 ${pool.length - hereN}명을 만났습니다. 등용하면 ${actor ? actor.name + ' 님의 행동력과 ' : ''}새로 온 장수의 이번 달 행동이 끝납니다.<br><b>보통 인재(B·C급)가 흔하고, S·A급은 좀처럼 모습을 드러내지 않습니다.</b></p>
         <div class="gen-pick-list">${rows}</div>`,
       wide: true,
       actions: [{ label: '나가기' }],
@@ -1560,7 +1607,8 @@
       b.onclick = () => {
         const g = SK.GEN_BY_ID[Number(b.dataset.gid)];
         if (!g) return;
-        const cost = TALENT_COST[g.tier] || 700;
+        const fromId = b.dataset.city || cityId;
+        const cost = TALENT_COST[g.tier] || 620;
         if (lordRival(g.name)) {
           SK.sfx.play('deny');
           SK.toast(`${josa(g.name, 'eun')} 우리 군주와 숙적이라 등용을 거부합니다.`);
@@ -1573,7 +1621,7 @@
         if (!hero) return;
         hero.actedThisMonth = true;          // 등용 직후 자동 턴 종료
         s.heroes.push(hero);
-        removeLocalTalent(cityId, g.id);
+        removeLocalTalent(fromId, g.id);
         if (actor) { actor.actedThisMonth = true; SK.gainExp(actor, 18); }
         cityActorUid = null;
         SK.save();
@@ -1583,10 +1631,12 @@
         floatHotspot('talent', `${g.name} 합류`);
         sparkleAt('talent');
         SK.sfx.play('levelup');
-        SK.toast(`${g.name} 합류 — 금 -${fmt(cost)}`);
+        SK.toast(`${g.name} 합류 — 금 -${fmt(cost)}${fromId !== cityId ? ` · ${CITY[fromId].name}에서 왔습니다` : ''}`);
       };
     });
   }
+
+  SK.openTavern = openTavern;
 
   /* ── 병영 — 징병 · 훈련 선택 ── */
   function openBarracksMenu(cityId) {
@@ -1620,11 +1670,12 @@
           <div><span>성벽</span><b>${cs.def}</b></div>
           <div><span>이번 달 남은 행동</span><b>${ready} / ${gens.length}</b></div>
         </div>
-        <p class="office-note">군사를 임명하면 남은 내정을 대신 처리합니다.</p>
+        <p class="office-note">군사를 임명하면 [군사] 버튼으로 이 성에 필요한 조언을 들을 수 있습니다. 남은 내정을 통째로 맡기려면 아래 위임을 쓰십시오.</p>
         <div class="menu-list">
           <button data-o="comfort">백성을 위로한다 — 금 100 · 민심 +5</button>
           <button data-o="appoint" ${gens.length ? '' : 'disabled'}>군사 임명${advisor ? ` — 현재 ${advisor.name}` : ''}</button>
-          <button data-o="delegate" class="primary" ${ready ? '' : 'disabled'}>군사 위임 — 남은 내정 자동 처리 (${ready})</button>
+          <button data-o="advice">군사 조언 — 지금 필요한 것</button>
+          <button data-o="delegate" ${ready ? '' : 'disabled'}>군사 위임 — 남은 내정 자동 처리 (${ready})</button>
         </div>
       </div>`,
       actions: [{ label: '닫기' }],
@@ -1644,6 +1695,9 @@
         } else if (k === 'appoint') {
           m.close();
           openAdvisorPick(cityId);
+        } else if (k === 'advice') {
+          m.close();
+          openAdvice(cityId);
         } else if (k === 'delegate') {
           m.close();
           runDelegation(cityId);
@@ -1668,7 +1722,7 @@
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 인사`,
       title: '군사로 임명할 장수',
-      body: `<p class="talent-note">지력과 통솔이 높은 장수가 위임을 잘 처리합니다.</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">지력과 통솔이 높은 장수가 좋은 조언을 합니다. 조언은 행동력을 쓰지 않습니다.</p><div class="target-list">${rows}</div>`,
       actions: [{ label: '취소' }],
       wide: true,
     });
@@ -1740,6 +1794,176 @@
   }
   SK.runDelegation = runDelegation;
 
+  /* ───────────── 군사 조언 (v4.1) ─────────────
+     군사를 임명하면 [군사] 버튼은 남은 행동력을 태우는 위임이 아니라,
+     지금 이 성의 형편(민심·병력·성벽·재정·옆 성의 위협·주점 인재)을 읽은 조언을 연다.
+     원할 때만 '조언대로 진행'으로 한 번에 실행한다. */
+  function advisorOf(cityId) {
+    const cs = SK.state.cities[cityId];
+    if (!cs) return null;
+    const gens = cityGens(cityId);
+    return gens.find((g) => g.uid === cs.advisor) ||
+      gens.slice().sort((a, b) => (b.ji * 1.4 + b.tong) - (a.ji * 1.4 + a.tong))[0] || null;
+  }
+  SK.advisorOf = advisorOf;
+
+  function citySituation(cityId) {
+    const s = SK.state;
+    const cs = s.cities[cityId];
+    const gens = cityGens(cityId);
+    const ready = gens.filter((g) => !g.actedThisMonth).length;
+    const nb = SK.allNeighbors(cityId).map((id) => SK.CITY[id]).filter(Boolean).map((c) => {
+      const st = s.cities[c.id];
+      return { id: c.id, name: c.name, mine: st.owner === PF(), troops: st.troops, def: st.def, type: c.type };
+    });
+    const foes = nb.filter((n) => !n.mine).sort((a, b) => b.troops - a.troops);
+    const friends = nb.filter((n) => n.mine);
+    const talents = tavernPool(cityId);
+    return { s, cs, gens, ready, nb, foes, friends, cap: cityCap(cs), talents };
+  }
+
+  function buildAdvice(sit) {
+    const { s, cs, ready, foes, cap, talents } = sit;
+    const items = [];
+    const push = (o) => { if (!items.some((x) => x.key === o.key)) items.push(o); };
+    const topFoe = foes[0] || null;
+    const weakFoe = foes.slice().sort((a, b) => a.troops - b.troops)[0] || null;
+    const capGap = cap - cs.troops;
+    const canRecruit = s.gold >= 150 && s.food >= 120 && cs.pop > 12000 && capGap > 300;
+    const threat = topFoe && topFoe.troops > cs.troops * 0.8;
+
+    if (cs.loyalty < 58) {
+      push({ key: 'comfort', tone: cs.loyalty < 42 ? 'urgent' : 'warn',
+        title: `민심이 ${cs.loyalty}까지 내려앉았습니다`,
+        body: `백성이 등을 돌리면 징병도 세수도 줄어듭니다. 관아에서 백성을 위로하면 금 100으로 민심을 5 올릴 수 있습니다.`,
+        label: '관아 · 백성 위로 (금 100)', short: '민심 위로' });
+    }
+
+    if (threat) {
+      if (canRecruit) {
+        push({ key: 'recruit', tone: 'urgent',
+          title: `이웃 ${topFoe.name}의 병력 ${fmt(topFoe.troops)}이 우리 ${fmt(cs.troops)}보다 많습니다`,
+          body: `성벽 ${cs.def}도 넉넉하지 않습니다. 병영에서 징병해 병력을 채우고(금 150 · 군량 120), 다음 달에 성벽을 보수하십시오.`,
+          label: '병영 · 징병 (금 150 · 군량 120)', short: '징병' });
+      } else if (s.gold >= 120 && cs.def < 95) {
+        push({ key: 'repair', tone: 'urgent',
+          title: `이웃 ${topFoe.name}이 병력 ${fmt(topFoe.troops)}으로 노리고 있습니다`,
+          body: `지금은 군량과 금이 모자라 징병이 어렵습니다. 성벽(현재 ${cs.def})을 먼저 손보아 버티면서 재정을 세우십시오.`,
+          label: '성벽 · 보수 (금 120)', short: '성벽 보수' });
+      } else {
+        push({ key: 'trade', tone: 'warn',
+          title: `이웃 ${topFoe.name}의 위협이 큽니다`,
+          body: `금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}으로는 징병도 보수도 어렵습니다. 상업으로 금을 만들고(군량 80) 개간으로 군량을 채우십시오.`,
+          label: '시장 · 상업 (군량 80)', short: '상업' });
+      }
+    } else if (capGap > cap * 0.32 && canRecruit) {
+      push({ key: 'recruit', tone: 'info',
+        title: `병력이 상한의 ${Math.round(cs.troops / cap * 100)}%입니다`,
+        body: `이 성은 인구 ${fmt(cs.pop)}으로 ${fmt(cap)}까지 병력을 채울 수 있습니다. 징병으로 ${fmt(Math.min(capGap, 2500))}가량을 더 세울 수 있습니다.`,
+        label: '병영 · 징병 (금 150 · 군량 120)', short: '징병' });
+    }
+
+    if (s.food < 4500 && s.gold >= 100) {
+      push({ key: 'farm', tone: s.food < 1800 ? 'warn' : 'info',
+        title: `군량이 ${fmt(s.food)}뿐입니다`,
+        body: `출진과 징병에 군량이 듭니다. 농장에서 개간하면 군량 +300과 농업 +6을 얻습니다.`,
+        label: '농장 · 개간 (금 100)', short: '개간' });
+    }
+    if (s.gold < 900 && s.food >= 80) {
+      push({ key: 'trade', tone: s.gold < 300 ? 'warn' : 'info',
+        title: `금이 ${fmt(s.gold)}으로 마릅니다`,
+        body: `징병·보수·등용 모두 금이 듭니다. 시장에서 상업을 벌이면 금 +240과 상업 +6을 얻습니다.`,
+        label: '시장 · 상업 (군량 80)', short: '상업' });
+    }
+
+    if (talents.length) {
+      const rank = { S: 0, A: 1, B: 2, C: 3 };
+      const best = talents.slice().sort((a, b) => (rank[a.g.tier] || 3) - (rank[b.g.tier] || 3))[0];
+      const where = best.here ? '이 성 주점' : `${CITY[best.cityId].name} 주점(길로 이어진 성)`;
+      push({ key: 'talent', tone: 'good',
+        title: `${where}에 ${best.g.name}(${best.g.tier}급)이 있습니다`,
+        body: `${SK.CLASSES[SK.genClass(best.g)].name} · 지력 ${best.g.intel} · 통솔 ${best.g.leadership}. 등용하면 금 ${fmt(TALENT_COST[best.g.tier] || 620)}이 들고, 이번 달 행동이 끝납니다.`,
+        label: '주점 · 인재 등용', short: '인재 등용' });
+    }
+
+    if (ready > 0 && weakFoe && cs.troops >= Math.max(1500, weakFoe.troops * 1.05) && cs.def >= 42) {
+      push({ key: 'sortie', target: weakFoe.id, tone: 'good',
+        title: `${weakFoe.name}을 노려볼 만합니다`,
+        body: `우리 병력 ${fmt(cs.troops)} · 성벽 ${cs.def}, ${weakFoe.name}은 병력 ${fmt(weakFoe.troops)}입니다. 지금 출진하면 이길 만합니다.`,
+        label: `출진 · ${weakFoe.name} 공략`, short: '출진' });
+    }
+
+    if (!items.length) {
+      push({ key: 'train', tone: 'info',
+        title: '지금은 성을 다질 때입니다',
+        body: `민심 ${cs.loyalty} · 병력 ${fmt(cs.troops)}/${fmt(cap)} · 성벽 ${cs.def} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 급한 곳은 없으니 훈련으로 장수들을 키우십시오.`,
+        label: '병영 · 훈련 (금 80)', short: '훈련' });
+    }
+    return items.slice(0, 4);
+  }
+
+  const TONE_LABEL = { urgent: '급함', warn: '주의', info: '권장', good: '기회' };
+
+  function openAdvice(cityId) {
+    const sit = citySituation(cityId);
+    const adv = advisorOf(cityId);
+    if (!adv) { openAdvisorPick(cityId); return; }
+    if (!sit.cs.advisor) { sit.cs.advisor = adv.uid; SK.save(); }
+    const items = buildAdvice(sit);
+    const top = items[0];
+    const c = CITY[cityId];
+    const rows = items.map((it) => `<div class="advice-row ${it.tone}">
+        <div class="advice-head"><span class="advice-tone">${TONE_LABEL[it.tone] || '조언'}</span><b>${it.title}</b></div>
+        <p>${it.body}</p>
+        <span class="advice-go">${it.label}</span>
+      </div>`).join('');
+    SK.modal({
+      kicker: `${c.name} 군사 조언`,
+      title: `${adv.name}의 조언`,
+      body: `<div class="advice-wrap">
+        <div class="advice-stats">
+          <div><span>민심</span><b>${sit.cs.loyalty}</b></div>
+          <div><span>성벽</span><b>${sit.cs.def}</b></div>
+          <div><span>수비병</span><b>${fmt(sit.cs.troops)}</b></div>
+          <div><span>남은 행동</span><b>${sit.ready}/${sit.gens.length}</b></div>
+        </div>
+        <p class="advice-sum">금 ${fmt(sit.s.gold)} · 군량 ${fmt(sit.s.food)} · 병력 상한 ${fmt(sit.cap)}
+          ${sit.foes.length ? ` · 이웃 적성 ${sit.foes.map((f) => `${f.name}(${fmt(f.troops)})`).join(' · ')}` : ' · 이웃에 적성이 없습니다'}
+          ${sit.talents.length ? ` · 주점 인재 ${sit.talents.length}명` : ''}</p>
+        <div class="advice-list">${rows}</div>
+        <p class="office-note">조언은 행동력을 쓰지 않습니다. 진행을 누를 때만 장수 한 명의 이번 달 행동이 쓰입니다.</p>
+      </div>`,
+      wide: true,
+      actions: [
+        { label: '닫기', primary: true },
+        top ? { label: `조언대로 진행 — ${top.short}`, onClick: () => runAdvice(cityId, top) } : null,
+      ].filter(Boolean),
+    });
+    SK.sfx.play('ui');
+  }
+  SK.openAdvice = openAdvice;
+
+  function runAdvice(cityId, item) {
+    if (!item) return;
+    if (item.key === 'comfort') {
+      const s = SK.state;
+      const cs = s.cities[cityId];
+      if (s.gold < 100) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 100)'); return; }
+      s.gold -= 100;
+      cs.loyalty = clamp(cs.loyalty + 5, 0, 100);
+      SK.save();
+      SK.refreshHud();
+      SK.openCity(cityId);
+      floatHotspot('office', '민심 +5');
+      SK.sfx.play('ui');
+      SK.toast('백성을 위로했습니다 — 민심 +5');
+      return;
+    }
+    if (item.key === 'sortie') { SK.openSortiePrep(item.target || null, cityId); return; }
+    doCommand(item.key);
+  }
+  SK.runAdvice = runAdvice;
+
   function finishAction(cityId, actor, key, res) {
     const s = SK.state;
     if (actor) {
@@ -1801,8 +2025,8 @@
       const c = CITY[t], st = s.cities[t], f = SK.factionInfo(st.owner);
       const bt = SK.battleTypeFor(c);
       return `<button class="target-card" data-t="${t}">
-        <span class="tc-flag" style="background:${f.color}">${f.hanja}</span>
-        <div class="tc-main"><b>${c.name} <em>${c.hanja}</em></b>
+        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
+        <div class="tc-main"><b>${c.name}</b>
           <span>${f.name} · ${typeName(c.type)} · ${SK.BATTLE_TYPES[bt].name}${from !== origin ? ` · ${CITY[from].name}에서` : ''}</span></div>
         <div class="tc-troops"><span>수비병</span><b>${fmt(st.troops)}</b></div>
         <span class="tc-go">▸</span>
@@ -1854,7 +2078,7 @@
 
     const body = `<div class="deploy-wrap">
       <div class="deploy-banner" style="--fc:${f.color}">
-        <span class="db-flag">${f.hanja}</span>
+        <span class="db-flag">${SK.markOf(f)}</span>
         <div><b>${f.name}군 ${fmt(ts.troops)}</b><span>성벽 ${ts.def} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, picked, s)}
@@ -1871,7 +2095,7 @@
       <div class="deploy-section"><span>병종 부대 편성</span><em>병력이 남으면 일반 부대를 더 편성할 수 있습니다</em></div>
       <div class="regiment-list" id="regiment-list">
         ${SK.REGIMENTS.map((r) => `<div class="reg-row" data-cls="${r.cls}">
-          <span class="reg-emblem">${SK.CLASSES[r.cls].hanja}</span>
+          <span class="reg-emblem">${SK.CLASSES[r.cls].name.charAt(0)}</span>
           <div class="reg-main"><b>${r.name}</b><span>${SK.CLASSES[r.cls].role} · 병력 ${fmt(r.cost)}</span></div>
           <div class="reg-stepper"><button class="stepminus" aria-label="줄이기">−</button><b class="reg-count">0</b><button class="stepplus" aria-label="늘리기">＋</button></div>
         </div>`).join('')}
@@ -1964,17 +2188,17 @@
 
   /* ───────────── 다음 달 ───────────── */
   const MONTH_EVENTS = [
-    { title: '풍년', hanja: '豐', text: '들녘마다 곡식이 익어 창고가 넘칩니다.',
+    { title: '풍년', hanja: '풍', text: '들녘마다 곡식이 익어 창고가 넘칩니다.',
       apply(s) { const v = 400 + Math.floor(Math.random() * 400); s.food += v; return `군량 +${fmt(v)}`; } },
-    { title: '대상인 방문', hanja: '商', text: '서역 대상인이 값진 물건을 두고 갔습니다.',
+    { title: '대상인 방문', hanja: '상', text: '서역 대상인이 값진 물건을 두고 갔습니다.',
       apply(s) { const v = 300 + Math.floor(Math.random() * 300); s.gold += v; return `금 +${fmt(v)}`; } },
-    { title: '재야의 소문', hanja: '賢', text: '재야에 뛰어난 인재가 숨어 있다는 소문이 돕니다.',
+    { title: '재야의 소문', hanja: '현', text: '재야에 뛰어난 인재가 숨어 있다는 소문이 돕니다.',
       apply(s) { s.talentLuck = 2; return '다음 인재 탐색에 상급 인재 등장'; } },
-    { title: '성벽 보수', hanja: '壁', text: '백성들이 스스로 성벽을 손봤습니다.',
+    { title: '성벽 보수', hanja: '벽', text: '백성들이 스스로 성벽을 손봤습니다.',
       apply(s) { let n = 0; SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF() && st.def < 100) { st.def = clamp(st.def + 4, 0, 100); n += 1; } }); return n ? '전 거점 성벽 +4' : '성벽이 이미 완벽'; } },
-    { title: '유민 유입', hanja: '民', text: '전란을 피해 백성이 몰려와 병사로 나섰습니다.',
+    { title: '유민 유입', hanja: '민', text: '전란을 피해 백성이 몰려와 병사로 나섰습니다.',
       apply(s) { SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF()) st.troops = clamp(st.troops + 400, 0, 20000); }); return '전 거점 수비병 +400'; } },
-    { title: '마을 축제', hanja: '樂', text: '마을마다 풍악이 울리고 민심이 흡족합니다.',
+    { title: '마을 축제', hanja: '락', text: '마을마다 풍악이 울리고 민심이 흡족합니다.',
       apply(s) { SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF()) st.loyalty = clamp(st.loyalty + 3, 0, 100); }); return '전 거점 민심 +3'; } },
   ];
 
@@ -1992,7 +2216,7 @@
       const ev = bag[Math.floor(Math.random() * bag.length)];
       return {
         title: ev.title,
-        hanja: ev.type === '위기' ? '災' : '吉',
+        hanja: ev.type === '위기' ? '재' : '길',
         text: ev.text,
         gain: applyDomesticEvent(ev, s),
         type: ev.type || '긍정',
@@ -2101,7 +2325,7 @@
     if (window.SKMap) SKMap.refresh();
     SK.sfx.play('month');
     SK.modal({
-      kicker: `서기 ${s.eraYear}년 ${MONTHS[s.month]}`,
+      kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
         <div class="mr-row"><span>세입</span><b class="plus">금 +${fmt(gold)}</b></div>
@@ -2121,7 +2345,7 @@
   /* ───────────── 메뉴 ───────────── */
   function openMenu() {
     const m = SK.modal({
-      kicker: '軍令',
+      kicker: '군령',
       title: '메뉴',
       body: `<div class="menu-list">
         <button data-m="roster">장수 명부 · 보물 · 배치</button>
@@ -2156,8 +2380,8 @@
         <div class="help-item"><b>내정 행동력</b><p>주둔 장수는 한 달에 한 번만 내정을 할 수 있습니다. 장수를 눌러 이번 달 일을 맡기고, 모두 일하면 [다음 달]을 눌러야 합니다.</p></div>
         <div class="help-item"><b>여섯 시설</b><p>관아(민심·군사 임명) · 농장(개간) · 시장(상업) · 병영(징병·훈련) · 주점(그 성의 인재 등용) · 성벽(보수). 개발도가 오르면 성이 Lv.1→Lv.5로 자라고 장면도 바뀝니다.</p></div>
         <div class="help-item"><b>인구와 징병</b><p>징병은 그 성의 인구에서 병사를 빼옵니다. 주둔병은 인구의 30%를 넘을 수 없고, 징병하면 민심이 5 내려갑니다. 민심이 70 이상이면 세수와 인구가 더 늘고, 40 아래면 줄어듭니다.</p></div>
-        <div class="help-item"><b>군사 위임</b><p>관아나 행동력 줄의 [軍師] 버튼으로 군사를 임명하면, 남은 장수들의 행동력을 모아 내정을 자동으로 처리합니다.</p></div>
-        <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [全]으로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
+        <div class="help-item"><b>군사 조언</b><p>관아나 행동력 줄의 [군사] 버튼으로 군사를 임명하면, 그 성의 민심·병력·성벽·재정과 이웃 적성·주점 인재를 읽어 지금 필요한 일을 조언합니다. 조언은 행동력을 쓰지 않고, '조언대로 진행'을 눌러야 실행됩니다. 남은 내정을 통째로 맡기는 위임은 관아에서 따로 고를 수 있습니다.</p></div>
+        <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
         <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. 화면을 끌면 18×18 전장을 넓게 볼 수 있습니다.</p></div>
         <div class="help-item"><b>책략과 군량</b><p>[책략]으로 병과별 기술을 쓰고, [군량]으로 HP를 회복합니다. [대기] 후 다음 부대로 넘어갑니다.</p></div>
         <div class="help-item"><b>소리</b><p>상단 ♪ 버튼으로 효과음을 끄고 켜고 할 수 있습니다. 첫 터치 때 소리가 준비됩니다.</p></div>

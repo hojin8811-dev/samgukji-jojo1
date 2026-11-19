@@ -193,20 +193,28 @@ SK.GENERIC_PORTRAITS = { bobyung: 'gen_bobyung', gungbyung: 'gen_gungbyung', gib
    시나리오마다 state.factions가 만들어진다 (data/historical_scenarios.json).
    SK.FACTIONS는 중립/미지정 세력만 담는 최소 사전. */
 SK.FACTIONS = {
-  neutral: { name: '재야', hanja: '在', color: '#8b8677', light: '#e4e2d8', lord: '' },
-  caocao: { name: '조조군', hanja: '曹', color: '#2f57a6', light: '#d5dff0', lord: '조조' },
-  liubei: { name: '유비군', hanja: '劉', color: '#2b7fc9', light: '#d6e7f5', lord: '유비' },
-  sunquan: { name: '손권군', hanja: '吳', color: '#2f8f7d', light: '#d3e9e3', lord: '손권' },
-  goguryeo: { name: '고구려', hanja: '高', color: '#3a5f9a', light: '#d6e0f0', lord: '고국천왕' },
+  neutral: { name: '재야', mark: '야', color: '#8b8677', light: '#e4e2d8', lord: '' },
+  caocao: { name: '조조군', mark: '위', color: '#2f57a6', light: '#d5dff0', lord: '조조' },
+  liubei: { name: '유비군', mark: '촉', color: '#2b7fc9', light: '#d6e7f5', lord: '유비' },
+  sunquan: { name: '손권군', mark: '오', color: '#2f8f7d', light: '#d3e9e3', lord: '손권' },
+  goguryeo: { name: '고구려', mark: '고', color: '#3a5f9a', light: '#d6e0f0', lord: '고국천왕' },
 };
 
-/* 세력 id → 한자 표식 (없으면 이름 첫 글자 사용) */
-SK.FACTION_HANJA = {
-  dongzhuo: '董', yuanshao: '袁', caocao: '曹', liubei: '劉', sunjian: '孫', yuanshu: '術',
-  liubiao: '荊', liuyan: '益', mateng: '涼', gongsunzan: '公', taoqian: '陶', hansui: '韓',
-  goguryeo: '高', baekje: '百', silla: '新', sunquan: '吳', liuzhang: '益', zhanglu: '漢',
-  gongsunkang: '遼', cao_wei_pre: '魏', liuzong: '荊', shu_han: '蜀', sun_wu: '吳',
-  shi_xie: '交', meng_huo: '蠻', neutral: '在',
+/* 세력 id → 한 글자 한국어 표식 (깃발·배지에 쓴다, 없으면 이름 첫 글자) */
+SK.FACTION_MARK = {
+  dongzhuo: '동', yuanshao: '원', caocao: '위', liubei: '촉', sunjian: '손', yuanshu: '술',
+  liubiao: '표', liuyan: '언', mateng: '마', gongsunzan: '공', taoqian: '도', hansui: '한',
+  goguryeo: '고', baekje: '백', silla: '신', sunquan: '오', liuzhang: '장', zhanglu: '로',
+  gongsunkang: '강', cao_wei_pre: '위', liuzong: '종', shu_han: '촉', sun_wu: '오',
+  shi_xie: '사', meng_huo: '맹', neutral: '야',
+};
+
+/* 세력 표식 — 한 글자 한국어 (data에 mark가 없으면 이름 첫 글자) */
+SK.markOf = function (f) {
+  if (!f) return '야';
+  if (f.mark) return f.mark;
+  if (f.id && SK.FACTION_MARK[f.id]) return SK.FACTION_MARK[f.id];
+  return String(f.name || '재야').replace(/군$/, '').charAt(0) || '야';
 };
 
 /* 데이터 색이 지도에서 너무 밝거나 어두운 경우 보정 */
@@ -272,7 +280,7 @@ SK.cityIdByName = function (name) {
   if (!name) return null;
   const s = String(name).trim();
   if (SK.CITY_ALIAS[s] && SK.CITY[SK.CITY_ALIAS[s]]) return SK.CITY_ALIAS[s];
-  const hit = SK.CITY_LIST.find((c) => c.name === s || c.hanja === s);
+  const hit = SK.CITY_LIST.find((c) => c.name === s);
   return hit ? hit.id : null;
 };
 
@@ -490,7 +498,7 @@ SK.resolveScenario = function (sc) {
       id: f.id,
       name: f.name,
       lord: SK.normName(f.leader),
-      hanja: SK.FACTION_HANJA[f.id] || String(f.name || '?').charAt(0),
+      mark: SK.FACTION_MARK[f.id] || String(f.name || '재야').replace(/군$/, '').charAt(0),
       color: SK.FACTION_COLOR[f.id] || f.color || '#8b8677',
       allies: f.allies || [],
       enemies: f.enemies || [],
@@ -673,6 +681,26 @@ SK.setGenerals = function (list) {
   SK.GEN_BY_ID = {}; SK.GEN_BY_NAME = {};
   SK.GENERALS.forEach((g) => { SK.GEN_BY_ID[g.id] = g; SK.GEN_BY_NAME[g.name] = g; });
   SK.registerExtras();
+  SK.GENERALS.forEach((g) => { g.hanja = ''; });
+  SK.rebalanceTiers();
+};
+
+/* v4.1 — 등급을 능력치 피라미드로 다시 세운다 (S 5% · A 15% · B 35% · C 45%)
+   원본 데이터는 A급이 49%, C급이 0%여서 주점에 고급 인재만 넘치고 있었다.
+   능력치 순위로 다시 나누면 이름난 장수는 그대로 S·A로 남고, 이름 없는 장수는 B·C로 내려간다. */
+SK.TIER_MIX = [{ t: 'S', to: 0.05 }, { t: 'A', to: 0.20 }, { t: 'B', to: 0.55 }, { t: 'C', to: 1.0 }];
+SK.genScore = function (g) {
+  return (g.leadership || 0) * 0.4 + (g.war || 0) * 0.3 + (g.intel || 0) * 0.3;
+};
+SK.rebalanceTiers = function () {
+  const list = SK.GENERALS.slice().sort((a, b) => SK.genScore(b) - SK.genScore(a) || String(a.name).localeCompare(String(b.name)));
+  const n = list.length;
+  if (!n) return;
+  list.forEach((g, i) => {
+    const p = (i + 0.5) / n;
+    g.tier = (SK.TIER_MIX.find((m) => p <= m.to) || SK.TIER_MIX[SK.TIER_MIX.length - 1]).t;
+  });
+  SK.TIER_COUNT = SK.GENERALS.reduce((a, g) => { a[g.tier] = (a[g.tier] || 0) + 1; return a; }, {});
 };
 
 /* 시나리오 데이터에만 있는 인물을 장수 목록에 더한다 */
@@ -755,7 +783,7 @@ SK.setCities = function (list) {
     if (!geo) return;
     const [id, hanja, u, v, region] = geo;
     SK.CITY[id] = {
-      id, name: d.name, hanja, u, v, region,
+      id, name: d.name, hanja: '', u, v, region,
       type: SK.TYPE_KEY[d.type] || 'town',
       faction: SK.JFAC[d.faction] || 'warlord',
       battleType: d.battleType || 'siege',
@@ -970,4 +998,23 @@ SK.allySlots = function (type) {
   if (type === 'naval') return [[3, 15], [6, 15], [9, 15], [12, 15], [15, 15], [4, 16], [7, 16], [10, 16], [13, 16], [16, 16]];
   if (type === 'mountain') return [[2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 12], [3, 16], [4, 16], [5, 14], [6, 13]];
   return [[3, 15], [5, 16], [7, 15], [9, 16], [4, 13], [6, 14], [8, 16], [2, 14], [10, 16], [5, 14]];
+};
+
+/* ══════════════════════════════════════════════════════════════
+   v4.1 — 한글화 후처리 : 화면에 한자가 남지 않도록 데이터의 한자 표기를 비운다
+   (병과·특기·인물·전장 이름은 한국어 이름만 쓴다)
+   ══════════════════════════════════════════════════════════════ */
+Object.keys(SK.CLASSES || {}).forEach((k) => { SK.CLASSES[k].hanja = ''; });
+Object.keys(SK.SKILLS || {}).forEach((k) => { if (SK.SKILLS[k]) SK.SKILLS[k].hanja = ''; });
+Object.keys(SK.HEROES || {}).forEach((k) => { SK.HEROES[k].hanja = ''; });
+Object.keys(SK.BATTLE_TYPES || {}).forEach((k) => { SK.BATTLE_TYPES[k].hanja = ''; });
+
+/* 숫자 월 표기 — 190년 1월 ~ 190년 12월 */
+SK.MONTH_NAMES = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+SK.monthName = function (idx) {
+  const i = ((Number(idx) || 0) % 12 + 12) % 12;
+  return SK.MONTH_NAMES[i];
+};
+SK.dateLabel = function (year, monthIdx) {
+  return `${Number(year)}년 ${SK.monthName(monthIdx)}`;
 };
