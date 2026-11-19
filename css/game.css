@@ -284,7 +284,8 @@ b { font-weight: 700; }
 .city-top .icon-btn { background: #f3e4c2; color: #5b4a27; border-color: #c3a568; }
 .city-lord { width: 42px; height: 42px; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--gold); box-shadow: 0 2px 6px rgba(80, 60, 20, 0.25); }
 .city-lord img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
-.city-title-wrap { flex: 1; display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.city-title-wrap { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 5px; min-width: 0; }
+.city-title-wrap > * { flex: 0 0 auto; }
 .city-title-wrap h2 { margin: 0; font-family: var(--serif); font-size: 21px; letter-spacing: 0.02em; color: #2c2412; white-space: nowrap; }
 .city-title-wrap #city-hanja { font-family: var(--sans); font-size: 9px; font-weight: 800; color: #8b7445; white-space: nowrap; background: #efe2c4; border: 1px solid #cdb489; border-radius: 7px; padding: 0 5px; }
 .faction-tag {
