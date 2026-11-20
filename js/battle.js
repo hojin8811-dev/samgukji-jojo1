@@ -34,6 +34,9 @@
   let autoOn = false;           // v5.2 — 아군 턴 자동 진행
   let autoTimer = null;
   let autoPending = null;
+  /* v5.10 — 자동전투 배속. 기본 1x = 예전 속도의 절반(2배 느리게), 2x = 예전 속도 */
+  let autoSpeed = 1;
+  const LV_GROW = 0.018;        // 1레벨마다 공·방 +1.8% (아군·적군 공통)
   const anims = [];            // 타일 단위 이동 · 돌격 애니메이션
   let shakeT = 0, shakeAmp = 0; // 화면 진동
   let bondTick = 0;
@@ -100,7 +103,14 @@
       ? clamp(Math.round((intercept.troops || 2400) / enemyCount / 100) * 100, 700, 2200)
       : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 600, 4200);
     const defGens = (defense ? (defense.genIds || []) : (s.cities[opts.targetId].genIds || []))
-      .map((id) => SK.GEN_BY_ID[id]).filter(Boolean)
+      .map((id) => {
+        const g = SK.GEN_BY_ID[id];
+        if (!g) return null;
+        /* v5.10 — 적 성 장수도 Lv.1에서 시작해 달마다 자란다 (수성전은 공격해 온 성 기준) */
+        const lv = SK.enemyGenLevel ? SK.enemyGenLevel(defense ? defense.from : opts.targetId, id) : 1;
+        return Object.assign({}, g, { _lv: lv });
+      })
+      .filter(Boolean)
       .slice(0, intercept ? 1 : 99);
     const enemies = [];
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
@@ -119,6 +129,24 @@
       const spec = { kind: 'enemy', cls };
       enemies.push(makeEnemyCls(spec.cls, i, type, faction, per));
     }
+
+    /* v5.10 — 적 인접 성 지원군 합류 (플레이어의 [지원군 파견]과 같은 눈금) */
+    const supportNames = [];
+    (opts.aiSupport || []).forEach((sp, k) => {
+      const ids = (sp.genIds || []).slice(0, 2);
+      const share = Math.max(600, Math.round((sp.troops || 0) * 0.42 / Math.max(1, ids.length) / 100) * 100);
+      ids.forEach((gid, j) => {
+        const base = SK.GEN_BY_ID[gid];
+        if (!base) return;
+        const lv = SK.enemyGenLevel ? SK.enemyGenLevel(sp.from, gid) : 1;
+        const u = makeNamedEnemy(Object.assign({}, base, { _lv: lv }), share, false);
+        u.id = u.id + '_r' + k + j;
+        u.support = sp.name;
+        u.isSupport = true;
+        enemies.push(u);
+      });
+      if (ids.length) supportNames.push(sp.name);
+    });
 
     /* v5.2 — 공성전 성문 내구도 (성문이 버리는 동안 근거리는 못 넘는다). 수성전은 성문 없이 벌인다 */
     const gateTiles = [];
@@ -139,7 +167,7 @@
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense,
-      reinforce: opts.reinforce || null,
+      reinforce: opts.reinforce || null, supportNames: supportNames,
     };
     placeSide(allies, SK.allySlots(type), 'ally');
     placeSide(enemies, SK.enemySlots(type), 'enemy');
@@ -151,6 +179,8 @@
     shakeT = 0;
     autoStop();
     autoPending = null;
+    autoSpeed = 1;          // v5.10 — 전투마다 기본 ×1로 시작
+    paintSpeedBtn();
     SK.show('screen-battle');
     if (window.JojoBGM) {
       try { JojoBGM.play(type === 'siege' || type === 'fortress' ? 'battle_siege' : 'battle_field'); } catch (e) { /* ignore */ }
@@ -161,6 +191,9 @@
     if (feedEl) feedEl.innerHTML = '';
     SKBattle.refreshUI();
     showIntro();
+    if (supportNames.length) {
+      setTimeout(() => SK.toast(`적 지원군 합류 — ${supportNames.join(' · ')}`), 260);
+    }
   };
 
   /* 훈련도 — 부대의 숙련도 (레벨·등급이 높을수록 단단하다) */
@@ -183,11 +216,13 @@
     const loyMul = 0.86 + loy * 0.0014;
     // 고유 특기(상시형)는 공격·방어에 소폭 보탬이 된다 — 값의 절반만, 사기적이지 않게
     const pMul = passive && passive.trigger === 'passive' ? 1 + (Number(passive.valuePct) || 0) / 200 : 1;
+    /* v5.10 — 레벨 성장: 1레벨마다 공·방 +1.8%, 승급 구간은 +6% 추가 */
+    const lvMul = 1 + LV_GROW * (Math.max(1, Number(h.lv) || 1) - 1);
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
-      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * techAtk * pMul * loyMul,
-      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * techDef * pMul * loyMul,
+      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techAtk * pMul * loyMul,
+      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techDef * pMul * loyMul,
       mov: Math.min(9, C.mov + eq.move), rng: C.rng, minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
@@ -236,14 +271,16 @@
   function makeNamedEnemy(g, per, boss) {
     const cls = SK.genClass(g);
     const C = SK.CLASSES[cls];
-    const lv = SK.genLv(g);
+    /* v5.10 — 적 장수도 Lv.1에서 시작해 자란다 (_lv는 성의 성장 기록에서 온 값) */
+    const lv = clamp(Math.round(Number(g._lv) || 1), 1, 30);
     const mul = boss ? 1.5 : 1;
     const troops = Math.round(per * mul);
+    const lvMul = 1 + LV_GROW * (lv - 1);
     return {
       id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv, genId: g.id,
       hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
-      atk: (C.atk + g.war * 0.13) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.03),
-      def: (C.def + g.leadership * 0.08),
+      atk: (C.atk + g.war * 0.13) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.03) * lvMul,
+      def: (C.def + g.leadership * 0.08) * (1 + 0.06 * ((SK.TIER_LV[g.tier] || 3) - 1)) * lvMul,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel, tong: g.leadership,
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
@@ -2464,6 +2501,27 @@
 
   /* ───────────── v5.2 — 아군 턴 [자동] 진행 ───────────── */
   function autoClear() { if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; } }
+  /* v5.10 — 자동전투 배속: x1(기본) = 예전의 절반 속도, x2 = 예전 속도 */
+  function autoGap(ms) { return Math.round(ms * (autoOn ? (2 / autoSpeed) : 1)); }
+  function speedLabel() { return '×' + autoSpeed; }
+  function paintSpeedBtn() {
+    const btn = document.querySelector('#btn-speed, .act.speed');
+    if (!btn) return;
+    btn.classList.toggle('fast', autoSpeed === 2);
+    const sp = btn.querySelector('span');
+    if (sp) sp.textContent = speedLabel();
+    btn.setAttribute('aria-label', `전투 배속 ${speedLabel()}`);
+  }
+  function toggleSpeed() {
+    autoSpeed = autoSpeed === 2 ? 1 : 2;
+    paintSpeedBtn();
+    SK.sfx.play('ui');
+    SK.toast(autoSpeed === 2
+      ? '전투 배속 ×2 — 빠르게 진행합니다.'
+      : '전투 배속 ×1 — 기본 속도(절반)로 돌아갑니다.');
+    if (autoOn) { autoClear(); autoTimer = setTimeout(autoStep, autoGap(240)); }
+    return autoSpeed;
+  }
 
   function autoStop(msg) {
     autoOn = false;
@@ -2476,12 +2534,14 @@
 
   function toggleAuto(force) {
     autoOn = force == null ? !autoOn : !!force;
+    autoPending = null;
+    autoClear();
     const btn = document.querySelector('.act.auto');
     if (btn) btn.classList.toggle('active', autoOn);
+    paintSpeedBtn();
     if (autoOn) {
-      SK.toast('자동 행군 — 아군 턴을 스스로 마칩니다.');
-      autoClear();
-      autoTimer = setTimeout(autoStep, 320);
+      SK.toast(`자동 행군 — 아군 턴을 스스로 마칩니다. (배속 ${speedLabel()})`);
+      autoTimer = setTimeout(autoStep, autoGap(320));
     } else {
       autoStop('자동 행군을 멈췄습니다.');
     }
@@ -2742,8 +2802,8 @@
   function autoStep() {
     if (!autoOn) return;
     if (!B || B.over) { autoStop(); return; }
-    if (busy || !B.introDone) { autoTimer = setTimeout(autoStep, 220); return; }
-    if (B.phase !== 'ally') { autoTimer = setTimeout(autoStep, 300); return; }
+    if (busy || !B.introDone) { autoTimer = setTimeout(autoStep, autoGap(220)); return; }
+    if (B.phase !== 'ally') { autoTimer = setTimeout(autoStep, autoGap(300)); return; }
     if (autoPending) {
       const p = autoPending;
       autoPending = null;
@@ -2756,14 +2816,14 @@
         else if (p.target && p.target.alive && canHit(u, p.target)) doAttack(u, p.target);
         else { u.acted = true; SKBattle.refreshUI(); }
       }
-      autoTimer = setTimeout(autoStep, 420);
+      autoTimer = setTimeout(autoStep, autoGap(420));
       return;
     }
     const u = B.units.find((v) => v.side === 'ally' && v.alive && !v.acted);
     if (!u) {
-      if (busy) { autoTimer = setTimeout(autoStep, 300); return; }
+      if (busy) { autoTimer = setTimeout(autoStep, autoGap(300)); return; }
       endTurn();
-      autoTimer = setTimeout(autoStep, 600);   // 적군 페이즈가 끝나면 다시 아군 턴을 잡는다
+      autoTimer = setTimeout(autoStep, autoGap(600));   // 적군 페이즈가 끝나면 다시 아군 턴을 잡는다
       return;
     }
     selectUnit(u);
@@ -2772,24 +2832,24 @@
       if (plan.x !== u.x || plan.y !== u.y) {
         autoPending = { uid: u.uid, skill: plan.key, x: plan.x, y: plan.y, sx: plan.tx, sy: plan.ty };
         moveUnit(u, plan.x, plan.y);
-        autoTimer = setTimeout(autoStep, 260);
+        autoTimer = setTimeout(autoStep, autoGap(260));
         return;
       }
       const sk = SK.SKILLS[plan.key];
       if (!aiCast(u, sk, plan.tx == null ? plan.x : plan.tx, plan.ty == null ? plan.y : plan.ty)) { u.acted = true; SKBattle.refreshUI(); }
-      autoTimer = setTimeout(autoStep, 420);
+      autoTimer = setTimeout(autoStep, autoGap(420));
       return;
     }
     if (plan && (plan.x !== u.x || plan.y !== u.y)) {
       autoPending = { uid: u.uid, target: plan.kind === 'hit' ? plan.target : null, gate: plan.kind === 'gate' ? plan.gate : null };
       moveUnit(u, plan.x, plan.y);
-      autoTimer = setTimeout(autoStep, 260);
+      autoTimer = setTimeout(autoStep, autoGap(260));
       return;
     }
     if (plan && plan.kind === 'hit' && plan.target) doAttack(u, plan.target);
     else if (plan && plan.kind === 'gate' && plan.gate) doGateAttack(u, plan.gate);
     else { u.acted = true; SKBattle.refreshUI(); }
-    autoTimer = setTimeout(autoStep, 420);
+    autoTimer = setTimeout(autoStep, autoGap(420));
   }
 
   function enemyPhase() {
@@ -2827,7 +2887,7 @@
       }
       const e = enemies[i++];
       if (!e.alive) { step(); return; }
-      enemyAct(e, () => setTimeout(step, 220));
+      enemyAct(e, () => setTimeout(step, autoGap(220)));
     };
     step();
   }
@@ -2985,7 +3045,7 @@
     survivors.forEach((u) => {
       if (!u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) { h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv))); SK.gainExp(h, 45); }
+      if (h) { h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv))); SK.gainExp(h, 45, 12); }
     });
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
@@ -3277,7 +3337,9 @@
         h.marchId = null;
         if (u.alive) h.city = B.targetId;
         const gain = (u.expGain || 0) + (u.alive ? 70 : 30) + (B.def.name === '공성전' ? 15 : 0);
-        const ups = SK.gainExp(h, gain);
+        /* v5.10 — 승리·참전·격파의 공훈치 */
+        const merit = 10 + defeatedNames.length * 3 + (u.alive ? 6 : 0);
+        const ups = SK.gainExp(h, gain, merit);
         if (ups.length) levelUps.push({ name: h.name, lv: h.lv, title: SK.classTitle(h.cls, h.lv), promote: ups.some((x) => x.promote) });
       }
     });
@@ -3667,6 +3729,8 @@
       img(name) { const u = B && B.units.find((v) => v.name === name); return u ? (unitImgFor(u).getAttribute('src') || unitImgFor(u).src) : null; },      gateAttack(x, y) { const u = B.sel; if (u) doGateAttack(u, { x, y }); },
       toggleAuto(force) { toggleAuto(force); return autoOn; },
       get auto() { return autoOn; },
+      get speed() { return autoSpeed; },
+      toggleSpeed() { return toggleSpeed(); },
       get busy() { return busy; },
       get mode() { return mode; },
       get pending() { return autoPending ? Object.assign({}, autoPending) : null; },
@@ -3704,6 +3768,7 @@
       const act = b.dataset.act;
       if (act === 'endturn') { endTurn(); return; }
       if (act === 'auto') { toggleAuto(); return; }   // v5.2 — 아군 턴 자동 토글
+      if (act === 'speed') { toggleSpeed(); return; }  // v5.10 — 자동전투 배속 ×1 / ×2
       if (B.phase !== 'ally' || B.over) return;
       const u = B.sel;
       if (act === 'attack') {
@@ -3716,6 +3781,8 @@
       if (act === 'item') useItem();
       if (act === 'wait') waitUnit();
     });
+    const spdBtn = $('#btn-speed');
+    if (spdBtn) { spdBtn.onclick = () => toggleSpeed(); paintSpeedBtn(); }
     $('#b-zoom-in').onclick = () => zoomAt(cam.s * 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
     $('#b-zoom-out').onclick = () => zoomAt(cam.s / 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
     $('#b-zoom-fit').onclick = () => {

@@ -778,7 +778,18 @@
   function maxMpOf(cls, lv) { return SK.CLASSES[cls].mp + (lv - 1) * 2; }
   SK.maxHpOf = maxHpOf; SK.maxMpOf = maxMpOf;
 
-  SK.gainExp = function (h, amount) {
+  /* v5.10 — 공훈치. 경험치와 함께 쌓이는 장수 개인의 공적 (관직 서임 기준) */
+  SK.gainMerit = function (h, n) {
+    if (!h || !n) return SK.meritOf ? SK.meritOf(h) : 0;
+    h.merit = Math.max(0, Math.round((Number(h.merit) || 0) + Number(n)));
+    return h.merit;
+  };
+
+  SK.gainExp = function (h, amount, merit) {
+    if (!h) return [];
+    /* v5.10 — 따로 적지 않으면 경험치의 1/12이 공훈치로 따라온다 (전투·탐색·등용이 자연히 쌓인다) */
+    const m = merit == null ? Math.max(1, Math.round((Number(amount) || 0) / 12)) : merit;
+    if (m) SK.gainMerit(h, m);
     h.exp = (h.exp || 0) + amount;
     const ups = [];
     let guard = 0;
@@ -1776,17 +1787,20 @@
 
   function equipLines(g) {
     const eq = SK.equipBonus(g);
-    const items = Object.keys(SK.SLOT_NAMES).map((sl) => {
+    const rows = Object.keys(SK.SLOT_NAMES).map((sl) => {
       const id = (g.equip || {})[sl];
       const t = id ? SK.TREASURE_BY_ID[id] : null;
-      return t ? `<span class="eq-chip" style="--gc:${SK.GRADE_COLOR[t.grade]}">${t.name}</span>` : '';
+      if (!t) return `<span class="eq-chip none"><i>${SK.SLOT_NAMES[sl]}</i>없음</span>`;
+      return `<span class="eq-chip" style="--gc:${SK.GRADE_COLOR[t.grade]}"><i>${SK.SLOT_NAMES[sl]}</i>${t.name}</span>`;
     }).join('');
     const bonus = [];
     if (eq.war) bonus.push(`무력+${eq.war}`);
     if (eq.intel) bonus.push(`지력+${eq.intel}`);
     if (eq.leadership) bonus.push(`통솔+${eq.leadership}`);
+    if (eq.politics) bonus.push(`정치+${eq.politics}`);
+    if (eq.charm) bonus.push(`매력+${eq.charm}`);
     if (eq.move) bonus.push(`이동+${eq.move}`);
-    return `<div class="hi-equip">${items || '<span class="eq-none">장비 없음</span>'}</div>${bonus.length ? `<p class="hi-bonus">보물 보정 — ${bonus.join(' · ')}</p>` : ''}`;
+    return `<div class="hi-equip">${rows}</div>${bonus.length ? `<p class="hi-bonus">보물 보정 — ${bonus.join(' · ')}</p>` : '<p class="hi-bonus">보물 보정 — 없음</p>'}`;
   }
 
   function openTreasures(hero) {
@@ -2070,6 +2084,18 @@
     if (!g) return;
     const C = SK.CLASSES[g.cls];
     const hpM = maxHpOf(g.cls, g.lv), mpM = maxMpOf(g.cls, g.lv);
+    /* v5.10 — 보물 보정을 합친 실제 능력치 (+N 표시)와 공훈치 */
+    const eq = SK.equipBonus(g);
+    const attrs = [
+      { k: '통솔', v: g.tong, add: eq.leadership },
+      { k: '무력', v: g.wu, add: eq.war },
+      { k: '지력', v: g.ji, add: eq.intel },
+      { k: '정치', v: g.pol || 60, add: eq.politics },
+      { k: '매력', v: g.cha || 60, add: eq.charm },
+    ].map((a) => `<div><span>${a.k}</span><b>${a.v + a.add}${a.add ? `<em class="hi-plus">(+${a.add})</em>` : ''}</b></div>`).join('');
+    const merit = SK.meritOf(g);
+    const nxOffice = SK.nextOfficeOf ? SK.nextOfficeOf(g) : null;
+    const meritLine = `<p class="hi-merit">공훈치 <b>${fmt(merit)}</b>${nxOffice ? ` <em>· ${nxOffice.name}까지 ${fmt(Math.max(0, nxOffice.merit - merit))} 남음 (공훈 ${fmt(nxOffice.merit)})</em>` : ' <em>· 최고 관직</em>'}</p>`;
     SK.modal({
       title: `${g.name}`,          body: `<div class="hero-info">
         <div class="hi-portrait" style="--fa:${genAura(g.genId, g.name)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
@@ -2080,13 +2106,9 @@
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
           <p class="hi-next">${SK.nextPromo(g.lv) ? `다음 승급 Lv.${SK.nextPromo(g.lv)} · ${SK.PROMO[g.cls] ? SK.PROMO[g.cls].names[Math.min(4, SK.PROMO[g.cls].names.length - 1)] : ''}` : '최고 승급 단계'}</p>
           <div class="hi-bars"><span class="hi-hp">출진 병력 ${SK.troopForNamed(g.lv).toLocaleString('ko-KR')} / 최대 ${SK.troopCapOf(g).toLocaleString('ko-KR')}</span><span class="hi-mp">MP ${g.mp}/${mpM}</span></div>
-          <div class="hi-attrs five">
-            <div><span>통솔</span><b>${g.tong}</b></div>
-            <div><span>무력</span><b>${g.wu}</b></div>
-            <div><span>지력</span><b>${g.ji}</b></div>
-            <div><span>정치</span><b>${g.pol || 60}</b></div>
-            <div><span>매력</span><b>${g.cha || 60}</b></div>
-          </div>
+          <div class="hi-attrs five">${attrs}</div>
+          ${equipLines(g)}
+          ${meritLine}
           <p class="hi-desc">${C.desc}</p>
           ${bondLines(g.name)}
           <p class="hi-quote">“${SK.quoteOf(g.name, 'deploy') || '필승을 기원한다.'}”</p>
@@ -2318,10 +2340,21 @@
     /* v5.7 — 경험이 차고 Lv.5가 아닌 시설이 있으면 [모두 증축] */
     const upList = upgradableSlots(cs);
     const upCost = upList.reduce((a, x) => a + x.cost, 0);
-    /* v5.9 시안 A — 2열 건물 카드 그리드 (아이콘·이름·Lv·경혐 바·담당 장수) */
+    /* v5.9 시안 A — 2열 건물 카드 그리드 (아이콘·이름·Lv·경혐 바·담당 장수)
+       v5.10 — [＋ 자동 배속]·[매달 최선]을 장수 탭에서 이 탭 상단으로 옮겼다 */
+    const bestOn = !!s.autoBestDuty;
+    const gens = cityGens(cityId);
+    const dutyN = gens.filter((g) => cs.slots.some((x) => x.uid === g.uid)).length;
+    const doneN = gens.filter((g) => g.actedThisMonth && !cs.slots.some((x) => x.uid === g.uid)).length;
+    const readyN = gens.length - dutyN - doneN;
     box.innerHTML = `<div class="slot-head">
         <b>내성 시설</b><span>${built}/${cs.slots.length}칸 · 공터 ${free}</span>
         ${upList.length ? `<button class="slot-upall" id="btn-up-all">모두 증축<em>${upList.length}곳 · 금 ${fmt(upCost)}</em></button>` : ''}
+      </div>
+      <div class="slot-tools">
+        <button class="st-btn auto" id="btn-auto-duty" type="button"><span>＋</span>자동 배속</button>
+        <button class="st-btn best ${bestOn ? 'on' : ''}" id="btn-auto-best" type="button"><i></i>매달 최선 ${bestOn ? 'ON' : 'OFF'}</button>
+        <span class="st-note">담당 ${dutyN} · 대기 ${readyN} · 완료 ${doneN}</span>
       </div>
       <div class="slot-grid">${cs.slots.map((sl, i) => {
         if (!sl.key) {
@@ -2347,6 +2380,29 @@
     });
     const upAll = box.querySelector('#btn-up-all');
     if (upAll) upAll.onclick = () => upgradeAll(cityId);
+    /* v5.10 — 건물 배속 편의 버튼(장수 탭에서 이동) */
+    const autoBtn = box.querySelector('#btn-auto-duty');
+    if (autoBtn) {
+      autoBtn.classList.toggle('dim', !built);
+      autoBtn.onclick = () => {
+        if (!built) { SK.toast('배속할 건물이 없습니다. 먼저 공터에 건물을 지으세요.'); return; }
+        SK.sfx.play('ui');
+        autoAssignDuty(cityId);
+      };
+    }
+    const bestBtn = box.querySelector('#btn-auto-best');
+    if (bestBtn) {
+      bestBtn.onclick = () => {
+        s.autoBestDuty = !s.autoBestDuty;
+        SK.save();
+        SK.sfx.play('ui');
+        renderCitySlots(cityId);
+        renderCityGens(cityId);
+        SK.toast(s.autoBestDuty
+          ? '매달 최선 배속을 켰습니다 — 달이 바뀌면 건물 배속을 다시 잡습니다.'
+          : '매달 최선 배속을 껐습니다.');
+      };
+    }
   }
   SK.renderCitySlots = renderCitySlots;
 
@@ -2487,6 +2543,18 @@
         <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
         <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${h[def.stat] || 60}</span></div>
         <span class="tc-go">▸</span></button>`).join('');
+    /* v5.10 — 담당 장수를 창 안에서 바로 본다 (누르면 장수 상세창으로) */
+    const ownerOff = g && SK.officeOf ? SK.officeOf(g) : null;
+    const ownerExp = g ? Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100) : 0;
+    const ownerCard = g ? `<button class="sd-owner" data-owner="${g.uid}" type="button">
+        <img class="sd-face" src="${SK.ptSrc(g.portrait)}" alt="">
+        <div class="sd-oname">
+          <b>${g.name} <em>Lv.${g.lv}</em>${ownerOff && ownerOff.key !== 'none' ? `<i>${ownerOff.name}</i>` : ''}</b>
+          <span class="sd-stats">통 <b>${g.tong}</b> · 무 <b>${g.wu}</b> · 지 <b>${g.ji}</b> · 정 <b>${g.pol || 60}</b> · 매 <b>${g.cha || 60}</b></span>
+          <span class="sd-lvline"><span class="sd-exp"><i style="width:${Math.max(2, Math.min(100, ownerExp))}%"></i></span><em class="sd-exptxt">EXP ${g.exp || 0}/${SK.expNeed(g.lv)}</em></span>
+        </div>
+        <span class="sd-go">▸</span>
+      </button>` : '';
     const m = SK.modal({
       kicker: `${c.name} · ${def.name}`, title: `Lv.${sl.lv} ${def.name}`,
       body: `<div class="slot-detail">
@@ -2495,6 +2563,7 @@
             <span>효과 ${Math.round(slotMul(cs, sl, g) * 100)}% ${g ? `· 담당 ${g.name}` : '· 담당 없음'}</span>
             <em>${sl.lv < 5 ? `증축 금 ${fmt(cost)}` : '최고 등급'}</em></div>
         </div>
+        ${ownerCard}
         ${sl.lv < 5 ? `<div class="slot-expbox">
           <div class="se-head"><b>시설 경험</b><span>${ep} / ${needEp}</span></div>
           <div class="se-bar"><i style="width:${Math.round(Math.min(1, ep / needEp) * 100)}%"></i></div>
@@ -2542,8 +2611,19 @@
         SK.toast(`${josa(h ? h.name : '', 'i')} ${def.name} 담당이 되었습니다. (배속은 행동을 쓰지 않습니다)`);
       };
     });
+    /* v5.10 — 담당 장수 카드를 누르면 장수 상세창(스탯·보물·경험)으로 */
+    const ownerBtn = m.el.querySelector('.sd-owner');
+    if (ownerBtn) {
+      ownerBtn.onclick = () => {
+        const uid = ownerBtn.dataset.owner;
+        m.close();
+        setTimeout(() => { if (SK.showHeroInfo) SK.showHeroInfo(uid); }, 60);
+      };
+    }
   }
   SK.openSlot = openSlot;
+  /* 브리프에서 부르는 이름 — 장수 상세창 */
+  SK.openGeneralDetail = function (uid) { showHeroInfo(uid); };
 
   /* v5.7 — 연병장 수련 명단: 남는 대기 장수를 여러 명 넣어 두고 매달 경험치를 쌓는다 */
   function openTrainCrew(cityId, idx) {
@@ -2707,6 +2787,16 @@
     });
   }
 
+  /* v5.10 — 농원·시장 담당 장수가 달을 넘기면 도시의 농업·상업이 실제로 오른다 (+1~3)
+     = 건물 레벨과 담당 장수의 정치(농사는 정치·통솔) 능력에 비례 */
+  function statGrowOf(sl, g) {
+    const def = SLOT_DEFS[sl.key] || { stat: 'pol' };
+    const st = (g && (g[def.stat] || 60)) || 60;
+    const raw = 1 + ((Number(sl.lv) || 1) - 1) * 0.34 + (st - 60) / 45;
+    return clamp(Math.round(raw), 1, 3);
+  }
+  SK.statGrowOf = statGrowOf;
+
   /* 달이 바뀔 때 건물이 내놓는 결산 — 담당 장수는 경험치를 얻는다 */
   function runSlots(st) {
     const log = [];
@@ -2715,6 +2805,8 @@
       if (!cs || cs.owner !== PF()) return;
       ensureSlots(cs, c);
       let gold = 0, food = 0, troops = 0, train = 0, loyalty = 0, def = 0, rp = 0, order = 0;
+      let agri = 0, comm = 0;          // v5.10 — 배속 장수가 밀어 올린 농업·상업
+      let merit = 0;                   // v5.10 — 이 성에서 이번 달에 쌓인 공훈치
       const grow = [];                 // v5.4 — 월정산에 보여 줄 시설 성장 기록
       if (cs.order == null) cs.order = 55;
       cs.slots.forEach((sl) => {
@@ -2729,8 +2821,8 @@
           grow.push({ city: c.name, key: sl.key, name: (SLOT_DEFS[sl.key] || {}).name || sl.key,
             lv: lv, gain: gain, exp: sl.exp, need: slotExpNeed(lv), duty: !!g });
         }
-        if (sl.key === 'market') gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul);
-        else if (sl.key === 'farm') food += Math.round(ECON.farmTrickle * lv * mul * econMul(c));
+        if (sl.key === 'market') { gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul); if (g) comm += statGrowOf(sl, g); }
+        else if (sl.key === 'farm') { food += Math.round(ECON.farmTrickle * lv * mul * econMul(c)); if (g) agri += statGrowOf(sl, g); }
         else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul);
         else if (sl.key === 'training') { train += 0.5 * lv * mul; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
         else if (sl.key === 'patrol') { order += 1.1 * lv * mul; loyalty += 0.25 * lv * mul; }
@@ -2739,6 +2831,8 @@
         else if (sl.key === 'workshop') gold += Math.round((40 + lv * 40) * mul);
         else if (sl.key === 'tavern') { if (g) SK.gainExp(g, 20); }
         if (g && sl.key !== 'training' && sl.key !== 'tavern') SK.gainExp(g, Math.round(16 * lv * mul));
+        /* v5.10 — 건물 일을 맡은 장수는 공훈치도 쌓는다 */
+        if (g) { const m = 2 + Math.round(lv * 0.6); SK.gainMerit(g, m); merit += m; }
       });
       if (gold) { st.gold += gold; cs.gold = (cs.gold || 0) + gold; }
       if (food) { st.food += food; }
@@ -2748,8 +2842,12 @@
       if (order) cs.order = clamp(cs.order + order, 0, 100);
       else cs.order = clamp(cs.order - 0.5, 0, 100);          // 순찰소가 없으면 치안이 조금씩 풀린다
       if (def) cs.def = clamp(cs.def + def, 0, 100);
+      if (agri) cs.agri = clamp((cs.agri || 0) + agri, 0, 100);
+      if (comm) cs.comm = clamp((cs.comm || 0) + comm, 0, 100);
       if (rp) st.rp = (st.rp || 0) + rp;
-      if (gold || food || troops || grow.length) log.push({ city: c.name, gold, food, troops, grow });
+      if (gold || food || troops || grow.length || agri || comm) {
+        log.push({ city: c.name, gold, food, troops, grow, agri, comm, merit });
+      }
     });
     return log;
   }
@@ -2773,17 +2871,19 @@
      탐색은 금이 들지 않고 장수의 그달 행동만 쓴다. 보물 확률을 낮춘 대신
      금·군량·의용병·은거 인재·산적 퇴치·맹수 사냥·일기토 사건을 고루 섞는다. */
   function exploreCost() { return 0; }
-  function explore(cityId, actor) {
+  function explore(cityId, actor, opts) {
     const s = SK.state;
     const c = CITY[cityId];
     const cs = s.cities[cityId];
     const lucky = (actor ? (actor.cha || 60) : 60) + (actor ? (actor.ji || 60) : 60);
     const bonus = Math.min(0.22, Math.max(0, (lucky - 120) * 0.0025));
+    /* v5.10 — 주점 배속 자동 탐색은 주점 레벨만큼 보너스를 얻는다 (최대 +50%) */
+    const boost = clamp((opts && opts.boost) || 0, 0, 0.5);
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     const roll = Math.random();
     const w = [
-      { k: 'treasure', p: 0.14 + bonus * 0.6 },
-      { k: 'talent', p: 0.16 + bonus },
+      { k: 'treasure', p: 0.14 + bonus * 0.6 + boost * 0.18 },
+      { k: 'talent', p: 0.16 + bonus + boost * 0.22 },
       { k: 'goods', p: 0.23 },
       { k: 'volunteer', p: 0.16 },
       { k: 'bandit', p: 0.12 },
@@ -2849,7 +2949,7 @@
       s.fame += 1;
       return { ok: true, kind: 'duel', title: '일기토 — 무승부', text: `떠돌이 장수와 겨루었으나 끝내 승부가 나지 않았습니다. 그래도 백성들이 그 용맹을 이야기합니다.`, gain: '명성 +1' };
     }
-    const gold = 160 + Math.floor(Math.random() * 240) + Math.round(bonus * 400);
+    const gold = 160 + Math.floor(Math.random() * 240) + Math.round(bonus * 400 + boost * 900);
     const food = 260 + Math.floor(Math.random() * 420);
     s.gold += gold; s.food += food;
     return { ok: true, kind: 'goods', title: '탐색 성과 — 은닉한 재물', text: `${c.name} 산기슭의 옛 창고에서 금 ${fmt(gold)}과(와) 군량 ${fmt(food)}을(를) 찾았습니다.`, gain: `금 +${fmt(gold)} · 군량 +${fmt(food)}` };
@@ -3822,24 +3922,31 @@
   SK.cityLevelOf = function (id) { return cityLevel(SK.state.cities[id]); };
 
   /* ── 성 등급에 따른 장면 변화 (깃발·등불·인파·온기) ── */
-  const sceneMissing = {};
   const SCENE_FILE = { 1: 'city_lv1', 2: 'city_lv2', 3: 'city_lv3', 4: 'city_lv3', 5: 'city_lv5' };
+  /* v5.10 — 계절 그림을 먼저 걸고, 없으면 기존 그림으로 곶 떨어진다 */
+  function setSceneSrc(img, chain) {
+    let i = 0;
+    const apply = () => {
+      if (i >= chain.length) { img.onerror = null; return; }
+      const src = chain[i];
+      img.onerror = () => { i += 1; apply(); };
+      if (img.getAttribute('src') !== src) img.src = src;
+    };
+    apply();
+  }
+  function sceneChainFor(file, base) {
+    const season = (SK.seasonKeyOf && SK.state) ? SK.seasonKeyOf(SK.state.month) : 'summer';
+    const chain = [];
+    if (season !== 'summer') chain.push(`assets/scenes/${season}/${file}.webp`);
+    chain.push(`assets/scenes/${file}.webp`);
+    if (base) chain.push(base);
+    return chain;
+  }
   function sceneImageFor(base, lv) {
     const img = $('#city-scene-img');
     if (!img) return;
     const file = SCENE_FILE[lv] || 'city_lv1';
-    const lvSrc = `assets/scenes/${file}.webp`;
-    if (!sceneMissing[file]) {
-      img.onerror = () => {
-        sceneMissing[file] = true;
-        img.onerror = null;
-        img.src = base;
-      };
-      if (img.getAttribute('src') !== lvSrc) img.src = lvSrc;
-    } else {
-      img.onerror = null;
-      img.src = base;
-    }
+    setSceneSrc(img, sceneChainFor(file, base));
   }
   function renderSceneLevel(cityId) {
     const s = SK.state;
@@ -3849,6 +3956,8 @@
     const scene = $('#city-scene');
     if (scene) scene.className = 'city-scene lv-' + lv;
     sceneImageFor(`assets/scenes/${sceneFor(c)}.webp`, lv);
+    /* v5.10 — 성 그림 위 계절 파티클 */
+    if (SK.seasonFX) SK.seasonFX.attach($('#city-season'), () => SK.currentSeason());
     const box = $('#scene-lv');
     if (!box) return;
     let html = '';
@@ -4093,6 +4202,144 @@
   })();
   SK.cityLife = CityLife;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.10 — 사계절 파티클 (지도·성 그림 위 경량 캔버스)
+     · 봄 벚꽃잎 · 여름 반딧불 · 가을 단풍잎 · 겨울 눈송이
+     · 캔버스마다 rAF 하나만 돌리고, 캔버스가 화면에서 사라지면 스스로 멈춘다
+     · 계절이 바뀌면(달이 바뀌면) 스스로 다시 뿌린다
+     ══════════════════════════════════════════════════════════════ */
+  const SeasonFX = (function () {
+    const CONF = {
+      spring: { n: 24, kind: 'petal' },
+      summer: { n: 16, kind: 'firefly' },
+      autumn: { n: 20, kind: 'leaf' },
+      winter: { n: 34, kind: 'snow' },
+    };
+    const PETAL = ['#ffd6e6', '#ffe9f2', '#f6bcd2', '#fff2f7'];
+    const LEAF = ['#d9822b', '#c1552c', '#e0a83a', '#a8443a'];
+    const SNOW = ['#ffffff', '#eef7ff', '#dcecfb'];
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+    function seedParticle(kind, w, h) {
+      const p = { x: Math.random() * w, y: Math.random() * h, ph: Math.random() * Math.PI * 2 };
+      if (kind === 'firefly') {
+        Object.assign(p, { r: rnd(1.0, 2.1), vy: rnd(-0.14, 0.14), vx: rnd(-0.18, 0.18), sw: rnd(0.5, 1.2), glow: rnd(0.45, 1) });
+      } else if (kind === 'snow') {
+        Object.assign(p, { r: rnd(0.9, 2.6), vy: rnd(0.24, 0.7), vx: rnd(-0.12, 0.2), sw: rnd(0.5, 1.4),
+          a: rnd(0.55, 0.95), c: SNOW[Math.floor(Math.random() * SNOW.length)] });
+      } else {
+        const petal = kind === 'petal';
+        Object.assign(p, {
+          r: rnd(petal ? 3.2 : 3.6, petal ? 6.6 : 7.6), vy: rnd(0.26, 0.7), vx: rnd(-0.28, 0.5), sw: rnd(0.6, 1.5),
+          rot: Math.random() * Math.PI * 2, spin: rnd(-0.024, 0.024),
+          c: (petal ? PETAL : LEAF)[Math.floor(Math.random() * 4)], a: rnd(0.7, 0.95),
+        });
+      }
+      return p;
+    }
+    function draw(ctx, kind, p, t) {
+      const sway = Math.sin(t * 0.001 * p.sw + p.ph) * (kind === 'snow' ? 8 : 14);
+      ctx.save();
+      ctx.translate(p.x + sway, p.y);
+      if (kind === 'snow') {
+        ctx.globalAlpha = p.a;
+        ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(0, 0, p.r, 0, 6.2832); ctx.fill();
+      } else if (kind === 'firefly') {
+        const pulse = 0.32 + 0.68 * Math.abs(Math.sin(t * 0.0011 + p.ph * 2));
+        ctx.globalAlpha = p.glow * pulse;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, p.r * 6);
+        grad.addColorStop(0, '#fffcd0');
+        grad.addColorStop(0.35, 'rgba(255,230,120,0.75)');
+        grad.addColorStop(1, 'rgba(255,220,90,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(0, 0, p.r * 6, 0, 6.2832); ctx.fill();
+      } else {
+        ctx.globalAlpha = p.a;
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.c;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.r, p.r * (kind === 'petal' ? 0.55 : 0.42), 0, 0, 6.2832);
+        ctx.fill();
+        if (kind === 'leaf') {
+          ctx.strokeStyle = 'rgba(90,40,10,0.45)'; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.moveTo(-p.r * 0.8, 0); ctx.lineTo(p.r * 0.8, 0); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    function attach(canvas, getSeason) {
+      if (!canvas) return null;
+      if (canvas.__sxfx) {
+        if (getSeason) canvas.__sxfx.getSeason = getSeason;
+        return canvas.__sxfx;
+      }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      const st = { parts: [], season: '', kind: 'snow', raf: 0, w: 0, h: 0, dpr: 1, last: 0, getSeason: getSeason };
+      const reseed = () => {
+        const season = (st.getSeason && st.getSeason()) || 'summer';
+        st.season = season;
+        const conf = CONF[season] || CONF.summer;
+        const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const want = calm ? Math.max(4, Math.round(conf.n / 3)) : conf.n;
+        st.kind = conf.kind;
+        st.parts = [];
+        for (let i = 0; i < want; i++) st.parts.push(seedParticle(conf.kind, st.w, st.h));
+      };
+      const resize = () => {
+        const r = canvas.getBoundingClientRect();
+        st.dpr = Math.min(2, window.devicePixelRatio || 1);
+        st.w = Math.max(1, Math.round(r.width));
+        st.h = Math.max(1, Math.round(r.height));
+        canvas.width = Math.round(st.w * st.dpr);
+        canvas.height = Math.round(st.h * st.dpr);
+        ctx.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
+        reseed();
+      };
+      const step = (t) => {
+        const dt = Math.min(48, t - (st.last || t)) / 16.67;
+        st.last = t;
+        if (!canvas.isConnected || !st.w || !st.h) { st.raf = 0; return; }
+        const cur = (st.getSeason && st.getSeason()) || 'summer';
+        if (cur !== st.season) reseed();
+        ctx.clearRect(0, 0, st.w, st.h);
+        const drift = st.kind === 'firefly' ? 1 : 1.4;
+        for (let i = 0; i < st.parts.length; i++) {
+          const p = st.parts[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt * drift;
+          if (p.spin) p.rot += p.spin * dt;
+          if (p.y > st.h + 12) { p.y = -12; p.x = Math.random() * st.w; }
+          if (p.y < -14) p.y = st.h + 10;
+          if (p.x < -18) p.x = st.w + 12; else if (p.x > st.w + 18) p.x = -12;
+          draw(ctx, st.kind, p, t);
+        }
+        ctx.globalAlpha = 1;
+        st.raf = requestAnimationFrame(step);
+      };
+      st.reseed = reseed;
+      st.stop = () => { if (st.raf) { cancelAnimationFrame(st.raf); st.raf = 0; } };
+      st.start = () => { if (!st.raf) { st.last = 0; st.raf = requestAnimationFrame(step); } };
+      canvas.__sxfx = st;
+      resize();
+      window.addEventListener('resize', () => { if (canvas.__sxfx === st) resize(); });
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => { if (canvas.__sxfx === st) resize(); });
+        ro.observe(canvas);
+      }
+      st.start();
+      return st;
+    }
+    return {
+      attach: attach,
+      reseed(canvas) { const st = canvas && canvas.__sxfx; if (st) st.reseed(); },
+      count(canvas) { const st = canvas && canvas.__sxfx; return st ? st.parts.length : 0; },
+      season(canvas) { const st = canvas && canvas.__sxfx; return st ? st.season : null; },
+      kind(canvas) { const st = canvas && canvas.__sxfx; return st ? st.kind : null; },
+    };
+  })();
+  SK.seasonFX = SeasonFX;
+
   /* ── 장수 선택 · 행동력 표시 (v5.9 시안 A — 장수 카드 목록) ── */
   function renderCityGens(cityId) {
     const gens = cityGens(cityId);
@@ -4122,6 +4369,7 @@
           <span class="gc-line1">
             <b class="gc-name">${g.name}</b>${age ? `<em class="gc-age">${age}세</em>` : ''}
             ${off && off.key !== 'none' ? `<i class="gc-off">${off.name}</i>` : ''}
+            ${(g.merit || 0) > 0 ? `<i class="gc-merit">공훈 ${fmt(g.merit || 0)}</i>` : ''}
             <em class="gc-flag ${dutyTone}">${dutyText}</em>
           </span>
           <span class="gc-line2">${role === SK.CLASSES[g.cls].name ? role : `${role} · ${SK.CLASSES[g.cls].name}`}</span>
@@ -4149,7 +4397,8 @@
     renderCityGens(SK.state.lastCity);
   }
 
-  /* 장수 상태판 — 공용 행동력 숫자 대신 담당·대기·완료로 보여 준다 (v5) */
+  /* 장수 상태판 — 공용 행동력 숫자 대신 담당·대기·완료로 보여 준다 (v5)
+     v5.10 — [＋ 자동 배속]·[매달 최선]은 [시설] 탭으로 옮겼다. 여기는 상태 요약과 군사 조언만 */
   function renderApBar(gens) {
     const bar = $('#city-ap');
     if (!bar) return;
@@ -4161,7 +4410,6 @@
     const readyN = gens.length - dutyN - doneN;
     const advisor = gens.find((g) => g.uid === cs.advisor);
     const actor = gens.find((g) => g.uid === cityActorUid && !g.actedThisMonth);
-    const bestOn = !!SK.state.autoBestDuty;
     bar.innerHTML = `
       <div class="ap-head">
         <span class="ap-title">장수 상태</span>
@@ -4170,7 +4418,6 @@
           <i class="ready"></i><em>대기 ${readyN}</em>
           <i class="spent"></i><em>완료 ${doneN}</em>
         </div>
-        <button class="ap-best ${bestOn ? 'on' : ''}" id="btn-auto-best" title="달이 바뀔 때마다 건물 배속을 능력치에 맞춰 최선으로 다시 잡습니다"><i></i>매달 최선 ${bestOn ? 'ON' : 'OFF'}</button>
       </div>
       <div class="ap-row2">
         <span class="ap-actor">${actor
@@ -4179,40 +4426,12 @@
         <button class="ap-delegate" id="btn-delegate" title="군사에게 지금 성에 필요한 조언을 듣는다">
           <span>${advisor ? advisor.name : '군사'}</span>${advisor ? '조언' : '임명'}
         </button>
-        <button class="ap-auto" id="btn-auto-duty" title="빈 건물에 가장 알맞은 대기 장수를 한 번에 배속합니다">
-          <span>＋</span>자동 배속
-        </button>
       </div>`;
     const del = bar.querySelector('#btn-delegate');
     if (del) {
       del.onclick = () => {
         if (!advisor) { openAdvisorPick(cityId); return; }
         openAdvice(cityId);
-      };
-    }
-    const auto = bar.querySelector('#btn-auto-duty');
-    if (auto) {
-      const builtN = slots.filter((sl) => sl.key).length;
-      auto.classList.toggle('dim', !builtN);
-      auto.title = builtN
-        ? `건물 ${builtN}곳에 장수를 능력치에 맞춰 최선으로 배속합니다 (빈 곳 포함 전체 재배치)`
-        : '배속할 건물이 없습니다';
-      auto.onclick = () => {
-        if (!builtN) { SK.toast('배속할 건물이 없습니다. 먼저 공터에 건물을 지으세요.'); return; }
-        SK.sfx.play('ui');
-        autoAssignDuty(cityId);
-      };
-    }
-    const best = bar.querySelector('#btn-auto-best');
-    if (best) {
-      best.onclick = () => {
-        SK.state.autoBestDuty = !SK.state.autoBestDuty;
-        SK.save();
-        SK.sfx.play('ui');
-        renderApBar(gens);
-        SK.toast(SK.state.autoBestDuty
-          ? '매달 최선 배속을 켰습니다 — 달이 바뀌면 건물 배속을 다시 잡습니다.'
-          : '매달 최선 배속을 껐습니다.');
       };
     }
   }
@@ -4650,6 +4869,66 @@
 
   SK.openTavern = openTavern;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.10 — 주점 배속의 실제 효과 (달이 바뀔 때 한 번)
+     ① 이 성·이웃 성에 재야 인재가 있으면 반값(50%) 등용 협상 자동 시도
+     ② 재야 인재가 없으면 주점 소문 덕에 보너스(+주점 Lv×10%)를 받는 자동 탐색
+     ══════════════════════════════════════════════════════════════ */
+  function runTavernDuty(st) {
+    const out = [];
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      if (!cs || cs.owner !== PF() || !cs.slots) return;
+      const sl = cs.slots.find((x) => x.key === 'tavern' && x.uid);
+      if (!sl) return;
+      const g = st.heroes.find((h) => h.uid === sl.uid && h.city === c.id);
+      if (!g) return;
+      const lv = Math.max(1, Number(sl.lv) || 1);
+      const pool = tavernPool(c.id).filter((p) => p && p.g
+        && !lordRival(p.g.name)
+        && !(st.recruitFail && st.recruitFail[p.g.id] === st.turn));
+      if (pool.length) {
+        const p = pool[0];
+        const half = Math.max(100, Math.round(talentCost(c.id, p.g, g) * 0.5 / 10) * 10);
+        const rate = clamp(recruitChance(c.id, p.g, g) + 6 + lv * 2, 5, 92);
+        if (cityGens(c.id).length >= TALENT_LIMIT) {
+          out.push({ city: c.name, kind: 'skip', text: `주점 — 장수 정원이 가득 차 ${p.g.name} 등용을 건넜습니다` });
+          return;
+        }
+        if (st.gold < half) {
+          out.push({ city: c.name, kind: 'skip', text: `주점 — ${p.g.name} 반값 등용에 금 ${fmt(half)} 필요 (금고 부족)` });
+          return;
+        }
+        if (Math.random() * 100 < rate) {
+          st.gold -= half;
+          const hero = makeHero(p.g.name, c.id, 1);
+          if (!hero) return;
+          hero.actedThisMonth = true;
+          st.heroes.push(hero);
+          const src = st.cities[p.cityId] || {};
+          src.talents = (src.talents || []).filter((id) => id !== p.g.id);
+          SK.gainExp(g, 14, 6);
+          out.push({ city: c.name, kind: 'recruit',
+            text: `주점 소문 — ${josa(p.g.name, 'i')} 합류했습니다 · 금 −${fmt(half)} (반값)` });
+        } else {
+          st.recruitFail = st.recruitFail || {};
+          st.recruitFail[p.g.id] = st.turn;
+          SK.gainExp(g, 8, 2);
+          out.push({ city: c.name, kind: 'refuse', text: `주점 — ${p.g.name} 반값 등용 실패 (${rate}%) · 금은 쓰지 않았습니다` });
+        }
+        return;
+      }
+      /* 재야 인재가 없으면 — 주점 소문 보너스가 붙은 자동 탐색 */
+      const res = explore(c.id, g, { boost: lv * 0.1 });
+      SK.gainExp(g, 18, 4);
+      if (res && res.ok) {
+        out.push({ city: c.name, kind: 'explore', text: `주점 — 자동 탐색: ${res.title}`, gain: res.gain });
+      }
+    });
+    return out;
+  }
+  SK.runTavernDuty = runTavernDuty;
+
   /* ── 병영 — 징병 · 훈련 선택 ── */
   function openBarracksMenu(cityId) {
     const cs = SK.state.cities[cityId];
@@ -4814,16 +5093,20 @@
     const gens = s.heroes.slice().sort((a, b) => (SK.officeAdd(b) - SK.officeAdd(a)) || (b.tong - a.tong));
     const rows = gens.map((h) => {
       const off = SK.officeOf(h);
-      return `<button class="ap-row ${h.appoint ? 'on' : ''}" data-uid="${h.uid}">
+      const nx = SK.nextOfficeOf ? SK.nextOfficeOf(h) : null;
+      const merit = SK.meritOf(h);
+      const ready = nx && (s.fame || 0) >= nx.fame && merit >= nx.merit;
+      return `<button class="ap-row ${h.appoint ? 'on' : ''} ${ready ? 'ready' : ''}" data-uid="${h.uid}">
         <img src="${SK.ptSrc(h.portrait)}" alt="">
-        <div><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 충성 ${loyalOf(h)} · 봉급 ${fmt(heroSalary(h))}</span></div>
+        <div><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 충성 ${loyalOf(h)} · 봉급 ${fmt(heroSalary(h))}</span>
+          <em class="ap-merit">공훈 ${fmt(merit)}${nx ? ` · ${nx.name} ${fmt(nx.merit)}` : ' · 최고'}</em></div>
         <em class="ap-office">${off.key === 'none' ? '관직 없음' : off.name}</em>
         <span class="ap-cap">출진 상한 <b>${fmt(SK.troopCapOf(h))}</b></span>
       </button>`;
     }).join('');
     const m = SK.modal({
       kicker: '관직 · 명성 ' + fmt(fame), title: '누구에게 관직을 내릴까',
-      body: `<p class="talent-note">관직을 내리면 그 장수의 출진 병력 상한이 넓어지고(일반 5,000 → 10,000) 충성이 오르며, 봉급이 조금 늘어 달마다 금이 더 나갑니다.</p>
+      body: `<p class="talent-note">관직을 내리면 그 장수의 출진 병력 상한이 넓어지고(일반 5,000 → 10,000) 충성이 오르며, 봉급이 조금 늘어 달마다 금이 더 나갑니다.<br><b>이제는 군주 명성과 장수 개인의 공훈치를 함께</b> 채워야 서임할 수 있습니다 — 건물 담당·탐색·등용·계략·전투로 쌓입니다.</p>
         <div class="ap-list">${rows || '<p class="rs-empty">휘하에 장수가 없습니다.</p>'}</div>`,
       wide: true, actions: [{ label: '닫기' }],
     });
@@ -4836,20 +5119,24 @@
     const h = s.heroes.find((x) => x.uid === uid);
     if (!h) return;
     const cur = h.appoint || 'none';
+    const merit = SK.meritOf(h);
     const rows = SK.OFFICES.map((o) => {
-      const locked = (s.fame || 0) < o.fame;
+      const fameOk = (s.fame || 0) >= o.fame;
+      const meritOk = merit >= (o.merit || 0);
+      const locked = !fameOk || !meritOk;
       const on = cur === o.key;
       const cap = o.key === 'none' ? 5000 : 5000 + o.add;
-      return `<button class="ap-pick ${on ? 'on' : ''}" data-k="${o.key}" ${locked ? 'disabled' : ''}>
+      const why = !fameOk ? `명성 ${fmt(o.fame)} 필요` : !meritOk ? `공훈 ${fmt(o.merit)} 필요 (지금 ${fmt(merit)})` : '서임 가능';
+      return `<button class="ap-pick ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-k="${o.key}" ${locked ? 'disabled' : ''}>
         <b>${o.name}${on ? ' · 현재' : ''}</b>
-        <span>${o.fame ? `명성 ${fmt(o.fame)} 이상` : '처음 상태'}</span>
-        <em>출진 상한 ${fmt(Math.min(10000, cap))} · 봉급 +${o.salary} · 충성 +${o.loyal}</em>
+        <span>${o.fame ? `명성 ${fmt(o.fame)} · 공훈 ${fmt(o.merit || 0)}` : '처음 상태'}</span>
+        <em>${why} · 출진 상한 ${fmt(Math.min(10000, cap))} · 봉급 +${o.salary} · 충성 +${o.loyal}</em>
       </button>`;
     }).join('');
     const m = SK.modal({
-      kicker: `${h.name} · 명성 ${fmt(s.fame || 0)}`, title: '어떤 관직을 내릴까',
+      kicker: `${h.name} · 명성 ${fmt(s.fame || 0)} · 공훈 ${fmt(merit)}`, title: '어떤 관직을 내릴까',
       body: `<div class="ap-picks">${rows}</div>
-        <p class="talent-note">관직은 언제든 바꿀 수 있습니다. 높은 관직은 군주의 명성이 그만큼 높아야 내릴 수 있습니다.</p>`,
+        <p class="talent-note">관직은 언제든 바꿀 수 있습니다. 높은 관직은 군주의 명성과 그 장수의 공훈치가 모두 그만큼 높아야 내릴 수 있습니다 — 공훈은 건물 담당·탐색·등용·계략·전투로 쌓입니다.</p>`,
       wide: true, actions: [{ label: '닫기' }],
     });
     m.el.querySelectorAll('[data-k]:not([disabled])').forEach((b) => {
@@ -4865,6 +5152,9 @@
       };
     });
   }
+
+  SK.openAppoint = openAppoint;
+  SK.openAppointPick = openAppointPick;
 
   /* 수송 중시 방침의 목적지 — 본성이나 전방 성을 고른다 */
   function openSupplyPick(cityId) {
@@ -5572,6 +5862,8 @@
     const bt = SK.battleTypeFor(tc);
     const f = SK.factionInfo(ts.owner);
     const pool = cityGens(origin);
+    /* v5.10 — 인접 적 성 원군 가능성 경고 */
+    const aiSup = SK.aiSupportCandidates ? SK.aiSupportCandidates(targetId) : [];
     if (!pool.length && ts.troops < 1800) {
       SK.modal({ title: '출진 불가', body: `<p class="modal-p">${SK.CITY[origin].name}에 장수도 병력도 부족합니다. [인재]와 [징병]으로 전력을 갖추세요.</p>`, actions: [{ label: '닫기', primary: true }] });
       return;
@@ -5606,6 +5898,7 @@
       ${deployQuote(pool, Object.keys(pick), s)}
       <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}일</b> · ${SK.CITY[origin].name} → ${tc.name}${marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ''}</p>
       ${(ts.genIds && ts.genIds.length) ? `<p class="enemy-gens">적장 — ${ts.genIds.map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean).map((g) => `${g.name}(${g.tier})`).join(' · ')}</p>` : ''}
+      ${aiSup.length ? `<p class="enemy-support">⚠ 인접 ${aiSup.map((x) => x.name).join(' · ')}에 원군 병력 — 수성전에 <b>적 지원군</b>이 합류할 수 있습니다</p>` : ''}
       <div class="troop-ledger">
         <div><span>보유 병력</span><b id="dp-avail">${fmt(avail)}</b></div>
         <div><span>출진 병력</span><b id="dp-cost" class="hot">0</b></div>
@@ -5782,6 +6075,8 @@
     refresh();
   }
 
+  SK.openDeploy = openDeploy;
+
   /* ───────────── v5.6 — 행군 1~2일 · 도중 요격전 ─────────────
      기준은 하비 ↔ 낭야 거리(가까운 이웃 성 한 칸)다. 그 거리(여유 5%)까지는 하루,
      그보다 길면 이틀 — 이틀 길은 중간에 적 요격대(평야·산악·도하·수전·매복)를 만난다. */
@@ -5914,6 +6209,7 @@
         dismissible: false,
       });
     } else {
+      const supCands = SK.aiSupportCandidates ? SK.aiSupportCandidates(m.target) : [];
       SK.modal({
         kicker: `행군 ${m.total}/${m.total}일`,
         title: `${tc.name} 성 앞 도착`,
@@ -5922,12 +6218,15 @@
             <p>${m.total}일 행군 끝에 <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
             <div class="me-nums"><span>도착 병력 <b>${fmt(troops)}</b></span><span>수비병 <b>${fmt(ts.troops)}</b></span></div>
             <p class="me-note">${SK.BATTLE_TYPES[m.type].name} — ${SK.BATTLE_TYPES[m.type].desc}</p>
+            ${supCands.length ? `<p class="me-support">⚠ 인접 ${supCands.map((x) => x.name).join(' · ')}의 원군이 성으로 들어가고 있습니다 — 적 지원군이 합류할 수 있습니다</p>` : ''}
           </div>`,
         actions: [{ label: `${SK.BATTLE_TYPES[m.type].name} 시작`, primary: true, onClick: () => {
           s.pendingMarch = null;
           s.marches = (s.marches || []).filter((x) => x.id !== m.id);
+          /* v5.10 — 인접 적 성 지원군 합류 판정 (병력은 원 성에서 빠진다) */
+          const aiSupport = SK.rollAiSupport ? SK.rollAiSupport(m.target) : [];
           SK.save();
-          SK.startBattle({ origin: m.origin, targetId: m.target, type: m.type, units: m.units, marchId: m.id });
+          SK.startBattle({ origin: m.origin, targetId: m.target, type: m.type, units: m.units, marchId: m.id, aiSupport });
         } }],
         dismissible: false,
       });
@@ -6148,6 +6447,76 @@
   }
   SK.runAiCampaigns = runAiCampaigns;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.10 — 적 AI 세력도 달마다 내정·등용·장수 성장을 함께 굴린다
+     · 병력·성벽뿐 아니라 농업·상업·치안이 오르고, 재야 인재를 등용한다
+     · 소속 장수는 아군과 같은 눈금으로 경험치·공훈치를 쌓아 레벨이 오른다
+     ══════════════════════════════════════════════════════════════ */
+  function aiGenBook(cs) {
+    if (!cs.genLv) cs.genLv = {};
+    if (!cs.genExp) cs.genExp = {};
+    if (!cs.genMerit) cs.genMerit = {};
+    return cs;
+  }
+  /* 성을 지키는 적 장수의 레벨 (전투에서 그대로 쓴다). 어려움 난이도는 소폭 보정 */
+  function enemyGenLevel(cityId, genId) {
+    const s = SK.state;
+    const cs = s && s.cities ? s.cities[cityId] : null;
+    let lv = (cs && cs.genLv && Number(cs.genLv[genId])) || 1;
+    if (s && s.difficulty === 'hard') lv += 1;
+    return clamp(Math.round(lv), 1, 30);
+  }
+  SK.enemyGenLevel = enemyGenLevel;
+
+  function runAiDomestic(s) {
+    const news = [];
+    SK.CITY_LIST.forEach((c) => {
+      const st = s.cities[c.id];
+      if (!st || st.owner === PF() || st.owner === 'neutral') return;
+      /* 군비 */
+      st.troops = Math.min(cityCap(st), Math.round((st.troops || 0) * 1.04 + 120));
+      st.pop = Math.round((st.pop || 10000) * 1.003);
+      if (st.def < 95 && Math.random() < 0.4) st.def = Math.min(95, st.def + 1);
+      /* 내정 — 농업·상업·치안 */
+      if (st.agri < 95) st.agri = clamp(Math.round((st.agri || 50) + (Math.random() < 0.62 ? 1 : 0)), 0, 100);
+      if (st.comm < 95) st.comm = clamp(Math.round((st.comm || 50) + (Math.random() < 0.62 ? 1 : 0)), 0, 100);
+      const oq = st.order == null ? 55 : st.order;
+      if (oq < 92) st.order = clamp(Math.round(oq + (Math.random() < 0.45 ? 1 : 0)), 0, 100);
+      if (st.loyalty < 82 && Math.random() < 0.35) st.loyalty = clamp(st.loyalty + 1, 0, 100);
+      /* 장수 성장 — 경험치·공훈치·레벨업 */
+      aiGenBook(st);
+      (st.genIds || []).forEach((gid) => {
+        let lv = Number(st.genLv[gid]) || 1;
+        let exp = (Number(st.genExp[gid]) || 0) + 26 + Math.floor(Math.random() * 18);
+        let guard = 0;
+        while (lv < 30 && exp >= SK.expNeed(lv) && guard++ < 40) { exp -= SK.expNeed(lv); lv += 1; }
+        st.genLv[gid] = lv;
+        st.genExp[gid] = Math.round(exp);
+        st.genMerit[gid] = (Number(st.genMerit[gid]) || 0) + 2;
+      });
+      /* 재야 인재 등용 — 가끔, 성 장수가 비좁지 않을 때 */
+      st.talents = st.talents || [];
+      if (st.talents.length && (st.genIds || []).length < 5 && Math.random() < 0.18) {
+        const gid = st.talents[0];
+        const g = SK.GEN_BY_ID[gid];
+        if (g && !SK.isDead(gid, g.name)) {
+          st.talents.shift();
+          st.genIds = (st.genIds || []).concat([gid]);
+          aiGenBook(st);
+          st.genLv[gid] = 1;
+          st.genExp[gid] = 0;
+          st.genMerit[gid] = 0;
+          if (g.tier === 'S' || g.tier === 'A') {
+            news.push({ kind: 'recruit',
+              text: `${c.name}에서 ${josa(SK.factionName(st.owner), 'i')} ${josa(g.name, 'eul')} 등용했습니다` });
+          }
+        }
+      }
+    });
+    return news;
+  }
+  SK.runAiDomestic = runAiDomestic;
+
   /* 수성전에 내보낼 부대 — 주둔 장수와 수비병을 나눠 편성 */
   function defenseUnits(cityId) {
     const s = SK.state;
@@ -6176,6 +6545,54 @@
     return units;
   }
   SK.defenseUnits = defenseUnits;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.10 — 적 인접 성 지원군 (플레이어의 [지원군 파견]에 대한 맞대응)
+     · 같은 세력의 인접 성에 여유 병력(4,000+)과 장수가 있으면 수성전에 합류
+     · 원 성에서 병력을 실제로 빼 가므로, 막아내면 그 성이 약해진다
+     ══════════════════════════════════════════════════════════════ */
+  function aiSupportCandidates(targetId) {
+    const s = SK.state;
+    if (!s) return [];
+    const ts = s.cities[targetId];
+    if (!ts || ts.owner === PF() || ts.owner === 'neutral') return [];
+    const out = [];
+    (SK.allNeighbors(targetId) || []).forEach((nid) => {
+      if (nid === targetId) return;
+      const ns = s.cities[nid];
+      if (!ns || ns.owner !== ts.owner) return;
+      const troops = Math.round(ns.troops || 0);
+      if (troops < 4000) return;
+      const gens = (ns.genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
+      if (!gens.length) return;
+      out.push({ id: nid, name: CITY[nid].name, troops, gens });
+    });
+    return out;
+  }
+  SK.aiSupportCandidates = aiSupportCandidates;
+
+  /* 실제 합류 편성 — 70% 확률로 성당 한 번, 원 성에서 병력을 실제로 빼 간다 */
+  function rollAiSupport(targetId, opts) {
+    const s = SK.state;
+    const cands = aiSupportCandidates(targetId);
+    if (!cands.length) return [];
+    const force = !!(opts && opts.force);
+    const picks = [];
+    cands.slice(0, 2).forEach((c) => {
+      if (!force && Math.random() > 0.7) return;
+      const ns = s.cities[c.id];
+      const send = Math.max(1200, Math.round((ns.troops || 0) * 0.45));
+      ns.troops = Math.max(600, Math.round((ns.troops || 0) - send));
+      const gens = c.gens.slice().sort((a, b) => (SK.TIER_LV[b.tier] || 3) - (SK.TIER_LV[a.tier] || 3)).slice(0, 2);
+      picks.push({
+        from: c.id, name: c.name, troops: send,
+        genIds: gens.map((g) => g.id),
+        gens: gens.map((g) => ({ id: g.id, name: g.name, lv: enemyGenLevel(c.id, g.id) })),
+      });
+    });
+    return picks;
+  }
+  SK.rollAiSupport = rollAiSupport;
 
   /* ══════════════════════════════════════════════════════════════
      v5.9 — 인접 아군 성 [지원군 파견]
@@ -6579,8 +6996,21 @@
     return { title: ev.title, hanja: ev.hanja, text: ev.text, gain, type: '긍정', season: '상시' };
   }
 
-  const SEASONS = ['봄', '봄', '봄', '여름', '여름', '여름', '가을', '가을', '가을', '겨울', '겨울', '겨울'];
-  function seasonOf(month) { return SEASONS[((month % 12) + 12) % 12]; }
+  /* v5.10 — 계절 판정. s.month는 0이 1월이다.
+     봄 3~5월 · 여름 6~8월 · 가을 9~11월 · 겨울 12~2월 */
+  const SEASON_KEYS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer',
+    'summer', 'summer', 'autumn', 'autumn', 'autumn', 'winter'];
+  const SEASON_NAMES = { spring: '봄', summer: '여름', autumn: '가을', winter: '겨울' };
+  function seasonKeyOf(month) {
+    const m = Number(month) || 0;
+    return SEASON_KEYS[((m % 12) + 12) % 12];
+  }
+  function seasonOf(month) { return SEASON_NAMES[seasonKeyOf(month)]; }
+  SK.seasonKeyOf = seasonKeyOf;
+  SK.seasonOf = seasonOf;
+  SK.seasonName = function (key) { return SEASON_NAMES[key] || '여름'; };
+  /* 지금 계절 — 저장이 없으면 3월(봄)로 본다 */
+  SK.currentSeason = function () { return seasonKeyOf(SK.state ? SK.state.month : 2); };
 
   function applyDomesticEvent(ev, s) {
     const eff = ev.effect || {};
@@ -6704,14 +7134,8 @@
     s.gold += tax; s.fame += 3;
     const rank = SK.rankFor(s.fame);
     const rankGold = rank.salaryGold || 0;
-    // 적 세력도 계절마다 병력을 키운다
-    SK.CITY_LIST.forEach((c) => {
-      const st = s.cities[c.id];
-      if (st.owner === PF() || st.owner === 'neutral') return;
-      st.troops = Math.min(cityCap(st), Math.round(st.troops * 1.04 + 120));
-      st.pop = Math.round(st.pop * 1.003);
-      if (st.def < 95 && Math.random() < 0.4) st.def = Math.min(95, st.def + 1);
-    });
+    /* v5.10 — 적 세력도 달마다 병력·성벽·내정·등용·장수 레벨을 함께 굴린다 */
+    const aiGrowNews = runAiDomestic(s);
     s.heroes.forEach((h) => {
       h.actedThisMonth = false;
       if (s.cities[h.city] && s.cities[h.city].owner === PF()) {
@@ -6722,7 +7146,7 @@
     /* v5.7 — 연병장 수련 명단은 이번 달 행동을 써서 경험치를 쌓는다 */
     const crewLog = runTrainCrew(s);
     /* v5.7 — AI 세력의 확장·공세 (플레이어 침공은 한 달 전 경고 뒤에 온다) */
-    const aiNews = runAiCampaigns(s);
+    const aiNews = runAiCampaigns(s).concat(aiGrowNews || []);
     // v5 — 건물 담당 장수는 이번 달 건물 일을 한 것으로 치고, 건물이 결산을 내놓는다
     /* v5.5 — [매달 최선]이 켜져 있으면 달이 바뀔 때 성마다 건물 배속을 다시 잡는다 */
     if (s.autoBestDuty) {
@@ -6733,6 +7157,8 @@
     }
     applyDuty(s);
     const slotLog = runSlots(s);
+    /* v5.10 — 주점 배속: 반값 등용 협상 또는 보너스 탐색 */
+    const tavernLog = runTavernDuty(s);
     const growth = [];
     slotLog.forEach((l) => (l.grow || []).forEach((g) => growth.push(g)));
     growth.sort((a, b) => (b.exp / b.need) - (a.exp / a.need));
@@ -6865,6 +7291,10 @@
           <div class="me-main"><b>${ev.title} <em class="me-season">${ev.type || ''} · ${ev.season || ''}</em></b><span>${ev.text}</span><em>${ev.gain}</em></div></div>` : ''}
         ${slotLog.some((l) => l.troops) ? `<div class="mr-auto"><p class="mr-auto-title">병영 징집</p>
           ${slotLog.filter((l) => l.troops).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>수비병 +${fmt(l.troops)}</span></div>`).join('')}</div>` : ''}
+        ${slotLog.some((l) => l.agri || l.comm) ? `<div class="mr-auto"><p class="mr-auto-title">농업·상업 성장 <em>배속 장수가 밀어 올렸습니다</em></p>
+          ${slotLog.filter((l) => l.agri || l.comm).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.agri ? `농업 +${l.agri}` : ''}${l.agri && l.comm ? ' · ' : ''}${l.comm ? `상업 +${l.comm}` : ''}</span></div>`).join('')}</div>` : ''}
+        ${tavernLog.length ? `<div class="mr-auto"><p class="mr-auto-title">주점 배속 <em>반값 등용 · 소문 탐색</em></p>
+          ${tavernLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text}${l.gain ? ` · ${l.gain}` : ''}</span></div>`).join('')}</div>` : ''}
         ${debuted.length ? `<div class="mr-event"><span class="me-seal">영</span><div class="me-main"><b>새 명장이 세상에 나왔습니다</b><span>${debuted.slice(0, 6).map((g) => g.name).join(' · ')}${debuted.length > 6 ? ' 외' : ''} — 각지 주점에 소문이 돕니다.</span></div></div>` : ''}
         <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 대기 장수로 내정을 마칩니다(본성 제외). 건물 담당 장수는 건물 일을 맡은 것으로 칩니다.</p>
       </div>`,

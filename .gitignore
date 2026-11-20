@@ -11,3 +11,6 @@ preview/
 
 # 단일 파일 빌드 산출물(개발용 백업)
 samgukji-jojo-standalone.html
+
+# 생성 이미지 원본(개발용) — 웹에는 assets/*.webp 만 올린다
+downloads/

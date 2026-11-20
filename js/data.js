@@ -503,12 +503,12 @@ SK.TROOP_CAP = {
    군주 명성이 오르면 휘하 장수에게 내리고, 출진 병력 상한이 5,000 → 10,000까지 열린다.
    봉급은 조금 오르고(달마다 금 지출), 임명할 때 충성이 오른다. */
 SK.OFFICES = [
-  { key: 'none', name: '관직 없음', fame: 0, add: 0, salary: 0, loyal: 0 },
-  { key: 'gyowi', name: '교위', fame: 300, add: 1000, salary: 25, loyal: 3 },
-  { key: 'jungnangjang', name: '중랑장', fame: 900, add: 2000, salary: 50, loyal: 4 },
-  { key: 'jindong', name: '진동장군', fame: 2000, add: 3000, salary: 80, loyal: 5 },
-  { key: 'jinseo', name: '진서장군', fame: 3500, add: 3500, salary: 100, loyal: 5 },
-  { key: 'daegeneral', name: '대장군', fame: 6000, add: 5000, salary: 140, loyal: 6 },
+  { key: 'none', name: '관직 없음', fame: 0, merit: 0, add: 0, salary: 0, loyal: 0 },
+  { key: 'gyowi', name: '교위', fame: 300, merit: 80, add: 1000, salary: 25, loyal: 3 },
+  { key: 'jungnangjang', name: '중랑장', fame: 900, merit: 220, add: 2000, salary: 50, loyal: 4 },
+  { key: 'jindong', name: '진동장군', fame: 2000, merit: 500, add: 3000, salary: 80, loyal: 5 },
+  { key: 'jinseo', name: '진서장군', fame: 3500, merit: 1000, add: 3500, salary: 100, loyal: 5 },
+  { key: 'daegeneral', name: '대장군', fame: 6000, merit: 1800, add: 5000, salary: 140, loyal: 6 },
 ];
 SK.OFFICE_BY_KEY = {};
 SK.OFFICES.forEach((o) => { SK.OFFICE_BY_KEY[o.key] = o; });
@@ -518,6 +518,14 @@ SK.officeOf = function (hero) {
 };
 SK.officeAdd = function (hero) { return SK.officeOf(hero).add || 0; };
 SK.officeSalary = function (hero) { return SK.officeOf(hero).salary || 0; };
+/* v5.10 — 장수 개인 공훈치(merit) */
+SK.meritOf = function (hero) { return Math.max(0, Math.round(Number(hero && hero.merit) || 0)); };
+SK.nextOfficeOf = function (hero) {
+  const cur = SK.officeOf(hero);
+  const i = SK.OFFICES.findIndex((o) => o.key === cur.key);
+  const nx = SK.OFFICES[Math.min(SK.OFFICES.length - 1, (i < 0 ? 0 : i) + 1)];
+  return nx && nx.key !== cur.key ? nx : null;
+};
 SK.troopCapOf = function (hero, st) {
   const state = st || SK.state || {};
   const lordName = ((state.factions || {})[state.playerFaction || ''] || {}).lord || '';

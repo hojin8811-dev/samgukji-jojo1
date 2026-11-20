@@ -19,6 +19,16 @@
   /* v5.6 — 지형 베이스는 사용자가 확정한 도안 A 그림(assets/map_bg.webp)이다.
      그림이 오면 절차적 지형(바다·육지·산·숲·강)은 그리지 않고, 그 위에 영토·길·아이콘만 얹는다. */
   const BG_URL = 'assets/map_bg.webp';
+  /* v5.10 — 달에 따라 계절 지도로 갈아입는다 (여름은 기존 기본 그림) */
+  const BG_SEASON = {
+    spring: 'assets/map_bg_spring.webp',
+    autumn: 'assets/map_bg_autumn.webp',
+    winter: 'assets/map_bg_winter.webp',
+  };
+  let bgSeason = '';
+  function seasonKey() {
+    return (SK.seasonKeyOf && SK.state) ? SK.seasonKeyOf(SK.state.month) : 'summer';
+  }
   const LAND_URL = 'assets/map_land.png';  /* 영토 색칠을 육지로만 오려내는 마스크 */
   let bgImg = null, bgState = 'loading';   /* loading | ready | failed */
   let landImg = null, landReady = false;
@@ -29,6 +39,7 @@
   let vp = null, layer = null, canvas = null, cx = null;
   let terrCanvas = null, tcx = null, featCanvas = null, fcx = null, routeCanvas = null, rcx = null;
   let markersEl = null;
+  let seasonCanvas = null;   // v5.10 — 지도 위 계절 파티클
   let built = false;
   let marks = [];
   let renderScale = 0, featScale = 0, renderTimer = 0;
@@ -1076,10 +1087,16 @@
         <img class="m-icon" src="assets/icons/${ICON_SRC[c.type]}.webp" alt="" draggable="false" />
         <span class="m-flag"><b class="m-lv">1</b></span>
         <span class="m-label">${c.name}</span>`;
-      b.addEventListener('click', (e) => { e.stopPropagation(); onMarker(c.id); });
-      /* 지도 판이 포인터를 캡처하면 마커 클릭이 사라진다 — 마커 위 터치는 지도 제스처로 보내지 않는다 */
-      b.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
-      b.addEventListener('pointerup', (e) => { e.stopPropagation(); });
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        /* v5.10 — 거점을 끌어 지도를 옮긴 경우에는 열지 않는다.
+           탭(8px 미만)은 제스처 쪽에서 이미 열었으므로 중복 호출도 막는다 */
+        if (performance.now() - lastTapHandled < 600) return;
+        if (drag && drag.moved >= 8) return;
+        onMarker(c.id);
+      });
+      /* v5.10 — 거점 위에서도 지도를 끌 수 있게 pointerdown 차단을 없앴다.
+         (탭 = 거점 선택 / 드래그 = 지도 이동은 bindGestures가 판정한다) */
       markersEl.appendChild(b);
       return { id: c.id, el: b, city: c, anchor: 0, lw: 0, lh: 0, hidden: false,
         flagEl: b.querySelector('.m-flag'), labelEl: b.querySelector('.m-label'), lvEl: b.querySelector('.m-lv') };
@@ -1231,6 +1248,12 @@
 
   function refresh() {
     if (!SK.state || !marks.length) return;
+    /* v5.10 — 달이 바뀌어 계절이 달라지면 계절 지도·파티클을 갈아입는다 */
+    const nowSeason = seasonKey();
+    if (nowSeason !== bgSeason) {
+      loadBg(nowSeason);
+      if (seasonCanvas && SK.seasonFX) SK.seasonFX.reseed(seasonCanvas);
+    }
     const pf = playerFaction();
     const info = SK.factionInfo || (() => ({ color: '#8d8d8d' }));
     marks.forEach((m) => {
@@ -1269,6 +1292,7 @@
   let pointers = new Map();
   let drag = null, pinch = null, inertia = 0, vx = 0, vy = 0;
   let lastTap = { t: 0, x: 0, y: 0 };
+  let lastTapHandled = 0;   // v5.10 — 제스처가 거점을 연 직후의 click 중복 방지
 
   function stopInertia() { if (inertia) { cancelAnimationFrame(inertia); inertia = 0; } }
 
@@ -1300,7 +1324,8 @@
       try { vp.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
       if (pointers.size === 1) {
         drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, lx: cam.tx, ly: cam.ty,
-          px: e.clientX, py: e.clientY, t: performance.now(), moved: 0, vx: 0, vy: 0 };
+          px: e.clientX, py: e.clientY, t: performance.now(), moved: 0, vx: 0, vy: 0,
+          downTarget: e.target   /* v5.10 — 탭한 대상(거점 마커)을 기억한다 */ };
         vx = vy = 0;
       } else if (pointers.size === 2) {
         const pts = Array.from(pointers.values());
@@ -1346,16 +1371,25 @@
       if (pointers.size === 0) {
         if (drag && drag.id === e.pointerId) {
           if (drag.moved < 8) {
-            const now = performance.now();
-            const isDouble = now - lastTap.t < 300 && Math.abs(e.clientX - lastTap.x) < 40 && Math.abs(e.clientY - lastTap.y) < 40;
-            lastTap = { t: now, x: e.clientX, y: e.clientY };
-            if (isDouble) {
-              const r = vp.getBoundingClientRect();
-              animatedZoom(cam.s * 1.9, e.clientX - r.left, e.clientY - r.top);
-            } else {
+            /* v5.10 — 8px 미만 = 탭: 거점 위라면 그 성을 연다 */
+            const mk = drag.downTarget && drag.downTarget.closest ? drag.downTarget.closest('.marker') : null;
+            if (mk && mk.dataset && mk.dataset.id) {
+              lastTapHandled = performance.now();
               const sheet = $('#city-sheet');
               if (sheet && !sheet.hidden) SK.closeCitySheet();
-              marks.forEach((m) => m.el.classList.remove('sel'));
+              onMarker(mk.dataset.id);
+            } else {
+              const now = performance.now();
+              const isDouble = now - lastTap.t < 300 && Math.abs(e.clientX - lastTap.x) < 40 && Math.abs(e.clientY - lastTap.y) < 40;
+              lastTap = { t: now, x: e.clientX, y: e.clientY };
+              if (isDouble) {
+                const r = vp.getBoundingClientRect();
+                animatedZoom(cam.s * 1.9, e.clientX - r.left, e.clientY - r.top);
+              } else {
+                const sheet = $('#city-sheet');
+                if (sheet && !sheet.hidden) SK.closeCitySheet();
+                marks.forEach((m) => m.el.classList.remove('sel'));
+              }
             }
           } else {
             startInertia();
@@ -1398,25 +1432,30 @@
 
   /* ───────────── 공개 API ───────────── */
   /* ───────────── 도안 A 배경 이미지 ───────────── */
-  function loadBg() {
+  function loadBg(season) {
     if (typeof Image === 'undefined') { bgState = 'failed'; return; }
-    bgImg = new Image();
-    bgImg.decoding = 'async';
-    bgImg.onload = () => {
+    const sk = season || seasonKey();
+    const url = BG_SEASON[sk] || BG_URL;
+    bgSeason = sk;
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      bgImg = img;
       bgState = 'ready';
       if (!built) return;
       renderTerrain(renderScale || 1.25);
       renderFeatures(featScale || 1.25);
     };
-    bgImg.onerror = () => {
+    img.onerror = () => {
+      /* 계절 그림을 못 받으면 기본 지도로, 그것도 안 되면 옛 절차적 지형으로 */
+      if (url !== BG_URL) { loadBg('summer'); return; }
       bgState = 'failed';
       if (!built) return;
-      /* 그림을 못 받으면 예전처럼 절차적 지형으로 돌아간다 */
       buildStatic(false);
       renderTerrain(renderScale || 1.25);
       renderFeatures(featScale || 1.25);
     };
-    bgImg.src = BG_URL;
+    img.src = url;
   }
 
   function loadLand() {
@@ -1443,6 +1482,14 @@
     rcx = routeCanvas ? routeCanvas.getContext('2d') : null;
     canvas.style.width = MAPW + 'px';
     canvas.style.height = MAPH + 'px';
+    /* v5.10 — 지도 위 계절 파티클 (지도 판 위에 고정, 포인터는 통과) */
+    if (markersEl && markersEl.parentNode && !seasonCanvas) {
+      seasonCanvas = document.createElement('canvas');
+      seasonCanvas.className = 'season-fx map-season';
+      seasonCanvas.setAttribute('aria-hidden', 'true');
+      markersEl.parentNode.insertBefore(seasonCanvas, markersEl);
+      if (SK.seasonFX) SK.seasonFX.attach(seasonCanvas, function () { return seasonKey(); });
+    }
     buildStatic(bgState !== 'failed');
     renderTerrain(1.25);
     renderFeatures(1.25);
@@ -1473,6 +1520,7 @@
         labelsHidden: marks.filter((m) => m.hidden).length,
         trees: trees.length, peaks: peaks.length, fields: fields.length,
         hasRelief: !!reliefCanvas, territory: !!terrCanvas, features: !!featCanvas, routes: !!routeCanvas,
+        season: bgSeason, bg: bgState, fxCount: (seasonCanvas && SK.seasonFX) ? SK.seasonFX.count(seasonCanvas) : 0,
       };
     },
     /* 겹침 검사 — 화면 좌표 라벨·아이콘 사각형이 서로 겹치는 수 */

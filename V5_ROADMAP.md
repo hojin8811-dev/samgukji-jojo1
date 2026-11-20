@@ -1,10 +1,43 @@
 # 《꼬마영웅 천하통일》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-20 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=23`
+기준: 2026-11-20 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=24`
 
-## 📝 다음 패치 제보 메모 (`?v=23` 이후)
+## 📝 다음 패치 제보 메모 (`?v=24` 이후)
 
-- (사용자 제보 대기 중 — v5.9 확인 뒤 새 메모를 여기에 적는다)
+- (사용자 제보 대기 중 — v5.10 확인 뒤 새 메모를 여기에 적는다)
+
+## ✅ v5.10 사계절·공훈치·주점·터치·AI 동반성장 (2026-11-20 · `?v=24`)
+
+### 1. 사계절 그림 + 계절 파티클 (`assets/`, `js/app.js`, `js/map.js`)
+- **계절은 달로 정한다** — `SK.seasonKeyOf(month)` 하나로 `s.month`(0=1월)를 **봄 3~5 · 여름 6~8 · 가을 9~11 · 겨울 12~2** 로 나눈다(`app.js`). 예전 `SEASONS` 배열이 한 달씩 어긋나 있던 것을 바로잡았다.
+- **지도** — `images --edit`으로 `assets/map_bg_spring.webp`(벚꽃)·`map_bg_autumn.webp`(단풍)·`map_bg_winter.webp`(설경)을 만들어(WebP q80, 380~490KB) `map.js`의 `BG_SEASON`이 달에 맞춰 갈아입는다(여름은 기존 `map_bg.webp`). 계절 그림을 못 받으면 기본 지도로, 그것도 안 되면 옛 절차 지형으로 물러난다.
+- **성 그림** — `assets/scenes/{spring,autumn,winter}/city_lv{1,2,3,5}.webp` 12장(레벨 4는 3을 쓴다). `sceneImageFor`가 `계절 → 기본 레벨 → 지역 기본` 순으로 시도해 하나씩 떨어진다.
+- **파티클** — `js/app.js` `SK.seasonFX`(캔버스마다 rAF 1개) — 봄 벚꽃잎 24 · 여름 반딧불 16 · 가을 단풍잎 20 · 겨울 눈송이 34. 지도(`.map-season`, z0)와 성 그림(`#city-season`, z1)에 붙고, 달이 바뀌면 스스로 다시 뿌린다. `prefers-reduced-motion`이면 1/3로 줄인다.
+
+### 2. UI·터치·편의성
+- **터치 스크롤** — `.city-mid`·`.city-panes`·`.dev-card`·`.slot-card`·`.gen-card` 등에 `touch-action: pan-y`.
+- **지도 거점 드래그** — 마커의 `pointerdown` 차단을 제거하고 `bindGestures`가 **8px 미만=탭(거점 열기) / 8px 이상=지도 이동**으로 판정한다(`lastTapHandled`로 click 중복 차단).
+- **`[＋ 자동 배속]`·`[매달 최선]` → `[시설]` 탭** — `renderCitySlots`의 `.slot-tools`로 옮기고, `[장수]` 탭 `renderApBar`는 상태 요약 + `[군사 조언]`만 남겼다.
+- **`[군사 조언]` 이름 배지 대비** — `.ap-delegate span`을 `#5a3410` 바탕 + `#fff8e8` 글씨로.
+- **건물 창 담당 장수 카드** — `openSlot`이 `.sd-owner`(초상·이름·Lv·관직·5능력치·EXP 바)를 띄우고 누르면 `showHeroInfo`(`SK.openGeneralDetail`)로.
+- **장수 상세창 보물 `+N`** — `showHeroInfo`가 `SK.equipBonus`를 더한 **총합 + `(+N)`**과 무기/방어구/명마/병법서 목록, 보물 보정 줄, 공훈치 줄을 보여 준다. `equipLines`는 슬롯 이름까지 표시하도록 고쳤다.
+
+### 3. 내정·주점·공훈·관직
+- **농원·시장 배속 → 농업·상업 상승** — `runSlots`의 `statGrowOf`가 매달 **+1~3**(건물 Lv·담당 정치 비례)을 `cs.agri`/`cs.comm`에 실제로 더하고 월정산 `농업·상업 성장`에 보고.
+- **주점 배속** — `runTavernDuty`가 달마다 ① 재야 인재가 있으면 **반값(50%) 등용 자동 시도** ② 없으면 **주점 Lv×10% 보너스 탐색**(`explore(city, actor, {boost})`). 월정산 `주점 배속` 줄에 성공·거절·탐색 결과를 적는다.
+- **공훈치 `h.merit`** — `SK.gainMerit`·`SK.gainExp(h, exp, merit)`(안 적으면 경험치의 1/12). 건물 담당(월 2+Lv), 탐색·등용·계략·전투 격파/참전/승리에서 쌓인다.
+- **관직 연동** — `SK.OFFICES`에 `merit`(교위 80 / 중랑장 220 / 진동 500 / 진서 1,000 / 대장군 1,800)을 넣고 `openAppointPick`이 **명성 + 공훈** 둘 다 확인. 장수 카드·상세창·서임 창에 현재 공훈치 표시.
+
+### 4. 아군·적군 동반 성장
+- **레벨 성장** — `battle.js` `LV_GROW = 0.018` — 아군·적군 모두 1레벨마다 공·방 +1.8%, 승급 구간 +6%는 그대로. **적 성 장수는 Lv.1에서 시작**해(`cs.genLv`, 어려움 +1) 달마다 자란다.
+- **AI 내정·등용** — `runAiDomestic`이 매달 병력·성벽에 더해 **농업·상업·치안**을 올리고, 재야 인재를 확률로 등용하며, 소속 장수의 경험치·공훈치·레벨을 올린다.
+- **적 지원군** — `aiSupportCandidates`(인접 같은 세력 성, 병력 4,000+, 장수 보유) → `rollAiSupport`(70%, 최대 2성, 원 성 병력 45% 차감). 출진 창과 행군 도착 창에 `⚠ 인접 … 원군` 경고, 전투 시작 시 적 부대로 합류(`opts.aiSupport`).
+
+### 5. 전투 자동 배속 (추가 지시)
+- `battle.js`에 `autoSpeed`(기본 1) — `autoGap(ms)`가 **×1이면 2배 느리게, ×2면 기존 속도**로 자동전투·적군 페이즈 간격을 늘린다. 전장 상단 `[×1 배속]` 버튼으로 토글하며 전투마다 ×1로 시작한다.
+
+### 6. 검증
+- `tools/v510_smoke.py` · `v510_logic.py`(드래그/탭, 사계절 4종, 시설 탭 버튼, 담당 장수 카드, 보물 +N, 농업·상업, 주점, 공훈 관직, AI 성장, 지원군, 배속) · `v510_month.py`(월정산 보고) · `v510_ui_gens.py`(장수 탭 배지) — 콘솔·페이지 오류 0, 스크린샷 `preview/v510/`, 라이브 `preview/v510_live/`.
 
 ## ✅ v5.9 성 화면 시안 A 리뉴얼 · 부상병 · 지원군 파견 · BGM 16비트 FM (2026-11-20 · `?v=23`)
 
