@@ -1119,7 +1119,11 @@
     const u = B.sel;
     if (!u || !u.alive) return;
     const reach = B.reachCache && B.reachCache.uid === u.id ? B.reachCache.set : null;
-    if (reach) {
+    /* v5.13 — 회복·아군 버프를 고르는 동안은 이동 범위(파랑)를 깔지 않는다.
+       파란 이동 범위와 겹쳐 초록 치료 범위가 탁해지던 것을 맑게 보이게 한다. */
+    const healPick = mode === 'skillTarget' && pendingSkill &&
+      (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly');
+    if (reach && !healPick) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 380);
       reach.forEach((k) => {
         const [x, y] = k.split(',').map(Number);
