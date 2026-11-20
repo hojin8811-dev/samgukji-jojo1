@@ -5334,7 +5334,7 @@
         <p class="office-note">태수·군사는 언제든 바꿀 수 있고, 이 성의 내정은 언제나 직접 할 수 있습니다. 대기 장수에게 남은 내정을 한 번에 맡기려면 아래 [대기 장수 일괄 내정]을 쓰십시오.</p>
         <div class="menu-list">
           <button data-o="comfort">백성을 위로한다 — 금 100 · 대기 장수를 보낸다</button>
-          <button data-o="appoint">관직 — 장수에게 관직 내리기 (출진 상한 5,000 → 10,000)</button>
+          <button data-o="appoint">관직 — 문관·무관 24단계 (출진 상한·내정·공방 보너스)</button>
           <button data-o="reward">포상 — 금·보물로 장수 충성 올리기${lowLoyal ? ` <em style="color:#a8443a;font-style:normal;font-weight:900">· 충성 낮은 장수 ${lowLoyal}명</em>` : ''}</button>
           <button data-o="prisoners">포로 — 억류 장수 설득·몸값 협상${(s.prisoners || []).length ? ` <em style="color:#a8443a;font-style:normal;font-weight:900">· ${s.prisoners.length}명 억류 중</em>` : ''}</button>
           <button data-o="rice">군량 상인 — 지금 금 100에 쌀 ${price} (사고팔기)</button>
@@ -5675,7 +5675,7 @@
     if (!cs || rec.months < 3) return 0;
     const lv = patrolLvOf(cs);
     const order = Math.max(0, Math.min(100, cs.order == null ? 55 : cs.order));
-    return clamp(0.10 - lv * 0.012 - (order / 100) * 0.03, 0.02, 0.10);
+    return clamp(0.10 - lv * 0.015 - (order / 100) * 0.03, 0.02, 0.10);
   }
   SK.prisonEscapeChance = prisonEscapeChance;
 
