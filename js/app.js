@@ -4930,8 +4930,9 @@
     const cityId = SK.state.lastCity;
     const cs = SK.state.cities[cityId] || {};
     const slots = cs.slots || [];
-    const dutyN = gens.filter((g) => slots.some((sl) => sl.uid === g.uid)).length;
-    const doneN = gens.filter((g) => g.actedThisMonth && !slots.some((sl) => sl.uid === g.uid)).length;
+    const onSlot = (g) => slots.some((sl) => sl.uid === g.uid || sl.deputy === g.uid);
+    const dutyN = gens.filter(onSlot).length;
+    const doneN = gens.filter((g) => g.actedThisMonth && !onSlot(g)).length;
     const readyN = gens.length - dutyN - doneN;
     const advisor = gens.find((g) => g.uid === cs.advisor);
     const actor = gens.find((g) => g.uid === cityActorUid && !g.actedThisMonth);
@@ -7947,7 +7948,7 @@
         /* v5.11 — 행군·지원군·연병장 수련 중인 장수는 '대기'가 아니다 */
         if (h.marchId || h.rfgTo) return;
         if ((cs.trainCrew || []).indexOf(h.uid) >= 0) return;
-        if (slots.some((sl) => sl.uid === h.uid)) return;
+        if (slots.some((sl) => sl.uid === h.uid || sl.deputy === h.uid)) return;
         n += 1;
       });
     });
