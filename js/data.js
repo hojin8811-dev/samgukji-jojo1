@@ -121,7 +121,7 @@ SK.CLASS_UNIT = {
   geombyung: 'bobyung', sanjeok: 'sanjeok', sujeok: 'sujeok', chaeksa: 'chaeksa',
   pungsusa: 'pungsusa', dosa: 'dosa', gungsu: 'gungbyung', mudoga: 'mudoga',
   yasubyung: 'yasubyung', muhui: 'muhui', pocha: 'pocha', balseokcha: 'balseokcha',
-  yeonnobyung: 'gungbyung', deunggabyung: 'bobyung', gunakdae: 'muhui',
+  yeonnobyung: 'gungbyung', deunggabyung: 'bobyung', gunakdae: 'gunakdae',
 };
 /* v5 — 병과 공용 SD 18종 (assets/units/job_*.webp, 2등신 치비 화풍) */
 SK.JOB_UNIT = {
