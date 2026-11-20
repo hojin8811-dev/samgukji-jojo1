@@ -23,7 +23,8 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #26200f; }
 body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; }
-#app { position: fixed; inset: 0; overflow: hidden; }
+#app { position: fixed; inset: 0; overflow: hidden; height: 100dvh; }
+/* dvh 를 모르는 브라우저는 inset:0 그대로 — 아래 height 선언이 무시된다 */
 img { -webkit-user-drag: none; user-select: none; }
 button { font-family: inherit; cursor: pointer; }
 em { font-style: normal; }
@@ -303,7 +304,16 @@ b { font-weight: 700; }
 .btn-capital:active { transform: translateY(1px); }
 
 /* ═══════════════ 2단계 내정 ═══════════════ */
-#screen-city { background: #efe0bf; }
+#screen-city { background: #efe0bf; overflow: hidden; }
+/* v5.6 — 가운데(성 그림·내정 정보·장수 줄)만 스크롤하고, 하단 6버튼은 화면 아래에 고정한다.
+   390×680(안드로이드 크롬 주소창+하단바 제외)에서도 6버튼이 1px도 잘리지 않는다. */
+.city-mid {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.city-mid > .city-scene { flex: 1 1 auto; min-height: 150px; }
+.city-mid > .city-dev, .city-mid > .city-slots, .city-mid > .city-info,
+.city-mid > .city-general-strip, .city-mid > .city-ap { flex: 0 0 auto; }
 .city-top {
   display: flex; align-items: center; gap: 8px; padding: 8px 10px;
   padding-top: calc(8px + env(safe-area-inset-top));
@@ -398,6 +408,8 @@ b { font-weight: 700; }
   background: linear-gradient(180deg, #f6ead0, #ead7b0);
   border-top: 1px solid rgba(184, 134, 47, 0.55);
   box-shadow: 0 -4px 14px rgba(90, 70, 30, 0.12);
+  flex: 0 0 auto;                 /* 하단 6버튼은 절대 줄어들지 않는다 */
+  position: relative; z-index: 4;
 }
 .cmd { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px 0; border-radius: 9px; }
 .cmd:active { background: rgba(184, 134, 47, 0.14); }
@@ -725,7 +737,10 @@ b { font-weight: 700; }
 @media (max-height: 700px) {
   .city-general-strip { min-height: 52px; padding: 5px 8px; }
   .gen-chip img { width: 28px; height: 28px; }
-  .city-scene { min-height: 150px; }
+  .city-mid > .city-scene { min-height: 132px; }
+  .city-mid > .city-dev { padding: 3px 10px 4px; }
+  .city-mid > .city-general-strip { min-height: 46px; padding: 4px 8px; }
+  .city-mid > .city-ap { padding: 3px 10px 4px; }
   .title-inner { padding-top: calc(24px + env(safe-area-inset-top)); }
   .title-logo { font-size: 33px; }
   .title-logo span { font-size: 24px; }
@@ -1357,7 +1372,7 @@ b { font-weight: 700; }
 .hi-attrs.five b { font-size: 13px; }
 
 /* 성 마당 — 지어진 건물·공터 */
-.city-scene { min-height: 186px; }
+.city-scene { min-height: 150px; }
 .scene-hotspots { pointer-events: none; }
 .scene-hotspots > * { pointer-events: auto; }
 .yard-b {

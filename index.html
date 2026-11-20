@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=19" />
+<link rel="stylesheet" href="css/game.css?v=20" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -192,6 +192,7 @@
       <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>
     </header>
 
+    <div class="city-mid" id="city-mid">
     <div class="city-scene" id="city-scene">
       <img id="city-scene-img" src="assets/scenes/city_main.webp" alt="성내" />
       <div class="scene-shade"></div>
@@ -211,6 +212,7 @@
     <div class="city-general-strip" id="city-generals"></div>
 
     <div class="city-ap" id="city-ap"></div>
+    </div><!-- /city-mid -->
 
     <nav class="city-commands city-groups" aria-label="내정 명령">
       <button class="cmd" data-grp="facility"><span class="cmd-ic">▦</span><b>시설 관리</b><small>건설·증축</small></button>
@@ -298,13 +300,14 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=19"></script>
-<script src="js/city_geo.js?v=19"></script>
-<script src="js/data.js?v=19"></script>
-<script src="js/bgm.js?v=19"></script>
-<script src="js/sfx.js?v=19"></script>
-<script src="js/app.js?v=19"></script>
-<script src="js/map.js?v=19"></script>
-<script src="js/battle.js?v=19"></script>
+<script src="js/mapgeo.js?v=20"></script>
+<script src="js/mapmask.js?v=20"></script>
+<script src="js/city_geo.js?v=20"></script>
+<script src="js/data.js?v=20"></script>
+<script src="js/bgm.js?v=20"></script>
+<script src="js/sfx.js?v=20"></script>
+<script src="js/app.js?v=20"></script>
+<script src="js/map.js?v=20"></script>
+<script src="js/battle.js?v=20"></script>
 </body>
 </html>

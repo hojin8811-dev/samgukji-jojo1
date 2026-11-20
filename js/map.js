@@ -16,6 +16,12 @@
   const ICON_ASPECT = { capital: 1.62, mid: 1.77, town: 1.42, pass: 1.58, fortress: 1.18 };
   const ICON_SRC = { capital: 'capital', mid: 'mid', town: 'town', pass: 'pass', fortress: 'fortress' };
   const TERR_SCALE = 1.25;
+  /* v5.6 — 지형 베이스는 사용자가 확정한 도안 A 그림(assets/map_bg.webp)이다.
+     그림이 오면 절차적 지형(바다·육지·산·숲·강)은 그리지 않고, 그 위에 영토·길·아이콘만 얹는다. */
+  const BG_URL = 'assets/map_bg.webp';
+  const LAND_URL = 'assets/map_land.png';  /* 영토 색칠을 육지로만 오려내는 마스크 */
+  let bgImg = null, bgState = 'loading';   /* loading | ready | failed */
+  let landImg = null, landReady = false;
   const GRID_W = 800;                       /* 영토 계산 격자 */
   const GRID_H = Math.round(GRID_W * MAPH / MAPW);
 
@@ -90,7 +96,7 @@
     return p;
   }
 
-  function buildStatic() {
+  function buildStatic(lite) {
     const G = SK.MAPGEO;
     landPath = new Path2D();
     G.land.forEach((r) => ringPath(landPath, r));
@@ -130,7 +136,7 @@
       return true;
     };
     peaks = [];
-    (G.mountains || []).forEach((m, mi) => {
+    if (!lite) (G.mountains || []).forEach((m, mi) => {
       const flat = m.p;
       const n = flat.length / 2;
       let carry = 0, idx = 0;
@@ -166,7 +172,7 @@
 
     /* 숲 — 초록 계열 색조 안쪽에만 나무를 흩뿌린다 */
     trees = [];
-    (G.tints || []).forEach(([x, y, r, color], ti) => {
+    (lite ? [] : (G.tints || [])).forEach(([x, y, r, color], ti) => {
       const h = color.replace('#', '');
       const rr = parseInt(h.slice(0, 2), 16), gg = parseInt(h.slice(2, 4), 16), bb = parseInt(h.slice(4, 6), 16);
       if (!(gg > rr + 6 && gg > bb + 6)) return;
@@ -185,7 +191,7 @@
 
     /* 밭이랑 — 평지·고원 색조 위에 작은 이랑 조각을 흩뿌린다 */
     fields = [];
-    (G.tints || []).forEach(([x, y, r, color, a], ti) => {
+    (lite ? [] : (G.tints || [])).forEach(([x, y, r, color, a], ti) => {
       if (r < 90) return;
       let seed = 91 + ti * 613;
       const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
@@ -256,7 +262,7 @@
     gc.putImageData(gi, 0, 0);
     grainPattern = cx.createPattern(gp, 'repeat');
 
-    buildRelief();
+    if (!lite) buildRelief();
   }
 
   /* ───────────── 입체 기복(힐셰이드) ───────────── */
@@ -369,6 +375,27 @@
     g.clearRect(0, 0, MAPW, MAPH);
     g.lineJoin = 'round';
     g.lineCap = 'round';
+
+    /* ── 도안 A 그림 배경 (확정 지형) ── */
+    if (bgState === 'ready' && bgImg) {
+      g.fillStyle = '#3f778c';
+      g.fillRect(0, 0, MAPW, MAPH);
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(bgImg, 0, 0, MAPW, MAPH);
+      /* 그림 가장자리를 화면 톤과 이어 준다 — 아주 옅은 파치먼트 김 */
+      if (paperPattern) {
+        g.globalCompositeOperation = 'soft-light';
+        g.globalAlpha = 0.18;
+        g.fillStyle = paperPattern;
+        g.fillRect(0, 0, MAPW, MAPH);
+        g.globalCompositeOperation = 'source-over';
+        g.globalAlpha = 1;
+      }
+      renderScale = R;
+      canvas.style.opacity = 1;
+      return;
+    }
 
     /* ── 바다 (수심 그라데이션) ── */
     const seaGrad = g.createLinearGradient(0, 0, MAPW * 0.35, MAPH);
@@ -521,6 +548,8 @@
     const g = fcx;
     g.setTransform(R, 0, 0, R, 0, 0);
     g.clearRect(0, 0, MAPW, MAPH);
+    /* 그림 배경이 깔리면 산·숲·강은 그림에 이미 있다 — 이 레이어는 비워 둔다 */
+    if (bgState === 'ready') { featScale = R; return; }
     g.lineJoin = 'round';
     g.lineCap = 'round';
     g.save();
@@ -675,28 +704,28 @@
     g.clearRect(0, 0, MAPW, MAPH);
     g.lineJoin = 'round';
     g.lineCap = 'round';
-    /* 육로 — 지형 위에서도 또렷하게: 파치먼트 빛 테 → 먹색 밑그림 → 금빛 점선 → 안쪽 하이라이트 */
-    g.strokeStyle = 'rgba(255, 246, 220, 0.42)';
-    g.lineWidth = 6.4;
-    g.stroke(roadPath);
-    g.strokeStyle = 'rgba(52,38,14,0.34)';
+    /* 육로 — 그림 지형 위에서도 또렷하되 무겁지 않게: 파치먼트 테 → 먹색 밑그림 → 금빛 점선 → 안쪽 하이라이트 */
+    g.strokeStyle = 'rgba(255, 246, 220, 0.34)';
     g.lineWidth = 4.2;
     g.stroke(roadPath);
-    g.setLineDash([7, 5.5]);
-    g.strokeStyle = 'rgba(250,214,128,0.98)';
-    g.lineWidth = 2.3;
+    g.strokeStyle = 'rgba(52,38,14,0.30)';
+    g.lineWidth = 2.6;
+    g.stroke(roadPath);
+    g.setLineDash([6, 5]);
+    g.strokeStyle = 'rgba(250,214,128,0.96)';
+    g.lineWidth = 1.5;
     g.stroke(roadPath);
     g.setLineDash([]);
-    g.strokeStyle = 'rgba(255,246,205,0.45)';
-    g.lineWidth = 0.9;
+    g.strokeStyle = 'rgba(255,246,205,0.40)';
+    g.lineWidth = 0.6;
     g.stroke(roadPath);
     /* 해로 */
     g.setLineDash([5, 9]);
-    g.strokeStyle = 'rgba(18,52,68,0.28)';
-    g.lineWidth = 3.4;
+    g.strokeStyle = 'rgba(18,52,68,0.30)';
+    g.lineWidth = 2.6;
     g.stroke(seaPath);
-    g.strokeStyle = 'rgba(224,246,250,0.86)';
-    g.lineWidth = 1.9;
+    g.strokeStyle = 'rgba(224,246,250,0.88)';
+    g.lineWidth = 1.4;
     g.stroke(seaPath);
     g.setLineDash([]);
     routeScale = R;
@@ -721,6 +750,8 @@
       return { id: c.id, u: c.u * MAPW, v: c.v * MAPH, type: c.type, owner: t ? t.owner : 'neutral' };
     });
     const rad = { capital: 132, town: 98, pass: 92, fortress: 96 };
+    /* 격자마다 어느 세력 칸인지 기억해 두었다가, 이웃과 다룬 칸에 테두리를 두른다 */
+    const ownGrid = new Int16Array(GRID_W * GRID_H).fill(-1);
     const unit = MAPW / GRID_W;            /* 격자 한 칸 = 2.5 world px */
     const img = new ImageData(GRID_W, GRID_H);
     const dat = img.data;
@@ -804,7 +835,31 @@
           bb = Math.round(bb * (1 - b) + rgb2[2] * b);
         }
         dat[o] = r; dat[o + 1] = gg; dat[o + 2] = bb;
-        dat[o + 3] = Math.round(255 * 0.31 * fade * seam);
+        dat[o + 3] = Math.round(255 * 0.30 * fade * seam);
+        ownGrid[i0] = i1;
+      }
+    }
+
+    /* ── 영토 테두리 — 이웃 칸이 다른 세력이면 그 세력 색을 진하게 둘러 경계를 읽게 한다 ── */
+    for (let gy = 0; gy < GRID_H; gy++) {
+      for (let gx = 0; gx < GRID_W; gx++) {
+        const i0 = gy * GRID_W + gx;
+        const me = ownGrid[i0];
+        if (me < 0) continue;
+        let edge = false;
+        if (gx > 0 && ownGrid[i0 - 1] >= 0 && ownGrid[i0 - 1] !== me) edge = true;
+        else if (gx < GRID_W - 1 && ownGrid[i0 + 1] >= 0 && ownGrid[i0 + 1] !== me) edge = true;
+        else if (gy > 0 && ownGrid[i0 - GRID_W] >= 0 && ownGrid[i0 - GRID_W] !== me) edge = true;
+        else if (gy < GRID_H - 1 && ownGrid[i0 + GRID_W] >= 0 && ownGrid[i0 + GRID_W] !== me) edge = true;
+        if (!edge) continue;
+        const rgb = colorOf(list[me].owner);
+        if (!rgb) continue;
+        const o = i0 * 4;
+        const k = 0.72;
+        dat[o] = Math.round(rgb[0] * k);
+        dat[o + 1] = Math.round(rgb[1] * k);
+        dat[o + 2] = Math.round(rgb[2] * k);
+        dat[o + 3] = Math.max(dat[o + 3], 190);
       }
     }
 
@@ -820,14 +875,20 @@
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'high';
     /* 물감이 종이에 스민 느낌 — 업스케일할 때 살짝 흐리게 */
-    g.filter = 'blur(3px)';
+    g.filter = 'blur(2px)';
     g.drawImage(small, 0, 0, cw, ch);
     g.filter = 'none';
     /* 바다로 새지 않게 육지 모양으로 오려낸다 */
     g.setTransform(TERR_SCALE, 0, 0, TERR_SCALE, 0, 0);
     g.globalCompositeOperation = 'destination-in';
-    g.fillStyle = '#fff';
-    g.fill(landPath);
+    if (landReady && landImg) {
+      /* v5.6 — 배경 그림의 육지 모양으로 오려낸다 (옛 폴리곤은 그림 해안선과 어긋난다) */
+      g.imageSmoothingEnabled = true;
+      g.drawImage(landImg, 0, 0, MAPW, MAPH);
+    } else {
+      g.fillStyle = '#fff';
+      g.fill(landPath);
+    }
     g.globalCompositeOperation = 'source-over';
     g.setTransform(1, 0, 0, 1, 0, 0);
     terrSig = territorySignature();
@@ -1326,6 +1387,37 @@
   }
 
   /* ───────────── 공개 API ───────────── */
+  /* ───────────── 도안 A 배경 이미지 ───────────── */
+  function loadBg() {
+    if (typeof Image === 'undefined') { bgState = 'failed'; return; }
+    bgImg = new Image();
+    bgImg.decoding = 'async';
+    bgImg.onload = () => {
+      bgState = 'ready';
+      if (!built) return;
+      renderTerrain(renderScale || 1.25);
+      renderFeatures(featScale || 1.25);
+    };
+    bgImg.onerror = () => {
+      bgState = 'failed';
+      if (!built) return;
+      /* 그림을 못 받으면 예전처럼 절차적 지형으로 돌아간다 */
+      buildStatic(false);
+      renderTerrain(renderScale || 1.25);
+      renderFeatures(featScale || 1.25);
+    };
+    bgImg.src = BG_URL;
+  }
+
+  function loadLand() {
+    if (typeof Image === 'undefined') return;
+    landImg = new Image();
+    landImg.decoding = 'async';
+    landImg.onload = () => { landReady = true; if (built && SK.state) drawTerritory(); };
+    landImg.onerror = () => { landReady = false; };
+    landImg.src = LAND_URL;
+  }
+
   function build() {
     vp = $('#world-viewport');
     layer = $('#world-layer');
@@ -1341,7 +1433,7 @@
     rcx = routeCanvas ? routeCanvas.getContext('2d') : null;
     canvas.style.width = MAPW + 'px';
     canvas.style.height = MAPH + 'px';
-    buildStatic();
+    buildStatic(bgState !== 'failed');
     renderTerrain(1.25);
     renderFeatures(1.25);
     renderRoutes();
@@ -1406,6 +1498,8 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    loadBg();
+    loadLand();
     setTimeout(() => { try { window.SKMap.init(); } catch (e) { console.error(e); } }, 60);
   });
 })();

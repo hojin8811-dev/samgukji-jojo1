@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.5** 내정 모션·장수 파견·80거점 지도 · 2026-11-20 · 라이브 `?v=19`
+> 기준: **v5.6** 도안 A 지도·80거점 확정 좌표·성 화면 하단 보정 · 2026-11-20 · 라이브 `?v=20`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,28 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=19`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=20`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 내정 완성(v5.5에서 모션·파견·3단계 도시까지) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 8장 A·B는 완료 |
+
+---
+
+## 0.3 v5.6에서 바뀐 것 — 도안 A 지도·80거점 확정 좌표·성 화면 하단 (2026-11-20)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 지도 베이스 | 지형 밑그림이 **도안 A 그림**(`assets/map_bg.webp` 2000×1333 WebP 592KB)로 교체. `renderTerrain()`이 `0..1×0..1` 맵 공간에 그리고, 그림이 있으면 절차적 바다·산·숲·강은 그리지 않는다. 로드 실패 시 `buildStatic(false)`로 옛 지형 자동 복귀 | `js/map.js` `loadBg`, `renderTerrain`, `renderFeatures`, `buildStatic(lite)` |
+| 좌표 | 80거점 `(u,v)` = `preview/v56_final_coords.json`(사용자 7차 검수분). 영안 `0.432/0.629`, 안시성 `v−0.012`, 철원 요새 `u−0.018` 반영 | `js/mapgeo.js` `cities`, `js/city_geo.js` `CITY_META` |
+| 도로 | `건업—건안`·`무위—안정`·`무위—천수`·`금성—안정` 제거, `한중—상용` 추가 → 육로 **104** | `SK.ROAD_EDGES`, `SK.MUST_ROADS` |
+| 수로 | 요동에 붙은 배길(`liaodong—pyongyang`, `beihai—liaodong`) **전부 제거** → 해로 **7**. `SEA_ONLY_PAIRS`도 정리 | `SK.buildRoads` `sea`, `SK.SEA_ONLY_PAIRS` |
+| 바다 판정 | 도안 A에서 뽑은 육지 마스크(`js/mapmask.js` 400×267 1비트 `SK.landAt`, `assets/map_land.png`). `roadIssues()`가 이 마스크로 바다 횡단을 검사(해안 성 18px·같은 섬 육로·무위 종점 예외). 영토 색칠도 `map_land.png`로 오려낸다 | `tools/v56_landmask.py`, `js/mapmask.js`, `SK.roadIssues`, `drawTerritory` |
+| 영토·길 | 틴트 알파 0.30 + **이웃 세력 경계 테두리**, blur 2px. 육로 4.2/2.6/1.5로 가늘게, 해로 점선 유지 | `drawTerritory`, `renderRoutes` |
+| 성 화면 | `#app { height: 100dvh }` + `#city-mid`(성 그림·내정 정보·장수·행동)만 스크롤, `.city-commands`는 `flex: 0 0 auto`. 390×680·720·844 모두 하단 6버튼 잘림 0 | `index.html` `#city-mid`, `css/game.css` `.city-mid`·`.city-commands` |
+| 행군 | `marchTurns()` = **하비↔낭야(91px)** 기준, `d ≤ ref×1.05` → **1일**, 그 외 **2일**(요격 가능). 문구도 `행군 N일` | `js/app.js` `marchTurns`, `MARCH_REF` |
+| 검증 | `tools/v56_probe.py`(`roadIssues()` `[]`·BFS 80/80·요동 해로 0), `v56_map.py`, `v56_city.py`, `v56_smoke.py`, `v56_terr.py`. 스크린샷 `preview/v56/` |  |
+
+주의: 지도 배경·육지 마스크는 **도안 A 그림에서 파생**된다. 배경을 바꾸면 `tools/v56_landmask.py`를 다시 돌려 `js/mapmask.js`·`assets/map_land.png`를 새로 만들어야 한다(좌표도 그림 기준으로 다시 맞춰야 한다).
 
 ---
 

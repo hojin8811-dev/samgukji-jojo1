@@ -1046,18 +1046,19 @@ SK.setCities = function (list) {
    산해관과 북해·안시성 사이는 바다다. 육로는 산해관 → 요동 → 안시성으로 돌아간다.
    섬(탐라·대만)은 배로만 오가고, 대만 안의 타이베이↔타이난만 육로다. */
 SK.SEA_ONLY_PAIRS = [['shanhaiguan', 'beihai'], ['shanhaiguan', 'ansiseong'],
-  ['liaodong', 'pyongyang'],
   /* v5.0.1 — 지도에서 겹치던 관통 직통선을 없앤다 (장사→남해·강주, 무위→한중) */
   ['changsha', 'nanhai'], ['changsha', 'gangju'], ['wuwei', 'hanzhong']];
 /* 섬 — 육로는 섬 안에서만 난다. 바깥으로는 배(SEALANES)로만 오간다. */
 SK.ISLAND_GROUP = { tamna: '제주', taipei: '대만', tainan: '대만' };
+/* v5.6 — 막다른 종점이어도 되는 거점 (하서회랑 서쪽 끝 무위) */
+SK.END_CITIES = ['wuwei'];
 /* 반드시 있어야 하는 육로 — 끊기면 남중·서량·강동이 고립된다 */
 SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 'anding'],
-  ['yongan', 'jiangling'], ['jiangxia', 'hefei'], ['jiangxia', 'runan'], ['jianye', 'jianan'],
+  ['yongan', 'jiangling'], ['jiangxia', 'hefei'], ['jiangxia', 'runan'],
   ['shishang', 'jianan'], ['shanhaiguan', 'liaodong'], ['liaodong', 'ansiseong'],
   ['taipei', 'tainan'], ['xinye', 'xiangyang'], ['shangyong', 'hanzhong'], ['wuling', 'changsha'],
   ['nanhai', 'guiyang'], ['nanhai', 'gangju'], ['gangju', 'guiyang'],
-  ['jianning', 'yunnan'], ['wuwei', 'tianshui'], ['lushui', 'chengdu'], ['lushui', 'jianning']];
+  ['jianning', 'yunnan'], ['lushui', 'chengdu'], ['lushui', 'jianning']];
 
 /* v5.0.3 — 역참로를 손으로 고정한다 (v5.5: 80거점).
    거리만 보는 자동 최소신장트리는 호로관↔낙양·업↔남피 같은 뻔한 길을 놓치고,
@@ -1065,7 +1066,7 @@ SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 
    순서: 서량 → 관중 → 하북·병주·유주 → 중원 → 서주·회남 → 형주 → 익주·남만 → 강동 → 요동·한국 */
 SK.ROAD_EDGES = [
   /* 서량 — 하서회랑과 농서 */
-  ['wuwei', 'tianshui'], ['wuwei', 'anding'], ['tianshui', 'anding'], ['tianshui', 'yangping'],
+  ['wuwei', 'geumseong'], ['geumseong', 'tianshui'], ['tianshui', 'anding'], ['tianshui', 'yangping'],
   ['anding', 'changan'], ['anding', 'shuofang'], ['shuofang', 'dai'],
   /* 관중 — 장안·동관·함곡관·낙양 */
   ['changan', 'dongguan'], ['dongguan', 'hangu'], ['hangu', 'luoyang'],
@@ -1073,7 +1074,6 @@ SK.ROAD_EDGES = [
   /* 하북·병주 — 태행산맥 양쪽과 하북 평야 */
   ['jinyang', 'dai'], ['jinyang', 'shangdang'], ['jinyang', 'ye'],
   ['shangdang', 'hoguan'], ['hoguan', 'ye'], ['shangdang', 'luoyang'],
-  ['geumseong', 'wuwei'], ['geumseong', 'tianshui'], ['geumseong', 'anding'],
   ['ye', 'nanpi'], ['ye', 'puyang'], ['nanpi', 'ji'], ['nanpi', 'pingyuan'],
   ['ji', 'beiping'], ['ji', 'dai'], ['beiping', 'shanhaiguan'], ['shanhaiguan', 'liaodong'],
   /* 청주·서주 */
@@ -1091,13 +1091,13 @@ SK.ROAD_EDGES = [
   ['lingling', 'guiyang'], ['changsha', 'guiyang'], ['guiyang', 'nanhai'],
   ['nanhai', 'gangju'], ['gangju', 'guiyang'], ['jiangxia', 'changsha'],
   /* 익주·남만 */
-  ['hanzhong', 'yangping'], ['yangping', 'jiange'], ['jiange', 'zhidong'],
+  ['hanzhong', 'yangping'], ['hanzhong', 'shangyong'], ['yangping', 'jiange'], ['jiange', 'zhidong'],
   ['zhidong', 'chengdu'], ['chengdu', 'yongan'], ['chengdu', 'lushui'],
   ['yongan', 'jiangling'], ['lushui', 'jianning'], ['jianning', 'yunnan'],
   ['jianning', 'yongchang'], ['yunnan', 'yongchang'],
   /* 강동 */
   ['hefei', 'jianye'], ['hefei', 'jiangxia'], ['runan', 'jiangxia'],
-  ['jianye', 'wu'], ['jianye', 'jianan'], ['wu', 'shishang'], ['shishang', 'kuaiji'],
+  ['jianye', 'wu'], ['wu', 'shishang'], ['shishang', 'kuaiji'],
   ['shishang', 'jianan'], ['kuaiji', 'jianan'], ['nanhai', 'jianan'],
   /* 요동·한국 */
   ['liaodong', 'ansiseong'], ['ansiseong', 'guknaeseong'], ['guknaeseong', 'hamhung'],
@@ -1114,13 +1114,10 @@ SK.ROAD_EDGES = [
 ];
 
 SK.ROAD_VIA = {
-  'shanhaiguan|liaodong': [[1312.5, 227.6], [1332.5, 227.6], [1353.1, 218.8], [1374.4, 201.3], [1403.8, 191.9], [1441.2, 190.7], [1477.5, 181.9], [1512.5, 165.7]],
-  'gaeseong|hanseong': [[1665.0, 338.9], [1715.0, 356.4]],
-  'hanseong|ungjin': [[1731.2, 382.6], [1713.8, 417.7]],
-  'ungjin|gwangju': [[1706.2, 457.7], [1708.8, 502.7]],
-  /* v5.3 — 요동과 안시성 사이는 바다가 아니라 육지로 돌아간다. 두 성 사이 땅을 벌리고 길을 곧게 편다 */
-  /* v5.3 — 부산에서 완산으로 가는 남해안 길 */
-  'busan|wansan': [[1852.0, 520.0], [1808.0, 527.0], [1789.0, 524.0]],
+  /* v5.6 — 80거점 확정 좌표(도안 A)에 맞춰 다시 잡았다. 예전 픽셀 꺾은점은 좌표 이동으로
+     길이 성에서 떨어진 곳을 지나갔다. 지금은 바다를 스치는 구간 하나만 손으로 돌린다. */
+  /* 웅진 → 광주: 서해안으로 부풀지 않게 안쪽(동쪽)으로 살짝 돌린다 */
+  'ungjin|gwangju': [[1706, 500], [1712, 548]],
 };
 
 SK.buildRoads = function () {
@@ -1173,7 +1170,7 @@ SK.buildRoads = function () {
   // 5) 해로 — 배로만 건너는 길은 모두 여기에 둔다 (탐라·대만·발해·황해·남해)
   const sea = [['tamna', 'busan'], ['tamna', 'hailing'], ['tamna', 'jianye'],
     ['taipei', 'jianan'], ['tainan', 'nanhai'], ['jianye', 'guangling'],
-    ['liaodong', 'pyongyang'], ['beihai', 'liaodong'], ['shanhaiguan', 'beihai']];
+    ['shanhaiguan', 'beihai']];
   sea.forEach(([a, b]) => {
     if (!SK.CITY[a] || !SK.CITY[b]) return;
     SK.CITY[a].sea.push(b); SK.CITY[b].sea.push(a);
@@ -1229,7 +1226,11 @@ SK.roadIssues = function () {
       lctx = cv.getContext('2d');
     } catch (e) { landPath = null; }
   }
-  const onLand = (x, y) => (lctx && landPath ? lctx.isPointInPath(landPath, x, y) : true);
+  /* v5.6 — 지형 기준이 바뀌었다. 배경이 도안 A 그림(map_bg.webp)이므로, 그림에서 뽑은
+     육지 마스크(js/mapmask.js · SK.landAt)로 바다를 판정한다. 마스크가 없으면 옛 폴리곤으로. */
+  const useMask = typeof SK.landAt === 'function' && !!SK.MAPMASK;
+  const onLand = useMask ? (x, y) => SK.landAt(x, y)
+    : (x, y) => (lctx && landPath ? lctx.isPointInPath(landPath, x, y) : true);
   const deg = {};
   const seaDeg = {};
   SK.CITY_LIST.forEach((c) => { deg[c.id] = 0; seaDeg[c.id] = 0; });
@@ -1237,17 +1238,28 @@ SK.roadIssues = function () {
     deg[a] = (deg[a] || 0) + 1; deg[b] = (deg[b] || 0) + 1;
     const A = SK.CITY[a], B = SK.CITY[b];
     if (!A || !B) { out.push(`없는 거점 ${a}-${b}`); return; }
+    /* 같은 섬 안의 길(타이베이—타이난)은 바다를 건너지 않는다 — 마스크의 섬 경계가
+       그림보다 좁아도 문제 삼지 않는다 */
+    const isl = SK.ISLAND_GROUP || {};
+    if (isl[a] && isl[a] === isl[b]) return;
     const path = SK.roadPoints(a, b);
     let wet = 0, total = 0;
+    /* 해안 성은 성 자체가 물가에 걸쳐 있다 — 성에서 18px 안쪽은 세지 않는다 */
+    const ax0 = A.u * MAPW, ay0 = A.v * MAPH, bx0 = B.u * MAPW, by0 = B.v * MAPH;
+    const nearEnd = (x, y) => Math.hypot(x - ax0, y - ay0) < 18 || Math.hypot(x - bx0, y - by0) < 18;
     for (let i = 0; i < path.length; i++) {
-      total++;
-      if (!onLand(path[i][0], path[i][1])) wet++;
+      if (!nearEnd(path[i][0], path[i][1])) {
+        total++;
+        if (!onLand(path[i][0], path[i][1])) wet++;
+      }
       if (i < path.length - 1) {
         for (let k = 1; k < 6; k++) {
           const t = k / 6;
+          const px = path[i][0] + (path[i + 1][0] - path[i][0]) * t;
+          const py = path[i][1] + (path[i + 1][1] - path[i][1]) * t;
+          if (nearEnd(px, py)) continue;
           total++;
-          if (!onLand(path[i][0] + (path[i + 1][0] - path[i][0]) * t,
-            path[i][1] + (path[i + 1][1] - path[i][1]) * t)) wet++;
+          if (!onLand(px, py)) wet++;
         }
       }
     }
@@ -1257,10 +1269,12 @@ SK.roadIssues = function () {
     seaDeg[a] = (seaDeg[a] || 0) + 1; seaDeg[b] = (seaDeg[b] || 0) + 1;
   });
   const island = SK.ISLAND_GROUP || {};
+  /* v5.6 — 서량 막다른 서쪽 끝(무위)은 하서회랑 단일 루트의 종점이라 길이 하나인 게 정상이다 */
+  const terminus = SK.END_CITIES || ['wuwei'];
   SK.CITY_LIST.forEach((c) => {
     if (island[c.id]) return;
     if (deg[c.id] + seaDeg[c.id] === 0) out.push(`홀로 남은 거점 ${c.name}`);
-    else if (deg[c.id] < 2 && seaDeg[c.id] === 0) out.push(`길이 하나뿐 ${c.name} (${deg[c.id]})`);
+    else if (deg[c.id] < 2 && seaDeg[c.id] === 0 && terminus.indexOf(c.id) < 0) out.push(`길이 하나뿐 ${c.name} (${deg[c.id]})`);
   });
   /* 관문 — 양쪽을 잇는 두 갈래 이상의 육로 */
   SK.CITY_LIST.filter((c) => c.type === 'pass').forEach((c) => {

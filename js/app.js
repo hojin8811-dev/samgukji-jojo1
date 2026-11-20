@@ -4301,7 +4301,7 @@
         <div><b>${armyName(f)} ${fmt(ts.troops)}</b><span>성벽 ${ts.def} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, Object.keys(pick), s)}
-      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name} · 길에서 적 요격대를 만날 수 있습니다.</p>
+      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}일</b> · ${SK.CITY[origin].name} → ${tc.name} · 길에서 적 요격대를 만날 수 있습니다.</p>
       ${(ts.genIds && ts.genIds.length) ? `<p class="enemy-gens">적장 — ${ts.genIds.map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean).map((g) => `${g.name}(${g.tier})`).join(' · ')}</p>` : ''}
       <div class="troop-ledger">
         <div><span>보유 병력</span><b id="dp-avail">${fmt(avail)}</b></div>
@@ -4343,7 +4343,7 @@
           startMarch({ origin, targetId, type: bt, units });
           SK.showMap();
           if (window.SKMap) { try { SKMap.setScale(1.25); SKMap.focusCity(origin, true); } catch (e) { /* ignore */ } }
-          SK.toast(`행군 시작 — ${turns}개월 뒤 ${tc.name} 도착 · 지도에 행군 부대가 표시됩니다`);
+          SK.toast(`행군 시작 — ${turns}일 뒤 ${tc.name} 도착 · 지도에 행군 부대가 표시됩니다`);
         } },
       ],
     });
@@ -4471,15 +4471,22 @@
     refresh();
   }
 
-  /* ───────────── v5.3 — 행군 2~3개월 · 도중 요격전 ─────────────
-     출진하면 곧바로 성 앞이 아니라 지도 길 위를 2~3달 걸어간다.
-     중간 달에 적 병력·성벽·지형에 따라 확률로 요격전(평야·산악·도하·수전·매복)이 걸린다. */
-  const MARCH_MIN = 2, MARCH_MAX = 3;
+  /* ───────────── v5.6 — 행군 1~2일 · 도중 요격전 ─────────────
+     기준은 하비 ↔ 낭야 거리(가까운 이웃 성 한 칸)다. 그 거리(여유 5%)까지는 하루,
+     그보다 길면 이틀 — 이틀 길은 중간에 적 요격대(평야·산악·도하·수전·매복)를 만난다. */
+  const MARCH_MIN = 1, MARCH_MAX = 2;
+  const MARCH_REF = ['xiapi', 'langya'];
+  function marchRefDist() {
+    const A = CITY[MARCH_REF[0]], B = CITY[MARCH_REF[1]];
+    if (!A || !B) return 120;
+    return Math.hypot((A.u - B.u) * 2000, (A.v - B.v) * 1333);
+  }
+  SK.marchRefDist = marchRefDist;
   function marchTurns(origin, targetId) {
     const a = CITY[origin], b = CITY[targetId];
     if (!a || !b) return MARCH_MIN;
     const d = Math.hypot((a.u - b.u) * 2000, (a.v - b.v) * 1333);
-    return d > 620 ? MARCH_MAX : MARCH_MIN;
+    return d <= marchRefDist() * 1.05 ? MARCH_MIN : MARCH_MAX;
   }
   SK.marchTurns = marchTurns;
 
@@ -4579,7 +4586,7 @@
       const idef = SK.BATTLE_TYPES[itype];
       const raiders = m.raiders || 2400;
       SK.modal({
-        kicker: `행군 ${m.total - m.left}/${m.total}개월 · ${SK.CITY[m.origin].name} → ${tc.name}`,
+        kicker: `행군 ${m.total - m.left}/${m.total}일 · ${SK.CITY[m.origin].name} → ${tc.name}`,
         title: `도중 요격 — ${idef.name}`,
         body: `<div class="march-event">
             <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
@@ -4597,11 +4604,11 @@
       });
     } else {
       SK.modal({
-        kicker: `행군 ${m.total}/${m.total}개월`,
+        kicker: `행군 ${m.total}/${m.total}일`,
         title: `${tc.name} 성 앞 도착`,
         body: `<div class="march-event">
             <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
-            <p>${m.total}개월 행군 끝에 <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
+            <p>${m.total}일 행군 끝에 <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
             <div class="me-nums"><span>도착 병력 <b>${fmt(troops)}</b></span><span>수비병 <b>${fmt(ts.troops)}</b></span></div>
             <p class="me-note">${SK.BATTLE_TYPES[m.type].name} — ${SK.BATTLE_TYPES[m.type].desc}</p>
           </div>`,
