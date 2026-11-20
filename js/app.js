@@ -2243,12 +2243,23 @@
   function bldFallback(icon) { return `this.onerror=null;this.src='assets/buildings/${icon || 'market'}.webp';`; }
   SK.bldFallback = bldFallback;
 
+  /* v5.10 — 보물 보정을 더한 실제 능력치. 내정 효율·탐색·등용 판정이 이 값을 쓴다 */
+  function effStat(h, key) {
+    if (!h) return 60;
+    const eq = SK.equipBonus ? SK.equipBonus(h) : {};
+    const base = Number(h[key] == null ? 60 : h[key]) || 0;
+    const add = key === 'wu' ? eq.war : key === 'ji' ? eq.intel : key === 'tong' ? eq.leadership
+      : key === 'pol' ? eq.politics : key === 'cha' ? eq.charm : 0;
+    return base + (Number(add) || 0);
+  }
+  SK.effStat = effStat;
+
   function slotMul(cs, sl, g) {
     if (!sl || !sl.key) return 0;
     const base = 0.5;
     if (!g) return base;
     const def = SLOT_DEFS[sl.key] || {};
-    const stat = g[def.stat || 'pol'] || 60;
+    const stat = effStat(g, def.stat || 'pol');
     return Math.min(1.5, 1 + Math.max(-0.15, (stat - 60) * 0.0075)) * (0.92 + sl.lv * 0.03);
   }
   SK.slotMul = slotMul;
@@ -2541,7 +2552,7 @@
     const free = dutyCandidates(cityId, cs, def);
     const opts = free.map((h, i) => `<button class="target-card" data-uid="${h.uid}">
         <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
-        <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${h[def.stat] || 60}</span></div>
+        <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${effStat(h, def.stat)}</span></div>
         <span class="tc-go">▸</span></button>`).join('');
     /* v5.10 — 담당 장수를 창 안에서 바로 본다 (누르면 장수 상세창으로) */
     const ownerOff = g && SK.officeOf ? SK.officeOf(g) : null;
@@ -2697,15 +2708,15 @@
     const stat = (def && def.stat) || 'pol';
     const free = cityGens(cityId).filter((h) => !cs.slots.some((x) => x.uid === h.uid));
     return free.slice().sort((a, b) => {
-      const d = (b[stat] || 0) - (a[stat] || 0);
+      const d = effStat(b, stat) - effStat(a, stat);
       return d || String(a.name).localeCompare(String(b.name));
     });
   }
 
   /* v5.5 — 장수가 건물에 어울리는 점수 (해당 능력치 중심 + 종합 능력치 약간) */
   function dutyScore(h, def) {
-    const stat = h[(def && def.stat) || 'pol'] || 60;
-    const total = (h.pol || 60) + (h.tong || 60) + (h.cha || 60) + (h.ji || 60) + (h.wu || 60);
+    const stat = effStat(h, (def && def.stat) || 'pol');
+    const total = effStat(h, 'pol') + effStat(h, 'tong') + effStat(h, 'cha') + effStat(h, 'ji') + effStat(h, 'wu');
     return stat * 10 + total * 0.25;
   }
 
@@ -2773,7 +2784,7 @@
     if (!free.length) { SK.toast('앉힐 수 있는 장수가 없습니다. (모두 다른 건물을 맡고 있습니다)'); return; }
     const rows = free.map((h, i) => `<button class="target-card" data-uid="${h.uid}">
       <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
-      <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${h[def.stat] || 60}</span></div>
+      <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${effStat(h, def.stat)}</span></div>
       <span class="tc-go">▸</span></button>`).join('');
     const m = SK.modal({ kicker: `${CITY[cityId].name} · ${def.name}`, title: '누구에게 맡길까',
       body: `<div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }] });
@@ -2875,7 +2886,7 @@
     const s = SK.state;
     const c = CITY[cityId];
     const cs = s.cities[cityId];
-    const lucky = (actor ? (actor.cha || 60) : 60) + (actor ? (actor.ji || 60) : 60);
+    const lucky = (actor ? effStat(actor, 'cha') : 60) + (actor ? effStat(actor, 'ji') : 60);
     const bonus = Math.min(0.22, Math.max(0, (lucky - 120) * 0.0025));
     /* v5.10 — 주점 배속 자동 탐색은 주점 레벨만큼 보너스를 얻는다 (최대 +50%) */
     const boost = clamp((opts && opts.boost) || 0, 0, 0.5);
@@ -4499,25 +4510,25 @@
 
   function polMul(cityId, actor) {
     const gov = officerOf(cityId, 'gov');
-    const pol = (actor ? actor.pol : 60) * 0.55 + (gov ? gov.pol : 60) * 0.35 + (gov ? gov.tong : 60) * 0.10;
+    const pol = (actor ? effStat(actor, 'pol') : 60) * 0.55 + (gov ? effStat(gov, 'pol') : 60) * 0.35 + (gov ? effStat(gov, 'tong') : 60) * 0.10;
     return 1 + Math.max(-0.15, Math.min(0.34, (pol - 60) * 0.0085));
   }
   function conMul(cityId, actor) {
     const gov = officerOf(cityId, 'gov');
-    const cha = (actor ? actor.cha : 60) * 0.45 + (gov ? gov.cha : 60) * 0.30 + (gov ? gov.tong : 60) * 0.25;
+    const cha = (actor ? effStat(actor, 'cha') : 60) * 0.45 + (gov ? effStat(gov, 'cha') : 60) * 0.30 + (gov ? effStat(gov, 'tong') : 60) * 0.25;
     return 1 + Math.max(-0.15, Math.min(0.30, (cha - 60) * 0.0075));
   }
   function talentMul(cityId, actor) {
     const strat = officerOf(cityId, 'adv');
-    const cha = (actor ? actor.cha : 60) * 0.5 + (strat ? strat.cha : 60) * 0.3 + (strat ? strat.ji : 60) * 0.2;
+    const cha = (actor ? effStat(actor, 'cha') : 60) * 0.5 + (strat ? effStat(strat, 'cha') : 60) * 0.3 + (strat ? effStat(strat, 'ji') : 60) * 0.2;
     return Math.max(0.82, 1 - Math.max(0, (cha - 60) * 0.005));
   }
   SK.polMul = polMul; SK.conMul = conMul; SK.talentMul = talentMul;
 
   /* 민심 위로 — 관아·조언·자동 내정이 같이 쓴다 (v5.5: 매력·정치 가중치) */
   function comfortGain(actor) {
-    const cha = actor ? (actor.cha || 60) : 60;
-    const pol = actor ? (actor.pol || 60) : 60;
+    const cha = actor ? effStat(actor, 'cha') : 60;
+    const pol = actor ? effStat(actor, 'pol') : 60;
     const mix = cha * 0.6 + pol * 0.4;
     return Math.max(2, Math.min(16, Math.round(3 + (mix - 60) * 0.16)));
   }
@@ -4745,7 +4756,7 @@
   function recruitChance(cityId, g, actor) {
     const s = SK.state;
     let p = RECRUIT_BASE[g.tier] || 48;
-    if (actor) p += ((actor.cha || 60) - 60) * 0.55 + ((actor.ji || 60) - 60) * 0.18;
+    if (actor) p += (effStat(actor, 'cha') - 60) * 0.55 + (effStat(actor, 'ji') - 60) * 0.18;
     p += Math.min(14, (s.fame || 0) * 0.05);
     const bond = actor ? SK.bondBetween(actor.name, g.name) : null;
     if (bond && bond.relation === '친밀') p += 15;
