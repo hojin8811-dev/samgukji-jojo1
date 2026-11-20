@@ -11,8 +11,8 @@
     "name": "유비",
     "title": "인의의 군주",
     "trigger": "turn_start",
-    "effect": "매 턴 시작 시 인접 아군 전체 HP 8% 회복",
-    "valuePct": 8,
+    "effect": "매 턴 시작 시 마름모 2칸 안 같은 편 HP 3% 회복 (자신은 절반·전투당 4회)",
+    "valuePct": 3,
     "cooldown": 1
   },
   {
@@ -539,8 +539,8 @@
     "name": "장완",
     "title": "안정의 내정",
     "trigger": "turn_start",
-    "effect": "주변 2칸 아군 HP 5% 회복",
-    "valuePct": 5,
+    "effect": "매 턴 시작 시 마름모 2칸 안 같은 편 HP 3% 회복 (자신은 절반·전투당 4회)",
+    "valuePct": 3,
     "cooldown": 2
   },
   {
@@ -563,8 +563,8 @@
     "name": "미축",
     "title": "부호의 지원",
     "trigger": "turn_start",
-    "effect": "주변 2칸 아군의 HP 6% 회복",
-    "valuePct": 6,
+    "effect": "매 턴 시작 시 마름모 2칸 안 같은 편 HP 3% 회복 (자신은 절반·전투당 4회)",
+    "valuePct": 3,
     "cooldown": 2
   },
   {

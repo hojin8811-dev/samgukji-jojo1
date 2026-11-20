@@ -5494,6 +5494,7 @@
   SK.openBarracksMenu = openBarracksMenu;
 
   /* ── 관아 — 민심 · 태수/군사 임명 · 자동 내정 · 위임 · 포상 · 세율 · 군량 상인 ── */
+  /* v5.14 — 테스트·자동화에서 관아를 바로 열 수 있게 내보낸다 */
   function openOffice(cityId) {
     const s = SK.state;
     const cs = s.cities[cityId];
@@ -6073,7 +6074,9 @@
   }
   SK.openPrison = openPrison;
 
-  /* 태수 임명 — 정치·통솔이 높은 장수가 내정과 징병을 끌어올린다 */
+  /* 태수 임명 — 정치·통솔이 높은 장수가 내정과 징병을 끌어올린다
+     v5.14 — 건물 배속과 같이 적합도(정치 60% + 통솔 40%) 순으로 세우고 상위 2명에게 [추천] */
+  function govScore(g) { return effStat(g, 'pol') * 0.6 + effStat(g, 'tong') * 0.4; }
   function openGovernorPick(cityId) {
     const cs = SK.state.cities[cityId];
     const lord = SK.factionInfo(PF()).lord;
@@ -6081,19 +6084,22 @@
     const lordHero = all.find((g) => g.name === lord) || null;
     const gens = lordHero ? [lordHero].concat(all.filter((g) => g.uid !== lordHero.uid)) : all;
     if (!gens.length) { SK.toast('이 성에 태수로 앉힐 장수가 없습니다.'); return; }
-    const score = (g) => g.pol * 0.6 + g.tong * 0.4;
-    const list = lordHero ? gens : gens.slice().sort((a, b) => score(b) - score(a));
-    const rows = list.map((g) => `<button class="target-card" data-uid="${g.uid}">
+    const score = govScore;
+    /* v5.14 — 군주가 앉은 성이라도 나머지는 적합도 순으로 (군주는 맨 위 고정) */
+    const list = lordHero
+      ? [lordHero].concat(gens.filter((g) => g.uid !== lordHero.uid).sort((a, b) => score(b) - score(a) || String(a.name).localeCompare(String(b.name))))
+      : gens.slice().sort((a, b) => score(b) - score(a) || String(a.name).localeCompare(String(b.name)));
+    const rows = list.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
       <img class="tc-portrait" src="${SK.ptSrc(g.portrait)}" alt="">
-      <div class="tc-main"><b>${g.name}${cs.governor === g.uid ? ' <em>태수</em>' : ''}${g.name === lord ? ' <em>군주</em>' : ''}</b>
-        <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}</span></div>
-      <div class="tc-troops"><span>정치 ${g.pol} · 통솔</span><b>${g.tong}</b></div>
+      <div class="tc-main"><b>${g.name}${i < 2 ? ' <em class="duty-reco">추천</em>' : ''}${cs.governor === g.uid ? ' <em>태수</em>' : ''}${g.name === lord ? ' <em>군주</em>' : ''}</b>
+        <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv} · 적합도 ${Math.round(score(g))}</span></div>
+      <div class="tc-troops"><span>정치 ${Math.round(effStat(g, 'pol'))} · 통솔</span><b>${Math.round(effStat(g, 'tong'))}</b></div>
       <span class="tc-go">▸</span>
     </button>`).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 인사`,
       title: '태수로 임명할 장수',
-      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>이(가) 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>이(가) 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다. <b>정치 60% + 통솔 40%</b> 순으로 세우고 상위 2명에게 <em class="duty-reco">추천</em>을 달았습니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
       actions: [{ label: '취소' }],
       wide: true,
     });
@@ -6115,25 +6121,28 @@
     });
   }
   SK.openGovernorPick = openGovernorPick;
+  SK.openAdvisorPick = openAdvisorPick;
 
+  /* v5.14 — 군사는 지력 60% + 매력 40%가 높은 순, 상위 2명에게 [추천] */
+  function advScore(g) { return effStat(g, 'ji') * 0.6 + effStat(g, 'cha') * 0.4; }
   function openAdvisorPick(cityId) {
     const cs = SK.state.cities[cityId];
     const lord = SK.factionInfo(PF()).lord;
     const gens = cityGens(cityId).filter((g) => g.name !== lord);
     if (!gens.length) { SK.toast('이 성에 군사로 앉힐 장수가 없습니다. (군주는 군사를 겸하지 않습니다)'); return; }
-    const score = (g) => g.ji * 1.4 + g.tong;
-    const list = gens.slice().sort((a, b) => score(b) - score(a));
-    const rows = list.map((g) => `<button class="target-card" data-uid="${g.uid}">
+    const score = advScore;
+    const list = gens.slice().sort((a, b) => score(b) - score(a) || String(a.name).localeCompare(String(b.name)));
+    const rows = list.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
       <img class="tc-portrait" src="${SK.ptSrc(g.portrait)}" alt="">
-      <div class="tc-main"><b>${g.name}${cs.advisor === g.uid ? ' <em>군사</em>' : ''}</b>
-        <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}</span></div>
-      <div class="tc-troops"><span>지력</span><b>${g.ji}</b></div>
+      <div class="tc-main"><b>${g.name}${i < 2 ? ' <em class="duty-reco">추천</em>' : ''}${cs.advisor === g.uid ? ' <em>군사</em>' : ''}</b>
+        <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv} · 적합도 ${Math.round(score(g))}</span></div>
+      <div class="tc-troops"><span>지력 ${Math.round(effStat(g, 'ji'))} · 매력</span><b>${Math.round(effStat(g, 'cha'))}</b></div>
       <span class="tc-go">▸</span>
     </button>`).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 인사`,
       title: '군사로 임명할 장수',
-      body: `<p class="talent-note">지력과 매력이 높은 장수가 좋은 조언을 하고 징병·등용을 돕습니다. 조언은 행동력을 쓰지 않습니다.</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">지력과 매력이 높은 장수가 좋은 조언을 하고 징병·등용을 돕습니다. <b>지력 60% + 매력 40%</b> 순으로 세우고 상위 2명에게 <em class="duty-reco">추천</em>을 달았습니다. 조언은 행동력을 쓰지 않습니다.</p><div class="target-list">${rows}</div>`,
       actions: [{ label: '취소' }],
       wide: true,
     });
@@ -6161,6 +6170,8 @@
     if (s.gold >= 80) return 'train';
     return null;
   }
+
+  SK.openOffice = openOffice;
 
   /* 달이 바뀔 때 태수가 남은 행동으로 고르는 내정 — 태수 위임 방침에 따라 순서가 달라진다 */
   function chooseAutoAction(cityId, done) {

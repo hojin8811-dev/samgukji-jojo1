@@ -973,6 +973,8 @@ b { font-weight: 700; }
 .feed-pill.in { opacity: 1; transform: none; }
 .feed-pill.rival { border-left-color: #d0503c; color: #ffd9cd; }
 .feed-pill.friend { border-left-color: #8fc46a; color: #e6f4d4; }
+/* v5.14 — 수성전에서 적이 성문을 때릴 때 */
+.feed-pill.bad { border-left-color: #c0392b; color: #ffd8cf; background: rgba(52, 20, 16, 0.84); }
 
 .battle-callout { position: absolute; left: 50%; top: 26%; transform: translate(-50%, -6px) scale(0.94); z-index: 4;
   padding: 6px 16px; border-radius: 24px; font-family: var(--serif); font-weight: 900; font-size: 15px; letter-spacing: 0.02em;

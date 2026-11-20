@@ -8,7 +8,14 @@
   const TILE = 64, N = 18, WORLD = N * TILE;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const rnd = (a, b) => a + Math.random() * (b - a);
+  /* cheb — 정사각(맨해튼 아님) 거리. 인연·특기 같은 '주변' 판정에만 쓴다 */
   const cheb = (x1, y1, x2, y2) => Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
+  /* v5.14 — 조조전식 ◇ 마름모 사거리. 대각선 1칸은 거리 2로 센다.
+     공격·책략 사거리와 범위 판정은 전부 이 거리로 통일한다 (이동 탐색은 격자 BFS라 그대로). */
+  const manh = (x1, y1, x2, y2) => Math.abs(x1 - x2) + Math.abs(y1 - y2);
+  /* v5.14 — 성문을 때릴 수 있는 진영. 공성전은 공격측 아군, 수성전은 침공측 적군. */
+  function gateAttackerSide() { return B && B.defense ? 'enemy' : 'ally'; }
+  function isGateAttacker(u) { return !!u && u.alive !== false && u.side === gateAttackerSide(); }
 
   const CLASS_UNIT = SK.CLASS_UNIT;
   const CLASS_PORTRAIT = SK.CLASS_PORTRAIT;
@@ -1120,9 +1127,8 @@
     if (!u || !u.alive) return;
     const reach = B.reachCache && B.reachCache.uid === u.id ? B.reachCache.set : null;
     /* v5.13 — 회복·아군 버프를 고르는 동안은 이동 범위(파랑)를 깔지 않는다.
-       파란 이동 범위와 겹쳐 초록 치료 범위가 탁해지던 것을 맑게 보이게 한다. */
-    const healPick = mode === 'skillTarget' && pendingSkill &&
-      (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly');
+       v5.14 — 책략 대상을 고르는 동안은 모두 같다. 파란 이동 범위가 ◇ 사거리와 겹쳐 탁해지지 않게. */
+    const healPick = mode === 'skillTarget' && !!pendingSkill;
     if (reach && !healPick) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 380);
       reach.forEach((k) => {
@@ -1135,7 +1141,8 @@
       });
     }
     if (mode === 'attack' || mode === 'skillTarget') {
-      const rng = pendingSkill ? (pendingSkill.range || pendingSkill.radius || u.rng) : u.rng;
+      /* v5.14 — 표시 사거리도 실제 판정(effRng, 지형 보너스 포함)과 같은 값을 쓴다 */
+      const rng = pendingSkill ? (pendingSkill.range || pendingSkill.radius || effRng(u)) : effRng(u);
       /* v5.13 — 회복·아군 버프는 자기 발밑(거리 0)도 대상 — 풍수사가 제 발밑을 치료한다 */
       const selfSkill = !!(pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly'));
       const minR = selfSkill ? 0 : (pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1));
@@ -1144,26 +1151,45 @@
         const pulse2 = 0.5 + 0.5 * Math.sin(performance.now() / 400);
         /* v5.13 — 회복·아군 버프는 범위 자체를 초록으로 물들인다 (자기 발밑 포함) */
         const greenRange = pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly';
+        const inSet = new Set();
         for (let y2 = 0; y2 < N; y2++) {
           for (let x2 = 0; x2 < N; x2++) {
-            const d2 = cheb(u.x, u.y, x2, y2);
+            const d2 = manh(u.x, u.y, x2, y2);
             if (d2 < minR || d2 > rng) continue;
+            inSet.add(x2 + ',' + y2);
             ctx.fillStyle = greenRange
               ? `rgba(110,255,215,${0.40 + pulse2 * 0.08})`
-              : `rgba(150,120,240,${0.13 + pulse2 * 0.07})`;
+              : `rgba(132,96,255,${0.34 + pulse2 * 0.10})`;
             ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
-            ctx.strokeStyle = greenRange ? 'rgba(215,255,240,0.9)' : 'rgba(190,170,255,0.42)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = greenRange ? 'rgba(215,255,240,0.9)' : 'rgba(225,210,255,0.75)';
+            ctx.lineWidth = 1.2;
             ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
           }
         }
+        /* v5.14 — 사거리 경계를 ◇ 마름모 윤곽으로 또렷하게 긋는다 (지형 색에 묻히지 않게) */
+        if (inSet.size) {
+          ctx.save();
+          ctx.strokeStyle = greenRange ? 'rgba(225,255,245,0.95)' : 'rgba(238,228,255,1)';
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          inSet.forEach((k) => {
+            const [x2, y2] = k.split(',').map(Number);
+            const px = x2 * TILE, py = y2 * TILE;
+            if (!inSet.has(x2 + ',' + (y2 - 1))) { ctx.moveTo(px + 2, py + 2.5); ctx.lineTo(px + TILE - 2, py + 2.5); }
+            if (!inSet.has(x2 + ',' + (y2 + 1))) { ctx.moveTo(px + 2, py + TILE - 2.5); ctx.lineTo(px + TILE - 2, py + TILE - 2.5); }
+            if (!inSet.has((x2 - 1) + ',' + y2)) { ctx.moveTo(px + 2.5, py + 2); ctx.lineTo(px + 2.5, py + TILE - 2); }
+            if (!inSet.has((x2 + 1) + ',' + y2)) { ctx.moveTo(px + TILE - 2.5, py + 2); ctx.lineTo(px + TILE - 2.5, py + TILE - 2); }
+          });
+          ctx.stroke();
+          ctx.restore();
+        }
         const rad = pendingSkill.radius || 0;
         if (rad > 0) {
-          const hx = (hoverTile && cheb(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.x : u.x;
-          const hy = (hoverTile && cheb(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.y : u.y;
+          const hx = (hoverTile && manh(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.x : u.x;
+          const hy = (hoverTile && manh(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.y : u.y;
           for (let y2 = 0; y2 < N; y2++) {
             for (let x2 = 0; x2 < N; x2++) {
-              if (cheb(hx, hy, x2, y2) > rad) continue;
+              if (manh(hx, hy, x2, y2) > rad) continue;
               ctx.fillStyle = 'rgba(255,170,90,0.26)';
               ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
               ctx.strokeStyle = 'rgba(255,205,130,0.7)';
@@ -1186,7 +1212,7 @@
       if (pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly')) {
         B.units.forEach((t) => {
           if (!t.alive || t.side !== u.side) return;
-          if (cheb(u.x, u.y, t.x, t.y) > (pendingSkill.range || u.rng)) return;
+          if (manh(u.x, u.y, t.x, t.y) > (pendingSkill.range || effRng(u))) return;
           ctx.fillStyle = 'rgba(80,180,120,0.30)';
           ctx.fillRect(t.x * TILE + 3, t.y * TILE + 3, TILE - 6, TILE - 6);
           /* v5.13 — 시전자 자기 발밑은 초록 테두리까지 그려 '나도 치료 가능'을 분명히 */
@@ -1197,9 +1223,10 @@
           }
         });
       }
-      if (gateIntact()) {
+      /* v5.14 — 성문 황금 타일은 문을 부수는 진영(공성전 아군·수성전 적군)에게만 */
+      if (gateIntact() && isGateAttacker(u)) {
         activeGate().tiles.forEach((g) => {
-          if (cheb(u.x, u.y, g.x, g.y) > rng) return;
+          if (manh(u.x, u.y, g.x, g.y) > rng) return;
           ctx.fillStyle = 'rgba(226,170,72,0.42)';
           ctx.fillRect(g.x * TILE + 3, g.y * TILE + 3, TILE - 6, TILE - 6);
           ctx.strokeStyle = 'rgba(255,222,150,0.95)';
@@ -1864,14 +1891,14 @@
     const active = B && B.phase === 'ally' && !B.over && u && !u.acted && (mode === 'attack' || mode === 'skillTarget');
     if (!active) { tb.hidden = true; tb.innerHTML = ''; return; }
     const heal = pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly');
-    const rng = pendingSkill && pendingSkill.range ? pendingSkill.range : u.rng;
+    const rng = pendingSkill && pendingSkill.range ? pendingSkill.range : effRng(u);
     /* v5.13 — 회복은 시전자 자신(거리 0)도 고를 수 있다 */
     const minR = heal ? 0 : (pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1));
     const list = B.units.filter((t) => {
       if (!t.alive) return false;
-      if (heal) return t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= rng;
+      if (heal) return t.side === u.side && manh(u.x, u.y, t.x, t.y) <= rng;
       if (t.side === u.side) return false;
-      const d = cheb(u.x, u.y, t.x, t.y);
+      const d = manh(u.x, u.y, t.x, t.y);
       return d >= minR && d <= rng;
     });
     tb.hidden = false;
@@ -1982,12 +2009,14 @@
     return (u.ji * 0.62 + u.tong * 0.34 + u.lv * 2) * troopGuard(u) * (1 + terr(u).def * 0.6) * mul;
   }
   function canHit(a, d, rng) {
-    const dist = cheb(a.x, a.y, d.x, d.y);
+    const dist = manh(a.x, a.y, d.x, d.y);
     const min = a.minRng || 1;
     if (dist < min || dist > (rng || effRng(a))) return false;
     if (wallBlocked(a, d) && attackKind(a) === 'melee') return false;   // 성문이 버티는 동안 근접 공격 불가
     return true;
   }
+  /* v5.14 — 성문 타일 한 칸을 칠 수 있는 거리인가 (성문 클릭·황금 타일과 같은 눈금) */
+  function canHitTile(a, x, y) { return manh(a.x, a.y, x, y) <= effRng(a); }
 
   /* v5.2 — 병력 상한(5,000~20,000)에 맞춘 피해 보정.
      부대가 커진 만큼 피해도 같이 커져 다병력 일격사나 끝없는 장기전을 막는다. */
@@ -2098,7 +2127,7 @@
   function counter(a, d) {
     // a = 반격하는 방어자, d = 공격자
     if (!d.alive || !a.alive) return;
-    if (cheb(a.x, a.y, d.x, d.y) <= effRng(a)) {
+    if (manh(a.x, a.y, d.x, d.y) <= effRng(a)) {
       wait(() => {
         if (!a.alive || !d.alive || B.over) return;
         attackUnit(a, d, {}, () => finishCheck());
@@ -2116,10 +2145,16 @@
 
     if (mode === 'skillTarget' && pendingSkill) { trySkillAt(x, y); return; }
 
-    /* v5.2 — 성문 타일을 눌러 공략 (근접·사격·투석 모두 가능) */
+    /* v5.2 — 성문 타일을 눌러 공략 (근접·사격·투석 모두 가능)
+       v5.14 — 문을 부수는 진영만. 수성전 아군은 자기 성문을 칠 수 없다. */
     if (!t && gateIntact() && gateTileAt(x, y) && u && u.side === 'ally' && !u.acted) {
+      if (!isGateAttacker(u)) {
+        if (mode === 'attack') SK.toast('수성전 — 우리 성문은 아군이 칠 수 없습니다.');
+        clearSel();
+        return;
+      }
       if (mode === 'attack' || mode === 'move' || mode === 'act' || mode === 'idle') {
-        if (cheb(u.x, u.y, x, y) <= effRng(u)) { openGateAttack(u, { x, y }); return; }
+        if (manh(u.x, u.y, x, y) <= effRng(u)) { openGateAttack(u, { x, y }); return; }
         SK.toast(`성문까지 거리가 멉니다. (사거리 ${effRng(u)})`);
         return;
       }
@@ -2207,7 +2242,7 @@
     if (busy || !a || !d || !a.alive || !d.alive) return;
     const atk = calcDamage(a, d, {});
     const bond = SK.bondBetween ? SK.bondBetween(a.name, d.name) : null;
-    const canCounter = d.alive && cheb(a.x, a.y, d.x, d.y) <= effRng(d);
+    const canCounter = d.alive && manh(a.x, a.y, d.x, d.y) <= effRng(d);
     const cnt = canCounter ? calcDamage(d, a, {}) : null;
     const tr = SK.TERRAIN[B.tiles[d.y][d.x]] || SK.TERRAIN.P;
     const critChance = Math.round((0.05 + (a.wu - 60) * 0.0022 + (a.cls === 'sanjeok' ? 0.06 : 0)) * 100);
@@ -2251,6 +2286,8 @@
   function openGateAttack(a, g) {
     const gate = activeGate();
     if (busy || !a || !a.alive || !gate || gate.hp <= 0) return;
+    /* v5.14 — 자기 성문을 치는 진영은 없다 (수성전 아군 / 공성전 적군 차단) */
+    if (!isGateAttacker(a)) { SK.toast('우리 성문은 아군이 칠 수 없습니다.'); return; }
     const res = calcGateDamage(a, {});
     const m = SK.modal({
       kicker: '성문 공략', title: `${a.name} → ${gate.ring > 1 || (B.gates || []).length > 1 ? `${gate.ring}번째 성문` : '성문'}`,
@@ -2266,6 +2303,7 @@
 
   function doGateAttack(a, g, dmg) {
     if (!a || !a.alive || !activeGate() || activeGate().hp <= 0 || busy) return;
+    if (!isGateAttacker(a)) return;
     B.gate = activeGate();
     busy = true;
     mode = 'idle';
@@ -2306,8 +2344,64 @@
     }
   }
 
+  /* v5.14 — 수성전: 문을 부수는 쪽(적군)이 성문 앞까지 붙어 문을 친다.
+     성문을 칠 수 있는 자리(지금 서 있는 칸 + 이동 가능 칸) 중 가장 가까운 곳을 고른다. */
+  function gateStrikePlan(u) {
+    const gate = gateIntact() ? activeGate() : null;
+    if (!gate || !isGateAttacker(u)) return null;
+    const rng = effRng(u);
+    const cands = [{ x: u.x, y: u.y }];
+    reachSet(u).forEach((k) => {
+      const [x, y] = k.split(',').map(Number);
+      if (B.units.some((o) => o.alive && o !== u && o.x === x && o.y === y)) return;
+      cands.push({ x, y });
+    });
+    let best = null;
+    cands.forEach((t) => {
+      gate.tiles.forEach((g) => {
+        const d = manh(t.x, t.y, g.x, g.y);
+        if (d < 1 || d > rng) return;
+        const sc = -d + (t.x === u.x && t.y === u.y ? 0.5 : 0);
+        if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc };
+      });
+    });
+    return best;
+  }
+
+  function enemyGateStrike(e, plan, done) {
+    const go = () => {
+      if (!B || B.over) { done(); return; }
+      const gate = activeGate();
+      if (!gate || gate.hp <= 0) { e.acted = true; finishCheck(); done(); return; }
+      const res = calcGateDamage(e, {});
+      const cx = (plan.gate.x + 0.5) * TILE, cy = (plan.gate.y + 0.5) * TILE;
+      gate.hp = Math.max(0, gate.hp - res.dmg);
+      addFloat(cx, cy - 8, '-' + res.dmg, '#ffd08a');
+      addFx({ kind: 'burst', x: cx, y: cy, life: 420, color: '226,180,72' });
+      SK.sfx.play(attackKind(e) === 'melee' ? 'sword' : 'hit');
+      shakeScreen(4);
+      feed(`${e.name} — 성문에 ${res.dmg} 피해`, 'bad');
+      B.gate = gate;
+      if (gate.hp <= 0) {
+        const next = activeGate();
+        const more = next && next !== gate && next.hp > 0;
+        B.gate = next;
+        feed(more ? `${B.gate.ring}번째 성문이 무너졌습니다 — 안쪽 성문이 남아 있습니다.` : '성문이 무너졌습니다 — 적이 성안으로 밀려들어옵니다.', 'bad');
+        SK.toast(more ? `성문 파손! 안쪽 ${B.gate.ring}번째 성문이 남았습니다.` : '성문 파손! 적이 성안으로 들어옵니다.');
+        shakeScreen(7);
+        SK.sfx.play('drum');
+      }
+      e.acted = true;
+      finishCheck();
+      done();
+    };
+    if (plan.x !== e.x || plan.y !== e.y) {
+      animatePath(e, findPath(e, plan.x, plan.y), { step: paceMs(88), onDone: () => wait(go, 150) });
+    } else go();
+  }
+
   /* 고유 특기 발동 — 상위 100명의 data/unique_passives.json
-     on_attack: 공격 후 주변 아군 강화 / turn_start: 매 턴 아군 회복 / 그 외: 공격 시 발동으로 본다 */
+     on_attack: 공격 후 주변 아군 강화 / turn_start: 매 턴 아군 지원 / 그 외: 공격 시 발동으로 본다 */
   function triggerPassive(u, when) {
     const p = u && u.passive;
     if (!p || !u.alive || B.over) return;
@@ -2317,15 +2411,36 @@
     const v = clamp((Number(p.valuePct) || 10) / 100, 0.03, 0.2);
     const cx = (rxOf(u) + 0.5) * TILE, cy = (ryOf(u) + 0.5) * TILE;
     if (trig === 'turn_start') {
-      const list = B.units.filter((o) => o.alive && o.side === u.side && cheb(rxOf(o), ryOf(o), rxOf(u), ryOf(u)) <= 2);
+      /* v5.14 — 매 턴 무제한 8% 회복이 아군·적군을 좀비로 만들던 것을 막는다.
+         · 마름모(manh) 2칸 이내 같은 편만
+         · 회복량 3% 이하 (자기 자신은 절반)
+         · 한 전투에서 4회까지만 */
+      const eff = String(p.effect || '');
+      const hpHeal = /HP/.test(eff);
+      u.pCount = u.pCount || {};
+      const used = u.pCount[trig] || 0;
+      if (used >= 4) return;
+      u.pCount[trig] = used + 1;
+      const healPct = hpHeal ? Math.min(0.03, Math.max(0.01, (Number(p.valuePct) || 3) / 100)) : 0.02;
+      const list = B.units.filter((o) => o.alive && o.side === u.side && manh(o.x, o.y, u.x, u.y) <= 2);
       list.forEach((o) => {
-        const hpGain = Math.round(o.maxHp * v);
+        const hpGain = Math.round(o.maxHp * (o === u ? healPct * 0.5 : healPct));
+        if (hpGain <= 0) return;
         o.hp = Math.min(o.maxHp, o.hp + hpGain);
         addHeal(o, hpGain, u);
         addFx({ kind: 'heal', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 520 });
       });
+      /* 사기·방어 계열 특기는 설명대로 1턴짜리 옅은 강화도 함께 준다 */
+      if (!hpHeal) {
+        const buffDef = /방어|책략/.test(eff);
+        list.forEach((o) => {
+          const cur = o.buffs[buffDef ? 'def' : 'atk'];
+          const val = Math.max(0.06, (cur && cur.v) || 0);
+          o.buffs[buffDef ? 'def' : 'atk'] = { v: val, t: 1 };
+        });
+      }
       addFloat(cx, cy - 10, `「${p.title}」`, '#9ef0b8');
-      feed(`${u.name}의 고유 특기 「${p.title}」 — 주변 아군 회복`, 'good');
+      feed(`${u.name}의 고유 특기 「${p.title}」 — 주변 아군 지원`, 'good');
       return;
     }
     u.pUsed = u.pUsed || {};
@@ -2418,7 +2533,7 @@
     SK.sfx.play(sk.kind === 'healArea' ? 'heal' : 'spell');
     if (sk.kind === 'healArea') {
       B.units.forEach((t) => {
-        if (t.alive && t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= sk.radius) {
+        if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= sk.radius) {
           const heal = healAmount(sk, t);
           t.hp = Math.min(t.maxHp, t.hp + heal);
           addHeal(t, heal, u);
@@ -2432,7 +2547,7 @@
       addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 600, color: '150,210,255' });
     } else if (sk.kind === 'buffAreaAllies') {
       B.units.forEach((t) => {
-        if (t.alive && t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= sk.radius) {
+        if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= sk.radius) {
           t.buffs.atk = { v: sk.atk, t: sk.turns };
           addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 600 });
         }
@@ -2455,11 +2570,11 @@
     const u = B.sel;
     const sk = pendingSkill;
     if (!u || !sk) return;
-    const dist = cheb(u.x, u.y, x, y);
+    const dist = manh(u.x, u.y, x, y);
     /* v5.13 — 회복·아군 버프는 거리 0(자기 자신) 허용 */
     const selfSkill = sk.kind === 'heal' || sk.kind === 'buffAlly';
     if (!selfSkill && sk.minRange && dist < sk.minRange) { SK.toast(`최소 사거리 ${sk.minRange}칸입니다.`); return; }
-    if (dist > (sk.range || u.rng)) { SK.toast('사거리 밖입니다.'); return; }
+    if (dist > (sk.range || effRng(u))) { SK.toast('사거리 밖입니다.'); return; }
     const target = B.units.find((o) => o.alive && o.x === x && o.y === y);
     const finish = (delay) => {
       u.acted = true; pendingSkill = null; mode = 'idle';
@@ -2501,7 +2616,7 @@
       const rad = sk.radius || 1;
       const color = sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215';
       B.units.forEach((t) => {
-        if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
+        if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
           /* 책략이 강할수록 약화가 깊어진다 (0.75 ~ 1.35배) */
           const potency = Math.max(0.75, Math.min(1.35, 1 + (magicAtk(u) - magicDef(t)) / 500));
           const amt = sk.amount * potency;
@@ -2529,7 +2644,7 @@
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 620, color: '255,150,80' });
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
         B.units.forEach((t) => {
-          if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
+          if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
             const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80) * sizeScale(t) * 0.8));
             t.hp = Math.max(0, t.hp - dmg);
             addMagicDamage(u, t, dmg);
@@ -2752,7 +2867,7 @@
     const foes = B.units.filter((o) => o.alive && o.side !== u.side);
     const allies = B.units.filter((o) => o.alive && o.side === u.side);
     const tiles = moveTiles(u);
-    const dTo = (t, x, y) => cheb(t.x, t.y, x, y);
+    const dTo = (t, x, y) => manh(t.x, t.y, x, y);
 
     /* 1) 회복 — HP 85% 이하 아군이 있으면 최우선 */
     const heals = skills.filter((s) => s.kind === 'heal' || s.kind === 'healArea');
@@ -2762,7 +2877,7 @@
       heals.forEach((sk) => {
         tiles.forEach((t) => {
           if (sk.kind === 'heal') {
-            const reach = sk.range || u.rng;
+            const reach = sk.range || effRng(u);
             hurt.forEach((a) => {
               if (dTo(t, a.x, a.y) > reach) return;
               const sc = (1 - a.hp / a.maxHp) * 130 - dTo(t, u.x, u.y) * 0.4;
@@ -2792,12 +2907,12 @@
       debs.forEach((sk) => {
         const bk = sk.kind === 'debuffDef' ? 'def' : 'atk';
         const rad = sk.radius || 1;
-        const range = sk.range || u.rng;
+        const range = sk.range || effRng(u);
         tiles.forEach((t) => {
           core.forEach((f) => {
             if (f.buffs[bk] && f.buffs[bk].t > 0) return;
             if (dTo(t, f.x, f.y) > range) return;
-            const hit = foes.filter((o) => !o.buffs[bk] && cheb(f.x, f.y, o.x, o.y) <= rad).length;
+            const hit = foes.filter((o) => !o.buffs[bk] && manh(f.x, f.y, o.x, o.y) <= rad).length;
             const sc = 34 + hit * 16 + threat(f) / 9000 - dTo(t, u.x, u.y) * 0.3;
             if (!best || sc > best.score) best = { kind: 'skill', mode: 'debuff', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
           });
@@ -2835,14 +2950,14 @@
       });
       let best = null;
       dmgs.forEach((sk) => {
-        const range = sk.range || u.rng;
+        const range = sk.range || effRng(u);
         const minR = sk.minRange || 1;
         if (sk.kind === 'magicArea') {
           tiles.forEach((t) => {
             foes.forEach((f) => {
               if (dTo(t, f.x, f.y) > range) return;
               const rad = sk.radius || 1;
-              const hit = foes.filter((o) => cheb(f.x, f.y, o.x, o.y) <= rad);
+              const hit = foes.filter((o) => manh(f.x, f.y, o.x, o.y) <= rad);
               let sum = 0, kill = false;
               hit.forEach((o) => { const e = estSkillDmg(u, o, sk); sum += e; if (e >= o.hp) kill = true; });
               const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) - dTo(t, u.x, u.y) * 0.3;
@@ -2872,7 +2987,7 @@
       tiles.forEach((t) => {
         allies.forEach((a) => {
           if (a.buffs.atk && a.buffs.atk.t > 0) return;
-          if (dTo(t, a.x, a.y) > (allyBuf.range || u.rng)) return;
+          if (dTo(t, a.x, a.y) > (allyBuf.range || effRng(u))) return;
           const sc = 22 + effAtk(a) * 0.5 + (1 - a.hp / a.maxHp) * 30 - dTo(t, u.x, u.y) * 0.3;
           if (!best || sc > best.score) best = { kind: 'skill', mode: 'buff', key: allyBuf.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
         });
@@ -2883,7 +2998,7 @@
     /* 6) 자기 버프 — 교전 직전 한 번 */
     const selfBuf = skills.find((s) => s.kind === 'buffSelf');
     if (selfBuf && foes.length && !(u.buffs.def && u.buffs.def.t > 0)) {
-      const near = Math.min.apply(null, foes.map((f) => cheb(u.x, u.y, f.x, f.y)));
+      const near = Math.min.apply(null, foes.map((f) => manh(u.x, u.y, f.x, f.y)));
       if (near <= 3) return { kind: 'skill', mode: 'instant', key: selfBuf.key, x: u.x, y: u.y, tx: u.x, ty: u.y, score: 18 };
     }
     return null;
@@ -2895,9 +3010,9 @@
     const tgt = B.units.find((o) => o.alive && o.x === x && o.y === y);
     if (sk.kind === 'heal' || sk.kind === 'buffAlly') { if (!tgt || tgt.side !== u.side) return false; }
     if (sk.kind === 'power' || sk.kind === 'magic') { if (!tgt || tgt.side === u.side) return false; }
-    const dist = cheb(u.x, u.y, x, y);
+    const dist = manh(u.x, u.y, x, y);
     if (sk.minRange && dist < sk.minRange) return false;
-    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && dist > (sk.range || u.rng)) return false;
+    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && dist > (sk.range || effRng(u))) return false;
     B.sel = u;
     mode = 'skillTarget';
     pendingSkill = Object.assign({ key: sk.key }, sk);
@@ -2906,12 +3021,14 @@
     return true;
   }
 
-  /* 한 부대가 할 최선의 행동을 고른다 — 책략 > 사거리 안 적 공격 > 성문 타격 > 접근 */
+  /* 한 부대가 할 최선의 행동을 고른다 — 책략 > 사거리 안 적 공격 > (문을 부수는 진영만) 성문 타격 > 접근 */
   function planAuto(u) {
     const sup = planSupportSkill(u);
     if (sup) return sup;
     const rng = effRng(u);
     const minR = u.minRng || 1;
+    /* v5.14 — 성문 공략은 문을 부수는 진영만 고른다. 수비측은 적 부대 요격·망루 수사에 집중 */
+    const stormGate = isGateAttacker(u);
     const foes = B.units.filter((o) => o.alive && o.side !== u.side);
     const tiles = [{ x: u.x, y: u.y }];
     (B.reachCache && B.reachCache.set ? B.reachCache.set : new Set()).forEach((k) => {
@@ -2924,16 +3041,16 @@
     tiles.forEach((t) => {
       const home = t.x === u.x && t.y === u.y;
       foes.forEach((e) => {
-        const d = cheb(t.x, t.y, e.x, e.y);
+        const d = manh(t.x, t.y, e.x, e.y);
         if (d < minR || d > rng) return;
         if (wallBlocked({ x: t.x, y: t.y }, e) && kind === 'melee') return;
         const est = calcDamage(u, e, {}).dmg;
         const score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
       });
-      if (gateIntact() && activeGate()) {
+      if (stormGate && gateIntact() && activeGate()) {
         activeGate().tiles.forEach((g) => {
-          if (cheb(t.x, t.y, g.x, g.y) > rng) return;
+          if (manh(t.x, t.y, g.x, g.y) > rng) return;
           const sc = (kind === 'rock' ? 90 : kind === 'melee' ? 55 : 25) + (home ? 4 : 0);
           if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc, kind: 'gate' };
         });
@@ -2942,11 +3059,12 @@
     if (best) return best;
     let pick = null;
     tiles.forEach((t) => {
-      const d = foes.length ? Math.min(...foes.map((f) => cheb(t.x, t.y, f.x, f.y))) : 99;
-      const gy = gateIntact() && activeGate() ? Math.min(...activeGate().tiles.map((g) => cheb(t.x, t.y, g.x, g.y))) - 1 : 99;
+      const d = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
+      const gy = (stormGate && gateIntact() && activeGate())
+        ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) - 1 : 99;
       let score = -Math.min(d, gy);
-      /* 수비측은 망루·본성에 붙어 버티는 쪽을 조금 더 선호한다 */
-      if (u.side === 'enemy' && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'K')) score += 2.5;
+      /* 수비측은 망루·본성에 붙어 버티는 쪽을 조금 더 선호한다 (문을 부수는 진영 제외) */
+      if (!stormGate && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'K')) score += 2.5;
       if (!pick || score > pick.score) pick = { x: t.x, y: t.y, score, kind: 'move' };
     });
     return pick;
@@ -3052,14 +3170,14 @@
     const targets = B.units.filter((u) => u.side === 'ally' && u.alive);
     if (!targets.length) { done(); return; }
     let target = targets.reduce((best, t) => {
-      const d = cheb(e.x, e.y, t.x, t.y);
+      const d = manh(e.x, e.y, t.x, t.y);
       return !best || d < best.d ? { t, d } : best;
     }, null).t;
     const rng = effRng(e);
     /* v5.3 — 망루·본성에 선 수비 부대는 적이 사거리 밖이면 자리를 지켜 회복한다 */
     const holdCh = B.tiles[e.y][e.x];
     if (holdCh === 'T' || holdCh === 'K') {
-      const near = Math.min.apply(null, targets.map((t) => cheb(e.x, e.y, t.x, t.y)));
+      const near = Math.min.apply(null, targets.map((t) => manh(e.x, e.y, t.x, t.y)));
       if (near > rng + 1) { e.acted = true; finishCheck(); done(); return; }
     }
 
@@ -3084,7 +3202,7 @@
     if (e.cls === 'pungsusa' && e.mp >= 10) {
       const hurt = B.units.filter((u) => u.side === 'enemy' && u.alive && u.hp < u.maxHp * 0.6)
         .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
-      if (hurt && cheb(e.x, e.y, hurt.x, hurt.y) <= 2) {
+      if (hurt && manh(e.x, e.y, hurt.x, hurt.y) <= 2) {
         const heal = healAmount({ healPct: 0.15 }, hurt);
         e.mp -= 10; hurt.hp = Math.min(hurt.maxHp, hurt.hp + heal);
         addFloat((hurt.x + 0.5) * TILE, (hurt.y + 0.4) * TILE, '+' + heal, '#a8f0b8');
@@ -3094,7 +3212,7 @@
     }
 
     // magic if in range
-    if ((e.cls === 'chaeksa') && e.mp >= 10 && cheb(e.x, e.y, target.x, target.y) <= rng) {
+    if ((e.cls === 'chaeksa') && e.mp >= 10 && manh(e.x, e.y, target.x, target.y) <= rng) {
       e.mp -= 10;
       e.acted = true;
       castCircle(e, '255,170,120');
@@ -3116,8 +3234,14 @@
     }
 
     const minR = e.minRng || 1;
-    const curD = cheb(e.x, e.y, target.x, target.y);
+    const curD = manh(e.x, e.y, target.x, target.y);
     const already = curD >= minR && curD <= rng;
+    /* v5.14 — 수성전 침공군: 지금 사거리 안에 아군이 없으면 성문을 부수러 간다.
+       (수성전에서 성문을 칠 수 있는 진영은 적군뿐이다) */
+    if (!already && isGateAttacker(e) && gateIntact()) {
+      const gp = gateStrikePlan(e);
+      if (gp) { enemyGateStrike(e, gp, done); return; }
+    }
     const reach = reachSet(e);
     const freeTiles = [];
     reach.forEach((k) => {
@@ -3127,7 +3251,7 @@
     });
     let best = null;
     freeTiles.forEach((t) => {
-      const d = cheb(t.x, t.y, target.x, target.y);
+      const d = manh(t.x, t.y, target.x, target.y);
       const inRange = d >= minR && d <= rng;
       const score = inRange ? -100 + d : (d < minR ? 150 - d : d);
       if (!best || score < best.score) best = { t, score, inRange };
@@ -3138,11 +3262,11 @@
       animatePath(e, path, { step: paceMs(88), onDone: () => {
         wait(() => {
           if (!B || B.over) { done(); return; }
-          const dist = cheb(e.x, e.y, target.x, target.y);
+          const dist = manh(e.x, e.y, target.x, target.y);
           if (dist >= (e.minRng || 1) && dist <= rng && !(wallBlocked(e, target) && attackKind(e) === 'melee')) {
             attackUnit(e, target, {}, () => {
               if (!B || B.over) { done(); return; }
-              if (target.alive && cheb(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
+              if (target.alive && manh(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
                 wait(() => {
                   if (!B || B.over) { done(); return; }
                   if (!target.alive || !e.alive) { e.acted = true; finishCheck(); done(); return; }
@@ -4007,6 +4131,56 @@
       },
       forceVictory() { victory(); },
       gate() { return B && B.gate ? { hp: Math.round(B.gate.hp), max: Math.round(B.gate.maxHp), tiles: B.gate.tiles } : null; },
+      /* v5.14 — 지금 고른 책략(중복 getter pending은 autoPending이라 따로 둔다) */
+      get pendingSkill() { return pendingSkill ? { key: pendingSkill.key, kind: pendingSkill.kind, range: pendingSkill.range, minRange: pendingSkill.minRange, radius: pendingSkill.radius } : null; },
+      get uiMode() { return mode; },
+      setMode(m) { mode = m; if (m !== 'skillTarget') pendingSkill = null; SKBattle.refreshUI(); return mode; },
+      /* v5.14 — 마름모 사거리·성문 공격 진영 점검용 */
+      manh(x1, y1, x2, y2) { return manh(x1, y1, x2, y2); },
+      gateAttackerSide() { return gateAttackerSide(); },
+      isGateAttacker(name) { const u = B && B.units.find((o) => o.name === name); return u ? isGateAttacker(u) : null; },
+      effRng(name) { const u = B && B.units.find((o) => o.name === name); return u ? effRng(u) : null; },
+      canHit(aName, dName) {
+        const a = B.units.find((o) => o.name === aName), d = B.units.find((o) => o.name === dName);
+        return a && d ? canHit(a, d) : null;
+      },
+      plan(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const p = planAuto(u);
+        if (!p) return null;
+        return { kind: p.kind, x: p.x, y: p.y, target: p.target ? p.target.name : null,
+          gate: p.gate || null, score: p.score };
+      },
+      gatePlan(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        const gp = u ? gateStrikePlan(u) : null;
+        return gp ? { x: gp.x, y: gp.y, gate: gp.gate } : null;
+      },
+      /* 하이라이트와 같은 조건으로 사거리 안 타일을 돌려준다 (마름모 모양 확인용) */
+      rangeTiles(name, opts) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const o = opts || {};
+        const rng = o.rng != null ? o.rng : effRng(u);
+        const minR = o.minR != null ? o.minR : (u.minRng || 1);
+        const out = [];
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const d = manh(u.x, u.y, x, y);
+          if (d < minR || d > rng) continue;
+          out.push([x, y, d]);
+        }
+        return { from: { x: u.x, y: u.y }, rng: rng, minR: minR, count: out.length, tiles: out };
+      },
+      hitList(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return {
+          gateAttacker: isGateAttacker(u),
+          doors: (gateIntact() ? activeGate().tiles : []).filter((g) => canHitTile(u, g.x, g.y)),
+          foes: B.units.filter((o) => o.alive && o.side !== u.side && canHit(u, o)).map((o) => o.name),
+        };
+      },
       gates() { return B && B.gates ? B.gates.map((g) => ({ row: g.row, hp: Math.round(g.hp), ring: g.ring })) : []; },
       rings() { return B ? B.rings : null; },
       type() { return B ? B.type : null; },

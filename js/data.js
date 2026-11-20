@@ -28,94 +28,97 @@ SK.CLASSES = {
     skills: ['jihwi'], weapon: 'sword', desc: '군 전체를 이끄는 군주. 지휘로 아군을 강화한다.' },
   gibi: { name: '기병', hanja: '騎兵', role: '돌격·기동', atk: 34, def: 17, mov: 6, rng: 1, mp: 20,
     skills: ['dolpa'], weapon: 'spear', mount: true, desc: '이동 6의 돌격 병과. 평지·도로에서 공격 +15%, 산지 통행 불가.' },
-  gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 4, mp: 26,
-    skills: ['jipsajung'], weapon: 'bow', mount: true, desc: '대각선 포함 3칸 사격. 산이나 성 위에서 사거리 +1.' },
+  gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 3, mp: 26,
+    skills: ['jipsajung'], weapon: 'bow', mount: true, desc: '이동 5의 말탄 궁수. 3칸(◇ 마름모) 사격, 산이나 성 위에서 사거리 +1.' },
   changbyung: { name: '창병', hanja: '槍兵', role: '대기병·성문', atk: 28, def: 21, mov: 4, rng: 2, mp: 18,
-    skills: ['gwantung'], weapon: 'spear', desc: '긴 창으로 2칸을 찌른다. 기병에게 +40%, 성문에서 방어 +20%.' },
+    skills: ['gwantung'], weapon: 'spear', desc: '긴 창으로 2칸(◇ 마름모, 대각선 포함)을 찌른다. 기병에게 +40%, 성문에서 방어 +20%.' },
   geombyung: { name: '검병', hanja: '劍兵', role: '방어·근접', atk: 30, def: 24, mov: 4, rng: 1, mp: 16,
     skills: ['bangpae'], weapon: 'sword', desc: '튼튼한 방패 검병. 성문·마당에서 방어 +20%.' },
   sanjeok: { name: '산적', hanja: '山賊', role: '산지·숲 특화', atk: 34, def: 14, mov: 5, rng: 1, mp: 16,
     skills: ['sangang'], weapon: 'axe', desc: '산지·숲에서 공격 +30%. 산전의 주인공.' },
   sujeok: { name: '수적', hanja: '水賊', role: '수전 특화', atk: 31, def: 17, mov: 5, rng: 1, mp: 20,
     skills: ['suryu'], weapon: 'trident', desc: '물 위를 걸어 다닌다. 물에서 공격 +25%, 방어 +15%.' },
-  chaeksa: { name: '책사', hanja: '策士', role: '책략', atk: 16, def: 11, mov: 4, rng: 2, mp: 60,
+  chaeksa: { name: '책사', hanja: '策士', role: '책략', atk: 16, def: 11, mov: 4, rng: 3, mp: 60,
     skills: ['hwagye', 'pungsu'], weapon: 'fan', desc: '화계로 방어를 무시하는 피해, 풍수로 적 방어를 깎는다.' },
-  pungsusa: { name: '풍수사', hanja: '風水師', role: '회복·보조', atk: 15, def: 12, mov: 4, rng: 2, mp: 70,
+  pungsusa: { name: '풍수사', hanja: '風水師', role: '회복·보조', atk: 15, def: 12, mov: 4, rng: 3, mp: 70,
     skills: ['sobogeup', 'daebogeup', 'gomu', 'pungsu'], weapon: 'staff', desc: '보급으로 아군을 살리고 고무로 공격을 올린다.' },
   dosa: { name: '도사', hanja: '道士', role: '저주·회복', atk: 18, def: 12, mov: 4, rng: 3, mp: 64,
     skills: ['yosul', 'sobogeup'], weapon: 'staff', desc: '요술로 적의 공격을 약화시키고 부상병을 회복한다.' },
-  gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 4, mp: 16,
-    skills: ['jipsajung'], weapon: 'bow', desc: '3칸 밖에서 일방적으로 사격. 산·성 위에서 사거리 +1.' },
+  gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 3, minRng: 2, mp: 16,
+    skills: ['jipsajung'], weapon: 'bow', desc: '2칸 밖에서 3칸(◇ 마름모)까지 일방적으로 사격. 산·성 위에서 사거리 +1.' },
   mudoga: { name: '무도가', hanja: '武道家', role: '연격·기동', atk: 33, def: 15, mov: 5, rng: 1, mp: 20,
     skills: ['yeongyeok'], weapon: 'fist', desc: '맨몸의 연격으로 두 번 때린다. 평지에서 공격 +10%.' },
   yasubyung: { name: '야수병', hanja: '野獸兵', role: '숲·산 추격', atk: 36, def: 16, mov: 6, rng: 1, mp: 18,
     skills: ['yaseup'], weapon: 'claw', desc: '호랑이 부대. 숲·산지에서 공격 +20%, 이동 6.' },
   muhui: { name: '무희', hanja: '舞姬', role: '유혹·교란', atk: 20, def: 10, mov: 5, rng: 2, mp: 48,
-    skills: ['yuhok'], weapon: 'ribbon', desc: '춤으로 적의 공격을 크게 떨어뜨린다. 사거리 2.' },
-  yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 5, mp: 18,
-    skills: ['yeonno'], weapon: 'crossbow', desc: '연발 쇠뇌로 4칸을 두 번 쏜다. 느리지만 화력이 뛰어나다.' },
+    skills: ['yuhok'], weapon: 'ribbon', desc: '춤으로 적의 공격을 크게 떨어뜨린다. 사거리 2(◇ 마름모).' },
+  yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 4, minRng: 2, mp: 18,
+    skills: ['yeonno'], weapon: 'crossbow', desc: '연발 쇠뇌로 2~4칸(◇ 마름모)을 두 번 쏜다. 느리지만 화력이 뛰어나다.' },
   deunggabyung: { name: '등갑병', hanja: '藤甲兵', role: '철벽 방어', atk: 28, def: 31, mov: 3, rng: 1, mp: 12,
     skills: ['bangpae'], weapon: 'sword', desc: '등나무 갑옷의 중장 보병. 느리지만 좀처럼 뚫리지 않는다.' },
   gunakdae: { name: '군악대', hanja: '軍樂隊', role: '사기·지원', atk: 12, def: 12, mov: 4, rng: 2, mp: 60,
     skills: ['gomu', 'jihwi'], weapon: 'drum', desc: '북과 나팔로 아군의 사기를 올린다. 직접 싸움은 약하다.' },
   pocha: { name: '포차', hanja: '砲車', role: '공성 병기', atk: 46, def: 26, mov: 2, rng: 5, minRng: 2, mp: 10,
-    skills: ['pogyeok'], weapon: 'ram', siege: true, desc: '성문·성벽에 2배 피해. 인접한 적은 칠 수 없고 이동이 느리다.' },
+    skills: ['pogyeok'], weapon: 'ram', siege: true, desc: '2~5칸(◇ 마름모) 사거리. 성문·성벽에 2배 피해. 붙으면 못 쏘고 이동이 느리다.' },
   balseokcha: { name: '발석차', hanja: '發石車', role: '투석 병기', atk: 56, def: 18, mov: 1, rng: 7, minRng: 3, mp: 10,
-    skills: ['tuseok'], weapon: 'catapult', siege: true, desc: '먼 곳을 범위로 때리는 투석기. 성문 공략의 결정타.' },
+    skills: ['tuseok'], weapon: 'catapult', siege: true, desc: '3~7칸(◇ 마름모) 먼 곳을 범위로 때리는 투석기. 성문 공략의 결정타.' },
 };
 
-/* ───────────── 책략 ───────────── */
+/* ───────────── 책략 ─────────────
+   v5.14 — 사거리·범위는 전부 마름모(맨해튼) 거리 기준이다. 대각선 1칸 = 거리 2.
+   위력 예산: MP 8~9 ≈ 140%, MP 10 ≈ 150%, MP 12 ≈ 175~185%, MP 14 ≈ 195%, MP 16+ ≈ 210~230%.
+   2연타는 한 대 92%(합 184%), 3연타는 한 대 72%(합 216%)를 넘기지 않는다. */
 SK.SKILLS = {
-  jihwi: { name: '지휘', hanja: '指揮', mp: 12, kind: 'buffAreaAllies', radius: 3, atk: 0.2, turns: 3,
-    desc: '주변 3칸 아군 전원 공격 +20% (3턴)' },
+  jihwi: { name: '지휘', hanja: '指揮', mp: 12, kind: 'buffAreaAllies', radius: 2, atk: 0.2, turns: 3,
+    desc: '주변 2칸(마름모) 아군 전원 공격 +20% (3턴)' },
   dolpa: { name: '돌파', hanja: '突破', mp: 10, kind: 'power', range: 1, power: 1.55,
     desc: '한 명에게 강력한 돌격 (공격력 155%)' },
-  jipsajung: { name: '집중사격', hanja: '集中射擊', mp: 8, kind: 'power', range: 4, power: 1.45,
-    desc: '사거리 안의 적 하나를 집중 사격' },
-  gwantung: { name: '관통창', hanja: '貫通槍', mp: 8, kind: 'power', range: 2, power: 1.4, vsMount: 0.4,
-    desc: '2칸 찌르기. 기병에게 +40% 추가 피해' },
+  jipsajung: { name: '집중사격', hanja: '集中射擊', mp: 9, kind: 'power', range: 3, power: 1.4,
+    desc: '사거리 3칸 안의 적 하나를 집중 사격 (140%)' },
+  gwantung: { name: '관통창', hanja: '貫通槍', mp: 9, kind: 'power', range: 2, power: 1.4, vsMount: 0.4,
+    desc: '2칸(마름모) 찌르기 140%. 기병에게 +40% 추가 피해' },
   sobogeup: { name: '소보급', hanja: '小補給', mp: 10, kind: 'heal', range: 2, healPct: 0.16,
-    desc: '아군 1명(자기 자신 포함)의 병력을 최대 병력의 16% 회복 (최대 22%)' },
-  daebogeup: { name: '대보급', hanja: '大補給', mp: 20, kind: 'healArea', radius: 2, healPct: 0.13,
-    desc: '주변 2칸 아군 전원을 최대 병력의 13% 회복' },
+    desc: '2칸 안 아군 1명(자기 자신 포함)의 병력을 최대 병력의 16% 회복 (최대 22%)' },
+  daebogeup: { name: '대보급', hanja: '大補給', mp: 22, kind: 'healArea', radius: 2, healPct: 0.12,
+    desc: '주변 2칸(마름모) 아군 전원을 최대 병력의 12% 회복' },
   gomu: { name: '고무', hanja: '鼓舞', mp: 12, kind: 'buffAlly', range: 2, atk: 0.3, turns: 3,
-    desc: '아군 1명 공격 +30% (3턴)' },
-  pungsu: { name: '풍수', hanja: '風水', mp: 16, kind: 'debuffDef', range: 3, radius: 2, turns: 3, amount: -0.25,
-    desc: '지점 2칸 안의 적 방어 -25% (3턴)' },
-  hwagye: { name: '화계', hanja: '火計', mp: 12, kind: 'magic', range: 3, power: 260,
-    desc: '불을 질러 방어를 무시하는 피해' },
-  sangang: { name: '산악강타', hanja: '山岳强打', mp: 8, kind: 'power', range: 1, power: 1.5, ignoreTerrain: true,
-    desc: '지형 방어를 무시하는 강타' },
-  suryu: { name: '수류참', hanja: '水流斬', mp: 8, kind: 'power', range: 1, power: 1.5, waterBonus: true,
-    desc: '물 위에서 더 강한 일격 (+15%)' },
+    desc: '2칸 안 아군 1명 공격 +30% (3턴)' },
+  pungsu: { name: '풍수', hanja: '風水', mp: 15, kind: 'debuffDef', range: 3, radius: 2, turns: 3, amount: -0.25,
+    desc: '3칸 앞 지점의 2칸(마름모) 안 적 방어 -25% (3턴)' },
+  hwagye: { name: '화계', hanja: '火計', mp: 12, kind: 'magic', range: 3, power: 240,
+    desc: '3칸 앞 적에게 불을 질러 방어를 무시하는 피해' },
+  sangang: { name: '산악강타', hanja: '山岳强打', mp: 9, kind: 'power', range: 1, power: 1.45, ignoreTerrain: true,
+    desc: '지형 방어를 무시하는 강타 (145%)' },
+  suryu: { name: '수류참', hanja: '水流斬', mp: 9, kind: 'power', range: 1, power: 1.45, waterBonus: true,
+    desc: '물 위에서 더 강한 일격 (145%, 물에서 +15%)' },
   bangpae: { name: '방패벽', hanja: '防牌壁', mp: 8, kind: 'buffSelf', def: 0.5, turns: 3,
     desc: '자신의 방어 +50% (3턴)' },
   yosul: { name: '요술', hanja: '妖術', mp: 14, kind: 'debuffAtk', range: 3, radius: 1, turns: 3, amount: -0.3,
     desc: '적 1명의 공격 -30% (3턴)' },
-  yeongyeok: { name: '연격', hanja: '連擊', mp: 10, kind: 'power', range: 1, power: 1.3, hits: 2,
-    desc: '두 번 연속 공격 (각 130%)' },
-  yaseup: { name: '야습', hanja: '夜襲', mp: 10, kind: 'power', range: 1, power: 1.6,
-    desc: '숲·산지에서 기습적인 강타' },
-  yuhok: { name: '유혹', hanja: '誘惑', mp: 12, kind: 'debuffAtk', range: 2, radius: 2, turns: 3, amount: -0.35,
-    desc: '주변 2칸 적의 공격 -35% (3턴)' },
-  pogyeok: { name: '포격', hanja: '砲擊', mp: 8, kind: 'power', range: 5, minRange: 2, power: 2.0, siegeBonus: 1.0,
-    desc: '성문·성벽 위의 적에게 2배 피해' },
-  tuseok: { name: '투석', hanja: '投石', mp: 8, kind: 'magicArea', range: 7, minRange: 3, radius: 1, power: 320,
-    desc: '먼 지점 1칸 범위에 돌을 던진다' },
-  yeonno: { name: '연노사격', hanja: '連弩射擊', mp: 10, kind: 'power', range: 5, power: 1.15, hits: 2,
-    desc: '4칸 밖의 적을 두 번 연속으로 쏜다' },
-  gwanse: { name: '관통사격', hanja: '貫通射擊', mp: 12, kind: 'power', range: 5, power: 1.7,
-    desc: '4칸 밖에서 꿰뚫는 강력한 사격' },
+  yeongyeok: { name: '연격', hanja: '連擊', mp: 12, kind: 'power', range: 1, power: 0.92, hits: 2,
+    desc: '두 번 연속 공격 (각 92% · 합 184%)' },
+  yaseup: { name: '야습', hanja: '夜襲', mp: 10, kind: 'power', range: 1, power: 1.5,
+    desc: '숲·산지에서 기습적인 강타 (150%)' },
+  yuhok: { name: '유혹', hanja: '誘惑', mp: 13, kind: 'debuffAtk', range: 2, radius: 2, turns: 3, amount: -0.35,
+    desc: '주변 2칸(마름모) 적의 공격 -35% (3턴)' },
+  pogyeok: { name: '포격', hanja: '砲擊', mp: 10, kind: 'power', range: 5, minRange: 2, power: 2.0, siegeBonus: 1.0,
+    desc: '5칸 앞 적에게 200%. 성문·성벽 위의 적에게는 2배' },
+  tuseok: { name: '투석', hanja: '投石', mp: 11, kind: 'magicArea', range: 6, minRange: 3, radius: 1, power: 300,
+    desc: '6칸 앞 지점 1칸 범위에 돌을 던진다' },
+  yeonno: { name: '연노사격', hanja: '連弩射擊', mp: 12, kind: 'power', range: 4, power: 0.85, hits: 2,
+    desc: '4칸 밖의 적을 두 번 연속으로 쏜다 (각 85% · 합 170%)' },
+  gwanse: { name: '관통사격', hanja: '貫通射擊', mp: 12, kind: 'power', range: 4, power: 1.65,
+    desc: '4칸 밖에서 꿰뚫는 강력한 사격 (165%)' },
   paedo: { name: '해일', hanja: '海溢', mp: 18, kind: 'magicArea', range: 3, radius: 2, power: 300,
-    desc: '거대한 물결로 범위를 휩쓴다' },
+    desc: '거대한 물결로 2칸(마름모) 범위를 휩쓴다' },
   cheonmu: { name: '천무', hanja: '天武', mp: 14, kind: 'power', range: 1, power: 1.85,
-    desc: '하늘을 가르는 무도의 일격' },
-  hwanmu: { name: '환무', hanja: '幻舞', mp: 16, kind: 'debuffAtk', range: 2, radius: 2, turns: 3, amount: -0.4,
-    desc: '현혹의 춤으로 적 공격 -40%' },
-  yeonpo: { name: '연속포격', hanja: '連發砲擊', mp: 14, kind: 'power', range: 6, minRange: 2, power: 2.4, siegeBonus: 0.8,
-    desc: '성문에 연달아 포탄을 퍼붓는다' },
-  hwayeom: { name: '화염투석', hanja: '火焰投石', mp: 16, kind: 'magicArea', range: 7, minRange: 3, radius: 2, power: 380,
-    desc: '불붙은 돌을 던져 범위를 불바다로 만든다' },
+    desc: '하늘을 가르는 무도의 일격 (185%)' },
+  hwanmu: { name: '환무', hanja: '幻舞', mp: 15, kind: 'debuffAtk', range: 2, radius: 2, turns: 3, amount: -0.4,
+    desc: '현혹의 춤으로 주변 2칸 적 공격 -40%' },
+  yeonpo: { name: '연속포격', hanja: '連發砲擊', mp: 16, kind: 'power', range: 6, minRange: 2, power: 2.4, siegeBonus: 0.8,
+    desc: '6칸 앞 성문에 연달아 포탄을 퍼붓는다 (240%)' },
+  hwayeom: { name: '화염투석', hanja: '火焰投石', mp: 20, kind: 'magicArea', range: 6, minRange: 3, radius: 2, power: 340,
+    desc: '6칸 앞에 불붙은 돌을 던져 2칸 범위를 불바다로 만든다' },
 };
 
 /* 병과 → SD 유닛/초상화 */
@@ -653,8 +656,19 @@ SK.applyClassData = function (list) {
         def.kind = 'magicArea'; def.radius = 1; def.power = 240 + sk.mp * 9;
       } else {
         def.kind = 'power';
-        const m = eff.match(/(\d{2,3})\s*%/);
-        def.power = m ? Math.min(2.6, Number(m[1]) / 100) : 1.35 + sk.mp * 0.02;
+        /* v5.14 — '배' 수치를 먼저 보고, 없으면 가장 큰 %를 위력으로 쓴다.
+           (예전엔 문자열의 첫 %를 집어 "회피율 +15%"만 있는 기술이 15% 위력이 됐다)
+           2연타는 한 대 92%, 3연타는 한 대 72%까지만. */
+        const multM = eff.match(/([0-9]+(?:\.[0-9]+)?)\s*배/);
+        const pcts = (eff.match(/(\d{2,3})\s*%/g) || []).map((x) => parseInt(x, 10)).filter((x) => !isNaN(x));
+        let pw = multM ? Number(multM[1]) : (pcts.length ? Math.max.apply(null, pcts) / 100 : 0);
+        if (!(pw >= 0.9)) pw = 1.2 + (Number(sk.mp) || 10) * 0.022;   // 수치가 없는 효과는 MP 비례
+        const hitM = eff.match(/([23])\s*(?:회\s*)?(?:연속|연사|연타|타격)/);
+        const hits = hitM ? Math.min(3, Number(hitM[1])) : 1;
+        if (hits > 1) pw = Math.min(pw, hits >= 3 ? 0.72 : 0.92);
+        /* 연타는 한 대 위력이 낮으므로 하한도 낮춘다 (합 184% / 216% 상한) */
+        def.power = Math.min(2.3, Math.max(hits >= 3 ? 0.6 : (hits === 2 ? 0.8 : 1.0), pw));
+        if (hits > 1) def.hits = hits;
       }
       SK.SKILLS[key] = def;
       return key;
