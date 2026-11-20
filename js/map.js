@@ -12,9 +12,9 @@
   const MAPW = 2000, MAPH = 1333;
   const MAX_SCALE = 4.6;
   /* 아이콘 — 예전 성 그림(높이 46/32/30/30)보다 훨씬 작고 단단한 소형 성 */
-  const ICON_H = { capital: 30, town: 22, pass: 21, fortress: 21 };
-  const ICON_ASPECT = { capital: 1.62, town: 1.42, pass: 1.58, fortress: 1.18 };
-  const ICON_SRC = { capital: 'capital', town: 'town', pass: 'pass', fortress: 'fortress' };
+  const ICON_H = { capital: 30, mid: 26, town: 22, pass: 21, fortress: 21 };
+  const ICON_ASPECT = { capital: 1.62, mid: 1.77, town: 1.42, pass: 1.58, fortress: 1.18 };
+  const ICON_SRC = { capital: 'capital', mid: 'mid', town: 'town', pass: 'pass', fortress: 'fortress' };
   const TERR_SCALE = 1.25;
   const GRID_W = 800;                       /* 영토 계산 격자 */
   const GRID_H = Math.round(GRID_W * MAPH / MAPW);
@@ -1085,9 +1085,10 @@
       const isSel = m.el.classList.contains('sel');
       const owned = st(m.id) && st(m.id).owner === pf;
       const keep = isSel || owned;
-      /* 아주 멀리서는 소도시 아이콘부터 숨겨 개요 지도를 깔끔하게 */
+      /* 아주 멀리서는 소도시부터, 그다음 중도시를 숨겨 개요 지도를 깔끔하게 (대도시는 남긴다) */
       const farHide = !isSel && !owned && (
         (s < 0.26 && m.city.type === 'town')
+        || (s < 0.23 && m.city.type === 'mid')
         || (s < 0.21 && m.city.type !== 'capital'));
       if (farHide || (iconOverlap > iw * ih * 0.22 && !keep)) {
         m.hide = true;
@@ -1130,7 +1131,7 @@
       /* 배율별 이름 표시 — 멀리서는 대도시·관문·내 성만, 가까이서는 전부 */
       let labelOk = true;
       if (s < 0.30) labelOk = m.city.type === 'capital' || isSel || owned;
-      else if (s < 0.52) labelOk = m.city.type !== 'town' || isSel || owned;
+      else if (s < 0.52) labelOk = (m.city.type !== 'town' && m.city.type !== 'mid') || isSel || owned;
       const hide = !labelOk || bestScore > area * 0.34;
       m.anchor = best.a;
       m.al = best.al; m.dx = best.dx; m.dy = best.dy; m.lw = lw; m.lh = lh;

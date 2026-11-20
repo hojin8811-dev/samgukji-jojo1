@@ -98,7 +98,7 @@
   {
     "id": 9,
     "name": "진양",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "mountain",
     "gold": 7500,
@@ -146,7 +146,7 @@
   {
     "id": 13,
     "name": "계",
-    "type": "대도시",
+    "type": "중도시",
     "faction": "군웅",
     "battleType": "siege",
     "gold": 10500,
@@ -158,7 +158,7 @@
   {
     "id": 14,
     "name": "북평",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "군웅",
     "battleType": "fortress",
     "gold": 6800,
@@ -182,7 +182,7 @@
   {
     "id": 16,
     "name": "남피",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 7800,
@@ -194,7 +194,7 @@
   {
     "id": 17,
     "name": "평원",
-    "type": "대도시",
+    "type": "소도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 7400,
@@ -254,7 +254,7 @@
   {
     "id": 22,
     "name": "복양",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 8200,
@@ -266,7 +266,7 @@
   {
     "id": 23,
     "name": "진류",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 8500,
@@ -290,7 +290,7 @@
   {
     "id": 25,
     "name": "완",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 8000,
@@ -314,7 +314,7 @@
   {
     "id": 27,
     "name": "하비",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "naval",
     "gold": 8300,
@@ -350,7 +350,7 @@
   {
     "id": 30,
     "name": "여남",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 7700,
@@ -362,7 +362,7 @@
   {
     "id": 31,
     "name": "수춘",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "siege",
     "gold": 8400,
@@ -554,7 +554,7 @@
   {
     "id": 47,
     "name": "강릉",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "오",
     "battleType": "naval",
     "gold": 8600,
@@ -578,7 +578,7 @@
   {
     "id": 49,
     "name": "장사",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "오",
     "battleType": "siege",
     "gold": 7600,
@@ -614,7 +614,7 @@
   {
     "id": 52,
     "name": "합비",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "위",
     "battleType": "naval",
     "gold": 8500,
@@ -638,7 +638,7 @@
   {
     "id": 54,
     "name": "오",
-    "type": "대도시",
+    "type": "중도시",
     "faction": "오",
     "battleType": "naval",
     "gold": 11800,
@@ -650,7 +650,7 @@
   {
     "id": 55,
     "name": "시상",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "오",
     "battleType": "naval",
     "gold": 8200,
@@ -662,7 +662,7 @@
   {
     "id": 56,
     "name": "회계",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "오",
     "battleType": "naval",
     "gold": 8400,
@@ -722,7 +722,7 @@
   {
     "id": 61,
     "name": "요동",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "한국",
     "battleType": "fortress",
     "gold": 8600,
@@ -746,7 +746,7 @@
   {
     "id": 63,
     "name": "국내성",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "한국",
     "battleType": "mountain",
     "gold": 8800,
@@ -854,7 +854,7 @@
   {
     "id": 72,
     "name": "웅진",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "한국",
     "battleType": "naval",
     "gold": 8400,
@@ -866,7 +866,7 @@
   {
     "id": 73,
     "name": "완산",
-    "type": "소도시",
+    "type": "중도시",
     "faction": "한국",
     "battleType": "siege",
     "gold": 8100,
@@ -934,5 +934,29 @@
     "troops": 7200,
     "defense": 68,
     "governor": "한수"
+  },
+  {
+    "id": 79,
+    "name": "부여",
+    "type": "소도시",
+    "faction": "한국",
+    "battleType": "plain",
+    "gold": 5200,
+    "food": 7600,
+    "troops": 6000,
+    "defense": 62,
+    "governor": ""
+  },
+  {
+    "id": 80,
+    "name": "옥저",
+    "type": "소도시",
+    "faction": "한국",
+    "battleType": "plain",
+    "gold": 5000,
+    "food": 7200,
+    "troops": 5800,
+    "defense": 60,
+    "governor": ""
   }
 ]

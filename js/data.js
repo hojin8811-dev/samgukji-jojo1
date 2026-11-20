@@ -1019,7 +1019,7 @@ SK.CITY_LIST = [];
 SK.ROADS = [];
 SK.SEALANES = [];
 SK.JFAC = { '위': 'caocao', '촉': 'liubei', '오': 'sunquan', '군웅': 'neutral', '한국': 'goguryeo' };
-SK.TYPE_KEY = { '대도시': 'capital', '소도시': 'town', '관문': 'pass', '요새': 'fortress' };
+SK.TYPE_KEY = { '대도시': 'capital', '중도시': 'mid', '소도시': 'town', '관문': 'pass', '요새': 'fortress' };
 
 SK.setCities = function (list) {
   Object.keys(SK.CITY).forEach((k) => delete SK.CITY[k]);
@@ -1101,6 +1101,8 @@ SK.ROAD_EDGES = [
   ['shishang', 'jianan'], ['kuaiji', 'jianan'], ['nanhai', 'jianan'],
   /* 요동·한국 */
   ['liaodong', 'ansiseong'], ['ansiseong', 'guknaeseong'], ['guknaeseong', 'hamhung'],
+  /* v5.5 — 북방 신규 거점: 국내성 북서 부여, 함흥 북동 옥저 */
+  ['guknaeseong', 'buyeo'], ['buyeo', 'okjeo'], ['okjeo', 'hamhung'],
   ['hamhung', 'pyongyang'], ['pyongyang', 'gaeseong'], ['gaeseong', 'cheolwon'],
   ['gaeseong', 'hanseong'], ['cheolwon', 'wonju'], ['hanseong', 'wonju'],
   ['hanseong', 'ungjin'], ['wonju', 'cheongju'],
