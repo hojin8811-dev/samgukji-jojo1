@@ -3052,7 +3052,7 @@
 
     function draw(p, sc) {
       const def = ROLES[p.role] || ROLES.worker;
-      const h = (def.small ? 8 : 11.5) * sc;
+      const h = (def.small ? 9.5 : 13.5) * sc;
       const walking = p.wait <= 0;
       const swing = walking ? Math.sin(p.ph) * 0.42 : 0;
       const bob = walking ? Math.abs(Math.sin(p.ph)) * h * 0.06 : 0;
@@ -3079,6 +3079,9 @@
       if (ctx.roundRect) ctx.roundRect(x - bw / 2, y - h * 0.9, bw, bh, h * 0.16);
       else ctx.rect(x - bw / 2, y - h * 0.9, bw, bh);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(38, 26, 12, 0.55)';
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
       /* 옷깃 */
       ctx.fillStyle = def.trim;
       ctx.fillRect(x - bw * 0.16, y - h * 0.88, bw * 0.32, h * 0.14);
@@ -3105,6 +3108,9 @@
       ctx.beginPath();
       ctx.arc(x, y - h * 1.06, h * 0.24, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(38, 26, 12, 0.5)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
       /* 머리카락·삿갓 */
       if (def.hat === 'straw') {
         ctx.fillStyle = '#d8bb74';
