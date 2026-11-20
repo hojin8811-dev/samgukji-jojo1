@@ -3636,6 +3636,7 @@
           const turns = marchTurns(origin, targetId);
           startMarch({ origin, targetId, type: bt, units });
           SK.showMap();
+          if (window.SKMap) { try { SKMap.setScale(1.25); SKMap.focusCity(origin, true); } catch (e) { /* ignore */ } }
           SK.toast(`행군 시작 — ${turns}개월 뒤 ${tc.name} 도착 · 지도에 행군 부대가 표시됩니다`);
         } },
       ],
