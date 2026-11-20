@@ -3233,6 +3233,7 @@
       title: `${B.def.name} 돌파`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
         <p class="rm-line">길을 막던 적 요격대를 물리쳤습니다. <b>${left > 0 ? `${left}개월 뒤 도착` : '곧 도착'}</b> — 행군을 이어갑니다.</p>
+        ${battleReportHTML()}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -3268,6 +3269,7 @@
       title: '본성으로 회군',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-line">요격대에 길이 막혔습니다. 남은 병력은 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}으로 돌아갑니다.</p>
+        ${battleReportHTML()}
         <p class="rm-note">복귀 병력 ${Math.round(troopsLeft).toLocaleString('ko-KR')} · 금 -100</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
