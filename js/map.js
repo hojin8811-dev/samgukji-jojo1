@@ -349,7 +349,7 @@
         let lum = (-dx * -0.62 + -dy * -0.78 + 0.62) * inv;
         lum = clamp(lum, 0, 1);
         const elev = clamp(H[i], 0, 1.4);
-        const strength = 26 + 200 * Math.pow(clamp(elev * 1.5, 0, 1), 1.15);
+        const strength = 12 + 64 * Math.pow(clamp(elev * 1.5, 0, 1), 1.2);
         const g = clamp(128 + (lum - 0.72) * strength, 0, 255);
         dat[o] = g; dat[o + 1] = g; dat[o + 2] = g; dat[o + 3] = 255;
       }
@@ -433,7 +433,7 @@
 
     /* ── 지역 색조 ── */
     (SK.MAPGEO.tints || []).forEach(([x, y, r, color, a]) => {
-      const aa = Math.min(0.32, a * 0.50);
+      const aa = Math.min(0.19, a * 0.34);
       const rg = g.createRadialGradient(x, y, r * 0.05, x, y, r);
       rg.addColorStop(0, rgba(color, aa));
       rg.addColorStop(0.45, rgba(color, aa * 0.75));
@@ -449,7 +449,7 @@
     if (reliefCanvas) {
       g.save();
       g.globalCompositeOperation = 'overlay';
-      g.globalAlpha = 0.70;
+      g.globalAlpha = 0.42;
       g.imageSmoothingEnabled = true;
       g.drawImage(reliefCanvas, 0, 0, MAPW, MAPH);
       g.restore();
