@@ -252,7 +252,7 @@
     });
   }
 
-  function passable(ch) { return ch !== 'C'; }
+  function passable(ch) { return ch !== 'C' && ch !== 'H'; }
   function findFree(tiles, cx, cy) {
     for (let r = 0; r < N; r++) {
       for (let dy = -r; dy <= r; dy++) {
@@ -316,7 +316,7 @@
       const a = B.units.filter((u) => u.side === 'ally');
       const cx = a.reduce((s2, u) => s2 + u.x, 0) / a.length;
       const cy = a.reduce((s2, u) => s2 + u.y, 0) / a.length;
-      const focus = { siege: [8.5, 10], fortress: [8, 11], naval: [9, 8.5], mountain: [8, 10] }[B.type] || [9, 9];
+      const focus = { siege: [8.5, 9.5], fortress: [8, 11], naval: [9, 8.5], mountain: [8, 10] }[B.type] || [9, 9];
       cam.s = clamp(stage.clientWidth / (12.5 * TILE), 0.44, 0.7);
       centerCam(focus[0], focus[1]);
     }
@@ -498,6 +498,231 @@
     raf = requestAnimationFrame(loop);
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.1 — 공성전 직교 맵: 배경 그림 없이 타일을 코드로 직접 그린다.
+     격자(TILE=64)와 1:1로 맞고, 한 번 그려 둔 레이어를 매 프레임 깔기만 한다.
+     ══════════════════════════════════════════════════════════════ */
+  const SIEGE_SCALE = 1.5; // 폰 메모리를 위해 레이어 해상도 상한
+
+  function siegeHash(x, y, k) {
+    let n = (Math.imul(x + 1, 374761393) + Math.imul(y + 1, 668265263) + Math.imul(k + 1, 1274126177)) | 0;
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return (((n ^ (n >>> 16)) >>> 0) % 10000) / 10000;
+  }
+
+  function buildSiegeLayer(tiles) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = Math.round(WORLD * SIEGE_SCALE);
+    const g = cv.getContext('2d');
+    g.scale(SIEGE_SCALE, SIEGE_SCALE);
+    const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 'P' : tiles[y][x]);
+    // 1) 바닥(잔디)을 전부 깔고 2) 지형별로 덧그린다
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) siegeGrass(g, x, y);
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = at(x, y);
+        const px = x * TILE, py = y * TILE;
+        g.save();
+        g.translate(px, py);
+        g.beginPath(); g.rect(0, 0, TILE, TILE); g.clip();
+        if (ch === 'R') siegeRoad(g, x, y, at);
+        else if (ch === 'D') siegeYard(g, x, y);
+        else if (ch === 'H') siegeRoof(g, x, y, at);
+        else if (ch === 'W') siegeWater(g, x, y, at);
+        else if (ch === 'S') siegeFord(g, x, y);
+        else if (ch === 'B') siegeBridge(g, x, y, at);
+        else if (ch === 'C' || ch === 'G') siegeWall(g, x, y, at);
+        else if (ch === 'F') siegeForest(g, x, y);
+        else if (ch === 'M') siegeMountain(g, x, y);
+        g.restore();
+      }
+    }
+    // 성문은 두 칸을 한 덩어리로 그려야 하므로 벽 위에 따로 얹는다
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (at(x, y) === 'G' && at(x - 1, y) !== 'G') {
+          const w = at(x + 1, y) === 'G' ? 2 : 1;
+          g.save(); g.translate(x * TILE, y * TILE); siegeGate(g, w); g.restore();
+        }
+      }
+    }
+    return cv;
+  }
+
+  function siegeGrass(g, x, y) {
+    const tone = ['#8c9c5c', '#879858', '#91a160'][Math.floor(siegeHash(x, y, 1) * 3)];
+    g.fillStyle = tone; g.fillRect(x * TILE, y * TILE, TILE, TILE);
+    g.strokeStyle = 'rgba(88,110,52,0.55)'; g.lineWidth = 1.4; g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const gx = x * TILE + 6 + siegeHash(x, y, 10 + i) * 52;
+      const gy = y * TILE + 8 + siegeHash(x, y, 20 + i) * 48;
+      g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx - 2, gy - 6); g.moveTo(gx, gy); g.lineTo(gx + 2.5, gy - 5); g.stroke();
+    }
+  }
+
+  function siegeRoad(g, x, y, at) {
+    const road = (c) => c === 'R' || c === 'B' || c === 'G';
+    g.fillStyle = '#c9aa6c'; g.fillRect(0, 0, TILE, TILE);
+    g.fillStyle = '#b8995d';
+    for (let i = 0; i < 5; i++) {
+      g.beginPath(); g.ellipse(6 + siegeHash(x, y, 30 + i) * 52, 6 + siegeHash(x, y, 40 + i) * 52, 3.2, 2, 0, 0, 6.283); g.fill();
+    }
+    g.fillStyle = '#a07f46';
+    if (!road(at(x - 1, y))) g.fillRect(0, 0, 5, TILE);
+    if (!road(at(x + 1, y))) g.fillRect(TILE - 5, 0, 5, TILE);
+  }
+
+  function siegeYard(g, x, y) {
+    g.fillStyle = '#cdb98f'; g.fillRect(0, 0, TILE, TILE);
+    g.strokeStyle = 'rgba(150,126,86,0.55)'; g.lineWidth = 1.2;
+    const off = (y % 2) * 16;
+    g.beginPath();
+    g.moveTo(0, 32); g.lineTo(TILE, 32);
+    g.moveTo(16 + off, 0); g.lineTo(16 + off, 32);
+    g.moveTo(48 - off, 32); g.lineTo(48 - off, TILE);
+    g.stroke();
+  }
+
+  function siegeRoof(g, x, y, at) {
+    siegeYard(g, x, y);
+    const up = at(x, y - 1) === 'H', down = at(x, y + 1) === 'H';
+    const left = at(x - 1, y) === 'H', right = at(x + 1, y) === 'H';
+    g.fillStyle = 'rgba(60,40,20,0.28)'; g.fillRect(left ? 0 : 3, 5, TILE - (left ? 0 : 3), TILE);
+    /* v5.1.1 — 아래 칸이 이어지는 지붕이면 타일 끝까지 채운다(바닥색 이음매 제거) */
+    g.fillStyle = '#7c3c2c'; g.fillRect(left ? 0 : 2, up ? 0 : 3, TILE - (left ? 0 : 2) - (right ? 0 : 2), TILE - (up ? 0 : 3) - (down ? 0 : 3));
+    g.strokeStyle = '#5e2b1f'; g.lineWidth = 1.5;
+    g.beginPath();
+    for (let i = 8; i < TILE; i += 8) { g.moveTo(i, up ? 0 : 3); g.lineTo(i, down ? TILE : TILE - 9); }
+    g.stroke();
+    if (!up) { g.fillStyle = '#a2603f'; g.fillRect(left ? 0 : 2, 3, TILE - (left ? 0 : 2) - (right ? 0 : 2), 9); }
+    if (!down) { g.fillStyle = '#3d1c14'; g.fillRect(left ? 0 : 2, TILE - 12, TILE - (left ? 0 : 2) - (right ? 0 : 2), 5); g.fillStyle = '#e6d8b0'; g.fillRect(left ? 0 : 2, TILE - 7, TILE - (left ? 0 : 2) - (right ? 0 : 2), 4); }
+    if (!up && !left) { g.fillStyle = '#d6b45a'; g.fillRect(2, 3, 5, 5); }
+    if (!up && !right) { g.fillStyle = '#d6b45a'; g.fillRect(TILE - 7, 3, 5, 5); }
+  }
+
+  function siegeWater(g, x, y, at) {
+    const wet = (c) => c === 'W' || c === 'S' || c === 'B';
+    g.fillStyle = '#3f7f9d'; g.fillRect(0, 0, TILE, TILE);
+    g.fillStyle = 'rgba(120,180,205,0.28)'; g.fillRect(0, 18, TILE, 26);
+    g.fillStyle = '#2d5f78';
+    if (!wet(at(x, y - 1))) g.fillRect(0, 0, TILE, 7);
+    if (!wet(at(x, y + 1))) g.fillRect(0, TILE - 7, TILE, 7);
+    if (!wet(at(x - 1, y))) g.fillRect(0, 0, 6, TILE);
+    if (!wet(at(x + 1, y))) g.fillRect(TILE - 6, 0, 6, TILE);
+  }
+
+  function siegeFord(g, x, y) {
+    g.fillStyle = '#7fb2b0'; g.fillRect(0, 0, TILE, TILE);
+    g.fillStyle = '#d8c690';
+    for (let i = 0; i < 9; i++) {
+      g.beginPath(); g.ellipse(6 + siegeHash(x, y, 50 + i) * 52, 6 + siegeHash(x, y, 60 + i) * 52, 4, 2.6, 0, 0, 6.283); g.fill();
+    }
+    g.fillStyle = '#9d9a86';
+    for (let i = 0; i < 3; i++) {
+      g.beginPath(); g.ellipse(10 + siegeHash(x, y, 70 + i) * 44, 10 + siegeHash(x, y, 80 + i) * 44, 5, 3.6, 0, 0, 6.283); g.fill();
+    }
+  }
+
+  function siegeBridge(g, x, y, at) {
+    siegeWater(g, x, y, at);
+    const left = at(x - 1, y) === 'B', right = at(x + 1, y) === 'B';
+    const x0 = left ? 0 : 5, x1 = right ? TILE : TILE - 5;
+    g.fillStyle = '#a06f3f'; g.fillRect(x0, 0, x1 - x0, TILE);
+    g.strokeStyle = '#6e4624'; g.lineWidth = 1.6;
+    g.beginPath();
+    for (let i = 0; i <= TILE; i += 8) { g.moveTo(x0, i); g.lineTo(x1, i); }
+    g.stroke();
+    g.fillStyle = '#5a381c';
+    if (!left) g.fillRect(x0, 0, 6, TILE);
+    if (!right) g.fillRect(x1 - 6, 0, 6, TILE);
+  }
+
+  function siegeWall(g, x, y, at) {
+    const wall = (c) => c === 'C' || c === 'G';
+    g.fillStyle = '#a39d8c'; g.fillRect(0, 0, TILE, TILE);
+    g.strokeStyle = '#7e786a'; g.lineWidth = 1.5;
+    g.beginPath();
+    for (let r = 0; r < 4; r++) {
+      const ry = 14 + r * 12.5;
+      g.moveTo(0, ry); g.lineTo(TILE, ry);
+      const sx = (r % 2 ? 11 : 27);
+      for (let bx = sx; bx < TILE; bx += 32) { g.moveTo(bx, ry); g.lineTo(bx, ry + 12.5); }
+    }
+    g.stroke();
+    if (!wall(at(x, y - 1))) {
+      g.fillStyle = '#8a8473'; g.fillRect(0, 0, TILE, 14);
+      g.fillStyle = '#cbc5b0'; g.strokeStyle = '#6f6958'; g.lineWidth = 1.5;
+      for (let m = 0; m < 3; m++) { g.fillRect(3 + m * 22, 0, 14, 13); g.strokeRect(3 + m * 22, 0, 14, 13); }
+    }
+    if (!wall(at(x, y + 1))) { g.fillStyle = 'rgba(40,36,28,0.45)'; g.fillRect(0, TILE - 7, TILE, 7); }
+  }
+
+  /* 성문: 한 칸 또는 두 칸 폭의 아치형 나무 문 */
+  function siegeGate(g, w) {
+    const W = TILE * w;
+    g.beginPath();
+    g.moveTo(8, TILE); g.lineTo(8, 40);
+    g.ellipse(W / 2, 40, W / 2 - 8, 34, 0, Math.PI, 2 * Math.PI);
+    g.lineTo(W - 8, TILE); g.closePath();
+    g.fillStyle = '#6b4423'; g.fill();
+    g.strokeStyle = '#2f2a22'; g.lineWidth = 3; g.stroke();
+    g.save(); g.clip();
+    g.strokeStyle = '#4a2d15'; g.lineWidth = 1.4;
+    g.beginPath();
+    for (let x = 8; x < W; x += 10) { g.moveTo(x, 0); g.lineTo(x, TILE); }
+    g.stroke();
+    g.strokeStyle = '#2f2a22'; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(0, 30); g.lineTo(W, 30); g.moveTo(0, 50); g.lineTo(W, 50); g.stroke();
+    g.fillStyle = '#d6b45a';
+    for (let x = 14; x < W; x += 20) { g.beginPath(); g.arc(x, 30, 2, 0, 6.283); g.arc(x, 50, 2, 0, 6.283); g.fill(); }
+    if (w === 2) { g.strokeStyle = '#2a1a0c'; g.lineWidth = 3; g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, TILE); g.stroke(); }
+    g.restore();
+  }
+
+  function siegeForest(g, x, y) {
+    const trees = [];
+    for (let i = 0; i < 3; i++) trees.push([12 + siegeHash(x, y, 90 + i) * 40, 20 + siegeHash(x, y, 100 + i) * 34, 13 + siegeHash(x, y, 110 + i) * 5]);
+    trees.sort((a, b) => a[1] - b[1]);
+    trees.forEach(([tx, ty, r]) => {
+      g.fillStyle = '#5a3d22'; g.fillRect(tx - 2.5, ty + r * 0.6, 5, 9);
+      g.fillStyle = '#34602e'; g.beginPath(); g.arc(tx, ty, r, 0, 6.283); g.fill();
+      g.fillStyle = '#4a7c3d'; g.beginPath(); g.arc(tx - 2, ty - 3, r * 0.72, 0, 6.283); g.fill();
+      g.fillStyle = '#62954a'; g.beginPath(); g.arc(tx - 4, ty - 6, r * 0.38, 0, 6.283); g.fill();
+      g.strokeStyle = 'rgba(30,50,26,0.8)'; g.lineWidth = 1.4; g.beginPath(); g.arc(tx, ty, r, 0, 6.283); g.stroke();
+    });
+  }
+
+  function siegeMountain(g, x, y) {
+    g.fillStyle = '#8d8573'; g.fillRect(0, 0, TILE, TILE);
+    const peaks = [[20 + siegeHash(x, y, 120) * 8, 34, 22], [44 + siegeHash(x, y, 121) * 6, 44, 18]];
+    peaks.forEach(([px, py, r], i) => {
+      const top = py - r - 6, base = py + 16;
+      g.fillStyle = '#7d7566'; g.beginPath(); g.moveTo(px - r - 4, base); g.lineTo(px, top); g.lineTo(px + r + 4, base); g.closePath(); g.fill();
+      g.fillStyle = '#a89f8a'; g.beginPath(); g.moveTo(px, top); g.lineTo(px + r + 4, base); g.lineTo(px + 3, base); g.closePath(); g.fill();
+      g.fillStyle = '#eee9dc'; g.beginPath(); g.moveTo(px, top); g.lineTo(px - 6, top + 9); g.lineTo(px + 6, top + 9); g.closePath(); g.fill();
+      g.strokeStyle = '#4f4938'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(px - r - 4, base); g.lineTo(px, top); g.lineTo(px + r + 4, base); g.stroke();
+    });
+  }
+
+  /* 해자 물결 — 정지한 레이어 위에 가벼운 반짝임만 매 프레임 그린다 */
+  function drawSiegeWater() {
+    const t = performance.now() / 1400;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(200,232,245,0.5)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (B.tiles[y][x] !== 'W') continue;
+        for (let i = 0; i < 2; i++) {
+          const ph = (t + siegeHash(x, y, 130 + i)) % 1;
+          const wx = x * TILE + 8 + ph * 36, wy = y * TILE + 22 + i * 22;
+          ctx.globalAlpha = Math.sin(ph * Math.PI);
+          ctx.beginPath(); ctx.moveTo(wx, wy); ctx.quadraticCurveTo(wx + 5, wy - 3, wx + 10, wy); ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
   function draw() {
     if (!ctx) return;
     const w = canvas.width / dpr, h = canvas.height / dpr;
@@ -515,9 +740,15 @@
     ctx.scale(cam.s, cam.s);
 
     // background
-    const bg = loadImg(`assets/maps/v2/battle_${B.def.map}.webp`);
-    if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
-    else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+    if (B.type === 'siege') {
+      if (!B.siegeLayer) B.siegeLayer = buildSiegeLayer(B.tiles);
+      ctx.drawImage(B.siegeLayer, 0, 0, WORLD, WORLD);
+      drawSiegeWater();
+    } else {
+      const bg = loadImg(`assets/maps/v2/battle_${B.def.map}.webp`);
+      if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
+      else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+    }
 
     drawTerrainTint();
     drawGrid();
@@ -545,6 +776,7 @@
   }
 
   function drawTerrainTint() {
+    if (B.type === 'siege') return; // v5.1 — 공성전은 buildSiegeLayer가 타일을 직접 그린다
     const t = B.tiles;
     for (let y = 0; y < N; y++) {
       for (let x = 0; x < N; x++) {
@@ -590,7 +822,7 @@
 
   function moveCost(cls, ch) {
     if (ch === 'W') return cls === 'sujeok' ? 1 : 99;
-    if (ch === 'C') return 99;
+    if (ch === 'C' || ch === 'H') return 99;
     if (ch === 'M') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 99 : 2);
     if (ch === 'F') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 3 : 2);
     if (ch === 'S') return 2;
