@@ -2823,6 +2823,12 @@
       return !best || d < best.d ? { t, d } : best;
     }, null).t;
     const rng = effRng(e);
+    /* v5.3 — 망루·본성에 선 수비 부대는 적이 사거리 밖이면 자리를 지켜 회복한다 */
+    const holdCh = B.tiles[e.y][e.x];
+    if (holdCh === 'T' || holdCh === 'K') {
+      const near = Math.min.apply(null, targets.map((t) => cheb(e.x, e.y, t.x, t.y)));
+      if (near > rng + 1) { e.acted = true; finishCheck(); done(); return; }
+    }
 
     /* v5.3 — 적도 책략을 판단해 쓴다 (회복·버프·디버프·공격 책략) */
     const sup = planSupportSkill(e);
