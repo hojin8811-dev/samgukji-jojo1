@@ -226,12 +226,22 @@
       roadPath.moveTo(ax, ay);
       roadPath.quadraticCurveTo(mx, my, bx, by);
     });
+    /* v5.6 — 해로는 바다 쪽으로 부풀린다. 두 후보 중 가운데가 물인 쪽을 고른다
+       (예전처럼 한쪽으로만 부풀리면 건업—광릉 배길이 하비 앞 육지를 가로질렀다). */
+    const isWater = (x, y) => (typeof SK.landAt === 'function' ? !SK.landAt(x, y) : false);
     SK.SEALANES.forEach(([a, b]) => {
       const A = city(a), B = city(b);
       if (!A || !B) return;
       const ax = A.u * MAPW, ay = A.v * MAPH, bx = B.u * MAPW, by = B.v * MAPH;
-      const mx = (ax + bx) / 2 + (by - ay) * 0.2;
-      const my = (ay + by) / 2 + (bx - ax) * 0.2;
+      const dx = bx - ax, dy = by - ay;
+      const cands = [
+        [(ax + bx) / 2 + dy * 0.2, (ay + by) / 2 - dx * 0.2],
+        [(ax + bx) / 2 - dy * 0.2, (ay + by) / 2 + dx * 0.2],
+      ];
+      let mx = cands[0][0], my = cands[0][1];
+      if (isWater(cands[1][0], cands[1][1]) && !isWater(cands[0][0], cands[0][1])) {
+        mx = cands[1][0]; my = cands[1][1];
+      }
       seaPath.moveTo(ax, ay);
       seaPath.quadraticCurveTo(mx, my, bx, by);
     });
