@@ -2709,7 +2709,7 @@
     } },
     talent: { name: '인재', run(cityId, actor) {
       const s = SK.state;
-      if (cityGens(cityId).length >= 10) return fail('이 성에는 더 이상 장수를 둘 수 없습니다.');
+      if (cityGens(cityId).length >= 99) return fail('이 성에는 더 이상 장수를 둘 수 없습니다.');
       if (!tavernPool(cityId).length) return fail('주점에 소문난 인재가 없습니다. 다른 성의 주점을 찾아보세요.');
       openTavern(cityId, actor);
       return { pending: true };
