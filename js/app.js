@@ -4273,7 +4273,8 @@
       return `<div class="reward-row">
         <img src="${SK.ptSrc(h.portrait)}" alt="">
         <div class="rw-main"><b>${h.name} <em class="loyal-chip ${chip}">충성 ${l}</em></b>
-          <span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}${l < 40 ? ' · 마음이 흔들립니다 — 이간·회유에 넘어가기 쉽습니다' : l < 70 ? ' · 아직 마음을 다하지 않았습니다' : ' · 충심이 굳습니다'}</span></div>
+          <span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span>
+          <em class="rw-note ${chip}">${l < 40 ? '마음이 흔들림 · 이간에 약함' : l < 70 ? '아직 마음이 반즐' : '충심이 굳음'}</em></div>
         <button data-gold="${h.uid}" ${s.gold < 100 || l >= 100 ? 'disabled' : ''}>금 100 +${gain}</button>
         <button class="gift" data-gift="${h.uid}" ${inv.length && l < 100 ? '' : 'disabled'}>보물 +15</button>
       </div>`;
@@ -4368,7 +4369,7 @@
             ${mode === 'buy' ? '금 ' + fmt(v) : '쌀 ' + fmt(qty)}<small>${mode === 'buy' ? '→ 쌀 ' + fmt(qty) : '→ 금 ' + fmt(v)}</small></button>`;
         }).join('')}</div>
         <p class="talent-note">
-          ${mode === 'buy' ? '금으로 군량을 삽니다 — 10월 수확 뒤(11~12월)가 가장 쌈니다.' : '군량을 팔아 금으로 바꿉니다 — 쌀이 귀한 봄에 팔면 이득입니다.'}
+          ${mode === 'buy' ? '금으로 군량을 삽니다 — 10월 수확 뒤(10~11월)가 가장 쌈니다.' : '군량을 팔아 금으로 바꿉니다 — 쌀이 귀한 봄(3~5월)에 팔면 이득입니다.'}
           시세는 매달 바뀌고, 금 100당 쌀 80~160 사이를 오갑니다.
         </p>`;
       box.querySelectorAll('[data-m]').forEach((b) => { b.onclick = () => { mode = b.dataset.m; render(); }; });
