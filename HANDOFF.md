@@ -1,7 +1,7 @@
-# 인수인계서 — 《꼬마영웅 천하통일》
+# 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.11** 풀코스 업데이트·공성/수성 맵 통일·성별 금고·세이브 5슬롯 · 2026-11-21 · 라이브 `?v=25`
+> 기준: **v5.12** 코믹·올스타 리브랜딩·개그 한마디·내정 확장 · 2026-11-21 · 라이브 `?v=26`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,23 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=25`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=26`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 내정·전장 기반(v5.5~v5.10) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 AI 방어·후퇴 판단과 포로 몸값 거래 |
 
 ---
+
+## 0.1 v5.12에서 바뀐 것 — 코믹·올스타 리브랜딩 (2026-11-21)
+
+- **이름**: 《꼬마영웅 대난투》. `<title>`·표지 로고·kicker·sub까지 통일. 표지 배경(`assets/title_bg.webp`)에는 글자가 없어 그림은 그대로 씁니다.
+- **시나리오**: `data/historical_scenarios.json`의 `title`·`subtitle`·`historyNote`·`timelineEvents`가 코믹 톤. 판도는 건드리지 않았습니다. `data/scenarios.json`은 옛 파일(미사용).
+- **날짜**: `SK.dateLabel()`이 `N년차 M월`을 돌려줍니다(세이브의 `eraYear - (year-1)`로 기준 연도 계산, 마이그레이션 불필요). 시나리오 뱃지는 `app.js` `SC_ACT`(1~4막).
+- **개그**: `data/hero_gags.json` → `SK.setGags`/`SK.gagOf(name, cls, tier)`. 이름 전용 우선, 없으면 병종 → 등급 폴백(이름 해시로 고정 선택).
+- **징병·훈련**: `doCommand('recruit'/'train')`이 `openRecruit`/`openTrain`으로 분기. `CMDS.recruit/train.run`은 그대로 쓰고 `finishAction`이 행동·EXP·공훈을 정산합니다.
+- **탐색**: `explore()` 앞단에 실패 판정(`fail: true`, 호출부는 EXP 10). 보상은 40~45%로 하향.
+- **대상인**: `cs.grandMerchant`(남은 달)·`cs.gmStock`(보물 id). `advanceMonth`에서 18% 확률 방문, `openRiceTrader`가 특가·보물 판매.
+- **건물 2명**: `slot.uid`(주담당) + `slot.deputy`(부장). `slotMul`이 부장 시 ×1.45(상한 190%), `runSlots`가 부장 EXP·공훈, `applyDuty`가 부장도 행동 소모. **`autoAssignDuty`는 주담당만 채웁니다**(사용자 지시).
 
 ## 0.1 v5.11에서 바뀐 것 — 풀코스·공성 맵·성별 금고·세이브 5 (2026-11-21)
 

@@ -963,9 +963,12 @@ b { font-weight: 700; }
 .gen-pick.refuse .gp-cost { color: #a8443a; }
 .gen-pick.refuse .tier { filter: grayscale(0.7); }
 
-.battle-feed { position: absolute; left: 8px; top: 40px; z-index: 3; display: flex; flex-direction: column; gap: 3px; max-width: 72%; pointer-events: none; }
+/* v5.12 — 상단 중앙 '성문 1/3' 알약과 겹치지 않게 피드 띠를 HUD 아래로 내리고 폭을 좁혔다.
+   (3중 성벽에서도 인연·숙적 알림이 성문 알약을 가리지 않는다) */
+.battle-feed { position: absolute; left: 8px; top: 56px; z-index: 3; display: flex; flex-direction: column; gap: 3px; max-width: min(62%, 228px); pointer-events: none; }
 .feed-pill { font-size: 9px; line-height: 1.3; color: #f4e6c6; background: rgba(36, 29, 16, 0.82);
   border: 1px solid rgba(227, 189, 99, 0.35); border-left: 2px solid #e3bd63; border-radius: 6px; padding: 3px 7px;
+  word-break: keep-all; overflow-wrap: anywhere;
   opacity: 0; transform: translateX(-8px); transition: opacity 0.2s, transform 0.2s; }
 .feed-pill.in { opacity: 1; transform: none; }
 .feed-pill.rival { border-left-color: #d0503c; color: #ffd9cd; }
@@ -3166,3 +3169,77 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .escort-row .ev-chip em { font-size: 7.5px; color: #8a7448; font-style: normal; }
 .escort-row .ev-chip.on { border-color: #3f6fb5; background: #eaf1fb; box-shadow: 0 0 0 1px rgba(63,111,181,.3); }
 .escort-row .ev-duty { font-size: 7px; color: #a8443a; font-style: normal; }
+
+/* ═══════════════ v5.12 · 꼬마영웅 개그 한마디 (장수 상세 상단 말풍선) ═══════════════ */
+.hi-gag {
+  position: relative; margin: 0 0 9px; padding: 7px 11px 8px;
+  border-radius: 14px 14px 14px 4px;
+  border: 1.5px solid #d9a86a;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.75), transparent 58%),
+    linear-gradient(168deg, #fff6df 0%, #fdecc9 58%, #f6dfae 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 235, 0.75), 0 2px 7px rgba(120, 78, 24, 0.18);
+}
+.hi-gag::after {
+  content: ''; position: absolute; left: 20px; bottom: -7px; width: 12px; height: 12px;
+  background: #f6dfae; border-right: 1.5px solid #d9a86a; border-bottom: 1.5px solid #d9a86a;
+  transform: rotate(45deg) skew(6deg, 6deg);
+}
+.gg-tag {
+  display: inline-block; margin-bottom: 3px; padding: 1px 7px; border-radius: 9px;
+  font-size: 8px; font-weight: 900; letter-spacing: 0.04em; color: #fff5dd;
+  background: linear-gradient(180deg, #c9803a, #a45c22); border: 1px solid #ecc88a;
+  box-shadow: 0 1px 2px rgba(90, 50, 10, 0.3);
+}
+.gg-line {
+  margin: 0; font-family: var(--serif); font-size: 12.5px; line-height: 1.42;
+  color: #4a3212; letter-spacing: -0.01em; word-break: keep-all;
+}
+/* 시나리오 배너 — 막(幕) 뱃지와 한 줄 부제 */
+.scbn-year {
+  min-width: 58px; height: 27px; padding: 0 10px; border-radius: 14px;
+  font-size: 13.5px; letter-spacing: 0.06em;
+}
+.scbn-sub {
+  font-size: 9.5px; font-weight: 800; line-height: 1.32; color: #8a5a24;
+  letter-spacing: -0.02em; word-break: keep-all; max-width: 100%;
+}
+
+/* ═══════════════ v5.12 · 대상인(상단 상인 칩 · 특가 보물) ═══════════════ */
+.merchant-chip {
+  font-size: 9px; font-weight: 800; letter-spacing: -0.02em; color: #6b3f10;
+  background: linear-gradient(180deg, #ffeec4, #e7c987); border: 1px solid #b8862f;
+  border-radius: 9px; padding: 1px 7px; white-space: nowrap;
+}
+.merchant-chip[hidden] { display: none !important; }
+.gm-banner {
+  margin: 0 0 8px; padding: 8px 10px; border-radius: 10px;
+  border: 1.5px solid #d9a86a; background: linear-gradient(120deg, #fff4d8, #f7e2b4);
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 235, 0.7);
+}
+.gm-banner b { display: block; font-family: var(--serif); font-size: 12.5px; color: #7a4a12; }
+.gm-banner span { display: block; margin-top: 2px; font-size: 9.5px; line-height: 1.4; color: #8a5f2a; }
+.gm-shop { margin: 8px 0 2px; }
+.gm-shop-title { margin: 0 0 4px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: #8a7448; }
+.gm-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; margin-bottom: 4px;
+  border-radius: 9px; border: 1px solid #d9c396; background: rgba(255, 252, 242, 0.85);
+  text-align: left;
+}
+.gm-item .gmi-g { flex: 0 0 auto; font-size: 8px; font-weight: 900; color: #fff8e8; border-radius: 8px;
+  padding: 2px 6px; background: var(--gc, #a8443a); }
+.gm-item div { flex: 1; min-width: 0; }
+.gm-item b { display: block; font-size: 11.5px; color: #3a2c10; }
+.gm-item span { display: block; font-size: 8.5px; color: #8a7448; line-height: 1.35; }
+.gm-item em { flex: 0 0 auto; font-style: normal; font-size: 10px; font-weight: 800; color: #a45c22; }
+.gm-item[disabled] { opacity: 0.45; }
+
+/* ═══════════════ v5.12 · 건물 주담당 + 부장(2명) 표시 ═══════════════ */
+.sc-owner .sc-dep { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.sc-owner .sc-dep-empty { font-size: 7px; color: #b3a27e; font-style: normal; }
+.sc-owner.pair { gap: 2px 5px; flex-wrap: wrap; }
+.sd-owner.dep { margin-top: -4px; background: linear-gradient(180deg, #fdf5e6, #efe0c2); }
+.sd-oname b .sd-role {
+  font-style: normal; font-size: 8px; font-weight: 900; color: #fff5dd; background: #7d6a3c;
+  border-radius: 6px; padding: 0 5px; margin-left: 4px; vertical-align: 1px;
+}

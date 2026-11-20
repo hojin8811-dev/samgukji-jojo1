@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   꼬마영웅 천하통일 — 데이터 (지형·병과·장수·76거점·전장)
+   꼬마영웅 대난투 — 데이터 (지형·병과·장수·80거점·전장)
    ══════════════════════════════════════════════════════════════ */
 'use strict';
 window.SK = window.SK || {};
@@ -1060,6 +1060,36 @@ SK.ageOf = function (g, year) {
   return Math.max(18, age);
 };
 
+/* ───────────── v5.12 꼬마영웅 개그 한마디 (data/hero_gags.json) ─────────────
+   장수 상세창에서 딱딱한 열전 대신 보여 주는 한줄 대사.
+   이름 전용(named) → 병종(classes) → 등급(tiers) → 기본 순서로 고른다. */
+SK.GAGS = { named: {}, classes: {}, tiers: {} };
+SK.setGags = function (d) {
+  const src = d || {};
+  SK.GAGS = {
+    named: src.named || {},
+    classes: src.classes || {},
+    tiers: src.tiers || {},
+  };
+};
+SK.gagOf = function (name, cls, tier) {
+  const G = SK.GAGS || {};
+  const named = (G.named || {})[name];
+  if (named) return named;
+  /* 이름이 정해진 대사가 없으면 병종 특성 대사에서 이름별로 늘 같은 줄을 고른다 */
+  const pick = (arr) => {
+    if (!arr || !arr.length) return '';
+    let h = 0;
+    const s = String(name || '') + String(cls || '');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973;
+    return arr[h % arr.length];
+  };
+  const byCls = pick((G.classes || {})[cls]);
+  if (byCls) return byCls;
+  const byTier = pick((G.tiers || {})[tier || 'default']) || pick((G.tiers || {}).default);
+  return byTier || '오늘도 성 지키느라 바쁘다 바빠!';
+};
+
 /* 시나리오 데이터에만 있는 인물을 장수 목록에 더한다 */
 SK.registerExtras = function () {
   const base = 90000;
@@ -1701,6 +1731,13 @@ SK.monthName = function (idx) {
   const i = ((Number(idx) || 0) % 12 + 12) % 12;
   return SK.MONTH_NAMES[i];
 };
-SK.dateLabel = function (year, monthIdx) {
-  return `${Number(year)}년 ${SK.monthName(monthIdx)}`;
+/* v5.12 — 역사 연도 대신 '판을 시작한 해'부터 세는 N년차 표기를 쓴다.
+   (190년·208년 같은 정사 연도를 화면에서 걷어 내고 시공초월 난투 톤으로) */
+SK.dateLabel = function (year, monthIdx, st) {
+  const s = st || SK.state;
+  const y = Number(year) || 0;
+  let base = s ? Number(s.eraBase || 0) : 0;
+  if (!base && s && s.eraYear) base = Number(s.eraYear) - (Number(s.year || 1) - 1);
+  const rel = base ? Math.max(1, y - base + 1) : 0;
+  return rel ? `${rel}년차 ${SK.monthName(monthIdx)}` : `${y}년차 ${SK.monthName(monthIdx)}`;
 };
