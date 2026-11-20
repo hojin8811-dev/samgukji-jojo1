@@ -669,7 +669,7 @@
   };
 
   /* ───────────── 화면 전환 ───────────── */
-  const SCREENS = ['screen-title', 'screen-map', 'screen-city', 'screen-battle'];
+  const SCREENS = ['screen-title', 'screen-scenario', 'screen-map', 'screen-city', 'screen-battle'];
   let lastTheme = null;
   function bgm(theme) {
     if (!window.JojoBGM || lastTheme === theme) return;
@@ -897,32 +897,40 @@
     </button>`;
   }
 
+  /* v16 — 시나리오 선택은 모달 대신 전용 화면(#screen-scenario)에 도안 A 배너로 그린다 */
+  const SC_BADGE = { 190: '#7a2b26', 200: '#2b3f6b', 208: '#8a2f24', 220: '#4b2f6b' };
+  function scenarioLine(sc) {
+    const facs = sc.factions || [];
+    const names = facs.slice(0, 3).map((f) => String(f.name || '').replace(/군$/, '')).filter(Boolean);
+    return `${facs.length}개 세력 · ${names.join('·')}${facs.length > 3 ? '\u00A0외' : ''}`;
+  }
+
   function openScenarioPicker() {
     if (!SK.HIST.length) { beginScenario(null, null); return; }
-    const cards = SK.HIST.map((sc) => {
-      const facs = sc.factions || [];
-      return `<button class="sc-card" data-sc="${sc.id}">
-        <span class="sc-year">${sc.year}</span>
-        <div class="sc-main"><b>${sc.title}</b><p>${(sc.historyNote || '').slice(0, 64)}…</p>
-          <span class="sc-line">${facs.length}개 세력 · ${facs.slice(0, 5).map((f) => f.name).join(' · ')}${facs.length > 5 ? ' 외' : ''}</span></div>
-      </button>`;
-    }).join('');
-    const m = SK.modal({
-      kicker: '새로 시작',
-      title: '어느 난세를 살아갈까',
-      body: `<p class="talent-note">역사 시나리오를 고르면, 다음 화면에서 원하는 세력을 직접 선택할 수 있습니다.</p><div class="sc-list">${cards}</div>`,
-      wide: true,
-      actions: [{ label: '취소' }],
-      dismissible: true,
-    });
-    m.el.querySelectorAll('.sc-card').forEach((b) => {
-      b.onclick = () => {
-        const sc = SK.HIST.find((x) => Number(x.id) === Number(b.dataset.sc));
-        m.close();
-        if (sc) openFactionPicker(sc);
-      };
-    });
+    const list = $('#scenario-list');
+    if (list) {
+      list.innerHTML = SK.HIST.map((sc) => `<button class="scbn" data-sc="${sc.id}" style="--ac:${SC_BADGE[sc.year] || '#7a2b26'}">
+        <span class="scbn-art"><img src="assets/scenarios/scen_${sc.year}.webp" alt="" /></span>
+        <span class="scbn-body">
+          <span class="scbn-year">${sc.year}</span>
+          <span class="scbn-name">${sc.title}</span>
+          <span class="scbn-meta">${scenarioLine(sc)}</span>
+        </span>
+        <span class="scbn-go" aria-hidden="true">›</span>
+      </button>`).join('');
+      list.scrollTop = 0;
+      list.querySelectorAll('.scbn').forEach((b) => {
+        b.onclick = () => {
+          const sc = SK.HIST.find((x) => Number(x.id) === Number(b.dataset.sc));
+          if (sc) openFactionPicker(sc);
+        };
+      });
+    }
+    SK.show('screen-scenario');
+    const back = $('#btn-scenario-back');
+    if (back) back.onclick = () => { if (SK.state) SK.showMap(); else SK.show('screen-title'); };
   }
+  SK.openScenarioPicker = openScenarioPicker;
 
   function openFactionPicker(sc) {
     const res = SK.resolveScenario(sc);

@@ -1571,3 +1571,156 @@ b { font-weight: 700; }
   vertical-align: 1px;
 }
 .battle-objective.gate { color: #ffe1a4; border-color: rgba(255, 190, 90, 0.8); }
+
+/* ═══════════════ v16 · 시나리오 선택 화면 (도안 A) ═══════════════ */
+/* 어두운 먹·나무 결 바탕 위에 금테 가로 배너 4장. 왼쪽은 수채화 일러스트,
+   오른쪽은 양피지로 녹아들며 연도 뱃지·제목·요약이 올라간다. */
+#screen-scenario {
+  background:
+    radial-gradient(ellipse 82% 46% at 50% -6%, rgba(150, 106, 46, 0.42), transparent 68%),
+    radial-gradient(ellipse 70% 40% at 50% 104%, rgba(122, 64, 24, 0.26), transparent 72%),
+    repeating-linear-gradient(94deg, rgba(255, 222, 162, 0.035) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(88deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 15px),
+    linear-gradient(180deg, #2a1e11 0%, #1b1209 46%, #231708 76%, #150e07 100%);
+  color: var(--paper);
+  overflow: hidden;
+}
+#screen-scenario::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 214, 138, 0.16), transparent 42%),
+    radial-gradient(ellipse 100% 70% at 50% 50%, transparent 48%, rgba(8, 5, 2, 0.62) 100%);
+}
+#screen-scenario > * { position: relative; z-index: 1; }
+
+.sc-top {
+  display: grid; grid-template-columns: 44px 1fr 44px; align-items: start;
+  padding: calc(10px + env(safe-area-inset-top)) 14px 4px;
+}
+.sc-back {
+  width: 40px; height: 40px; margin-top: 4px; border-radius: 50%;
+  border: 2px solid #b08b3f; color: #f0d69c; font-size: 20px; line-height: 1;
+  background: radial-gradient(circle at 50% 32%, #55401f, #2a1d0e 72%);
+  box-shadow: inset 0 0 0 1px rgba(255, 232, 176, 0.28), 0 3px 9px rgba(0, 0, 0, 0.5);
+  display: grid; place-items: center;
+}
+.sc-back svg { width: 21px; height: 21px; display: block; }
+.sc-back:active { transform: translateY(1px); filter: brightness(1.15); }
+.sc-heading { text-align: center; padding-top: 2px; }
+.sc-title {
+  margin: 0; font-family: var(--serif); font-weight: 900;
+  font-size: clamp(21px, 6.2vw, 27px); line-height: 1.18; letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #fff6da 6%, #f0d494 42%, #c19a4a 92%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(60, 34, 8, 0.85)) drop-shadow(0 0 12px rgba(255, 206, 120, 0.35));
+}
+.sc-flourish {
+  display: block; width: 128px; height: 9px; margin: 7px auto 0; position: relative;
+  background: linear-gradient(90deg, transparent, rgba(206, 166, 84, 0.7) 50%, transparent);
+}
+.sc-flourish::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: #dcb75e; box-shadow: 0 0 6px rgba(255, 214, 128, 0.7);
+}
+
+.sc-banners {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+  padding: 8px 14px 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+}
+.scbn {
+  position: relative; flex: 1 1 0; min-height: 122px; width: 100%; padding: 0;
+  text-align: left; overflow: hidden; border-radius: 7px;
+  border: 1.5px solid #b3903f;
+  background:
+    radial-gradient(circle at 86% 10%, rgba(255, 252, 240, 0.62), transparent 46%),
+    radial-gradient(ellipse 24% 40% at 74% 88%, rgba(158, 120, 62, 0.13), transparent 70%),
+    radial-gradient(ellipse 30% 34% at 96% 44%, rgba(158, 120, 62, 0.1), transparent 72%),
+    repeating-linear-gradient(0deg, rgba(120, 94, 48, 0.028) 0 1px, transparent 1px 3px),
+    linear-gradient(100deg, #e6d2a8 0%, #f3e5c4 44%, #f6ead0 68%, #ead9b4 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 243, 208, 0.55),
+    inset 0 0 18px rgba(126, 90, 36, 0.2),
+    0 1px 0 rgba(255, 226, 160, 0.2), 0 6px 14px rgba(0, 0, 0, 0.46);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.scbn::after {
+  content: ''; position: absolute; inset: 3px; border-radius: 4px; pointer-events: none;
+  border: 1px solid rgba(150, 112, 46, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 246, 218, 0.35);
+}
+/* 네 모서리 금빛 장식 (ㄱ자 괄호) */
+.scbn::before {
+  content: ''; position: absolute; inset: 6px; pointer-events: none; z-index: 2; opacity: 0.8;
+  background:
+    linear-gradient(#c49d48, #c49d48) 0 0 / 14px 1.5px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 0 0 / 1.5px 14px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 100% 0 / 14px 1.5px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 100% 0 / 1.5px 14px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 0 100% / 14px 1.5px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 0 100% / 1.5px 14px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 100% 100% / 14px 1.5px no-repeat,
+    linear-gradient(#c49d48, #c49d48) 100% 100% / 1.5px 14px no-repeat;
+}
+.scbn:active { transform: scale(0.994); filter: brightness(1.04); }
+
+.scbn-art { position: absolute; inset: 0; display: block; }
+.scbn-art img {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: 16% 50%;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 36%, rgba(0, 0, 0, 0.9) 48%, rgba(0, 0, 0, 0.35) 62%, transparent 72%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 36%, rgba(0, 0, 0, 0.9) 48%, rgba(0, 0, 0, 0.35) 62%, transparent 72%);
+}
+.scbn-body {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 40%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; padding: 6px 20px 6px 4px; text-align: center;
+}
+.scbn-year {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 74px; height: 40px; padding: 0 12px; border-radius: 50%;
+  font-family: var(--serif); font-weight: 900; font-size: 23px; letter-spacing: 0.03em;
+  color: #f6dc98; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 8px rgba(255, 214, 130, 0.35);
+  background-color: var(--ac, #7a2b26);
+  background-image:
+    radial-gradient(ellipse 70% 62% at 50% 24%, rgba(255, 255, 255, 0.24), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.34) 100%);
+  border: 2px solid #d3ac56;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 232, 168, 0.45),
+    inset 0 -4px 9px rgba(0, 0, 0, 0.35),
+    0 2px 6px rgba(60, 34, 8, 0.42);
+}
+.scbn-name {
+  font-family: var(--serif); font-weight: 900; font-size: clamp(14px, 4.4vw, 18px);
+  line-height: 1.24; letter-spacing: -0.01em; color: #2c1d0c;
+  text-shadow: 0 1px 0 rgba(255, 248, 228, 0.72);
+  word-break: keep-all;
+}
+.scbn-meta {
+  font-size: 8.5px; font-weight: 700; line-height: 1.35; color: #8a6a32;
+  letter-spacing: -0.02em; max-width: 100%;
+}
+.scbn-go {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  font-family: var(--serif); font-size: 22px; font-weight: 900; line-height: 1; color: #8a6626;
+  text-shadow: 0 1px 0 rgba(255, 248, 228, 0.85);
+}
+.sc-foot {
+  margin: 0; padding: 6px 14px calc(9px + env(safe-area-inset-bottom));
+  text-align: center; font-size: 10px; color: #c4a877; letter-spacing: -0.01em;
+}
+.sc-foot-ic { color: #dcb75e; margin-right: 3px; }
+
+@media (min-width: 620px) {
+  .sc-top, .sc-banners, .sc-foot { width: 100%; max-width: 480px; margin-left: auto; margin-right: auto; }
+}
+
+@media (max-height: 720px) {
+  .scbn { min-height: 112px; }
+  .scbn-year { min-width: 64px; height: 34px; font-size: 20px; }
+  .scbn-name { font-size: 15px; }
+  .scbn-body { width: 42%; padding-right: 17px; }
+  .scbn-meta { font-size: 8px; }
+  .sc-title { font-size: 21px; }
+  .sc-flourish { margin-top: 4px; }
+}
