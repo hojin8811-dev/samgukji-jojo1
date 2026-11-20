@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=13" />
+<link rel="stylesheet" href="css/game.css?v=14" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -61,19 +61,24 @@
 
   <!-- ═══════════ 표지 ═══════════ -->
   <section id="screen-title" class="screen active">
-    <div class="title-art"><img src="assets/maps/v2/terrain.webp" alt="" /></div>
+    <div class="title-art">
+      <img src="assets/title_bg.webp" alt="" />
+      <span class="title-floor"></span>
+    </div>
     <div class="title-veil"></div>
     <div class="title-inner">
-      <div class="title-seal">위</div>
-      <p class="title-kicker">삼국지 · 한국 영웅 · 천하통일</p>
-      <h1 class="title-logo">꼬마영웅 <span>천하통일</span></h1>
-      <p class="title-sub">전국을 누비고, 성을 다스리고, 전장을 지휘하라</p>
-      <div class="title-hero"><img id="title-lord" src="assets/portraits/v2/caocao.webp" alt="조조" /></div>
-      <div class="title-actions">
-        <button id="btn-start" class="btn-primary">새로 시작</button>
-        <button id="btn-continue" class="btn-ghost" hidden>이어하기</button>
+      <div class="title-head">
+        <p class="title-kicker">삼국지 · 한국 영웅 · 천하통일</p>
+        <h1 class="title-logo">꼬마영웅 <span>천하통일</span></h1>
+        <p class="title-sub">전국을 누비고, 성을 다스리고, 전장을 지휘하라</p>
       </div>
-      <p class="title-foot">77개 거점 · 18 병과 · 585 장수 · 18×18 전장</p>
+      <div class="title-bottom">
+        <div class="title-actions">
+          <button id="btn-start" class="btn btn-primary">새로 시작</button>
+          <button id="btn-continue" class="btn btn-ghost" hidden>이어하기</button>
+        </div>
+        <p class="title-foot">77개 거점 · 18 병과 · 585 장수 · 18×18 전장</p>
+      </div>
     </div>
   </section>
 
@@ -250,13 +255,13 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=13"></script>
-<script src="js/city_geo.js?v=13"></script>
-<script src="js/data.js?v=13"></script>
-<script src="js/bgm.js?v=13"></script>
-<script src="js/sfx.js?v=13"></script>
-<script src="js/app.js?v=13"></script>
-<script src="js/map.js?v=13"></script>
-<script src="js/battle.js?v=13"></script>
+<script src="js/mapgeo.js?v=14"></script>
+<script src="js/city_geo.js?v=14"></script>
+<script src="js/data.js?v=14"></script>
+<script src="js/bgm.js?v=14"></script>
+<script src="js/sfx.js?v=14"></script>
+<script src="js/app.js?v=14"></script>
+<script src="js/map.js?v=14"></script>
+<script src="js/battle.js?v=14"></script>
 </body>
 </html>

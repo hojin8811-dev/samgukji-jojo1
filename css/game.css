@@ -70,41 +70,57 @@ b { font-weight: 700; }
 .round-btn.small { width: 34px; height: 34px; font-size: 14px; }
 
 /* ═══════════════ 표지 ═══════════════ */
-#screen-title { background: #201a0e; }
-.title-art { position: absolute; inset: 0; }
-.title-art img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.15) brightness(1.02); transform: scale(1.06); }
+/* v14 — 표지 일러스트(title_bg.webp): 가로를 꽉 채워 네 영웅이 잘리지 않게 하고,
+   아래 돌바닥은 어두운 띠로 이어 버튼 자리를 만든다. */
+#screen-title { background: #090c11; }
+.title-art { position: absolute; inset: 0 0 auto 0; line-height: 0; }
+.title-art img { display: block; width: 100%; height: auto; }
+.title-floor {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 15%;
+  background: linear-gradient(180deg, rgba(9, 12, 17, 0) 0%, rgba(9, 12, 17, 0.55) 42%, rgba(9, 12, 17, 0.92) 78%, #090c11 100%);
+}
 .title-veil {
-  position: absolute; inset: 0;
+  position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(circle at 50% 38%, rgba(255, 244, 213, 0.06), transparent 48%),
-    linear-gradient(180deg, rgba(32, 25, 12, 0.42) 0%, rgba(32, 25, 12, 0.18) 32%, rgba(28, 22, 10, 0.82) 100%);
+    radial-gradient(ellipse 78% 34% at 50% 15%, rgba(255, 249, 228, 0.5), rgba(255, 245, 218, 0.16) 55%, transparent 78%),
+    linear-gradient(180deg, rgba(58, 34, 8, 0.2) 0%, rgba(58, 34, 8, 0.04) 16%, transparent 30%);
 }
 .title-inner {
   position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; padding: 34px 26px 40px; text-align: center;
+  align-items: center; justify-content: space-between; text-align: center;
+  padding: calc(42px + env(safe-area-inset-top)) 24px calc(18px + env(safe-area-inset-bottom));
 }
 #icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
-.title-seal {
-  width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center;
-  font-family: var(--serif); font-size: 24px; color: #f8e8c2; background: #a8443a;
-  border: 2px solid #e8cf94; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+.title-head { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.title-kicker {
+  margin: 0 0 10px; color: #4a3210; font-size: 12px; font-weight: 700; letter-spacing: 0.34em;
+  text-shadow: 0 1px 2px rgba(255, 250, 232, 0.9), 0 0 12px rgba(255, 244, 210, 0.65);
 }
-.title-kicker { color: #e8d5a8; font-size: 12px; letter-spacing: 0.32em; margin: 14px 0 6px; }
 .title-logo {
-  font-family: var(--serif); font-weight: 900; font-size: 42px; line-height: 1.1; margin: 0;
-  color: #fbf0d4; text-shadow: 0 2px 0 #5c4318, 0 10px 28px rgba(0, 0, 0, 0.65); letter-spacing: 0.06em;
+  font-family: var(--serif); font-weight: 900; font-size: 46px; line-height: 1.12; margin: 0;
+  letter-spacing: 0.05em; color: #24180a;
+  text-shadow: 0 1px 0 rgba(255, 252, 242, 0.55), 0 3px 10px rgba(120, 72, 16, 0.35), 0 0 22px rgba(255, 240, 200, 0.8);
 }
-.title-logo span { display: block; font-size: 30px; color: var(--gold-l); margin-top: 4px; letter-spacing: 0.22em; }
-.title-sub { color: #e0cfa6; font-size: 13px; margin: 12px 0 0; letter-spacing: 0.02em; }
-.title-hero {
-  width: 150px; height: 150px; border-radius: 50%; overflow: hidden; margin: 22px 0 18px;
-  border: 2px solid rgba(227, 189, 99, 0.75);
-  box-shadow: 0 0 0 6px rgba(30, 24, 12, 0.3), 0 12px 32px rgba(0, 0, 0, 0.5);
+.title-logo span {
+  display: block; font-size: 32px; letter-spacing: 0.24em; margin-top: 5px;
+  color: #7d3517;
+  text-shadow: 0 1px 0 rgba(255, 246, 222, 0.6), 0 3px 12px rgba(110, 50, 12, 0.3), 0 0 20px rgba(255, 236, 196, 0.75);
 }
-.title-hero img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
-.title-actions { display: flex; flex-direction: column; gap: 10px; width: min(300px, 82%); }
-.title-actions .btn-primary { padding: 15px; font-size: 17px; }
-.title-foot { color: #b9a780; font-size: 11px; letter-spacing: 0.08em; margin-top: 20px; }
+.title-sub {
+  margin: 12px 0 0; color: #402a10; font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(255, 250, 236, 0.88), 0 0 10px rgba(255, 246, 216, 0.6);
+}
+.title-bottom {
+  width: 100%; display: flex; flex-direction: column; align-items: center;
+  background: linear-gradient(180deg, rgba(9, 12, 17, 0) 0%, rgba(9, 12, 17, 0.78) 22%, #090c11 52%);
+}
+.title-actions { display: flex; flex-direction: column; gap: 8px; width: min(300px, 84%); }
+.title-actions .btn-primary { padding: 14px; font-size: 17px; letter-spacing: 0.04em; }
+.title-actions .btn-ghost { padding: 11px; font-size: 14px; }
+.title-foot {
+  margin: 12px 0 0; color: #b9a780; font-size: 10.5px; letter-spacing: 0.09em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
 
 /* ═══════════════ 1단계 지도 ═══════════════ */
 #screen-map { background: #241d10; }
@@ -685,9 +701,18 @@ b { font-weight: 700; }
 
 /* 가로/큰 화면 보정 */
 @media (min-width: 720px) {
-  .title-logo { font-size: 54px; }
-  .title-logo span { font-size: 38px; }
-  .title-hero { width: 190px; height: 190px; }
+  #screen-title::before {
+    content: ''; position: absolute; inset: -6%;
+    background: url("../assets/title_bg.webp") center / cover no-repeat;
+    filter: blur(28px) brightness(0.5) saturate(1.15);
+  }
+  .title-art { inset: 0; }
+  .title-art img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+  .title-floor { height: 10%; }
+  .title-logo { font-size: 52px; }
+  .title-logo span { font-size: 36px; }
+  .title-kicker { font-size: 13px; }
+  .title-sub { font-size: 14px; }
   .modal { max-width: 460px; }
   .modal.wide { max-width: 560px; }
   .map-hint { font-size: 12px; }
@@ -697,8 +722,10 @@ b { font-weight: 700; }
   .city-general-strip { min-height: 52px; padding: 5px 8px; }
   .gen-chip img { width: 28px; height: 28px; }
   .city-scene { min-height: 150px; }
-  .title-hero { width: 116px; height: 116px; margin: 14px 0 12px; }
-  .title-logo { font-size: 34px; }
+  .title-inner { padding-top: calc(24px + env(safe-area-inset-top)); }
+  .title-logo { font-size: 33px; }
+  .title-logo span { font-size: 24px; }
+  .title-sub { margin-top: 8px; font-size: 11.5px; }
   .battle-bottom { padding: 5px 8px calc(5px + env(safe-area-inset-bottom)); }
   .unit-card { min-height: 52px; }
   .uc-portrait { width: 46px; height: 46px; }
