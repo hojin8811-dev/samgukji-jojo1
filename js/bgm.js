@@ -1036,6 +1036,15 @@
 
   global.JojoBGM = {
     play, stop, setMuted, isMuted,
+    /* v5.11 — 표지 첫 터치·스크롤에서 오디오 잠금을 바로 풀고 지금 테마를 즉시 다시 튼다 */
+    kick(themeName) {
+      return resume().then(() => {
+        const name = themeName || currentTheme || 'title';
+        if (themeName && themeName !== currentTheme) { play(themeName); return; }
+        if (playing && currentTheme) { stopAllSources(); startTheme(currentTheme, 0.25); }
+        else play(name);
+      }).catch(() => {});
+    },
     /* 점검용 — 테마 목록·렌더 상태 */
     debug: {
       themes: () => Object.keys(THEMES),

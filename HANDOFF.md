@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.10** 사계절 일러스트·공훈치·주점 배속·터치/지도 드래그·AI 동반성장 · 2026-11-20 · 라이브 `?v=24`
+> 기준: **v5.11** 풀코스 업데이트·공성/수성 맵 통일·성별 금고·세이브 5슬롯 · 2026-11-21 · 라이브 `?v=25`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,30 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=24`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=25`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 내정·전장 기반(v5.5~v5.10) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 AI 방어·후퇴 판단과 포로 몸값 거래 |
 
 ---
+
+## 0.1 v5.11에서 바뀐 것 — 풀코스·공성 맵·성별 금고·세이브 5 (2026-11-21)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 성별 금고 | `s.gold`/`s.food`는 **지금 다루는 성(`s.purseCity`)의 가상 속성**이다. 실제 값은 `cs.gold`·`cs.food`. 세수·시장·농원·봉급·유지비·건설·징병·수송·출진 보급이 성 단위로 돈다. 합계는 `SK.totalGold/totalFood`, 옛 저장은 `SK.load`에서 인구 비례로 이관 | `app.js` `installPurse`·`purseCs`·`advanceMonth` |
+| 자동 보급 | 유지비 2개월치 아래거나 금 120 미만인 성에 이웃 내 성이 자동 수송(`autoSupplyNeighbors`) | `app.js` |
+| 세이브 | 수동 5슬롯(`samgukji-jojo-slot-1..5`) + 자동(`SAVE_KEY`). 표지·메뉴의 `[세이브 슬롯]` | `app.js` `saveTo`·`loadFrom`·`openSaveSlots` |
+| 공성/수성 | 같은 성이면 같은 맵. `SK.siegeMapKey(rings)`·`siegeRingsOfCity`(대 3·중 2·소 1). 성문은 `B.gates` 배열(바깥부터), `activeGate()`가 지금 문. `assets/battle/` 18종은 `drawBattleProps`가 격자에 렌더 | `data.js`·`battle.js` |
+| 전란 피해 | 수성 승리도 성벽·건물 경험치·농업·상업·치안·인구 손실(`defenseVictory`의 `warDamage`) | `battle.js` |
+| 회군/배수진 | `SK.openRecall`·`recallMarch`, `SK.openLastStand`(성 0 + 원정 주력 생존 시 1회) | `app.js` |
+| 결산 | `battleReportHTML()` — 딜·탱·힐·처치·MVP, 승리/패배/수성 결과창에 삽입 | `battle.js` |
+| 포로 | `addPrisoner`(첫 3개월 탈출 불가), `prisonTick`(충성↓·탈출·몸값/교환 제안), `openPrison`/`openPrisoners` | `battle.js`·`app.js` |
+| 관직 | `SK.OFFICES` 24단계(문관 12·무관 12). `officeWarBonus`가 전투 공·방, `officePol/Intel`이 내정 표시 | `data.js`·`battle.js` |
+| 등급/나이 | `genScore` 최고+상위2, 97+ S·93+ A·원본 S A 보호. `SK.ageOf` 최소 18세 | `data.js` |
+| 계절 | 봄 4~5 · 여름 6~9 · 가을 10~11 · 겨울 12~3 | `app.js` `SEASON_KEYS` |
+| 지도 | 지붕 세력색 `.m-roof`(`mix-blend-mode: color`), 중립 수비 1,500~2,500 | `map.js`·`css` |
+| 검증 | `tools/v511_smoke.py`·`v511_flow.py`·`v511_battle_ui.py`·`v511_econ.py`·`v511_siege3.py` | `preview/v511/` |
 
 ## 0.2 v5.10에서 바뀐 것 — 사계절·공훈치·주점·터치·AI 동반성장 (2026-11-20)
 

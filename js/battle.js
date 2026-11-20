@@ -90,7 +90,13 @@
     const defense = opts.defense || null;
     const type = opts.type || SK.battleTypeFor(target);
     const def = SK.BATTLE_TYPES[type];
-    const mapRows = SK.MAPS[def.map];
+    /* v5.11 — 공성·수성 통일: 같은 성이면 공격/방어 모두 같은 성벽 맵을 쓴다.
+       도시 등급이 높을수록 성벽이 1중 → 2중 → 3중으로 겹친다. */
+    const isSiege = (type === 'siege' || type === 'defense');
+    const cellState = s.cities[opts.targetId];
+    const rings = isSiege ? (SK.siegeRingsOfCity ? SK.siegeRingsOfCity(target) : 1) : 0;
+    const mapKey = isSiege && SK.siegeMapKey ? SK.siegeMapKey(rings) : def.map;
+    const mapRows = SK.MAPS[mapKey] || SK.MAPS[def.map];
     const tiles = mapRows.map((r) => r.split(''));
     const faction = defense ? defense.faction : s.cities[opts.targetId].owner;
     const bossInfo = bossOfFaction(faction);
@@ -153,29 +159,50 @@
       if (ids.length) supportNames.push(sp.name);
     });
 
-    /* v5.2 — 공성전 성문 내구도 (성문이 버리는 동안 근거리는 못 넘는다). 수성전은 성문 없이 벌인다 */
-    const gateTiles = [];
-    if (!defense && (type === 'siege' || type === 'fortress')) {
-      tiles.forEach((row, y) => row.forEach((ch, x) => { if (ch === 'G') gateTiles.push({ x, y }); }));
+    /* v5.2 — 성문 내구도. v5.11 — 겹성벽이면 바깥 성문부터 차례로 부순다.
+       수성전도 같은 성문·성벽을 그대로 쓴다 (진영만 바뀐다). */
+    const gateRows = [];
+    if (type === 'siege' || type === 'defense' || type === 'fortress') {
+      tiles.forEach((row, y) => row.forEach((ch, x) => {
+        if (ch !== 'G') return;
+        let g = gateRows.find((o) => o.row === y);
+        if (!g) { g = { row: y, tiles: [] }; gateRows.push(g); }
+        g.tiles.push({ x, y });
+      }));
     }
-    const gateInit = gateTiles.length
-      ? { tiles: gateTiles, hp: clamp(Math.round(cityTroops * 0.18) + 700, 1000, 2400),
-          maxHp: clamp(Math.round(cityTroops * 0.18) + 700, 1000, 2400) }
-      : null;
+    /* 바깥(큰 y)부터 안쪽 순서 */
+    gateRows.sort((a, b) => b.row - a.row);
+    const gateHpBase = clamp(Math.round(cityTroops * 0.14) + 500, 800, 2200);
+    const gates = gateRows.map((gr, i) => {
+      const hp = Math.max(500, Math.round(gateHpBase * (i === 0 ? 1 : (i === 1 ? 0.72 : 0.55))));
+      return { row: gr.row, tiles: gr.tiles, hp, maxHp: hp, ring: i + 1 };
+    });
+    const gateInit = gates[0] || null;   // B.gate는 가장 바깥에 남은 성문을 가리킨다
 
     B = {
       type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name} · ${def.name}` : `${target.name} ${def.name}`),
       targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null,
-      acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit,
+      acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings,
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
-      bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense,
+      bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense, lastStand: !!opts.lastStand,
       reinforce: opts.reinforce || null, supportNames: supportNames,
     };
-    placeSide(allies, SK.allySlots(type), 'ally');
-    placeSide(enemies, SK.enemySlots(type), 'enemy');
+    /* v5.11 — 공성 진영 장식 (assets/battle). 격자 뒤에 깔려 부대를 가리지 않는다 */
+    if (type === 'siege' || type === 'defense' || type === 'fortress') {
+      B.props = [
+        { k: 'camp', x: 2, y: 15, s: 1.0 }, { k: 'camp', x: 15, y: 15, s: 1.0 },
+        { k: 'supply', x: 2, y: 16, s: 0.88 }, { k: 'supply', x: 15, y: 16, s: 0.88 },
+        { k: 'barricade', x: 4, y: 16, s: 0.84 }, { k: 'barricade', x: 13, y: 16, s: 0.84 },
+        { k: 'catapult', x: 5, y: 15, s: 0.9 }, { k: 'catapult', x: 12, y: 15, s: 0.9 },
+        { k: 'ram', x: 7, y: 16, s: 0.88 }, { k: 'ram', x: 10, y: 16, s: 0.88 },
+        { k: 'siege_tower', x: 4, y: 14, s: 0.9 }, { k: 'siege_tower', x: 13, y: 14, s: 0.9 },
+      ];
+    }
+    placeSide(allies, SK.allySlots(type, rings), 'ally');
+    placeSide(enemies, SK.enemySlots(type, rings), 'enemy');
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
     anims.length = 0;
@@ -223,15 +250,18 @@
     const pMul = passive && passive.trigger === 'passive' ? 1 + (Number(passive.valuePct) || 0) / 200 : 1;
     /* v5.10 — 레벨 성장: 1레벨마다 공·방 +1.8%, 승급 구간은 +6% 추가 */
     const lvMul = 1 + LV_GROW * (Math.max(1, Number(h.lv) || 1) - 1);
+    /* v5.11 — 관직 보정 (무관 공·방 / 문관 병력·내정) */
+    const offB = SK.officeWarBonus ? SK.officeWarBonus(h) : { atk: 0, def: 0 };
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
-      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techAtk * pMul * loyMul,
-      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techDef * pMul * loyMul,
+      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techAtk * pMul * loyMul * (1 + offB.atk),
+      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techDef * pMul * loyMul * (1 + offB.def),
       mov: Math.min(9, C.mov + eq.move), rng: C.rng, minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
       passive, pUsed: {}, x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
+      stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
       train: allyTrain(origin, h),
     };
   }
@@ -254,6 +284,7 @@
       atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
       wu: 52, ji: 50, tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
       skills: C.skills.slice(), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
+      stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
       train: 45,
     };
   }
@@ -882,8 +913,8 @@
     ctx.translate(cam.x + ox, cam.y + oy);
     ctx.scale(cam.s, cam.s);
 
-    // background
-    if (B.type === 'siege') {
+    // background — 공성·수성은 같은 성벽 맵을 쓴다
+    if (B.type === 'siege' || B.type === 'defense') {
       if (!B.siegeLayer) B.siegeLayer = buildSiegeLayer(B.tiles);
       ctx.drawImage(B.siegeLayer, 0, 0, WORLD, WORLD);
       drawSiegeWater();
@@ -894,6 +925,7 @@
     }
 
     drawTerrainTint();
+    drawBattleProps();
     drawGrid();
     drawObjective();
     drawHighlights();
@@ -901,6 +933,60 @@
     drawFx();
     ctx.restore();
     drawFloats();
+  }
+
+  /* v5.11 — assets/battle/ 추출 에셋을 격자 좌표에 맞춰 얹는다.
+     성벽(wall_straight·wall_corner·wall_broken), 성문(gate), 망루(watchtower),
+     본성(hq_pavilion), 진영(camp·supply·barricade), 공성 병기(catapult·ram·siege_tower),
+     숲(forest)·산(mountain). 모두 타일 아래변에 발을 붙여 배경과 어긋나지 않게 그린다. */
+  function drawProp(img, x, y, scale, alpha) {
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const w = TILE * (scale || 1), h = w;
+    const cx = (x + 0.5) * TILE, by = (y + 0.86) * TILE;
+    ctx.save();
+    if (alpha != null) ctx.globalAlpha = alpha;
+    ctx.drawImage(img, cx - w / 2, by - h, w, h);
+    ctx.restore();
+  }
+
+  function drawBattleProps() {
+    if (!B || !B.tiles) return;
+    if (B.type !== 'siege' && B.type !== 'defense' && B.type !== 'fortress') return;
+    const img = (n) => loadImg(`assets/battle/${n}.webp`);
+    const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 'P' : B.tiles[y][x]);
+    const wallAt = (x, y) => { const c = at(x, y); return c === 'C' || c === 'G'; };
+    /* 성벽·성문 */
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = at(x, y);
+        if (ch === 'G') {
+          const gate = (B.gates || []).find((g) => g.tiles.some((t) => t.x === x && t.y === y));
+          const broken = gate && gate.hp <= 0;
+          drawProp(img(broken ? 'wall_broken' : 'gate'), x, y, 1.08, broken ? 0.96 : 1);
+        } else if (ch === 'C') {
+          const horiz = wallAt(x - 1, y) || wallAt(x + 1, y);
+          drawProp(img(horiz ? 'wall_straight' : 'wall_corner'), x, y, 1.04);
+        }
+      }
+    }
+    /* 망루·본성·숲·산 */
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = at(x, y);
+        if (ch === 'T') drawProp(img('watchtower'), x, y, 1.0);
+        else if (ch === 'K') drawProp(img('hq_pavilion'), x, y, 1.12);
+        else if (ch === 'F') drawProp(img('forest'), x, y, 1.0, 0.94);
+        else if (ch === 'M') drawProp(img('mountain'), x, y, 1.06, 0.96);
+      }
+    }
+    /* 진영·공성 병기 — 타일을 막지 않는 장식이다 (부대가 위에 선다) */
+    (B.props || []).forEach((p) => drawProp(img(p.k), p.x, p.y, p.s || 0.98, 0.95));
+    /* 불타는 성문 — 부서진 성문 위에 불꽃 */
+    (B.gates || []).forEach((g) => {
+      if (g.hp > 0) return;
+      const t0 = g.tiles[0];
+      if (t0) drawProp(img('fire'), t0.x, t0.y, 0.72, 0.9);
+    });
   }
 
   function drawGrid() {
@@ -960,13 +1046,16 @@
       ctx.lineWidth = 2.5;
       ctx.strokeRect(g.x * TILE + 5, g.y * TILE + 5, TILE - 10, TILE - 10);
     });
-    /* v5.2 — 성문 내구도 HP 바 (성문 타일 **안**에 그려 위층 적 부대에 가리지 않게) */
-    if (B.gate) {
-      const g0 = B.gate.tiles[0], g1 = B.gate.tiles[B.gate.tiles.length - 1];
+    /* v5.2 — 성문 내구도 HP 바 (성문 타일 **안**에 그려 위층 적 부대에 가리지 않게)
+       v5.11 — 겹성벽은 성벽 줄마다 바를 그린다 */
+    const gateList = B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []);
+    gateList.forEach((gate) => {
+      if (!gate || !gate.tiles || !gate.tiles.length) return;
+      const g0 = gate.tiles[0], g1 = gate.tiles[gate.tiles.length - 1];
       const x0 = g0.x * TILE, x1 = (g1.x + 1) * TILE;
       const w = x1 - x0 - 12;
       const y = (g0.y + 1) * TILE - 14;
-      const ratio = clamp(B.gate.hp / Math.max(1, B.gate.maxHp), 0, 1);
+      const ratio = clamp(gate.hp / Math.max(1, gate.maxHp), 0, 1);
       const k = 1 / Math.max(0.45, cam.s);
       ctx.fillStyle = 'rgba(30,22,10,0.86)';
       ctx.fillRect(x0 + 6, y, w, 8 * k);
@@ -975,21 +1064,19 @@
       ctx.strokeStyle = 'rgba(227,189,99,0.9)';
       ctx.lineWidth = 1 * k;
       ctx.strokeRect(x0 + 6, y, w, 8 * k);
-      /* 수치는 화면 위 목표 칩(#battle-objective)에 크게 적는다.
-         바는 성문 타일 위에만 그려 부대에 가리지 않게 한다. */
-      if (B.gate.hp <= 0) {
+      if (gate.hp <= 0) {
         ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = '#ffcf9a';
         ctx.fillText('파손', (x0 + x1) / 2, y - 3 * k);
       }
-    }
+    });
     ctx.restore();
   }
 
-  function moveCost(cls, ch) {
-    if (ch === 'G') return gateIntact() ? 99 : 1;   // v5.2 — 성문이 살아 있으면 통행 불가
+  function moveCost(cls, ch, x, y) {
+    if (ch === 'G') return gateTileAt(x, y) ? 99 : 1;   // v5.2 — 그 성문이 살아 있으면 통행 불가
     if (ch === 'W') return cls === 'sujeok' ? 1 : 99;
     if (ch === 'C' || ch === 'H') return 99;
     if (ch === 'M') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 99 : 2);
@@ -1014,7 +1101,7 @@
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
         const ch = B.tiles[ny][nx];
-        const cost = moveCost(u.cls, ch);
+        const cost = moveCost(u.cls, ch, nx, ny);
         if (cost >= 90) continue;
         if (B.units.some((o) => o.alive && o.x === nx && o.y === ny)) continue;
         const nc = c + cost;
@@ -1095,7 +1182,7 @@
         });
       }
       if (gateIntact()) {
-        B.gate.tiles.forEach((g) => {
+        activeGate().tiles.forEach((g) => {
           if (cheb(u.x, u.y, g.x, g.y) > rng) return;
           ctx.fillStyle = 'rgba(226,170,72,0.42)';
           ctx.fillRect(g.x * TILE + 3, g.y * TILE + 3, TILE - 6, TILE - 6);
@@ -1590,7 +1677,7 @@
           if (!dx && !dy) continue;
           const nx = cur.x + dx, ny = cur.y + dy;
           if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-          const cost = moveCost(u.cls, B.tiles[ny][nx]);
+          const cost = moveCost(u.cls, B.tiles[ny][nx], nx, ny);
           if (cost >= 90) continue;
           if (blocked(nx, ny)) continue;
           const nc = cur.c + cost;
@@ -1816,16 +1903,23 @@
 
   function typeBonus(u) { return (SK.terrainBonus(u.cls, B.type) || 0) / 100; }
 
-  /* ── v5.2 성문 규칙 ── */
-  function gateIntact() { return !!(B && B.gate && B.gate.hp > 0); }
-  function gateTileAt(x, y) {
-    return !!(B && B.gate && B.gate.tiles.some((g) => g.x === x && g.y === y));
+  /* ── v5.2 성문 규칙 · v5.11 겹성벽 ── */
+  function activeGate() {
+    if (!B) return null;
+    if (B.gates && B.gates.length) return B.gates.find((g) => g.hp > 0) || B.gates[B.gates.length - 1];
+    return B.gate || null;
   }
-  /* 성문 안쪽/바깥쪽을 가로지르는가 (성문이 살아 있으면 근접으로는 못 넘는다) */
+  function gateIntact() { const g = activeGate(); return !!(g && g.hp > 0); }
+  function gateTileAt(x, y) {
+    if (!B) return false;
+    const list = B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []);
+    return list.some((g) => g.hp > 0 && g.tiles.some((t) => t.x === x && t.y === y));
+  }
+  /* 성문 안쪽/바깥쪽을 가로지르는가 (그 성벽의 문이 살아 있으면 근접으로는 못 넘는다) */
   function wallBlocked(a, d) {
-    if (!gateIntact() || !B.gate || !a || !d) return false;
-    const gy = B.gate.tiles[0].y;
-    return (a.y > gy) !== (d.y > gy);
+    if (!B || !a || !d) return false;
+    const list = (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : [])).filter((g) => g.hp > 0);
+    return list.some((g) => (a.y > g.row) !== (d.y > g.row));
   }
 
   /* 병력 수가 곧 전투력 — 만성 부대(약 1,800)를 1.0으로 둔다 */
@@ -1923,8 +2017,28 @@
     d.shake = 240;
   }
 
+  /* v5.11 — 장수별 결산(딜·탱·힐·처치) 기록 */
+  function statOf(u) {
+    if (!u) return { dealt: 0, taken: 0, heal: 0, kills: 0 };
+    u.stat = u.stat || { dealt: 0, taken: 0, heal: 0, kills: 0 };
+    return u.stat;
+  }
+  function addHeal(target, amount, src) {
+    const n = Math.max(0, Math.round(Number(amount) || 0));
+    if (n && src && src.side === 'ally') statOf(src).heal += n;
+    else if (n && target && target.side === 'ally') statOf(target).heal += n;
+  }
+  function addMagicDamage(a, d, dmg) {
+    if (a) statOf(a).dealt += dmg;
+    if (d) statOf(d).taken += dmg;
+  }
+
   function applyDamage(a, d, dmg, crit, bond) {
+    const wasAlive = d.hp > 0;
     d.hp = Math.max(0, d.hp - dmg);
+    if (a) statOf(a).dealt += dmg;
+    statOf(d).taken += dmg;
+    if (wasAlive && d.hp <= 0 && a) statOf(a).kills += 1;
     addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.4) * TILE, (crit ? '회심! ' : '') + dmg,
       crit ? '#ffd166' : (bond ? '#ffd0c0' : '#ffe9d0'));
     if (a.side === 'ally' && a.uid) a.expGain = (a.expGain || 0) + (d.hp <= 0 ? 42 : 9);
@@ -2115,14 +2229,15 @@
   }
 
   function openGateAttack(a, g) {
-    if (busy || !a || !a.alive || !B.gate) return;
+    const gate = activeGate();
+    if (busy || !a || !a.alive || !gate || gate.hp <= 0) return;
     const res = calcGateDamage(a, {});
     const m = SK.modal({
-      kicker: '성문 공략', title: `${a.name} → 성문`,
+      kicker: '성문 공략', title: `${a.name} → ${gate.ring > 1 || (B.gates || []).length > 1 ? `${gate.ring}번째 성문` : '성문'}`,
       body: `<div class="atk-preview">
         <div class="ap-row"><span>성문 피해</span><b>${res.dmg}</b><em>${res.kind === 'rock' ? '포격 특화' : res.kind === 'melee' ? '근접' : '사격'}</em></div>
-        <div class="ap-row"><span>성문 내구도</span><b>${Math.round(B.gate.hp).toLocaleString('ko-KR')}</b><em>/ ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}</em></div>
-        <p class="ap-note">성문을 부수면 근접 부대가 성안으로 들어갈 수 있습니다. 투석차·발석차가 가장 빠릅니다.</p>
+        <div class="ap-row"><span>성문 내구도</span><b>${Math.round(gate.hp).toLocaleString('ko-KR')}</b><em>/ ${Math.round(gate.maxHp).toLocaleString('ko-KR')}</em></div>
+        <p class="ap-note">성문을 부수면 근접 부대가 성안으로 들어갈 수 있습니다. 겹성벽은 바깥 문부터 차례로 부숴야 합니다. 투석차·발석차가 가장 빠릅니다.</p>
       </div>`,
       actions: [{ label: '취소' }, { label: '공격!', primary: true, onClick: () => doGateAttack(a, g, res.dmg) }],
     });
@@ -2130,7 +2245,8 @@
   }
 
   function doGateAttack(a, g, dmg) {
-    if (!a || !a.alive || !B.gate || B.gate.hp <= 0 || busy) return;
+    if (!a || !a.alive || !activeGate() || activeGate().hp <= 0 || busy) return;
+    B.gate = activeGate();
     busy = true;
     mode = 'idle';
     a.acted = true;
@@ -2147,8 +2263,11 @@
       SK.sfx.play('hit');
       feed(`${a.name} — 성문에 ${hit} 피해`, 'good');
       if (B.gate.hp <= 0) {
-        feed('성문이 무너졌습니다 — 근접 부대도 성안으로 들어갈 수 있습니다.', 'good');
-        SK.toast('성문 파손! 성안으로 진입할 수 있습니다.');
+        const next = activeGate();
+        const more = next && next !== B.gate && next.hp > 0;
+        B.gate = next;
+        feed(more ? `${B.gate.ring}번째 성문이 무너졌습니다 — 안쪽 성문이 남아 있습니다.` : '성문이 무너졌습니다 — 근접 부대도 성안으로 들어갈 수 있습니다.', 'good');
+        SK.toast(more ? `성문 파손! 안쪽 ${B.gate.ring}번째 성문이 남았습니다.` : '성문 파손! 성안으로 진입할 수 있습니다.');
         shakeScreen(7);
         SK.sfx.play('drum');
       }
@@ -2180,7 +2299,9 @@
     if (trig === 'turn_start') {
       const list = B.units.filter((o) => o.alive && o.side === u.side && cheb(rxOf(o), ryOf(o), rxOf(u), ryOf(u)) <= 2);
       list.forEach((o) => {
-        o.hp = Math.min(o.maxHp, o.hp + Math.round(o.maxHp * v));
+        const hpGain = Math.round(o.maxHp * v);
+        o.hp = Math.min(o.maxHp, o.hp + hpGain);
+        addHeal(o, hpGain, u);
         addFx({ kind: 'heal', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 520 });
       });
       addFloat(cx, cy - 10, `「${p.title}」`, '#9ef0b8');
@@ -2280,6 +2401,7 @@
         if (t.alive && t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= sk.radius) {
           const heal = healAmount(sk, t);
           t.hp = Math.min(t.maxHp, t.hp + heal);
+          addHeal(t, heal, u);
           addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, '+' + heal, '#a8f0b8');
           addFx({ kind: 'heal', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 620 });
         }
@@ -2337,6 +2459,7 @@
       if (sk.kind === 'heal') {
         const heal = Math.round(healAmount(sk, target) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 420)));
         target.hp = Math.min(target.maxHp, target.hp + heal);
+        addHeal(target, heal, u);
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + heal, '#a8f0b8');
         addFx({ kind: 'heal', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 700 });
       } else {
@@ -2387,6 +2510,7 @@
           if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
             const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80) * sizeScale(t) * 0.8));
             t.hp = Math.max(0, t.hp - dmg);
+            addMagicDamage(u, t, dmg);
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
             if (t.hp <= 0) t.alive = false;
@@ -2409,6 +2533,7 @@
         if (!B || B.over) { finish(0); return; }
         const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90) * sizeScale(target) * 0.8));
         target.hp = Math.max(0, target.hp - dmg);
+        addMagicDamage(u, target, dmg);
         target.flash = 1; target.shake = 240;
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.55) * TILE, life: 720 });
@@ -2456,6 +2581,7 @@
     u.items -= 1;
     const heal = Math.round(u.maxHp * 0.32);
     u.hp = Math.min(u.maxHp, u.hp + heal);
+    addHeal(u, heal, u);
     addFloat((u.x + 0.5) * TILE, (u.y + 0.4) * TILE, '+' + heal, '#a8f0b8');
     addFx({ kind: 'heal', x: (u.x + 0.5) * TILE, y: (u.y + 0.5) * TILE, life: 650 });
     SK.sfx.play('heal');
@@ -2783,8 +2909,8 @@
         const score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
       });
-      if (gateIntact() && B.gate) {
-        B.gate.tiles.forEach((g) => {
+      if (gateIntact() && activeGate()) {
+        activeGate().tiles.forEach((g) => {
           if (cheb(t.x, t.y, g.x, g.y) > rng) return;
           const sc = (kind === 'rock' ? 90 : kind === 'melee' ? 55 : 25) + (home ? 4 : 0);
           if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc, kind: 'gate' };
@@ -2795,7 +2921,7 @@
     let pick = null;
     tiles.forEach((t) => {
       const d = foes.length ? Math.min(...foes.map((f) => cheb(t.x, t.y, f.x, f.y))) : 99;
-      const gy = gateIntact() && B.gate ? Math.min(...B.gate.tiles.map((g) => cheb(t.x, t.y, g.x, g.y))) - 1 : 99;
+      const gy = gateIntact() && activeGate() ? Math.min(...activeGate().tiles.map((g) => cheb(t.x, t.y, g.x, g.y))) - 1 : 99;
       let score = -Math.min(d, gy);
       /* 수비측은 망루·본성에 붙어 버티는 쪽을 조금 더 선호한다 */
       if (u.side === 'enemy' && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'K')) score += 2.5;
@@ -2878,6 +3004,7 @@
           if ((holdCh === 'T' || holdCh === 'K') && u.hp < u.maxHp) {
             const hh = Math.max(1, Math.round(u.maxHp * 0.15));
             u.hp = Math.min(u.maxHp, u.hp + hh);
+            addHeal(u, hh, u);
             addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.4) * TILE, '+' + hh, '#a8f0b8');
             addFx({ kind: 'heal', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520 });
           }
@@ -2954,6 +3081,7 @@
         if (!B || B.over) { done(); return; }
         const dmg = Math.max(6, Math.round((20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04) * sizeScale(target) * 0.9));
         target.hp = Math.max(0, target.hp - dmg);
+        addMagicDamage(e, target, dmg);
         addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.55) * TILE, life: 700 });
         impactAt(target, '255,150,90');
@@ -3020,6 +3148,32 @@
     addFx({ kind: 'ring', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.72) * TILE, life: 520, color: '210,225,255' });
   }
 
+  /* v5.11 — 전투 결산: 아군 장수별 가한 피해(딜)·받은 피해(탱)·회복(힐)·처치·MVP */
+  function battleReportHTML() {
+    if (!B || !B.units) return '';
+    const list = B.units.filter((u) => u.side === 'ally').map((u) => {
+      const s = u.stat || { dealt: 0, taken: 0, heal: 0, kills: 0 };
+      return { name: u.name, dealt: Math.round(s.dealt), taken: Math.round(s.taken),
+        heal: Math.round(s.heal), kills: s.kills, alive: u.alive,
+        score: s.dealt * 0.6 + s.taken * 0.18 + s.heal * 0.5 + s.kills * 150 };
+    });
+    if (!list.length) return '';
+    const best = list.slice().sort((a, b) => b.score - a.score)[0];
+    const maxDealt = Math.max(1, ...list.map((r) => r.dealt));
+    const fmtN = (n) => Math.round(n).toLocaleString('ko-KR');
+    return `<div class="rm-report">
+      <div class="rm-report-head"><b>전투 결산</b><span>MVP <em>👑 ${best.name}</em></span></div>
+      <div class="rm-report-scroll"><table class="rm-dmg">
+        <thead><tr><th>장수</th><th>딜</th><th>탱</th><th>힐</th><th>처치</th></tr></thead>
+        <tbody>${list.sort((a, b) => b.score - a.score).map((r) => `<tr class="${r.name === best.name ? 'mvp' : ''}">
+          <td>${r.name === best.name ? '👑 ' : ''}${r.name}${r.alive ? '' : ' <em class="rm-fallen">전사</em>'}</td>
+          <td><i style="width:${Math.max(2, Math.round((r.dealt / maxDealt) * 32))}px"></i>${fmtN(r.dealt)}</td>
+          <td>${fmtN(r.taken)}</td><td>${r.heal ? '+' + fmtN(r.heal) : '0'}</td><td>${r.kills}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  }
+
   function victoryQuote() {
     const lord = SK.factionInfo(SK.playerFaction()).lord || '조조';
     return SK.quoteOf(lord, 'victory') || SK.quoteOf('조조', 'victory');
@@ -3052,6 +3206,7 @@
       const h = s.heroes.find((x) => x.uid === u.uid);
       if (h) { h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv))); SK.gainExp(h, 45, 12); }
     });
+    if (s.cities[B.origin] && s.cities[B.origin].owner === SK.playerFaction()) s.purseCity = B.origin;
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     s.fame += 2;
@@ -3091,6 +3246,7 @@
       const h = s.heroes.find((x) => x.uid === u.uid);
       if (h) { h.marchId = null; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2))); }
     });
+    if (s.cities[B.origin] && s.cities[B.origin].owner === SK.playerFaction()) s.purseCity = B.origin;
     s.gold = Math.max(0, s.gold - 100);
     s.pendingMarch = null;
     SK.save();
@@ -3146,6 +3302,28 @@
   }
 
   let prisonCity = null;
+  const PRISON_CAP = 6;
+  function statePrisonCapLeft() {
+    const n = ((SK.state && SK.state.prisoners) || []).length;
+    return n >= PRISON_CAP ? '억류 자리 가득' : `억류 ${n}/${PRISON_CAP}`;
+  }
+  function addPrisoner(g, cityId) {
+    const s = SK.state;
+    if (!s || !g) return null;
+    s.prisoners = s.prisoners || [];
+    const found = s.prisoners.find((p) => p.gid === g.id);
+    if (found) return found;
+    if (s.prisoners.length >= PRISON_CAP) return null;
+    const rec = { gid: g.id, name: g.name, tier: g.tier || 'C', faction: g.faction || '',
+      city: cityId || s.lastCity, months: 0, loyal: SK.enemyLoyal ? SK.enemyLoyal(g) : 72,
+      offer: null, recruitTried: false };
+    s.prisoners.push(rec);
+    /* 가둔 장수는 적 성 명부에서 빠진다 (다시 수비대로 나오지 않게) */
+    SK.CITY_LIST.forEach((c) => { const cs = s.cities[c.id]; if (cs && cs.genIds) cs.genIds = cs.genIds.filter((id) => id !== g.id); });
+    return rec;
+  }
+  SK.addPrisoner = addPrisoner;
+
   function openPrisoners(list, idx, log) {
     const s = SK.state;
     const all = list || (B && B.prisoners) || [];
@@ -3185,7 +3363,7 @@
       <div class="prison-opts">
         <button class="prison-opt hire" data-p="hire"><b>등용</b><span>매력 대결 · 성공 ${Math.round(pRec * 100)}%</span></button>
         <button class="prison-opt free" data-p="free"><b>석방</b><span>금 +${gold} · 명성 +3</span></button>
-        <button class="prison-opt kill" data-p="kill"><b>처형</b><span>명성 −6 · 다시 나오지 않음</span></button>
+        <button class="prison-opt hold" data-p="hold"><b>포로 억류</b><span>${statePrisonCapLeft()} · 3개월 탈출 불가 · 매달 설득</span></button>
       </div>`,
       actions: [], dismissible: false,
     });
@@ -3206,18 +3384,18 @@
             SK.sfx.play('deny');
           }
         } else if (act === 'free') {
+          if (SK.setPurse) SK.setPurse(cityId);
           s.gold += gold;
           s.fame += 3;
           line = `<b>${g.name}</b> — 석방. 몸값 금 +${gold}, 명성 +3.`;
           SK.sfx.play('coin');
         } else {
-          s.fame = Math.max(0, (s.fame || 0) - 6);
-          s.deadGens = s.deadGens || {};
-          s.deadNames = s.deadNames || {};
-          s.deadGens[String(g.id)] = true;
-          s.deadNames[g.name] = true;
-          line = `<b>${g.name}</b> — 처형. 군기가 서는 대신 명성 −6. 다시는 나오지 않습니다.`;
-          SK.sfx.play('deny');
+          /* v5.11 — 처형 대신 포로 억류: 첫 3개월 탈출 불가, 이후 매달 확률 탈출 */
+          const rec = addPrisoner(g, cityId);
+          line = rec
+            ? `<b>${g.name}</b> — 포로 억류. ${cityId && SK.CITY[cityId] ? SK.CITY[cityId].name : '성'} 순찰소에 가뒀습니다. 3개월은 탈출하지 못하고, 그 뒤로는 순찰소·치안이 높을수록 탈출이 어려워집니다.`
+            : `<b>${g.name}</b> — 억류할 자리가 없습니다. 6명까지만 가둘 수 있어 풀어 주었습니다.`;
+          if (rec) SK.sfx.play('drum'); else SK.sfx.play('deny');
         }
         SK.save(); SK.refreshHud();
         m.close();
@@ -3325,6 +3503,7 @@
     st.bandit = false;
     if (st.train == null) st.train = 50;
     if (SK.refillTalents) { try { SK.refillTalents(B.targetId); } catch (e) { /* ignore */ } }
+    s.purseCity = B.targetId;      // v5.11 — 함락한 성의 금고·창고를 차지한다
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
@@ -3366,6 +3545,7 @@
           <div><span>영토</span><b>${owned} / ${SK.CITY_LIST.length}</b></div>
           ${woundedAdd ? `<div class="rm-wound"><span>부상병</span><b>${woundedAdd.toLocaleString('ko-KR')}</b><em>회복중</em></div>` : ''}
         </div>
+        ${battleReportHTML()}
         ${drop ? `<div class="rm-treasure" style="--gc:${SK.GRADE_COLOR[drop.grade]}">
           <span class="rt-grade">${drop.grade} 보물</span>
           <b>${drop.name}</b><em>${drop.effect}</em>
@@ -3397,9 +3577,11 @@
     const defeatedNames = B.units.filter((u) => u.side === 'enemy').map((u) => u.name);
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
-    if (st) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
+    const originMine = !!(st && st.owner === SK.playerFaction());
+    if (originMine) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
     /* v5.9 — 퇴각해도 잃은 병력의 일부는 부상병으로 본성에 돌아온다 */
-    const woundedAdd = (lostOf('ally') && SK.addWounded) ? SK.addWounded(B.origin, lostOf('ally'), { ratio: SK.woundedRatio(B.origin) }) : 0;
+    const woundedAdd = (originMine && lostOf('ally') && SK.addWounded) ? SK.addWounded(B.origin, lostOf('ally'), { ratio: SK.woundedRatio(B.origin) }) : 0;
+    if (s.cities[B.origin] && s.cities[B.origin].owner === SK.playerFaction()) s.purseCity = B.origin;
     s.gold = Math.max(0, s.gold - 200);
     B.units.forEach((u) => {
       if (u.side === 'ally' && u.uid) {
@@ -3407,15 +3589,32 @@
         if (h) { h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4)); h.marchId = null; }
       }
     });
+    /* v5.11 — 패배하면 낮은 확률로 장수 한 명이 적에게 사로잡힌다 → 포로 교환 협상 재료 */
+    let captured = null;
+    const alive = B.units.filter((u) => u.side === 'ally' && u.uid && u.alive);
+    if (alive.length && B.faction && B.faction !== 'neutral' && Math.random() < 0.22) {
+      const pick = alive[Math.floor(Math.random() * alive.length)];
+      const h = s.heroes.find((x) => x.uid === pick.uid);
+      if (h) {
+        s.captured = s.captured || [];
+        if (!s.captured.some((x) => x.uid === h.uid)) s.captured.push({ uid: h.uid, name: h.name, by: B.faction, at: s.turn });
+        h.captured = true; h.marchId = null;
+        captured = h.name;
+      }
+    }
     clearMarchFlags();
     SK.save();
+    /* v5.11 — 마지막 성까지 잃은 배수진 전투에서 지면 패망 */
+    const leftCities = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
+    if (!leftCities) { if (SK.gameOver) SK.gameOver('유랑군 배수진이 무너졌습니다.'); return; }
     SK.modal({
       kicker: '패배',
       title: '퇴각',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
+        ${battleReportHTML()}
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
-        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}에서 회복 중입니다` : '없음'}</p></div>`,
+        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}에서 회복 중입니다` : '없음'}${captured ? ` · <b>${captured}</b>이(가) 적에게 사로잡혔습니다` : ''}</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });
@@ -3435,11 +3634,23 @@
     const dead = B.units.filter((u) => u.side === 'ally' && !u.alive && !u.rfg);
     const troopsLeft = survivors.reduce((a, u) => a + u.hp, 0);
     const woundedAdd = SK.addWounded ? SK.addWounded(B.targetId, lostOf('ally', (u) => !u.rfg), { ratio: SK.woundedRatio(B.targetId) }) : 0;
+    /* v5.11 — 공성전이 성 안까지 밀고 들어오면 이겨도 전란 피해가 남는다.
+       성벽·내성 건물 경험치·농업·상업·치안·민심이 함께 깎여, 성 밖 [요격]을 택할 이유가 생긴다. */
+    let warDamage = null;
     if (st) {
+      const wallLoss = 7 + (B.rings || 1) * 3;
+      const before = { def: Math.round(st.def || 50), agri: Math.round(st.agri || 0), comm: Math.round(st.comm || 0), order: Math.round(st.order || 0) };
       st.troops = Math.max(600, Math.round(troopsLeft));
-      st.loyalty = clamp((st.loyalty || 50) + 6, 0, 100);
-      st.def = Math.max(25, Math.round((st.def || 50) - 6));
+      st.loyalty = clamp((st.loyalty || 50) + 2, 0, 100);
+      st.def = Math.max(12, Math.round((st.def || 50) - wallLoss));
+      st.agri = clamp((st.agri || 0) - 3, 0, 100);
+      st.comm = clamp((st.comm || 0) - 3, 0, 100);
+      st.order = clamp((st.order || 0) - 5, 0, 100);
+      st.pop = Math.max(6000, Math.round((st.pop || 0) * 0.98));
+      (st.slots || []).forEach((sl) => { if (sl && sl.key) sl.exp = Math.round((sl.exp || 0) * 0.75); });
+      warDamage = { def: before.def - Math.round(st.def), agri: before.agri - Math.round(st.agri), comm: before.comm - Math.round(st.comm), order: before.order - Math.round(st.order) };
     }
+    s.purseCity = B.targetId;
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     s.fame = (s.fame || 0) + 10;
@@ -3474,10 +3685,12 @@
           <div><span>남은 수비병</span><b>${Math.round(troopsLeft).toLocaleString('ko-KR')}</b></div>
         </div>
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
+        ${battleReportHTML()}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
         ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         ${woundedAdd || (rfgInfo && rfgInfo.left) ? `<p class="rm-note">${woundedAdd ? `부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 성에서 회복 중입니다. ` : ''}${rfgInfo && rfgInfo.home ? `${rfgInfo.home} 원군 ${Math.round(rfgInfo.left).toLocaleString('ko-KR')}명이 돌아갔습니다.` : ''}</p>` : ''}
-        <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +6 · 성벽 −6</p></div>`,
+        ${warDamage ? `<p class="rm-war">전란 피해 — 성벽 −${warDamage.def} · 농업 −${warDamage.agri} · 상업 −${warDamage.comm} · 치안 −${warDamage.order} · 내성 건물 경험치 −25%<br><em>성이 침공받으면 이겨도 성이 상합니다. 다음에는 성 밖에서 [요격]해 미리 막는 편이 이득입니다.</em></p>` : ''}
+        <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +2 · 성벽 −${warDamage ? warDamage.def : 6}</p></div>`,
       actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle(); SK.showMap();
         if (prisoners.length) wait(() => openPrisoners(prisoners), 340);
@@ -3515,9 +3728,23 @@
     SK.refreshHud();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
     if (!left) {
+      /* v5.11 — 성은 다 잃었지만 밖에 원정 주력이 살아 있으면 유랑군 배수진 1회 */
+      const army = (s.marches || []).filter((m) => (m.units || []).some((u) => u.uid && u.troops > 0));
+      if (army.length && SK.openLastStand) {
+        SK.modal({
+          kicker: '천하 패배 직전', title: '성을 모두 잃었습니다',
+          body: `<div class="result-modal lose"><div class="rm-seal">망</div>${battleReportHTML()}
+            <p class="rm-line">마지막 성이 함락되었습니다. 그러나 밖에 나가 있던 원정 주력 <b>${army.length}부대</b>가 아직 살아 있습니다.</p>
+            <p class="rm-note">유랑군이 되어 성 하나를 되찾는 <b>배수진</b>에 한 번 도전할 수 있습니다. 지면 그대로 패망합니다.</p></div>`,
+          actions: [{ label: '패망을 받아들인다', onClick: () => { closeBattle(); SK.gameOver('마지막 성을 잃었습니다.'); } },
+            { label: '유랑군 배수진', primary: true, onClick: () => { closeBattle(); SK.openLastStand(); } }],
+          dismissible: false,
+        });
+        return;
+      }
       SK.modal({
         kicker: '천하 패배', title: '거점을 모두 잃었습니다',
-        body: `<div class="result-modal lose"><div class="rm-seal">망</div>
+        body: `<div class="result-modal lose"><div class="rm-seal">망</div>${battleReportHTML()}
           <p class="rm-line">마지막 성이 함락되어 천하를 잃었습니다.</p>
           <p class="rm-note">처음부터 다시 도전할 수 있습니다. 메뉴의 [처음부터 시작]을 쓰십시오.</p></div>`,
         actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
@@ -3621,10 +3848,12 @@
       /* v5.2 — 성문 내구도는 화면 위 칩에 숫자로 크게 보인다 */
       const goalChip = $('#battle-objective');
       if (goalChip) {
-        goalChip.textContent = (B.gate && B.gate.hp > 0)
-          ? `성문 ${Math.round(B.gate.hp).toLocaleString('ko-KR')} / ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}`
+        const gate = activeGate();
+        const total = (B.gates || []).filter((g) => g.maxHp > 0).length;
+        goalChip.textContent = (gate && gate.hp > 0)
+          ? `성문${total > 1 ? ` ${gate.ring}/${total}` : ''} ${Math.round(gate.hp).toLocaleString('ko-KR')} / ${Math.round(gate.maxHp).toLocaleString('ko-KR')}`
           : B.objective;
-        goalChip.classList.toggle('gate', !!(B.gate && B.gate.hp > 0));
+        goalChip.classList.toggle('gate', !!(gate && gate.hp > 0));
       }
       $('#battle-turn').textContent = B.turn + '턴';
       $('#battle-phase').textContent = B.phase === 'ally' ? '아군' : '적군';
@@ -3731,6 +3960,9 @@
       },
       forceVictory() { victory(); },
       gate() { return B && B.gate ? { hp: Math.round(B.gate.hp), max: Math.round(B.gate.maxHp), tiles: B.gate.tiles } : null; },
+      gates() { return B && B.gates ? B.gates.map((g) => ({ row: g.row, hp: Math.round(g.hp), ring: g.ring })) : []; },
+      rings() { return B ? B.rings : null; },
+      type() { return B ? B.type : null; },
       img(name) { const u = B && B.units.find((v) => v.name === name); return u ? (unitImgFor(u).getAttribute('src') || unitImgFor(u).src) : null; },      gateAttack(x, y) { const u = B.sel; if (u) doGateAttack(u, { x, y }); },
       toggleAuto(force) { toggleAuto(force); return autoOn; },
       get auto() { return autoOn; },

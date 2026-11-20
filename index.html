@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=24" />
+<link rel="stylesheet" href="css/game.css?v=25" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -112,8 +112,10 @@
         <div class="title-actions">
           <button id="btn-start" class="btn btn-primary">새로 시작</button>
           <button id="btn-continue" class="btn btn-ghost" hidden>이어하기</button>
+          <button id="btn-slots" class="btn btn-ghost">세이브 슬롯</button>
         </div>
         <p class="title-foot">80개 거점 · 18 병과 · 585 장수 · 18×18 전장</p>
+        <p class="title-sound" id="title-sound">🔊 화면을 한 번 누르면 음악이 흐릅니다</p>
       </div>
     </div>
   </section>
@@ -158,8 +160,8 @@
     <header class="map-top">
       <div class="flag-chip"><img id="lord-mini" src="assets/portraits/v2/caocao.webp" alt="" /><span>위</span></div>
       <div class="res-group">
-        <span class="res gold"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gold"></use></svg><b id="map-gold">0</b></span>
-        <span class="res food"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-food"></use></svg><b id="map-food">0</b></span>
+        <span class="res gold" id="map-gold-cell"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gold"></use></svg><b id="map-gold">0</b><small id="map-gold-total"></small></span>
+        <span class="res food" id="map-food-cell"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-food"></use></svg><b id="map-food">0</b><small id="map-food-total"></small></span>
         <span class="res troop"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-troop"></use></svg><b id="map-troops">0</b></span>
       </div>
       <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>
@@ -367,14 +369,14 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=24"></script>
-<script src="js/mapmask.js?v=24"></script>
-<script src="js/city_geo.js?v=24"></script>
-<script src="js/data.js?v=24"></script>
-<script src="js/bgm.js?v=24"></script>
-<script src="js/sfx.js?v=24"></script>
-<script src="js/app.js?v=24"></script>
-<script src="js/map.js?v=24"></script>
-<script src="js/battle.js?v=24"></script>
+<script src="js/mapgeo.js?v=25"></script>
+<script src="js/mapmask.js?v=25"></script>
+<script src="js/city_geo.js?v=25"></script>
+<script src="js/data.js?v=25"></script>
+<script src="js/bgm.js?v=25"></script>
+<script src="js/sfx.js?v=25"></script>
+<script src="js/app.js?v=25"></script>
+<script src="js/map.js?v=25"></script>
+<script src="js/battle.js?v=25"></script>
 </body>
 </html>

@@ -502,14 +502,47 @@ SK.TROOP_CAP = {
 /* v5.8 — 관직(교위 → 중랑장 → 진동·진서장군 → 대장군).
    군주 명성이 오르면 휘하 장수에게 내리고, 출진 병력 상한이 5,000 → 10,000까지 열린다.
    봉급은 조금 오르고(달마다 금 지출), 임명할 때 충성이 오른다. */
+/* v5.11 — 문관·무관 24단계 관직.
+   · 무관(mil) 12단계: 출진 병력이 500씩 촘촘히 늘고 공격·방어가 조금씩 오른다
+   · 문관(civ) 12단계: 출진 병력도 늘지만 내정(정치)·책략(지력) 보정이 붙는다
+   · 모두 군주 명성 + 장수 개인 공훈치로 서임한다 (예전 key는 그대로 살려 옛 저장과 호환) */
 SK.OFFICES = [
-  { key: 'none', name: '관직 없음', fame: 0, merit: 0, add: 0, salary: 0, loyal: 0 },
-  { key: 'gyowi', name: '교위', fame: 300, merit: 80, add: 1000, salary: 25, loyal: 3 },
-  { key: 'jungnangjang', name: '중랑장', fame: 900, merit: 220, add: 2000, salary: 50, loyal: 4 },
-  { key: 'jindong', name: '진동장군', fame: 2000, merit: 500, add: 3000, salary: 80, loyal: 5 },
-  { key: 'jinseo', name: '진서장군', fame: 3500, merit: 1000, add: 3500, salary: 100, loyal: 5 },
-  { key: 'daegeneral', name: '대장군', fame: 6000, merit: 1800, add: 5000, salary: 140, loyal: 6 },
+  { key: 'none', name: '관직 없음', branch: 'none', fame: 0, merit: 0, add: 0, salary: 0, loyal: 0 },
+  /* ── 무관 ── */
+  { key: 'dowi', name: '도위', branch: 'mil', fame: 150, merit: 45, add: 500, atk: 1, def: 1, salary: 12, loyal: 2 },
+  { key: 'gyowi', name: '교위', branch: 'mil', fame: 300, merit: 80, add: 1000, atk: 2, def: 1, salary: 25, loyal: 3 },
+  { key: 'bijanggun', name: '비장군', branch: 'mil', fame: 550, merit: 130, add: 1500, atk: 3, def: 2, salary: 34, loyal: 3 },
+  { key: 'pyeonjanggun', name: '편장군', branch: 'mil', fame: 800, merit: 185, add: 2000, atk: 4, def: 2, salary: 42, loyal: 4 },
+  { key: 'jungnangjang', name: '중랑장', branch: 'mil', fame: 1100, merit: 250, add: 2500, atk: 5, def: 3, salary: 50, loyal: 4 },
+  { key: 'yangmujanggun', name: '양무장군', branch: 'mil', fame: 1500, merit: 330, add: 3000, atk: 6, def: 4, salary: 60, loyal: 4 },
+  { key: 'toyeokjanggun', name: '토역장군', branch: 'mil', fame: 1900, merit: 420, add: 3500, atk: 7, def: 5, salary: 70, loyal: 5 },
+  { key: 'jindong', name: '진동장군', branch: 'mil', fame: 2400, merit: 520, add: 4000, atk: 8, def: 5, salary: 80, loyal: 5 },
+  { key: 'jinseo', name: '진서장군', branch: 'mil', fame: 3000, merit: 660, add: 4500, atk: 9, def: 6, salary: 90, loyal: 5 },
+  { key: 'geogijanggun', name: '거기장군', branch: 'mil', fame: 3800, merit: 820, add: 5000, atk: 11, def: 7, salary: 105, loyal: 6 },
+  { key: 'pyogijanggun', name: '표기장군', branch: 'mil', fame: 4700, merit: 1050, add: 5500, atk: 13, def: 8, salary: 120, loyal: 6 },
+  { key: 'daegeneral', name: '대장군', branch: 'mil', fame: 6000, merit: 1400, add: 6000, atk: 16, def: 10, salary: 140, loyal: 7 },
+  /* ── 문관 ── */
+  { key: 'jubu', name: '주부', branch: 'civ', fame: 150, merit: 40, add: 500, pol: 2, intel: 1, salary: 12, loyal: 2 },
+  { key: 'hyeonryeong', name: '현령', branch: 'civ', fame: 320, merit: 75, add: 500, pol: 3, intel: 1, salary: 22, loyal: 2 },
+  { key: 'byeolga', name: '별가', branch: 'civ', fame: 520, merit: 120, add: 1000, pol: 4, intel: 2, salary: 32, loyal: 3 },
+  { key: 'taesu', name: '태수', branch: 'civ', fame: 780, merit: 175, add: 1500, pol: 5, intel: 2, salary: 44, loyal: 3 },
+  { key: 'eosajungseung', name: '어사중승', branch: 'civ', fame: 1100, merit: 240, add: 2000, pol: 6, intel: 3, salary: 54, loyal: 4 },
+  { key: 'jungseoryeong', name: '중서령', branch: 'civ', fame: 1500, merit: 320, add: 2500, pol: 8, intel: 4, salary: 64, loyal: 4 },
+  { key: 'sangseoryeong', name: '상서령', branch: 'civ', fame: 1950, merit: 415, add: 3000, pol: 9, intel: 5, salary: 74, loyal: 4 },
+  { key: 'taesang', name: '태상', branch: 'civ', fame: 2450, merit: 520, add: 3500, pol: 11, intel: 5, salary: 84, loyal: 5 },
+  { key: 'sagong', name: '사공', branch: 'civ', fame: 3050, merit: 650, add: 4000, pol: 12, intel: 6, salary: 95, loyal: 5 },
+  { key: 'sado', name: '사도', branch: 'civ', fame: 3750, merit: 800, add: 4500, pol: 14, intel: 7, salary: 108, loyal: 6 },
+  { key: 'taebu', name: '태부', branch: 'civ', fame: 4600, merit: 980, add: 5000, pol: 16, intel: 8, salary: 122, loyal: 6 },
+  { key: 'seungsang', name: '승상', branch: 'civ', fame: 6000, merit: 1300, add: 6000, pol: 20, intel: 10, salary: 145, loyal: 7 },
 ];
+/* v5.11 — 관직 분과별 다음 자리 (무관은 무관끼리, 문관은 문관끼리 오른다) */
+SK.officeBranchOf = function (hero) { return SK.officeOf(hero).branch || 'none'; };
+SK.officePol = function (hero) { return SK.officeOf(hero).pol || 0; };
+SK.officeIntel = function (hero) { return SK.officeOf(hero).intel || 0; };
+SK.officeWarBonus = function (hero) {
+  const o = SK.officeOf(hero);
+  return { atk: (o.atk || 0) / 100, def: (o.def || 0) / 100 };
+};
 SK.OFFICE_BY_KEY = {};
 SK.OFFICES.forEach((o) => { SK.OFFICE_BY_KEY[o.key] = o; });
 SK.officeOf = function (hero) {
@@ -522,9 +555,18 @@ SK.officeSalary = function (hero) { return SK.officeOf(hero).salary || 0; };
 SK.meritOf = function (hero) { return Math.max(0, Math.round(Number(hero && hero.merit) || 0)); };
 SK.nextOfficeOf = function (hero) {
   const cur = SK.officeOf(hero);
-  const i = SK.OFFICES.findIndex((o) => o.key === cur.key);
-  const nx = SK.OFFICES[Math.min(SK.OFFICES.length - 1, (i < 0 ? 0 : i) + 1)];
-  return nx && nx.key !== cur.key ? nx : null;
+  const branch = cur.branch || 'mil';
+  const pool = SK.OFFICES.filter((o) => o.branch === branch);
+  const i = pool.findIndex((o) => o.key === cur.key);
+  return i >= 0 && i + 1 < pool.length ? pool[i + 1] : null;
+};
+/* v5.11 — 그 분과에서 지금 명성·공훈으로 열리는 가장 높은 자리 */
+SK.bestOfficeFor = function (hero, branch, fame) {
+  const pool = SK.OFFICES.filter((o) => o.branch === branch);
+  let best = null;
+  const merit = SK.meritOf(hero);
+  pool.forEach((o) => { if ((fame || 0) >= o.fame && merit >= (o.merit || 0)) best = o; });
+  return best;
 };
 SK.troopCapOf = function (hero, st) {
   const state = st || SK.state || {};
@@ -966,7 +1008,7 @@ SK.setGenerals = function (list) {
   SK.GEN_BY_ID = {}; SK.GEN_BY_NAME = {};
   SK.GENERALS.forEach((g) => { SK.GEN_BY_ID[g.id] = g; SK.GEN_BY_NAME[g.name] = g; });
   SK.registerExtras();
-  SK.GENERALS.forEach((g) => { g.hanja = ''; });
+  SK.GENERALS.forEach((g) => { g.hanja = ''; g.origTier = g.tier; });
   SK.rebalanceTiers();
 };
 
@@ -974,18 +1016,48 @@ SK.setGenerals = function (list) {
    원본 데이터는 A급이 49%, C급이 0%여서 주점에 고급 인재만 넘치고 있었다.
    능력치 순위로 다시 나누면 이름난 장수는 그대로 S·A로 남고, 이름 없는 장수는 B·C로 내려간다. */
 SK.TIER_MIX = [{ t: 'S', to: 0.05 }, { t: 'A', to: 0.20 }, { t: 'B', to: 0.55 }, { t: 'C', to: 1.0 }];
+/* v5.11 — 등급 재산정은 '최고 스탯 + 상위 2개 스탯'으로.
+   예전에는 통·무·지만 평균이라 여포(무력 100)처럼 한 능력이 빼어난 명장이 B로,
+   서희·순욱·곽가(지력 90+)가 C로 강등됐다. 정치·매력까지 포함해 다시 매긴다. */
 SK.genScore = function (g) {
-  return (g.leadership || 0) * 0.4 + (g.war || 0) * 0.3 + (g.intel || 0) * 0.3;
+  const st = [g.war || 0, g.intel || 0, g.leadership || 0, g.politics || 0, g.charm || 0]
+    .map((v) => Number(v) || 0).sort((a, b) => b - a);
+  const top = st[0], second = st[1] || 0, third = st[2] || 0;
+  return top * 0.62 + second * 0.26 + third * 0.12;
+};
+SK.topStatOf = function (g) {
+  return Math.max(g.war || 0, g.intel || 0, g.leadership || 0, g.politics || 0, g.charm || 0);
 };
 SK.rebalanceTiers = function () {
+  /* 원본 등급을 남겨 둔다 — 최고 스탯 95+ 또는 원본 S는 S/A로 보호한다 */
+  SK.GENERALS.forEach((g) => { if (!g.origTier) g.origTier = g.tier; });
   const list = SK.GENERALS.slice().sort((a, b) => SK.genScore(b) - SK.genScore(a) || String(a.name).localeCompare(String(b.name)));
   const n = list.length;
   if (!n) return;
   list.forEach((g, i) => {
     const p = (i + 0.5) / n;
-    g.tier = (SK.TIER_MIX.find((m) => p <= m.to) || SK.TIER_MIX[SK.TIER_MIX.length - 1]).t;
+    let t = (SK.TIER_MIX.find((m) => p <= m.to) || SK.TIER_MIX[SK.TIER_MIX.length - 1]).t;
+    const top = SK.topStatOf(g);
+    const orig = g.origTier || g.tier;
+    /* 최고 스탯 97+는 S, 93+는 최소 A, 원본 S는 최소 A로 보호한다.
+       (여포 무력 100 · 서희/순욱/곽가 지력 94+ · 유비/장비 매력·무력 98+) */
+    if (top >= 97) t = 'S';
+    else if (top >= 93) t = t === 'C' ? 'A' : (t === 'B' ? 'A' : t);
+    else if (orig === 'S') t = t === 'C' ? 'B' : (t === 'B' ? 'A' : t);
+    else if (orig === 'A' && t === 'C') t = 'B';
+    g.tier = t;
   });
   SK.TIER_COUNT = SK.GENERALS.reduce((a, g) => { a[g.tier] = (a[g.tier] || 0) + 1; return a; }, {});
+};
+/* v5.11 — 나이. 태어난 해가 없으면 0, 미래 장수·초월 영웅은 최소 18세로 보정한다.
+   (구수왕 -27세·제갈량 9세 같은 비정상 나이를 화면에서 없앤다) */
+SK.ageOf = function (g, year) {
+  if (!g) return 0;
+  const by = Number(g.birthYear);
+  if (!by) return 0;
+  const yr = Number(year || (SK.state && SK.state.eraYear) || 190);
+  const age = yr - by + 1;
+  return Math.max(18, age);
 };
 
 /* 시나리오 데이터에만 있는 인물을 장수 목록에 더한다 */
@@ -1377,28 +1449,34 @@ function paint(g, list, ch) {
 /* v5.1 — 직교 공성전 맵 (정면 시점). 위쪽에 성, 아래쪽에 공격 진영.
    y0 후벽 · y1~5 성 안 마당(궁궐 4×2) · y6 외벽+성문 2칸 · y7 해자(다리 2칸, 여울 2곳)
    · y8~12 성문 앞 길 · y13~17 아군 진영. 격자와 그림이 1:1로 맞도록 배경 그림 없이 코드로 그린다. */
-function siegeMap() {
+/* v5.11 — 공성/수성 통일 맵. 같은 성이면 공격할 때나 지길 때나 같은 성벽·성문·망루·본성을 쓴다.
+   도시 등급에 따라 소도시 1중 · 중도시 2중 · 대도시 3중 성벽.
+   성문은 성벽 줄(x8·x9)마다 하나씩 있고, 바깥 성문부터 차례로 부숴야 안쪽으로 들어갈 수 있다. */
+function siegeMap(rings) {
+  rings = rings === 3 ? 3 : (rings === 2 ? 2 : 1);
   const g = blankGrid();
   const row = (y, ch, x0 = 0, x1 = 17) => { for (let x = x0; x <= x1; x++) g[y][x] = ch; };
-  /* 성 안 마당 + 좌우 성벽 + 후벽 */
-  for (let y = 0; y <= 5; y++) { row(y, 'D'); g[y][0] = 'C'; g[y][17] = 'C'; }
-  row(0, 'C');
-  /* 궁궐·관아 */
-  for (let y = 1; y <= 2; y++) row(y, 'H', 7, 10);
-  /* v5.3 — 본성(관아 앞 계단) 2칸 + 좌우 망루 2칸 */
-  g[3][8] = 'K'; g[3][9] = 'K';
-  g[4][5] = 'T'; g[4][12] = 'T';
-  /* 정면 외벽 + 성문 2칸 */
-  row(6, 'C'); g[6][8] = 'G'; g[6][9] = 'G';
-  /* 해자: 다리 2칸(성문 앞) + 양옆 여울 */
-  row(7, 'W'); g[7][8] = 'B'; g[7][9] = 'B'; g[7][3] = 'S'; g[7][14] = 'S';
-  /* 성문 앞 길 */
-  for (let y = 8; y <= 12; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
-  row(13, 'R', 7, 10);
-  /* 성 밖: 숲(우회·엄폐) · 산(양 모서리) */
-  paint(g, [[9, 1], [9, 2], [10, 1], [10, 2], [10, 3], [11, 2], [9, 15], [9, 16], [10, 14], [10, 15], [10, 16], [11, 15], [11, 5], [12, 5], [11, 12], [12, 12]], 'F');
-  paint(g, [[13, 0], [13, 1], [14, 0], [14, 1], [14, 2], [15, 0], [15, 1], [16, 0], [17, 0], [17, 1],
-    [13, 16], [13, 17], [14, 15], [14, 16], [14, 17], [15, 16], [15, 17], [16, 17], [17, 16], [17, 17]], 'M');
+  const wallRows = rings === 3 ? [3, 6, 9] : (rings === 2 ? [3, 7] : [6]);
+  const outer = wallRows[wallRows.length - 1];
+  /* 성 안(마지막 성벽까지)은 마당, 밖은 들 */
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = y <= outer ? 'D' : 'P';
+  /* 궁궐·관아(맨 안쪽), 본성 계단, 망루 */
+  row(1, 'H', 7, 10);
+  g[2][8] = 'K'; g[2][9] = 'K';
+  if (rings === 1) { g[3][4] = 'T'; g[3][13] = 'T'; }
+  if (rings === 2) { g[3][4] = 'T'; g[3][13] = 'T'; g[5][6] = 'T'; g[5][11] = 'T'; }
+  if (rings === 3) { g[3][4] = 'T'; g[3][13] = 'T'; g[5][5] = 'T'; g[5][12] = 'T'; g[8][4] = 'T'; g[8][13] = 'T'; }
+  /* 성벽 줄과 성문(2칸) */
+  wallRows.forEach((y) => { row(y, 'C'); g[y][8] = 'G'; g[y][9] = 'G'; });
+  /* 해자 — 바깥 성벽 바로 아래. 성문 앞은 다리, 양옆은 여울 */
+  const moat = outer + 1;
+  if (moat < 17) { row(moat, 'W'); g[moat][8] = 'B'; g[moat][9] = 'B'; g[moat][3] = 'S'; g[moat][14] = 'S'; }
+  /* 성문 앞길 — 해자 아래부터 진영까지 */
+  for (let y = moat + 1; y <= 14; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
+  row(15, 'R', 6, 11);
+  /* 성 밖: 숲(우회·엄폐) · 산(모서리) — 성벽 안쪽 마당은 건드리지 않는다 */
+  paint(g, [[9, 16], [10, 16], [11, 16], [3, 13], [3, 14], [14, 13], [14, 14], [4, 16], [13, 16]], 'F');
+  paint(g, [[0, 16], [0, 17], [1, 17], [17, 16], [17, 17], [16, 17], [0, 13], [17, 13]], 'M');
   return g2s(g);
 }
 
@@ -1503,7 +1581,9 @@ function ambushMap() {
 }
 
 SK.MAPS = {
-  siege: siegeMap(),
+  siege: siegeMap(1),
+  siege2: siegeMap(2),
+  siege3: siegeMap(3),
   naval: navalMap(),
   mountain: mountainMap(),
   fortress: fortressMap(),
@@ -1511,6 +1591,18 @@ SK.MAPS = {
   ford: fordMap(),
   ambush: ambushMap(),
 };
+
+/* v5.11 — 성 등급별 성벽 겹수 (소도시 1중 · 중도시 2중 · 대도시 3중) */
+SK.siegeRingsOfLevel = function (lv) {
+  const n = Number(lv) || 1;
+  return n >= 4 ? 3 : (n === 3 ? 2 : 1);
+};
+/* 성 종류로 성벽 겹수 — 대도시 3중 · 중도시 2중 · 소도시/관문/요새 1중 */
+SK.siegeRingsOfCity = function (city) {
+  const t = city && city.type;
+  return t === 'capital' ? 3 : (t === 'mid' ? 2 : 1);
+};
+SK.siegeMapKey = function (rings) { return rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'); };
 
 /* 전장 유형 정보 */
 SK.BATTLE_TYPES = {
@@ -1565,11 +1657,17 @@ SK.enemyClassesFor = function (type, idx) {
 };
 
 /* 배치 좌표 [x, y] (18×18) */
-SK.enemySlots = function (type) {
+/* v5.11 — 성 안쪽 수비 슬롯은 성벽 겹수에 맞춰 성벽 사이사이에 선다 */
+SK.innerSlots = function (rings) {
+  if (rings >= 3) return [[8, 4], [9, 4], [5, 4], [12, 4], [8, 7], [9, 7], [5, 7], [12, 7], [8, 2], [4, 8]];
+  if (rings === 2) return [[8, 4], [9, 4], [5, 4], [12, 4], [8, 6], [9, 6], [5, 6], [12, 6], [8, 2], [9, 2]];
+  return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5], [8, 4], [9, 4]];
+};
+SK.enemySlots = function (type, rings) {
   /* v5.3 — 수비 2기는 망루(5,4)·(12,4)에 붙어 버틴다 */
   /* v5.7 — 수성전은 공성전을 뒤집는다: 지키는 우리가 성 안쪽, 적이 성 앞 */
   if (type === 'defense') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
-  if (type === 'siege') return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5]];
+  if (type === 'siege') return SK.innerSlots(rings || 1);
   if (type === 'naval') return [[3, 2], [6, 2], [9, 2], [12, 2], [15, 2], [5, 1], [11, 1], [14, 1]];
   if (type === 'mountain') return [[16, 2], [14, 4], [11, 7], [10, 9], [8, 10], [13, 5], [15, 3], [9, 11]];
   if (type === 'plain') return [[4, 2], [8, 2], [12, 2], [6, 3], [10, 3], [13, 3], [3, 3], [15, 3]];
@@ -1577,8 +1675,8 @@ SK.enemySlots = function (type) {
   if (type === 'ambush') return [[14, 4], [12, 6], [10, 8], [8, 10], [6, 12], [13, 5], [11, 7], [9, 9]];
   return [[12, 4], [15, 4], [13, 6], [16, 7], [11, 7], [12, 9], [14, 5], [16, 3]];
 };
-SK.allySlots = function (type) {
-  if (type === 'defense') return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5], [8, 4], [9, 4]];
+SK.allySlots = function (type, rings) {
+  if (type === 'defense') return SK.innerSlots(rings || 1);
   if (type === 'siege') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
   if (type === 'naval') return [[3, 15], [6, 15], [9, 15], [12, 15], [15, 15], [4, 16], [7, 16], [10, 16], [13, 16], [16, 16]];
   if (type === 'mountain') return [[2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 12], [3, 16], [4, 16], [5, 14], [6, 13]];

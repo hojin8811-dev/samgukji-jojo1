@@ -1085,6 +1085,7 @@
       b.innerHTML = `
         <span class="m-hit"></span>
         <img class="m-icon" src="assets/icons/${ICON_SRC[c.type]}.webp" alt="" draggable="false" />
+        <span class="m-roof" aria-hidden="true"><i class="r1"></i><i class="r2"></i><i class="r3"></i></span>
         <span class="m-flag"><b class="m-lv">1</b></span>
         <span class="m-label">${c.name}</span>`;
       b.addEventListener('click', (e) => {
