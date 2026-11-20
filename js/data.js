@@ -499,13 +499,37 @@ SK.TROOP_CAP = {
   base: { lord: 10000, named: 5000 },
   general: { lord: 20000, named: 10000 },
 };
+/* v5.8 — 관직(교위 → 중랑장 → 진동·진서장군 → 대장군).
+   군주 명성이 오르면 휘하 장수에게 내리고, 출진 병력 상한이 5,000 → 10,000까지 열린다.
+   봉급은 조금 오르고(달마다 금 지출), 임명할 때 충성이 오른다. */
+SK.OFFICES = [
+  { key: 'none', name: '관직 없음', fame: 0, add: 0, salary: 0, loyal: 0 },
+  { key: 'gyowi', name: '교위', fame: 300, add: 1000, salary: 25, loyal: 3 },
+  { key: 'jungnangjang', name: '중랑장', fame: 900, add: 2000, salary: 50, loyal: 4 },
+  { key: 'jindong', name: '진동장군', fame: 2000, add: 3000, salary: 80, loyal: 5 },
+  { key: 'jinseo', name: '진서장군', fame: 3500, add: 3500, salary: 100, loyal: 5 },
+  { key: 'daegeneral', name: '대장군', fame: 6000, add: 5000, salary: 140, loyal: 6 },
+];
+SK.OFFICE_BY_KEY = {};
+SK.OFFICES.forEach((o) => { SK.OFFICE_BY_KEY[o.key] = o; });
+SK.officeOf = function (hero) {
+  if (!hero || !hero.appoint) return SK.OFFICES[0];
+  return SK.OFFICE_BY_KEY[hero.appoint] || SK.OFFICES[0];
+};
+SK.officeAdd = function (hero) { return SK.officeOf(hero).add || 0; };
+SK.officeSalary = function (hero) { return SK.officeOf(hero).salary || 0; };
 SK.troopCapOf = function (hero, st) {
   const state = st || SK.state || {};
   const lordName = ((state.factions || {})[state.playerFaction || ''] || {}).lord || '';
   const isLord = !!(hero && lordName && hero.name === lordName) || (hero && hero.rank === '군주');
   const promoted = !!(hero && (hero.rank === '장군' || hero.rank === '대장군' || Number(hero.lv) >= 20));
   const set = promoted ? SK.TROOP_CAP.general : SK.TROOP_CAP.base;
-  return isLord ? set.lord : set.named;
+  const base = isLord ? set.lord : set.named;
+  /* v5.8 — 관직이 있으면 병력 상한이 열린다 (일반 5,000 → 최대 10,000) */
+  const add = SK.officeAdd(hero);
+  if (!add) return base;
+  const grown = base + add;
+  return isLord ? Math.min(SK.TROOP_CAP.general.lord, grown) : Math.min(SK.TROOP_CAP.general.named, grown);
 };
 SK.nextPromo = function (lv) {
   const at = [5, 10, 20, 30];
@@ -818,6 +842,20 @@ SK.setTopArt = function (manifest) {
     if (a && (a.portrait || a.unit)) SK.ART[name] = a;
   });
 };
+/* v5.8 — 오늘 새로 그린 A급 18인·한국 12인 초상/SD를 기존 상위 100인 목록 위에 얹는다.
+   같은 이름이 있으면 새 그림(초상·SD)이 이긴다. */
+SK.addTopArt = function (manifest) {
+  if (!manifest) return;
+  Object.keys(manifest).forEach((name) => {
+    const a = manifest[name];
+    if (!a) return;
+    const cur = SK.ART[name] || {};
+    SK.ART[name] = Object.assign({}, cur, a, {
+      portrait: a.portrait || cur.portrait || null,
+      unit: a.unit || cur.unit || null,
+    });
+  });
+};
 SK.artFor = function (name) { return SK.ART[name] || null; };
 SK.ptSrc = function (p) {
   if (!p) return 'assets/portraits/v2/gen_bobyung.webp';
@@ -962,6 +1000,14 @@ SK.registerExtras = function () {
 };
 SK.genClass = function (g) { return (g && SK.JOB_CLASS[g.job]) || 'geombyung'; };
 SK.genLv = function (g) { return (g && SK.TIER_LV[g.tier]) || 3; };
+/* v5.8 — 처형한 장수는 다시 세상에 나오지 않는다 (주점·탐색·등장 명부에서 뺀다) */
+SK.isDead = function (genId, name) {
+  const s = SK.state;
+  if (!s || !s.deadGens) return false;
+  if (genId != null && s.deadGens[String(genId)]) return true;
+  if (name && s.deadNames && s.deadNames[name]) return true;
+  return false;
+};
 SK.genPortrait = function (g) {
   const art = SK.artPortrait(g && g.name);
   if (art) return art;

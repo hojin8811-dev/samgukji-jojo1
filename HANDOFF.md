@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.7** 내정 편의·태수 위임·수송·충성·시세·세계제패 AI · 2026-11-20 · 라이브 `?v=21`
+> 기준: **v5.8** 외교·포로·관직·돌발이벤트·입문가이드·30인 아트 · 2026-11-20 · 라이브 `?v=22`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,26 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=21`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=22`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | 내정 완성(v5.5 모션·파견, v5.7 위임·수송·충성·시세) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음은 외교·계략(이간·항복·동맹)과 선택지형 월간 이벤트 |
+| 다음 목표 | 내정 완성(v5.5~v5.8) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 AI 방어·후퇴 판단과 포로 몸값 거래 |
+
+---
+
+## 0.2 v5.8에서 바뀐 것 — 외교·포로·관직·돌발이벤트·입문가이드·30인 아트 (2026-11-20)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 신규 아트 30인 | `a_rank` 18명 초상+SD, `korea` 12명 SD(초상은 계백·양만춘·온달). `top100` 목록 위에 `v58` 목록을 얹음 | `data/v58_art_manifest.json`, `js/data.js` `SK.addTopArt`, `js/app.js` `loadTopArt` |
+| 이간계 | 성 → 적장 지목, 금 120 + 지력 대결로 충성 26~42 감소(`s.genLoyal`). 50 이하면 **회유** 버튼 → 매력 대결 성공 시 내 장수(충성 55) | `openEstrange`·`openEstrangeGen`·`lureGen`·`enemyLoyal`·`setEnemyLoyal` |
+| 항복 권고 | 보유 2성 이하 또는 병력 2배 우위인 이웃 적성. 금 300 + 매력·배율 판정, 성사 시 성·병력 70%·장수 45% 흡수, 명성 +8 | `openSurrenderAdvice` |
+| 동맹·휴전 | 휴전 6개월(금 200) / 동맹 12개월(금 600), `s.truce`+`s.pacts`. AI는 기간 중 침공 안 함, 내가 먼저 치면 명성 −8 | `openPeace`·`openPeaceTerms`·`PEACE_TERMS`, `planPlayerInvasion`, `openDeploy` |
+| 포로 | 공격전·수성전 승리 시 적 명장 최대 2명 포로 → 등용(충성 55)/석방(금 180~500·명성 3)/처형(명성 −6, `s.deadGens`·`deadNames`로 재등장 차단) | `battle.js` `rollPrisoners`·`openPrisoners`·`makeNamedEnemy.genId`, `data.js` `SK.isDead` |
+| 관직 | 교위 300 → 중랑장 900 → 진동 2,000 → 진서 3,500 → 대장군 6,000 명성. 출진 상한 5,000→6,000~10,000, 충성 +3~6, 봉급 +25~140 | `data.js` `SK.OFFICES`·`officeOf`·`troopCapOf`, `app.js` `openAppoint`·`openAppointPick`·`heroSalary` |
+| 돌발 이벤트 | 3개월째부터 45% 확률. 상단 방문(보물 600/900) · 홍수·역병 구제(금 400+군량 300 → 민심 +7 vs −7) · 재야 명장 소문(금 450~1,200, 55% 합류) | `CHOICE_EVENTS` 대신 `rollChoiceEvent`·`showChoiceEvent`, `advanceMonth` 월정산 뒤 연결 |
+| 입문 가이드 | 1~3턴 '책사 첫걸음' 배너(×로 끄면 다시 안 뜸), 민심·치안·훈련도·대수확·세율 `?` 2줄 설명, 세력 화면 ⭐ 입문 추천 + 난이도(쉬움 8개월 유예·금 +35% / 보통 4 / 어려움 2·금 −20%) | `renderCityGuide`·`HELP_TIPS`·`helpDot`, `DIFFICULTIES`·`renderDiffRow`·`diffOf`·`graceOf`, `s.difficulty` |
+| 세력명·탐색 | `익주 유장군`→`유장군` 등 지역명 제거(200·208·220), 탐색도 보낼 장수를 직접 선택(배속 장수 자동 해제) | `data/historical_scenarios.json`, `openExplore` |
 
 ---
 
@@ -204,8 +220,8 @@ git add -A && git commit -m "v5.0.4 — (요약)"
 git push origin main              # GitHub Pages가 자동 갱신
 ```
 
-- **캐시 버스터**: `index.html` 안의 `?v=16` 9곳(`game.css`, `mapgeo.js`, `city_geo.js`, `data.js`, `bgm.js`, `sfx.js`, `app.js`, `map.js`, `battle.js`)을 배포마다 **+1** 합니다. 이걸 빼먹으면 폰에서 옛 파일이 계속 돌아 "고쳤는데 안 바뀐다"가 됩니다.
-- 라이브 확인은 폰 브라우저에서 `.../samgukji-jojo1/?v=16`처럼 버전을 붙여 여는 게 확실합니다.
+- **캐시 버스터**: `index.html` 안의 `?v=22` 9곳(`game.css`, `mapgeo.js`, `city_geo.js`, `data.js`, `bgm.js`, `sfx.js`, `app.js`, `map.js`, `battle.js`)을 배포마다 **+1** 합니다. 이걸 빼먹으면 폰에서 옛 파일이 계속 돌아 "고쳤는데 안 바뀐다"가 됩니다.
+- 라이브 확인은 폰 브라우저에서 `.../samgukji-jojo1/?v=22`처럼 버전을 붙여 여는 게 확실합니다.
 - 저장은 `localStorage` 키 **`samgukji-jojo-v4-save`** 하나입니다(`js/app.js` 상단 `SAVE_KEY`). 저장 구조를 바꾸면 이 키를 올리거나 마이그레이션을 넣으세요.
 
 ---
@@ -250,6 +266,7 @@ assets/icons/             # 지도용 아이콘 4장
 | `unique_passives.json` | 100 | `name, title, trigger(on_attack/…), effect, valuePct, cooldown` | 장수 카드·전장 발동 |
 | `treasures.json` | 151 | `id, name, type(무기/방어구/명마/병법서), grade(전설/…), statBonus{war,intel,leadership,charm,politics,move}, effect, dropHint` | v5.0.1에서 `쌍고검` 추가로 150→151 |
 | `top100_art_manifest.json` | 100 | `이름: {id, rank, portrait, unit}` | 전용 일러스트 경로 |
+| `v58_art_manifest.json` | 30 | `이름: {id, portrait?, unit?}` | v5.8 A급 18인·한국 12인. `SK.addTopArt`가 위 100인 목록 위에 얹음 |
 | `events.json` | 30 | 도시·장수 매칭 시 전투 도입 연출 | |
 | `domestic_events.json` | 24 | 월정산 중 내정 이벤트 | |
 | `bonds.json` | 40 | 장수 숙적·인연 관계 | |

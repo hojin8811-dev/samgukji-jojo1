@@ -713,7 +713,7 @@
       },
       {
         "id": "liuzhang",
-        "name": "익주 유장군",
+        "name": "유장군",
         "color": "#795548",
         "leader": "유장",
         "capital": "성도",
@@ -789,7 +789,7 @@
       },
       {
         "id": "zhanglu",
-        "name": "한중 장로군",
+        "name": "장로군",
         "color": "#9b59b6",
         "leader": "장로",
         "capital": "남정",
@@ -806,7 +806,7 @@
         ],
         "allies": [],
         "enemies": [
-          "익주 유장군"
+          "유장군"
         ]
       },
       {
@@ -1067,7 +1067,7 @@
       },
       {
         "id": "liuzong",
-        "name": "형주 유종군",
+        "name": "유종군",
         "color": "#168b76",
         "leader": "유종",
         "capital": "양양",
@@ -1097,7 +1097,7 @@
       },
       {
         "id": "liuzhang",
-        "name": "익주 유장군",
+        "name": "유장군",
         "color": "#795548",
         "leader": "유장",
         "capital": "성도",
@@ -1171,7 +1171,7 @@
       },
       {
         "id": "zhanglu",
-        "name": "한중 장로군",
+        "name": "장로군",
         "color": "#9b59b6",
         "leader": "장로",
         "capital": "남정",
@@ -1188,7 +1188,7 @@
         ],
         "allies": [],
         "enemies": [
-          "익주 유장군"
+          "유장군"
         ]
       },
       {
@@ -1545,7 +1545,7 @@
       },
       {
         "id": "shi_xie",
-        "name": "교주 사섭군",
+        "name": "사섭군",
         "color": "#8e44ad",
         "leader": "사섭",
         "capital": "교지",

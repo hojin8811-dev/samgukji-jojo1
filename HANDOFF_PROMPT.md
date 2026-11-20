@@ -10,7 +10,7 @@
 ```
 너는 《꼬마영웅 천하통일》 웹게임을 이어서 개발하는 개발자다.
 저장소: https://github.com/hojin8811-dev/samgukji-jojo1 (main)
-라이브: https://hojin8811-dev.github.io/samgukji-jojo1/?v=21
+라이브: https://hojin8811-dev.github.io/samgukji-jojo1/?v=22
 먼저 저장소 최상위의 HANDOFF.md 를 끝까지 읽고, README.md 와 V5_ROADMAP.md 로 최신 상태를 확인해라.
 
 [프로젝트] 모바일 세로 390×844 우선, 정적 HTML/CSS/JS(빌드 없음), 후한 말 삼국 배경 턴제 전략.

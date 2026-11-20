@@ -1,0 +1,143 @@
+{
+  "조진": {
+    "id": 105,
+    "portrait": "assets/portraits/a_rank/105_caozhen.webp",
+    "unit": "assets/units/a_rank/105_caozhen.webp"
+  },
+  "왕기": {
+    "id": 110,
+    "portrait": "assets/portraits/a_rank/110_wangji.webp",
+    "unit": "assets/units/a_rank/110_wangji.webp"
+  },
+  "사마소": {
+    "id": 114,
+    "portrait": "assets/portraits/a_rank/114_simazhao.webp",
+    "unit": "assets/units/a_rank/114_simazhao.webp"
+  },
+  "두예": {
+    "id": 116,
+    "portrait": "assets/portraits/a_rank/116_duyu.webp",
+    "unit": "assets/units/a_rank/116_duyu.webp"
+  },
+  "유리명왕": {
+    "id": 182,
+    "portrait": "assets/portraits/a_rank/182_yuri.webp",
+    "unit": "assets/units/a_rank/182_yuri.webp"
+  },
+  "곽회": {
+    "id": 213,
+    "portrait": "assets/portraits/a_rank/213_guohuai.webp",
+    "unit": "assets/units/a_rank/213_guohuai.webp"
+  },
+  "진태": {
+    "id": 214,
+    "portrait": "assets/portraits/a_rank/214_chentai.webp",
+    "unit": "assets/units/a_rank/214_chentai.webp"
+  },
+  "전예": {
+    "id": 218,
+    "portrait": "assets/portraits/a_rank/218_tianyu.webp",
+    "unit": "assets/units/a_rank/218_tianyu.webp"
+  },
+  "진등": {
+    "id": 244,
+    "portrait": "assets/portraits/a_rank/244_chendeng.webp",
+    "unit": "assets/units/a_rank/244_chendeng.webp"
+  },
+  "나헌": {
+    "id": 255,
+    "portrait": "assets/portraits/a_rank/255_luoxian.webp",
+    "unit": "assets/units/a_rank/255_luoxian.webp"
+  },
+  "근초고태자": {
+    "id": 291,
+    "portrait": "assets/portraits/a_rank/291_geunchogo_prince.webp",
+    "unit": "assets/units/a_rank/291_geunchogo_prince.webp"
+  },
+  "동천왕": {
+    "id": 293,
+    "portrait": "assets/portraits/a_rank/293_dongcheon.webp",
+    "unit": "assets/units/a_rank/293_dongcheon.webp"
+  },
+  "미천왕": {
+    "id": 294,
+    "portrait": "assets/portraits/a_rank/294_micheon.webp",
+    "unit": "assets/units/a_rank/294_micheon.webp"
+  },
+  "지증왕": {
+    "id": 297,
+    "portrait": "assets/portraits/a_rank/297_jijeung.webp",
+    "unit": "assets/units/a_rank/297_jijeung.webp"
+  },
+  "박서": {
+    "id": 326,
+    "portrait": "assets/portraits/a_rank/326_parkseo.webp",
+    "unit": "assets/units/a_rank/326_parkseo.webp"
+  },
+  "검모잠": {
+    "id": 378,
+    "portrait": "assets/portraits/a_rank/378_geommojam.webp",
+    "unit": "assets/units/a_rank/378_geommojam.webp"
+  },
+  "도황": {
+    "id": 465,
+    "portrait": "assets/portraits/a_rank/465_taohuang.webp",
+    "unit": "assets/units/a_rank/465_taohuang.webp"
+  },
+  "거칠부": {
+    "id": 80,
+    "portrait": "assets/portraits/a_rank/80_geochilbu.webp",
+    "unit": "assets/units/a_rank/80_geochilbu.webp"
+  },
+  "김유신": {
+    "id": 76,
+    "unit": "assets/units/korea/kim_yusin.webp"
+  },
+  "을지문덕": {
+    "id": 67,
+    "unit": "assets/units/korea/eulji_mundeok.webp"
+  },
+  "연개소문": {
+    "id": 68,
+    "unit": "assets/units/korea/yeon_gaesomun.webp"
+  },
+  "계백": {
+    "id": 71,
+    "unit": "assets/units/korea/gyebaek.webp",
+    "portrait": "assets/portraits/korea/gyebaek.webp"
+  },
+  "광개토대왕": {
+    "id": 66,
+    "unit": "assets/units/korea/gwanggaeto.webp"
+  },
+  "근초고왕": {
+    "id": 73,
+    "unit": "assets/units/korea/geunchogo.webp"
+  },
+  "강감찬": {
+    "id": 303,
+    "unit": "assets/units/korea/gang_gamchan.webp"
+  },
+  "장보고": {
+    "id": 376,
+    "unit": "assets/units/korea/jang_bogo.webp"
+  },
+  "문무왕": {
+    "id": 197,
+    "unit": "assets/units/korea/munmu.webp"
+  },
+  "동명성왕": {
+    "id": 181,
+    "unit": "assets/units/korea/jumong.webp"
+  },
+  "양만춘": {
+    "id": 69,
+    "unit": "assets/units/korea/yang_manchun.webp",
+    "portrait": "assets/portraits/korea/yang_manchun.webp"
+  },
+  "온달": {
+    "id": 70,
+    "unit": "assets/units/korea/ondal.webp",
+    "portrait": "assets/portraits/korea/ondal.webp"
+  }
+}

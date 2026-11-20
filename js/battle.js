@@ -237,7 +237,7 @@
     const mul = boss ? 1.5 : 1;
     const troops = Math.round(per * mul);
     return {
-      id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv,
+      id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv, genId: g.id,
       hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
       atk: (C.atk + g.war * 0.13) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.03),
       def: (C.def + g.leadership * 0.08),
@@ -3049,6 +3049,128 @@
     s.pendingMarch = null;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.8 — 전투 후 포로 처분
+     이긴 자리가 적 장수를 사로잡으면 등용·석방·처형을 고른다.
+     · 등용 — 매력·충성 판정. 성공하면 내 장수(충성 55)가 된다
+     · 석방 — 금과 명성을 얻는다
+     · 처형 — 명성이 조금 깎이지만 그 장수는 다시 나오지 않는다
+     ══════════════════════════════════════════════════════════════ */
+  function rollPrisoners() {
+    const bossName = (SK.factionInfo(B.faction) || {}).lord || '';
+    const named = [];
+    B.units.forEach((u) => {
+      if (u.side !== 'enemy' || !u.genId) return;
+      const g = SK.GEN_BY_ID[u.genId];
+      if (!g || g.name === bossName) return;
+      if (named.some((x) => x.id === g.id)) return;
+      named.push(g);
+    });
+    const out = [];
+    named.forEach((g) => {
+      if (out.length >= 2) return;
+      if (Math.random() < 0.55) out.push(g);
+    });
+    if (!out.length && named.length && Math.random() < 0.35) {
+      out.push(named[Math.floor(Math.random() * named.length)]);
+    }
+    return out;
+  }
+
+  let prisonCity = null;
+  function openPrisoners(list, idx, log) {
+    const s = SK.state;
+    const all = list || (B && B.prisoners) || [];
+    const cityId = prisonCity || (B && B.targetId) || s.lastCity;
+    const i = idx == null ? 0 : idx;
+    const lines = log || [];
+    if (!all.length) return;
+    if (i >= all.length) {
+      if (lines.length) {
+        SK.modal({
+          kicker: '포로 처리', title: '포로를 정리했습니다',
+          body: `<div class="prison-log">${lines.map((l) => `<p>${l}</p>`).join('')}</div>`,
+          actions: [{ label: '지도로', primary: true }],
+        });
+      }
+      return;
+    }
+    const g = all[i];
+    const loy = SK.enemyLoyal ? SK.enemyLoyal(g) : 72;
+    const cls = SK.genClass(g);
+    const lordName = ((s.factions || {})[s.playerFaction] || {}).lord || '';
+    const lordG = lordName ? SK.GEN_BY_NAME[lordName] : null;
+    const cha = (lordG && lordG.charm) || 62;
+    const pRec = clamp(0.5 + (cha - 60) * 0.006 - (loy - 70) * 0.004 - (g.tier === 'S' ? 0.12 : g.tier === 'A' ? 0.05 : 0), 0.08, 0.85);
+    const gold = ({ S: 500, A: 350, B: 250, C: 180 }[g.tier] || 200);
+    const m = SK.modal({
+      kicker: `포로 ${i + 1} / ${all.length}`, title: `${SK.josa(g.name, 'eul')} 어떻게 할까`, wide: true,
+      body: `<div class="prison-card">
+        <img class="prison-port" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <div class="prison-main">
+          <b>${g.name}</b>
+          <span>${SK.CLASSES[cls].name} · ${g.tier}급 · 지력 ${g.intel} · 무력 ${g.war}</span>
+          <span class="prison-loy"><i style="width:${loy}%"></i><em>충성 ${loy}</em></span>
+          <p>${g.tier === 'S' || g.tier === 'A' ? '이름난 장수라 쉽게 무릎을 굽히지 않습니다.' : '싸움에 진 자세로 고개를 숙이고 있습니다.'}</p>
+        </div>
+      </div>
+      <div class="prison-opts">
+        <button class="prison-opt hire" data-p="hire"><b>등용</b><span>매력 대결 · 성공 ${Math.round(pRec * 100)}%</span></button>
+        <button class="prison-opt free" data-p="free"><b>석방</b><span>금 +${gold} · 명성 +3</span></button>
+        <button class="prison-opt kill" data-p="kill"><b>처형</b><span>명성 −6 · 다시 나오지 않음</span></button>
+      </div>`,
+      actions: [], dismissible: false,
+    });
+    m.el.querySelectorAll('.prison-opt').forEach((b) => {
+      b.onclick = () => {
+        const act = b.dataset.p;
+        let line = '';
+        if (act === 'hire') {
+          if (Math.random() < pRec) {
+            const hero = makeHeroByGen(g, cityId);
+            if (hero) { hero.loyal = 55; s.heroes.push(hero); s.fame += 4; }
+            line = `<b>${g.name}</b> — 등용 성공. 충성 55로 우리 장수가 되었습니다. [포상]으로 마음을 잡으십시오.`;
+            SK.sfx.play('ui');
+          } else {
+            s.fame = Math.max(0, (s.fame || 0) + 1);
+            if (SK.state) { SK.state.genLoyal = SK.state.genLoyal || {}; }
+            line = `<b>${g.name}</b> — “두 번 다시 그런 말 마시오.” 등용 실패. 풀어 주었습니다. 명성 +1.`;
+            SK.sfx.play('deny');
+          }
+        } else if (act === 'free') {
+          s.gold += gold;
+          s.fame += 3;
+          line = `<b>${g.name}</b> — 석방. 몸값 금 +${gold}, 명성 +3.`;
+          SK.sfx.play('coin');
+        } else {
+          s.fame = Math.max(0, (s.fame || 0) - 6);
+          s.deadGens = s.deadGens || {};
+          s.deadNames = s.deadNames || {};
+          s.deadGens[String(g.id)] = true;
+          s.deadNames[g.name] = true;
+          line = `<b>${g.name}</b> — 처형. 군기가 서는 대신 명성 −6. 다시는 나오지 않습니다.`;
+          SK.sfx.play('deny');
+        }
+        SK.save(); SK.refreshHud();
+        m.close();
+        lines.push(line);
+        setTimeout(() => openPrisoners(all, i + 1, lines), 240);
+      };
+    });
+  }
+  /* GENERALS 데이터로 내 장수 하나 만들기 (전투 후 포로·투항용) */
+  function makeHeroByGen(g, cityId) {
+    if (SK.makeHero) return SK.makeHero(g.name, cityId, SK.genLv(g));
+    const cls = SK.genClass(g);
+    return {
+      uid: 'g_' + g.id, baseId: 'gen', genId: g.id, name: g.name, hanja: '', cls,
+      portrait: SK.genPortrait(g), unit: SK.genUnit(g), lv: SK.genLv(g),
+      wu: g.war, ji: g.intel, tong: g.leadership, pol: g.politics || 60, cha: g.charm || 60,
+      loyal: 55, tier: g.tier, skillName: g.skill || '', hp: 100, mp: 60, city: cityId,
+      generic: true, exp: 0, tierLv: 0, equip: {}, actedThisMonth: true,
+    };
+  }
+
   /* ───────────── 승패 ───────────── */
   function victory() {
     if (B.over) return;
@@ -3079,6 +3201,10 @@
     s.food += B.rewards.food;
     s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
     const drop = SK.rollTreasure ? SK.rollTreasure(defeatedNames, c.name) : null;
+    /* v5.8 — 이긴 자리에서 적 장수 일부를 사로잡는다 */
+    prisonCity = B.targetId;
+    const prisoners = rollPrisoners();
+    B.prisoners = prisoners;
     const levelUps = [];
     s.heroes.forEach((h) => {
       const u = B.units.find((x) => x.uid === h.uid);
@@ -3115,11 +3241,15 @@
         </div>` : ''}
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         ${B.event ? `<p class="rm-event">특별 이벤트 — ${B.event.title} · 명성 +5</p>` : ''}
         ${victoryQuote() ? `<p class="rm-quote">“${victoryQuote()}”</p>` : ''}
         <p class="rm-note">${owned >= SK.CITY_LIST.length ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
       </div>`,
-      actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
+      actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
+        closeBattle(); SK.showMap();
+        if (prisoners.length) setTimeout(() => openPrisoners(prisoners), 340);
+      } }],
       dismissible: false,
     });
   }
@@ -3188,6 +3318,10 @@
       } else h.hp = 1;
     });
     s.pendingInvasion = null;
+    /* v5.8 — 수성전에서도 적 장수 일부를 사로잡는다 */
+    prisonCity = B.targetId;
+    const prisoners = rollPrisoners();
+    B.prisoners = prisoners;
     SK.save();
     SK.refreshHud();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
@@ -3204,8 +3338,12 @@
         </div>
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +6 · 성벽 −6</p></div>`,
-      actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
+      actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
+        closeBattle(); SK.showMap();
+        if (prisoners.length) setTimeout(() => openPrisoners(prisoners), 340);
+      } }],
       dismissible: false,
     });
   }
@@ -3444,6 +3582,13 @@
       hurtEnemies(n) { B.units.filter((u) => u.side === 'enemy').forEach((u) => { u.hp = n; if (n <= 0) u.alive = false; }); },
       finish() { finishCheck(); },
       closeBattle,
+      openPrisoners(genIds) {
+        const list = (genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
+        if (!list.length) list.push(...rollPrisoners());
+        openPrisoners(list);
+        return list.map((g) => g.name);
+      },
+      forceVictory() { victory(); },
       gate() { return B && B.gate ? { hp: Math.round(B.gate.hp), max: Math.round(B.gate.maxHp), tiles: B.gate.tiles } : null; },
       img(name) { const u = B && B.units.find((v) => v.name === name); return u ? (unitImgFor(u).getAttribute('src') || unitImgFor(u).src) : null; },      gateAttack(x, y) { const u = B.sel; if (u) doGateAttack(u, { x, y }); },
       toggleAuto(force) { toggleAuto(force); return autoOn; },

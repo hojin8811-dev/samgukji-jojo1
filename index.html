@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=21" />
+<link rel="stylesheet" href="css/game.css?v=22" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -111,6 +111,8 @@
         <p class="fx-note" id="fx-note"></p>
       </div>
     </div>
+    <!-- v5.8 — 난이도 선택 -->
+    <div class="fx-diff" id="fx-diff"></div>
     <div id="faction-list" class="fx-list"></div>
     <p class="sc-foot"><span class="sc-foot-ic" aria-hidden="true">ⓘ</span> 세력을 고르면 그 군주의 본거지에서 시작합니다.</p>
   </section>
@@ -200,6 +202,12 @@
     </header>
 
     <div class="city-mid" id="city-mid">
+    <!-- v5.8 — 책사 첫걸음 (첫 3턴 입문 가이드) -->
+    <div id="city-guide" class="city-guide" hidden>
+      <span class="cg-badge">책사 첫걸음</span>
+      <p class="cg-text"></p>
+      <button class="cg-close" aria-label="가이드 닫기">×</button>
+    </div>
     <div class="city-scene" id="city-scene">
       <img id="city-scene-img" src="assets/scenes/city_main.webp" alt="성내" />
       <div class="scene-shade"></div>
@@ -307,14 +315,14 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=21"></script>
-<script src="js/mapmask.js?v=21"></script>
-<script src="js/city_geo.js?v=21"></script>
-<script src="js/data.js?v=21"></script>
-<script src="js/bgm.js?v=21"></script>
-<script src="js/sfx.js?v=21"></script>
-<script src="js/app.js?v=21"></script>
-<script src="js/map.js?v=21"></script>
-<script src="js/battle.js?v=21"></script>
+<script src="js/mapgeo.js?v=22"></script>
+<script src="js/mapmask.js?v=22"></script>
+<script src="js/city_geo.js?v=22"></script>
+<script src="js/data.js?v=22"></script>
+<script src="js/bgm.js?v=22"></script>
+<script src="js/sfx.js?v=22"></script>
+<script src="js/app.js?v=22"></script>
+<script src="js/map.js?v=22"></script>
+<script src="js/battle.js?v=22"></script>
 </body>
 </html>
