@@ -1149,10 +1149,10 @@
             const d2 = cheb(u.x, u.y, x2, y2);
             if (d2 < minR || d2 > rng) continue;
             ctx.fillStyle = greenRange
-              ? `rgba(125,255,180,${0.32 + pulse2 * 0.10})`
+              ? `rgba(110,255,215,${0.40 + pulse2 * 0.08})`
               : `rgba(150,120,240,${0.13 + pulse2 * 0.07})`;
             ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
-            ctx.strokeStyle = greenRange ? 'rgba(180,255,210,0.78)' : 'rgba(190,170,255,0.42)';
+            ctx.strokeStyle = greenRange ? 'rgba(215,255,240,0.9)' : 'rgba(190,170,255,0.42)';
             ctx.lineWidth = 1;
             ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
           }
