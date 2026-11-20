@@ -31,6 +31,9 @@
   let inertia = null;
   let hoverTile = null;
   let timeScale = 1;            // QA용 배속/저속 (기본 1)
+  let autoOn = false;           // v5.2 — 아군 턴 자동 진행
+  let autoTimer = null;
+  let autoPending = null;
   const anims = [];            // 타일 단위 이동 · 돌격 애니메이션
   let shakeT = 0, shakeAmp = 0; // 화면 진동
   let bondTick = 0;
@@ -45,6 +48,10 @@
     return im;
   }
   function unitImgFor(u) {
+    /* v5.2 — 수전에서 물 타일 위로 나간 부대는 조각배(Skiff)로 표시 */
+    if (B && B.type === 'naval' && B.tiles && B.tiles[u.y] && B.tiles[u.y][u.x] === 'W') {
+      return loadImg('assets/units/skiff.webp');
+    }
     const key = u.unit || CLASS_UNIT[u.cls] || 'bobyung';
     return loadImg(`${SK.unitSrc(key)}`);
   }
@@ -83,7 +90,7 @@
 
     const cityTroops = s.cities[opts.targetId].troops;
     const enemyCount = clamp(5 + Math.floor(cityTroops / 2600), 5, 8);
-    const per = clamp(Math.round(cityTroops / enemyCount / 100) * 100, 800, 2200);
+    const per = clamp(Math.round(cityTroops / enemyCount / 100) * 100, 900, 4200);
     const defGens = (s.cities[opts.targetId].genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
     const enemies = [];
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
@@ -103,10 +110,20 @@
       enemies.push(makeEnemyCls(spec.cls, i, type, faction, per));
     }
 
+    /* v5.2 — 공성전 성문 내구도 (성문이 버리는 동안 근거리는 못 넘는다) */
+    const gateTiles = [];
+    if (type === 'siege' || type === 'fortress') {
+      tiles.forEach((row, y) => row.forEach((ch, x) => { if (ch === 'G') gateTiles.push({ x, y }); }));
+    }
+    const gateInit = gateTiles.length
+      ? { tiles: gateTiles, hp: clamp(Math.round(cityTroops * 0.28) + 1000, 1600, 4200),
+          maxHp: clamp(Math.round(cityTroops * 0.28) + 1000, 1600, 4200) }
+      : null;
+
     B = {
       type, def, name: `${target.name} ${def.name}`, targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null,
-      acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 },
+      acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit,
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens)),
       event: SK.pickEvent(target, defGens),
       objective: def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
@@ -121,6 +138,8 @@
     fx.length = 0;
     floats.length = 0;
     shakeT = 0;
+    autoStop();
+    autoPending = null;
     SK.show('screen-battle');
     if (window.JojoBGM) {
       try { JojoBGM.play(type === 'siege' || type === 'fortress' ? 'battle_siege' : 'battle_field'); } catch (e) { /* ignore */ }
@@ -817,10 +836,40 @@
       ctx.lineWidth = 2.5;
       ctx.strokeRect(g.x * TILE + 5, g.y * TILE + 5, TILE - 10, TILE - 10);
     });
+    /* v5.2 — 성문 내구도 HP 바 */
+    if (B.gate) {
+      const g0 = B.gate.tiles[0], g1 = B.gate.tiles[B.gate.tiles.length - 1];
+      const x0 = g0.x * TILE, x1 = (g1.x + 1) * TILE;
+      const w = x1 - x0 - 12, y = g0.y * TILE - 16;
+      const ratio = clamp(B.gate.hp / Math.max(1, B.gate.maxHp), 0, 1);
+      const k = 1 / Math.max(0.45, cam.s);
+      ctx.fillStyle = 'rgba(30,22,10,0.86)';
+      ctx.fillRect(x0 + 6, y - 2 * k, w, 9 * k);
+      ctx.fillStyle = ratio > 0.55 ? '#7fc08a' : ratio > 0.25 ? '#e8c268' : '#d9634f';
+      ctx.fillRect(x0 + 6, y - 2 * k, w * ratio, 9 * k);
+      ctx.strokeStyle = 'rgba(227,189,99,0.9)';
+      ctx.lineWidth = 1 * k;
+      ctx.strokeRect(x0 + 6, y - 2 * k, w, 9 * k);
+      if (B.gate.hp > 0) {
+        ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#f6e6bc';
+        ctx.fillText(`성문 ${Math.round(B.gate.hp).toLocaleString('ko-KR')} / ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}`,
+          (x0 + x1) / 2, y - 4 * k);
+      } else {
+        ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#ffcf9a';
+        ctx.fillText('성문 파손 — 진입 가능', (x0 + x1) / 2, y - 4 * k);
+      }
+    }
     ctx.restore();
   }
 
   function moveCost(cls, ch) {
+    if (ch === 'G') return gateIntact() ? 99 : 1;   // v5.2 — 성문이 살아 있으면 통행 불가
     if (ch === 'W') return cls === 'sujeok' ? 1 : 99;
     if (ch === 'C' || ch === 'H') return 99;
     if (ch === 'M') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 99 : 2);
@@ -875,7 +924,38 @@
       });
     }
     if (mode === 'attack' || mode === 'skillTarget') {
-      const rng = pendingSkill ? (pendingSkill.range || u.rng) : u.rng;
+      const rng = pendingSkill ? (pendingSkill.range || pendingSkill.radius || u.rng) : u.rng;
+      const minR = pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1);
+      /* v5.2 — 책략 선택 시 사거리·효과 범위 바닥 타일을 먼저 밝혀 준다 */
+      if (mode === 'skillTarget' && pendingSkill) {
+        const pulse2 = 0.5 + 0.5 * Math.sin(performance.now() / 400);
+        for (let y2 = 0; y2 < N; y2++) {
+          for (let x2 = 0; x2 < N; x2++) {
+            const d2 = cheb(u.x, u.y, x2, y2);
+            if (d2 < minR || d2 > rng) continue;
+            ctx.fillStyle = `rgba(150,120,240,${0.13 + pulse2 * 0.07})`;
+            ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
+            ctx.strokeStyle = 'rgba(190,170,255,0.42)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
+          }
+        }
+        const rad = pendingSkill.radius || 0;
+        if (rad > 0) {
+          const hx = (hoverTile && cheb(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.x : u.x;
+          const hy = (hoverTile && cheb(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.y : u.y;
+          for (let y2 = 0; y2 < N; y2++) {
+            for (let x2 = 0; x2 < N; x2++) {
+              if (cheb(hx, hy, x2, y2) > rad) continue;
+              ctx.fillStyle = 'rgba(255,170,90,0.26)';
+              ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
+              ctx.strokeStyle = 'rgba(255,205,130,0.7)';
+              ctx.lineWidth = 1.4;
+              ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
+            }
+          }
+        }
+      }
       B.units.forEach((t) => {
         if (!t.alive) return;
         if (t.side === u.side) return;
@@ -889,9 +969,19 @@
       if (pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly')) {
         B.units.forEach((t) => {
           if (!t.alive || t.side !== u.side) return;
-          if (cheb(u.x, u.y, t.x, t.y) > rng) return;
+          if (cheb(u.x, u.y, t.x, t.y) > (pendingSkill.range || u.rng)) return;
           ctx.fillStyle = 'rgba(80,180,120,0.30)';
           ctx.fillRect(t.x * TILE + 3, t.y * TILE + 3, TILE - 6, TILE - 6);
+        });
+      }
+      if (gateIntact()) {
+        B.gate.tiles.forEach((g) => {
+          if (cheb(u.x, u.y, g.x, g.y) > rng) return;
+          ctx.fillStyle = 'rgba(226,170,72,0.42)';
+          ctx.fillRect(g.x * TILE + 3, g.y * TILE + 3, TILE - 6, TILE - 6);
+          ctx.strokeStyle = 'rgba(255,222,150,0.95)';
+          ctx.lineWidth = 2.2;
+          ctx.strokeRect(g.x * TILE + 3, g.y * TILE + 3, TILE - 6, TILE - 6);
         });
       }
     }
@@ -1605,6 +1695,19 @@
   function buffVal(u, k) { const b = u.buffs[k]; return b && b.t > 0 ? b.v : 0; }
 
   function typeBonus(u) { return (SK.terrainBonus(u.cls, B.type) || 0) / 100; }
+
+  /* ── v5.2 성문 규칙 ── */
+  function gateIntact() { return !!(B && B.gate && B.gate.hp > 0); }
+  function gateTileAt(x, y) {
+    return !!(B && B.gate && B.gate.tiles.some((g) => g.x === x && g.y === y));
+  }
+  /* 성문 안쪽/바깥쪽을 가로지르는가 (성문이 살아 있으면 근접으로는 못 넘는다) */
+  function wallBlocked(a, d) {
+    if (!gateIntact() || !B.gate || !a || !d) return false;
+    const gy = B.gate.tiles[0].y;
+    return (a.y > gy) !== (d.y > gy);
+  }
+
   /* 병력 수가 곧 전투력 — 만성 부대(약 1,800)를 1.0으로 둔다 */
   function troopPower(u) {
     const ratio = Math.max(0, u.hp) / Math.max(1, u.maxHp);
@@ -1645,15 +1748,31 @@
   function canHit(a, d, rng) {
     const dist = cheb(a.x, a.y, d.x, d.y);
     const min = a.minRng || 1;
-    return dist >= min && dist <= (rng || effRng(a));
+    if (dist < min || dist > (rng || effRng(a))) return false;
+    if (wallBlocked(a, d) && attackKind(a) === 'melee') return false;   // 성문이 버티는 동안 근접 공격 불가
+    return true;
   }
 
+  /* v5.2 — 병력 상한(5,000~20,000)에 맞춘 피해 보정.
+     부대가 커진 만큼 피해도 같이 커져 다병력 일격사나 끝없는 장기전을 막는다. */
+  function sizeScale(d) {
+    const t = clamp((d && d.maxHp ? d.maxHp : 1800) / 1800, 0.35, 8);
+    return Math.pow(t, 0.65);
+  }
+  function atkScale(a) {
+    const t = clamp((a && a.maxHp ? a.maxHp : 1800) / 1800, 0.35, 8);
+    return Math.pow(t, 0.4);
+  }
   function calcDamage(a, d, opts) {
     let atk = effAtk(a);
     if (opts && opts.mult) atk *= opts.mult;
     const def = opts && opts.ignoreTerrain ? d.def : effDef(d);
     let base = (atk * 0.92 - def * 0.62) * 16;
+    base *= sizeScale(d) * atkScale(a);
     base *= rnd(0.92, 1.08);
+    /* v5.2 — 투석차·발석차는 일반 부대에 약하고 성문·성벽에 강하다 */
+    const kind = attackKind(a, opts);
+    if (kind === 'rock') base *= 0.55;
     let crit = false;
     const cc = 0.05 + (a.wu - 60) * 0.0011 + (a.cls === 'sanjeok' ? 0.06 : 0);
     if (!opts || !opts.noCrit) {
@@ -1740,6 +1859,15 @@
     const t = B.units.find((o) => o.alive && o.x === x && o.y === y);
 
     if (mode === 'skillTarget' && pendingSkill) { trySkillAt(x, y); return; }
+
+    /* v5.2 — 성문 타일을 눌러 공략 (근접·사격·투석 모두 가능) */
+    if (!t && gateIntact() && gateTileAt(x, y) && u && u.side === 'ally' && !u.acted) {
+      if (mode === 'attack' || mode === 'move' || mode === 'act' || mode === 'idle') {
+        if (cheb(u.x, u.y, x, y) <= effRng(u)) { openGateAttack(u, { x, y }); return; }
+        SK.toast(`성문까지 거리가 멉니다. (사거리 ${effRng(u)})`);
+        return;
+      }
+    }
 
     if (t && t.side === 'ally') {
       if (t.acted) { selectUnit(t); return; }
@@ -1848,6 +1976,73 @@
       ],
     });
     return m;
+  }
+
+  /* ── v5.2 성문 공략 ── */
+  function calcGateDamage(a, opts) {
+    const kind = attackKind(a, opts);
+    let base = effAtk(a) * 10;
+    if (a.cls === 'pocha') base *= 2.0;                 // 투석차 — 성문 특화
+    else if (a.cls === 'balseokcha') base *= 1.8;
+    else if (kind === 'arrow' || kind === 'bolt') base *= 0.6;
+    base *= rnd(0.94, 1.06);
+    const cc = 0.05 + (a.wu - 60) * 0.0011;
+    let crit = false;
+    if (Math.random() < cc) { crit = true; base *= 1.4; }
+    return { dmg: Math.max(40, Math.round(base)), crit, kind };
+  }
+
+  function openGateAttack(a, g) {
+    if (busy || !a || !a.alive || !B.gate) return;
+    const res = calcGateDamage(a, {});
+    const m = SK.modal({
+      kicker: '성문 공략', title: `${a.name} → 성문`,
+      body: `<div class="atk-preview">
+        <div class="ap-row"><span>성문 피해</span><b>${res.dmg}</b><em>${res.kind === 'rock' ? '포격 특화' : res.kind === 'melee' ? '근접' : '사격'}</em></div>
+        <div class="ap-row"><span>성문 내구도</span><b>${Math.round(B.gate.hp).toLocaleString('ko-KR')}</b><em>/ ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}</em></div>
+        <p class="ap-note">성문을 부수면 근접 부대가 성안으로 들어갈 수 있습니다. 투석차·발석차가 가장 빠릅니다.</p>
+      </div>`,
+      actions: [{ label: '취소' }, { label: '공격!', primary: true, onClick: () => doGateAttack(a, g, res.dmg) }],
+    });
+    return m;
+  }
+
+  function doGateAttack(a, g, dmg) {
+    if (!a || !a.alive || !B.gate || B.gate.hp <= 0 || busy) return;
+    busy = true;
+    mode = 'idle';
+    a.acted = true;
+    B.reachCache = null;
+    const hit = dmg != null ? dmg : calcGateDamage(a, {}).dmg;
+    const kind = attackKind(a);
+    const target = { x: g.x, y: g.y, rx: g.x, ry: g.y };
+    const cx = (g.x + 0.5) * TILE, cy = (g.y + 0.5) * TILE;
+    const land = () => {
+      if (!B || B.over) { busy = false; return; }
+      B.gate.hp = Math.max(0, B.gate.hp - hit);
+      addFloat(cx, cy - 8, '-' + hit, '#ffd08a');
+      addFx({ kind: 'burst', x: cx, y: cy, life: 420, color: '226,180,72' });
+      SK.sfx.play('hit');
+      feed(`${a.name} — 성문에 ${hit} 피해`, 'good');
+      if (B.gate.hp <= 0) {
+        feed('성문이 무너졌습니다 — 근접 부대도 성안으로 들어갈 수 있습니다.', 'good');
+        SK.toast('성문 파손! 성안으로 진입할 수 있습니다.');
+        shakeScreen(7);
+        SK.sfx.play('drum');
+      }
+      busy = false;
+      SKBattle.refreshUI();
+      if (!B.over) setTimeout(() => { if (B && !B.over) nextUnitOrWait(); }, 240);
+    };
+    if (kind === 'melee') {
+      setTimeout(() => {
+        addFx({ kind: 'slash', x: cx, y: cy, life: 360 });
+        SK.sfx.play('sword');
+        setTimeout(land, 70);
+      }, 120);
+    } else {
+      launchProjectile(a, target, kind, land);
+    }
   }
 
   /* 고유 특기 발동 — 상위 100명의 data/unique_passives.json
@@ -2068,7 +2263,7 @@
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
-            const dmg = Math.max(10, Math.round(sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80));
+            const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80) * sizeScale(t) * 0.8));
             t.hp = Math.max(0, t.hp - dmg);
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
@@ -2090,7 +2285,7 @@
       SK.sfx.play('spell');
       setTimeout(() => {
         if (!B || B.over) { finish(0); return; }
-        const dmg = Math.max(10, Math.round(sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90));
+        const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90) * sizeScale(target) * 0.8));
         target.hp = Math.max(0, target.hp - dmg);
         target.flash = 1; target.shake = 240;
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
@@ -2189,6 +2384,111 @@
     setTimeout(enemyPhase, 650);
   }
 
+  /* ───────────── v5.2 — 아군 턴 [자동] 진행 ───────────── */
+  function autoClear() { if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; } }
+
+  function autoStop(msg) {
+    autoOn = false;
+    autoPending = null;
+    autoClear();
+    const btn = document.querySelector('.act.auto');
+    if (btn) btn.classList.remove('active');
+    if (msg) SK.toast(msg);
+  }
+
+  function toggleAuto(force) {
+    autoOn = force == null ? !autoOn : !!force;
+    const btn = document.querySelector('.act.auto');
+    if (btn) btn.classList.toggle('active', autoOn);
+    if (autoOn) {
+      SK.toast('자동 행군 — 아군 턴을 스스로 마칩니다.');
+      autoClear();
+      autoTimer = setTimeout(autoStep, 320);
+    } else {
+      autoStop('자동 행군을 멈췄습니다.');
+    }
+  }
+
+  /* 한 부대가 할 최선의 행동을 고른다 — 사거리 안 적 공격 > 성문 타격 > 접근 */
+  function planAuto(u) {
+    const rng = effRng(u);
+    const minR = u.minRng || 1;
+    const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+    const tiles = [{ x: u.x, y: u.y }];
+    (B.reachCache && B.reachCache.set ? B.reachCache.set : new Set()).forEach((k) => {
+      const [x, y] = k.split(',').map(Number);
+      if (B.units.some((o) => o.alive && o.x === x && o.y === y)) return;
+      tiles.push({ x, y });
+    });
+    let best = null;
+    const kind = attackKind(u);
+    tiles.forEach((t) => {
+      const home = t.x === u.x && t.y === u.y;
+      foes.forEach((e) => {
+        const d = cheb(t.x, t.y, e.x, e.y);
+        if (d < minR || d > rng) return;
+        if (wallBlocked({ x: t.x, y: t.y }, e) && kind === 'melee') return;
+        const est = calcDamage(u, e, {}).dmg;
+        const score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
+        if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
+      });
+      if (gateIntact() && B.gate) {
+        B.gate.tiles.forEach((g) => {
+          if (cheb(t.x, t.y, g.x, g.y) > rng) return;
+          const sc = (kind === 'rock' ? 90 : kind === 'melee' ? 55 : 25) + (home ? 4 : 0);
+          if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc, kind: 'gate' };
+        });
+      }
+    });
+    if (best) return best;
+    let pick = null;
+    tiles.forEach((t) => {
+      const d = foes.length ? Math.min(...foes.map((f) => cheb(t.x, t.y, f.x, f.y))) : 99;
+      const gy = gateIntact() && B.gate ? Math.min(...B.gate.tiles.map((g) => cheb(t.x, t.y, g.x, g.y))) - 1 : 99;
+      const score = -Math.min(d, gy);
+      if (!pick || score > pick.score) pick = { x: t.x, y: t.y, score, kind: 'move' };
+    });
+    return pick;
+  }
+
+  function autoStep() {
+    if (!autoOn) return;
+    if (!B || B.over) { autoStop(); return; }
+    if (busy || !B.introDone) { autoTimer = setTimeout(autoStep, 220); return; }
+    if (B.phase !== 'ally') { autoTimer = setTimeout(autoStep, 300); return; }
+    if (autoPending) {
+      const p = autoPending;
+      autoPending = null;
+      const u = B.units.find((v) => v.uid === p.uid && v.alive);
+      if (u && !u.acted) {
+        if (p.gate && gateIntact()) doGateAttack(u, p.gate);
+        else if (p.target && p.target.alive && canHit(u, p.target)) doAttack(u, p.target);
+        else { u.acted = true; SKBattle.refreshUI(); }
+      }
+      autoTimer = setTimeout(autoStep, 420);
+      return;
+    }
+    const u = B.units.find((v) => v.side === 'ally' && v.alive && !v.acted);
+    if (!u) {
+      if (busy) { autoTimer = setTimeout(autoStep, 300); return; }
+      endTurn();
+      autoTimer = setTimeout(autoStep, 600);   // 적군 페이즈가 끝나면 다시 아군 턴을 잡는다
+      return;
+    }
+    selectUnit(u);
+    const plan = planAuto(u);
+    if (plan && (plan.x !== u.x || plan.y !== u.y)) {
+      autoPending = { uid: u.uid, target: plan.kind === 'hit' ? plan.target : null, gate: plan.kind === 'gate' ? plan.gate : null };
+      moveUnit(u, plan.x, plan.y);
+      autoTimer = setTimeout(autoStep, 260);
+      return;
+    }
+    if (plan && plan.kind === 'hit' && plan.target) doAttack(u, plan.target);
+    else if (plan && plan.kind === 'gate' && plan.gate) doGateAttack(u, plan.gate);
+    else { u.acted = true; SKBattle.refreshUI(); }
+    autoTimer = setTimeout(autoStep, 420);
+  }
+
   function enemyPhase() {
     if (B.over) return;
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
@@ -2253,7 +2553,7 @@
       SK.sfx.play('spell');
       setTimeout(() => {
         if (!B || B.over) { done(); return; }
-        const dmg = Math.max(6, Math.round(20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04));
+        const dmg = Math.max(6, Math.round((20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04) * sizeScale(target) * 0.9));
         target.hp = Math.max(0, target.hp - dmg);
         addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.55) * TILE, life: 700 });
@@ -2290,7 +2590,7 @@
         setTimeout(() => {
           if (!B || B.over) { done(); return; }
           const dist = cheb(e.x, e.y, target.x, target.y);
-          if (dist >= (e.minRng || 1) && dist <= rng) {
+          if (dist >= (e.minRng || 1) && dist <= rng && !(wallBlocked(e, target) && attackKind(e) === 'melee')) {
             attackUnit(e, target, {}, () => {
               if (!B || B.over) { done(); return; }
               if (target.alive && cheb(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
@@ -2581,6 +2881,13 @@
       hurtEnemies(n) { B.units.filter((u) => u.side === 'enemy').forEach((u) => { u.hp = n; if (n <= 0) u.alive = false; }); },
       finish() { finishCheck(); },
       closeBattle,
+      gate() { return B && B.gate ? { hp: Math.round(B.gate.hp), max: Math.round(B.gate.maxHp), tiles: B.gate.tiles } : null; },
+      img(name) { const u = B && B.units.find((v) => v.name === name); return u ? (unitImgFor(u).getAttribute('src') || unitImgFor(u).src) : null; },      gateAttack(x, y) { const u = B.sel; if (u) doGateAttack(u, { x, y }); },
+      toggleAuto(force) { toggleAuto(force); return autoOn; },
+      get auto() { return autoOn; },
+      get busy() { return busy; },
+      get mode() { return mode; },
+      get pending() { return autoPending ? Object.assign({}, autoPending) : null; },
       moveTo(x, y) { const u = B.sel; if (u) moveUnit(u, x, y); },
       focus(x, y, s) { if (s) cam.s = clamp(s, 0.4, 2.2); centerCam(x, y); },
       setTimeScale(v) { timeScale = v > 0 ? v : 1; return timeScale; },
@@ -2614,6 +2921,7 @@
       if (!b || !B) return;
       const act = b.dataset.act;
       if (act === 'endturn') { endTurn(); return; }
+      if (act === 'auto') { toggleAuto(); return; }   // v5.2 — 아군 턴 자동 토글
       if (B.phase !== 'ally' || B.over) return;
       const u = B.sel;
       if (act === 'attack') {

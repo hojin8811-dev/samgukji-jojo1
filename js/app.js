@@ -102,6 +102,7 @@
         troops: Math.min(c.baseTroops, Math.round(base * 0.17)),
         def: Math.min(100, c.defense + (c.type === 'pass' ? 8 : c.type === 'fortress' ? 6 : 0)),
         loyalty: 62 + (h % 12),
+        order: 56 + (h % 14),
         pop: base,
         agri: ({ capital: 34, town: 25, pass: 19, fortress: 21 }[c.type] || 24) + (h % 9),
         comm: ({ capital: 31, town: 23, pass: 17, fortress: 19 }[c.type] || 22) + ((h >> 3) % 10),
@@ -225,6 +226,15 @@
         if (!SK.debutOk(g, year)) return;          // 아직 세상에 나오지 않은 인물
         names.push(nm); used.add(g.id);
       };
+      /* v5.2 — 시나리오 단계에서 확정한 시작 명부(startGenerals)를 그대로 쓴다.
+         카드에 보이는 장수 수와 인게임 시작 장수 수가 어긋나지 않는다. */
+      if (f.startGenerals && f.startGenerals.length) {
+        f.startGenerals.forEach(add);
+        f.generals = names;
+        f.group = SK.factionGroup(f.id);
+        f.pool = poolGroupOf(f.id);
+        return;
+      }
       if (f.lord) add(f.lord);
       const want = rosterTarget(f.id, (f.cities || []).length);
       (f.generals || []).forEach((n) => { if (names.length < want) add(n); });
@@ -583,6 +593,7 @@
         if (cs.governor === undefined) cs.governor = null;
         if (cs.advisor === undefined) cs.advisor = null;
         if (cs.auto == null) cs.auto = true;
+        if (cs.order == null) cs.order = 55;   // v5.2 — 치안 분리
         ensureSlots(cs, c);                 // v5 — 공터 슬롯 이관
         if (cs.scoutedUntil == null) cs.scoutedUntil = 0;
       });
@@ -873,12 +884,14 @@
   /* ───────────── 시나리오 · 세력 선택 ───────────── */
   function factionCard(f) {
     const n = (f.cities || []).length;
+    /* v5.2 — 카드의 장수 N = 인게임 시작 장수 수 (같은 명부를 센다) */
+    const roster = (f.startGenerals && f.startGenerals.length ? f.startGenerals : (f.generals || [])).length;
     return `<button class="fac-card" data-fid="${f.id}" style="--fc:${f.color}">
       <span class="fc-seal">${SK.markOf(f)}</span>
       <div class="fc-main">
         <b>${f.name}</b>
         <span>${f.lord} · ${SK.typeName((SK.CITY[f.capital] || {}).type || 'capital')}</span>
-        <em>수도 ${f.capitalName} · 거점 ${n} · 장수 ${(f.generals || []).length}</em>
+        <em>수도 ${f.capitalName} · 거점 ${n} · 장수 ${roster}</em>
       </div>
       <span class="fc-go">▸</span>
     </button>`;
@@ -919,7 +932,7 @@
     const cards = facs.map((f) => factionCard({
       id: f.id, name: f.name, lord: f.lord, color: f.color, mark: SK.markOf(f),
       capital: f.capital, capitalName: (SK.CITY[f.capital] || {}).name || '-',
-      cities: f.cities, generals: f.generals,
+      cities: f.cities, generals: f.generals, startGenerals: f.startGenerals,
     })).join('');
     const m = SK.modal({
       kicker: `${sc.year}년 · ${sc.title}`,
@@ -1253,7 +1266,10 @@
       title: '장비를 갖추다',
       body: '<div id="tr-body"></div>',
       wide: true,
-      actions: [{ label: '닫기', primary: true }],
+      actions: [
+        { label: '← 뒤로', onClick: () => setTimeout(() => showHeroInfo(hero.uid), 40) },
+        { label: '닫기', primary: true },
+      ],
     });
     const render = () => {
       const bonusLine = (t) => {
@@ -1528,7 +1544,7 @@
           ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기</span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p></div>` : ''}
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
           <p class="hi-next">${SK.nextPromo(g.lv) ? `다음 승급 Lv.${SK.nextPromo(g.lv)} · ${SK.PROMO[g.cls] ? SK.PROMO[g.cls].names[Math.min(4, SK.PROMO[g.cls].names.length - 1)] : ''}` : '최고 승급 단계'}</p>
-          <div class="hi-bars"><span class="hi-hp">출진 병력 ${SK.troopForNamed(g.lv).toLocaleString('ko-KR')}</span><span class="hi-mp">MP ${g.mp}/${mpM}</span></div>
+          <div class="hi-bars"><span class="hi-hp">출진 병력 ${SK.troopForNamed(g.lv).toLocaleString('ko-KR')} / 최대 ${SK.troopCapOf(g).toLocaleString('ko-KR')}</span><span class="hi-mp">MP ${g.mp}/${mpM}</span></div>
           <div class="hi-attrs five">
             <div><span>통솔</span><b>${g.tong}</b></div>
             <div><span>무력</span><b>${g.wu}</b></div>
@@ -1542,6 +1558,7 @@
         </div>
       </div>`,
       actions: [
+        { label: '← 뒤로', onClick: () => setTimeout(() => openRoster('gen'), 40) },
         { label: '보물 관리', onClick: () => openTreasures(g) },
         ...(SK.state.cities[g.city] && SK.state.cities[g.city].owner === PF()
           ? [{ label: '다른 성으로 이동', onClick: () => openTransfer(g) }] : []),
@@ -1628,6 +1645,15 @@
     fortress: ['wall', 'barracks'],
   };
   function slotCount(type) { return SLOT_MAX[type] || 4; }
+  /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다 */
+  function slotExpNeed(lv) { return 60 + (Number(lv) || 1) * 45; }
+  SK.slotExpNeed = slotExpNeed;
+  function slotExpRatio(sl) {
+    if (!sl || !sl.key) return 0;
+    const need = slotExpNeed(sl.lv);
+    return Math.max(0, Math.min(1, (sl.exp || 0) / need));
+  }
+  SK.slotExpRatio = slotExpRatio;
   function ensureSlots(cs, c) {
     if (!cs) return;
     const n = slotCount(c.type);
@@ -1638,9 +1664,24 @@
       cs.slots.push({ key: defs[i] || null, lv: defs[i] ? 1 : 0, uid: null });
     }
     if (cs.slots.length > n) cs.slots.length = n;
-    cs.slots.forEach((sl) => { if (sl.lv == null) sl.lv = sl.key ? 1 : 0; if (sl.uid === undefined) sl.uid = null; });
+    cs.slots.forEach((sl) => {
+      if (sl.lv == null) sl.lv = sl.key ? 1 : 0;
+      if (sl.uid === undefined) sl.uid = null;
+      if (sl.exp == null) sl.exp = 0;
+    });
+    if (cs.order == null) cs.order = 55;
   }
   SK.ensureSlots = ensureSlots;
+
+  /* 시설 아이콘 — 현재 Lv의 외형 (Lv.5는 기존 그림, 없으면 그 그림으로 폴백) */
+  function bldSrc(icon, lv) {
+    const key = icon || 'market';
+    const L = clamp(Math.round(Number(lv) || 1), 1, 5);
+    return `assets/buildings/${key}_lv${L}.webp`;
+  }
+  SK.bldSrc = bldSrc;
+  function bldFallback(icon) { return `this.onerror=null;this.src='assets/buildings/${icon || 'market'}.webp';`; }
+  SK.bldFallback = bldFallback;
 
   function slotMul(cs, sl, g) {
     if (!sl || !sl.key) return 0;
@@ -1675,7 +1716,7 @@
     const built = cs.slots.filter((sl) => sl.key).length;
     const free = cs.slots.length - built;
     box.innerHTML = `<div class="slot-head"><b>내성 시설</b><span>${built}/${cs.slots.length}칸 · 공터 ${free}</span>
-        <em>마당 건물을 눌러도 같은 창이 열립니다</em></div>
+        <em>치안 ${cs.order == null ? 55 : Math.round(cs.order)} · 마당 건물을 눌러도 같은 창</em></div>
       <div class="slot-row">${cs.slots.map((sl, i) => {
         if (!sl.key) {
           return `<button class="slot-card empty" data-slot="${i}">
@@ -1683,9 +1724,12 @@
         }
         const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
         const g = slotOwner(cityId, sl);
+        const ep = slotExpRatio(sl);
+        const full = sl.lv >= 5 || ep >= 1;
         return `<button class="slot-card" data-slot="${i}" style="--sc:#b8862f">
-          <img class="sc-ico" src="assets/buildings/${def.icon}.webp" alt="">
-          <div class="sc-main"><b>${def.name}</b><small>Lv.${sl.lv}</small>
+          <img class="sc-ico" src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt="">
+          <div class="sc-main"><b>${def.name}</b><small>Lv.${sl.lv}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</small>
+            <div class="sc-exp ${full ? 'full' : ''}"><i style="width:${Math.round(ep * 100)}%"></i></div>
             <em>${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : '담당 없음 50%'}</em></div></button>`;
       }).join('')}</div>`;
     box.querySelectorAll('.slot-card').forEach((b) => {
@@ -1702,7 +1746,7 @@
     const hs = $('#scene-hotspots');
     if (!hs || !cs) return;
     ensureSlots(cs, c);
-    const office = `<button class="hotspot office" style="left:${OFFICE_SPOT.x}%;top:${OFFICE_SPOT.y}%" data-key="office"><i></i><span>관아</span></button>`;
+    const office = `<button class="hotspot office" style="left:${OFFICE_SPOT.x}%;top:${OFFICE_SPOT.y}%" data-key="office"><img class="hs-ico" src="assets/buildings/palace.webp" alt="관아"><span>관아</span></button>`;
     const yard = cs.slots.map((sl, i) => {
       const sp = sl.key === 'wall' ? WALL_SPOT : (YARD_SPOTS[i] || { x: 50, y: 60 });
       if (!sl.key) {
@@ -1711,9 +1755,11 @@
       }
       const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
       const g = slotOwner(cityId, sl);
+      const ep = slotExpRatio(sl);
       return `<button class="yard-b built" data-slot="${i}" style="left:${sp.x}%;top:${sp.y}%" aria-label="${def.name} Lv.${sl.lv}">
-        <span class="yb-ico"><img src="assets/buildings/${def.icon}.webp" alt=""></span>
+        <span class="yb-ico"><img src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt=""></span>
         <span class="yb-lv">Lv.${sl.lv}</span>
+        <span class="yb-exp"><i style="width:${Math.round(ep * 100)}%"></i></span>
         ${g ? `<span class="yb-face"><img src="${SK.ptSrc(g.portrait)}" alt=""></span>` : ''}
         <span class="yb-tag">${def.name}</span></button>`;
     }).join('');
@@ -1748,7 +1794,7 @@
         const def = SLOT_DEFS[k];
         const same = cs.slots.filter((x) => x.key === k).length;
         return `<button class="build-row" data-k="${k}" ${s.gold < 300 ? 'disabled' : ''}>
-          <img src="assets/buildings/${def.icon}.webp" alt="">
+          <img src="${bldSrc(def.icon, 1)}" onerror="${bldFallback(def.icon)}" alt="">
           <div><b>${def.name}${same ? ` <em>이미 ${same}곳</em>` : ''}</b><span>${def.desc}</span></div>
           <em class="br-cost">금 ${fmt(300)}</em></button>`;
       }).join('');
@@ -1761,7 +1807,7 @@
         b.onclick = () => {
           if (s.gold < 300) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 300)'); return; }
           s.gold -= 300;
-          sl.key = b.dataset.k; sl.lv = 1; sl.uid = null;
+          sl.key = b.dataset.k; sl.lv = 1; sl.uid = null; sl.exp = 0;
           SK.save(); SK.refreshHud(); m.close();
           SK.openCity(cityId);
           SK.sfx.play('hammer');
@@ -1773,6 +1819,9 @@
     const def = SLOT_DEFS[sl.key];
     const g = slotOwner(cityId, sl);
     const cost = buildCost(sl);
+    const needEp = slotExpNeed(sl.lv);
+    const ep = Math.round(sl.exp || 0);
+    const epOk = ep >= needEp;
     const free = cityGens(cityId).filter((h) => !cs.slots.some((x) => x.uid === h.uid));
     const opts = free.map((h) => `<button class="target-card" data-uid="${h.uid}">
         <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
@@ -1781,13 +1830,18 @@
     const m = SK.modal({
       kicker: `${c.name} · ${def.name}`, title: `Lv.${sl.lv} ${def.name}`,
       body: `<div class="slot-detail">
-          <img class="sd-ico" src="assets/buildings/${def.icon}.webp" alt="">
+          <img class="sd-ico" src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt="">
           <div><b>${def.desc}</b>
             <span>효과 ${Math.round(slotMul(cs, sl, g) * 100)}% ${g ? `· 담당 ${g.name}` : '· 담당 없음'}</span>
             <em>${sl.lv < 5 ? `증축 금 ${fmt(cost)}` : '최고 등급'}</em></div>
         </div>
+        ${sl.lv < 5 ? `<div class="slot-expbox">
+          <div class="se-head"><b>시설 경험</b><span>${ep} / ${needEp}</span></div>
+          <div class="se-bar"><i style="width:${Math.round(Math.min(1, ep / needEp) * 100)}%"></i></div>
+          <p>${epOk ? '경험이 가득 찼습니다 — 증축할 수 있습니다.' : `담당 장수를 앉혀 ${Math.max(1, Math.ceil((needEp - ep) / (30 + sl.lv * 8)))}개월 더 굴려야 증축할 수 있습니다.`}</p>
+        </div>` : ''}
         <div class="menu-list">
-          ${sl.lv < 5 ? `<button data-a="up" ${s.gold < cost ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})</button>` : ''}
+          ${sl.lv < 5 ? `<button data-a="up" ${(s.gold < cost || !epOk) ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})${epOk ? '' : ' · 경험 부족'}</button>` : ''}
           ${g ? '<button data-a="free">담당 해제 — 이번 달 자유 행동</button>' : ''}
           <button data-a="assign">담당 장수 앉히기</button>
         </div>
@@ -1799,7 +1853,10 @@
         const a = b.dataset.a;
         if (a === 'up') {
           if (s.gold < cost) { SK.toast('금이 부족합니다.'); return; }
-          s.gold -= cost; sl.lv += 1;
+          if ((sl.exp || 0) < slotExpNeed(sl.lv)) { SK.toast(`시설 경험이 부족합니다. (${Math.round(sl.exp || 0)}/${slotExpNeed(sl.lv)})`); return; }
+          s.gold -= cost;
+          sl.exp = Math.max(0, (sl.exp || 0) - slotExpNeed(sl.lv));
+          sl.lv += 1;
           SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
           SK.toast(`${def.name} Lv.${sl.lv} 증축 완료`);
           SK.sfx.play('hammer');
@@ -1855,17 +1912,22 @@
       const cs = st.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
       ensureSlots(cs, c);
-      let gold = 0, food = 0, troops = 0, train = 0, loyalty = 0, def = 0, rp = 0;
+      let gold = 0, food = 0, troops = 0, train = 0, loyalty = 0, def = 0, rp = 0, order = 0;
+      if (cs.order == null) cs.order = 55;
       cs.slots.forEach((sl) => {
         if (!sl.key) return;
         const g = slotOwner(c.id, sl);
         const mul = slotMul(cs, sl, g);
         const lv = sl.lv;
+        /* v5.2 — 시설 경험치. 담당 장수가 있으면 빨리, 없으면 천천히 쌓인다 */
+        if (lv < 5) {
+          sl.exp = (sl.exp || 0) + Math.round((g ? 26 + lv * 8 : 6) * (g ? mul : 1));
+        }
         if (sl.key === 'market') gold += Math.round((90 + lv * 70) * mul);
         else if (sl.key === 'farm') food += Math.round((130 + lv * 90) * mul);
         else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul);
         else if (sl.key === 'training') { train += 0.5 * lv * mul; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
-        else if (sl.key === 'patrol') loyalty += 0.5 * lv * mul;
+        else if (sl.key === 'patrol') { order += 1.1 * lv * mul; loyalty += 0.25 * lv * mul; }
         else if (sl.key === 'wall') def += 0.6 * lv * mul;
         else if (sl.key === 'lab') rp += 1;
         else if (sl.key === 'workshop') gold += Math.round((40 + lv * 40) * mul);
@@ -1877,6 +1939,8 @@
       if (troops) cs.troops = clamp(cs.troops + troops, 0, cityCap(cs));
       if (train) cs.train = clamp((cs.train == null ? 50 : cs.train) + train, 0, 100);
       if (loyalty) cs.loyalty = clamp(cs.loyalty + loyalty, 0, 100);
+      if (order) cs.order = clamp(cs.order + order, 0, 100);
+      else cs.order = clamp(cs.order - 0.5, 0, 100);          // 순찰소가 없으면 치안이 조금씩 풀린다
       if (def) cs.def = clamp(cs.def + def, 0, 100);
       if (rp) st.rp = (st.rp || 0) + rp;
       if (gold || food || troops) log.push({ city: c.name, gold, food, troops });
@@ -2381,6 +2445,7 @@
         ${devBar('농업', cs.agri, 'linear-gradient(90deg,#5f8b34,#8cbb54)')}
         ${devBar('상업', cs.comm, 'linear-gradient(90deg,#b8862f,#e8c268)')}
         ${devBar('민심', cs.loyalty, 'linear-gradient(90deg,#a8443a,#d97a63)')}
+        ${devBar('치안', cs.order == null ? 55 : cs.order, 'linear-gradient(90deg,#3f6b8a,#7fb0cf)')}
         ${devBar('성벽', cs.def, 'linear-gradient(90deg,#5b7387,#8fa8bd)')}
       </div>`;
     const info = $('#city-info');
@@ -3413,7 +3478,8 @@
     const avail = Math.floor(s.cities[origin].troops);
     /* v5.0.1 — 명장마다 병력을 직접 조절한다 (500 ~ 상한) */
     const MIN_T = 500;
-    const baseTroops = (h) => clamp(SK.troopForNamed(h.lv), MIN_T, 6000);
+    const capOf = (h) => SK.troopCapOf(h);   // v5.2 — 군주 10,000 / 일반 5,000
+    const baseTroops = (h) => clamp(SK.troopForNamed(h.lv), MIN_T, capOf(h));
     const pick = {};          // uid → 병력
     let budget = avail;
     pool.slice(0, 4).forEach((h) => {
@@ -3512,7 +3578,7 @@
     };
     const adjustHero = (uid, delta) => {
       const h = heroOf(uid);
-      const cap = Math.min(6000, baseTroops(h) * 2);
+      const cap = capOf(h);
       if (pick[uid] == null) {
         if (delta < 0) return;
         if (left() < MIN_T) { SK.toast('보유 병력이 부족합니다.'); return; }
@@ -3527,6 +3593,39 @@
       refresh();
     };
 
+    /* v5.2 — 병력 숫자를 누르면 키패드로 직접 입력.
+       2000·3000처럼 큰 수를 바로 넣고, 최소 500 ~ 상한/남은 병력으로 자동 조정된다. */
+    const openTroopInput = (uid) => {
+      const h = heroOf(uid);
+      if (!h) return;
+      const on = pick[uid] != null;
+      const own = on ? pick[uid] : 0;
+      const cur = on ? pick[uid] : baseTroops(h);
+      const maxNow = Math.max(MIN_T, Math.min(capOf(h), left() + own));
+      const im = SK.modal({
+        kicker: `${h.name} · 병력`, title: '병력을 직접 입력',
+        body: `<div class="troop-input">
+          <label>병력 <em>${fmt(MIN_T)} ~ ${fmt(maxNow)}</em></label>
+          <input id="ti-num" type="number" inputmode="numeric" pattern="[0-9]*" min="${MIN_T}" max="${maxNow}" step="100" value="${cur}">
+          <div class="ti-quick">${[1000, 2000, 3000, 4000, 5000, 8000, 10000].filter((v) => v <= maxNow).map((v) => `<button data-v="${v}">${fmt(v)}</button>`).join('')}</div>
+          <p class="ti-note">장수 상한 ${fmt(capOf(h))} · 남은 병력 ${fmt(left() + own)} 안에서 자동으로 맞줍니다.</p>
+        </div>`,
+        actions: [
+          { label: '취소' },
+          { label: '적용', primary: true, onClick: () => {
+            const el = im.el.querySelector('#ti-num');
+            const v = clamp(Math.round(Number(el.value) || 0), MIN_T, maxNow);
+            pick[uid] = v;
+            refresh();
+            SK.toast(`${h.name} 병력 ${fmt(v)}`);
+          } },
+        ],
+      });
+      const inp = im.el.querySelector('#ti-num');
+      im.el.querySelectorAll('.ti-quick button').forEach((b) => { b.onclick = () => { inp.value = b.dataset.v; }; });
+      setTimeout(() => { try { inp.focus(); inp.select(); } catch (e) { /* ignore */ } }, 120);
+    };
+
     m.el.querySelectorAll('.hero-pick').forEach((el) => {
       const uid = el.dataset.uid;
       el.onclick = (e) => {
@@ -3534,7 +3633,9 @@
         toggleHero(uid);
       };
       /* v5.0.3 — 병력은 1명 단위로. 길게 누르면 점점 빠르게(1→5→25→100) 오른다. */
-      el.querySelectorAll('.hp-step button').forEach((b) => {
+      const cntBtn = el.querySelector('.hp-count');
+      if (cntBtn) cntBtn.onclick = (e) => { e.stopPropagation(); openTroopInput(uid); };   // v5.2 — 숫자 탭 → 직접 입력
+      el.querySelectorAll('.hp-step button[data-d]').forEach((b) => {
         const dir = Number(b.dataset.d);
         let timer = null, held = 0;
         const tick = () => {
@@ -3583,7 +3684,7 @@
       <img src="${SK.ptSrc(h.portrait)}" alt="">
       <div class="hp-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span></div>
       <div class="hp-stats"><span>무 ${h.wu}</span><span>지 ${h.ji}</span><span>통 ${h.tong}</span></div>
-      <div class="hp-step"><button data-d="-1" aria-label="500 줄이기">−</button><b class="hp-count">${fmt(cost)}</b><button data-d="1" aria-label="500 늘리기">＋</button></div>
+      <div class="hp-step"><button data-d="-1" aria-label="줄이기">−</button><button class="hp-count" type="button" title="직접 입력">${fmt(cost)}</button><button data-d="1" aria-label="늘리기">＋</button></div>
       <span class="hp-check">✓</span>
     </div>`;
   }

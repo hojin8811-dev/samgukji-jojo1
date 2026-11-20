@@ -484,6 +484,20 @@ SK.troopForNamed = function (lv, tier) {
   tier = tier == null ? SK.tierForLv(lv) : tier;
   return Math.min(4800, Math.round(1600 + lv * 120 + tier * 380));
 };
+/* v5.2 — 부대 병력 상한. 기본 군주 10,000 / 일반 장수 5,000.
+   장군 직책(rank)을 얻으면 일반 10,000 / 군주 20,000까지 열린다. */
+SK.TROOP_CAP = {
+  base: { lord: 10000, named: 5000 },
+  general: { lord: 20000, named: 10000 },
+};
+SK.troopCapOf = function (hero, st) {
+  const state = st || SK.state || {};
+  const lordName = ((state.factions || {})[state.playerFaction || ''] || {}).lord || '';
+  const isLord = !!(hero && lordName && hero.name === lordName) || (hero && hero.rank === '군주');
+  const promoted = !!(hero && (hero.rank === '장군' || hero.rank === '대장군' || Number(hero.lv) >= 20));
+  const set = promoted ? SK.TROOP_CAP.general : SK.TROOP_CAP.base;
+  return isLord ? set.lord : set.named;
+};
 SK.nextPromo = function (lv) {
   const at = [5, 10, 20, 30];
   for (let i = 0; i < at.length; i++) if (lv < at[i]) return at[i];
@@ -610,13 +624,20 @@ SK.resolveScenario = function (sc) {
       const id = own[nm] || SK.cityIdByName(nm);
       if (!id) return;
       if (ids.indexOf(id) < 0) ids.push(id);
-      (claims[id] = claims[id] || []).push(f.id);
     });
     const capId = own[f.capital] || SK.cityIdByName(f.capital) || ids[0] || null;
-    if (capId && ids.indexOf(capId) < 0) {
-      ids.unshift(capId);
-      (claims[capId] = claims[capId] || []).push(f.id);
+    if (capId && ids.indexOf(capId) < 0) ids.unshift(capId);
+    /* v5.2 — 시나리오별 시작 거점 상한.
+       190년처럼 세력이 많을 때는 대지주(동탁·유표 등)만 여러 성을 들고,
+       나머지는 수도 한 곳에서 시작해 빈 땅을 밀고 나가는 재미를 살린다. */
+    let keep = ids;
+    const cap = (sc.cityCaps && Number(sc.cityCaps[f.id])) || Number(sc.defaultCityCap) || 0;
+    if (cap > 0 && ids.length > cap) {
+      keep = ids.filter((id) => id === capId).concat(ids.filter((id) => id !== capId)).slice(0, cap);
     }
+    keep.forEach((id) => { (claims[id] = claims[id] || []).push(f.id); });
+    ids.length = 0;
+    keep.forEach((id) => ids.push(id));
     facs[f.id] = {
       id: f.id,
       name: f.name,
@@ -684,7 +705,77 @@ SK.resolveScenario = function (sc) {
     const f = facs[owner[c.id]];
     if (f) f.cities.push(c.id);
   });
+  /* v5.2 — 시작 장수 명부를 여기서 확정한다.
+     시나리오 카드에 뜨는 《장수 N》은 이 목록의 길이 그대로이고,
+     인게임 시작 장수도 같은 목록으로 만들어지므로 숫자가 100% 맞는다. */
+  SK.padStartRosters(facs, Number(sc.year) || 190);
   return { factions: facs, owner };
+};
+
+/* 인물 → 세력 인물 풀(위·촉·오·군웅·한국) */
+SK.genPoolGroupOf = function (g) {
+  if (!g) return '군웅';
+  if (SK.generalGroup(g) === '한국' || g.faction === '한국') return '한국';
+  const f = g.faction || '';
+  if (f === '위' || f === '촉' || f === '오') return f;
+  return '군웅';
+};
+
+/* ───────────── 시작 장수 명부 확정 (v5.2) ─────────────
+   · 군주 + 시나리오 장수 + 초기 식구(EARLY_RETAINERS)를 세력별로 겹치지 않게 배정
+   · 6명에 못 미치는 소세력은 같은 인물 풀에서 채워 초반 내정 5칸을 굴릴 수 있게 한다
+   · 결과는 f.startGenerals 에 남겨 두고, 시나리오 카드·인게임이 같은 수를 쓴다 */
+SK.START_ROSTER_MIN = 6;
+SK.padStartRosters = function (facs, year) {
+  if (!facs || !SK.GENERALS.length) return facs;
+  const MIN = SK.START_ROSTER_MIN;
+  const used = new Set();
+  const order = Object.keys(facs).filter((k) => k !== 'neutral');
+  const rankOf = { S: 0, A: 1, B: 2, C: 3 };
+  order.forEach((fid) => {
+    const f = facs[fid];
+    const names = [];
+    const add = (n, first) => {
+      const nm = SK.normName(n);
+      const g = nm ? SK.GEN_BY_NAME[nm] : null;
+      if (!g) return;
+      if (!first && used.has(g.id)) return;
+      if (!SK.debutOk(g, year)) return;
+      if (names.indexOf(nm) >= 0) return;
+      names.push(nm); used.add(g.id);
+    };
+    if (f.lord) add(f.lord, true);
+    (f.generals || []).forEach((n) => add(n));
+    ((SK.EARLY_RETAINERS || {})[fid] || []).forEach((n) => { if (names.length < 14) add(n); });
+    f._start = names;
+  });
+  order.slice().sort((a, b) => facs[a]._start.length - facs[b]._start.length).forEach((fid) => {
+    const f = facs[fid];
+    const names = f._start;
+    if (names.length >= MIN) return;
+    const grp = SK.factionGroup(fid);
+    const pool = SK.GENERALS.filter((g) => SK.genPoolGroupOf(g) === grp && !used.has(g.id))
+      .sort((a, b) => {
+        const da = Number(a.debutYear) || 0, db = Number(b.debutYear) || 0;
+        const ta = da <= year ? 0 : da <= year + 15 ? 1 : 2;
+        const tb = db <= year ? 0 : db <= year + 15 ? 1 : 2;
+        if (ta !== tb) return ta - tb;
+        const ra = rankOf[a.tier] == null ? 3 : rankOf[a.tier];
+        const rb = rankOf[b.tier] == null ? 3 : rankOf[b.tier];
+        if (ra !== rb) return ra - rb;
+        return (b.war + b.intel) - (a.war + a.intel);
+      });
+    for (let i = 0; i < pool.length && names.length < MIN; i++) {
+      names.push(pool[i].name); used.add(pool[i].id);
+    }
+  });
+  order.forEach((fid) => {
+    const f = facs[fid];
+    f.startGenerals = (f._start || []).slice();
+    f.generals = f.startGenerals.slice();
+    delete f._start;
+  });
+  return facs;
 };
 
 SK.applyScenario = function (cities, sc) {

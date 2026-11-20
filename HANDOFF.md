@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.1** + 표지 일러스트(+장수 상한 99명 패치) · 커밋 `056631f` · 2026-11-20 · 라이브 `?v=14`
+> 기준: **v5.2** 통합 업데이트(+표지 일러스트·장수 상한 99명) · 2026-11-20 · 라이브 `?v=15`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,32 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=14`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=15`) |
 | 규모 | 77거점 · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | **v5.1 나머지** — 8장 A(직교 공성전 맵)는 v5.1에서 완료. 다음은 8장 B(2~3턴 행군·요격전) |
+
+---
+
+## 0.5 v5.2에서 바뀐 것 (2026-11-20)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 건물 외형 | 9종 × Lv.1~5 스프라이트(`assets/buildings/{key}_lv1~5.webp`), 현재 Lv 그림 표시·없으면 `{key}.webp` 폴백 | `app.js` `bldSrc()`·`bldFallback()`, `renderCitySlots`·`renderYard`·`openSlot` |
+| 관아 | 동그라미 → `palace.webp`(레벨 배지 없음) | `renderYard` `.hotspot.office .hs-ico` |
+| 시설 경험치 | `sl.exp`, `slotExpNeed(lv)=60+lv*45`, 증축은 경험 full + 금 필요. 월정산에서 담당 34~66 / 무담당 6 | `ensureSlots`·`runSlots`·`openSlot` |
+| 치안 | `cs.order`(0~100)를 민심과 분리, 순찰소가 매달 +1.1×lv×mul(없으면 -0.5). 개발 바에 표시 | `newState`·`runSlots`·`renderCityDev` |
+| 병력 상한 | `SK.troopCapOf()` — 군주 10,000 / 일반 5,000, 장군(또는 Lv.20+) 20,000/10,000 | `data.js` `SK.TROOP_CAP` |
+| 출진 병력 입력 | 병력 숫자를 누르면 `#ti-num` 입력창, 500~상한/남은 병력 클램프 | `openDeploy` `openTroopInput` |
+| 전투 밸런스 | `sizeScale`(방어 병력^0.65)·`atkScale`(공격 병력^0.4), 투석차 일반 0.55배 | `battle.js` `calcDamage` |
+| 성문 HP | `B.gate{tiles,hp,maxHp}` — 내구도 바, 부서지기 전 근접 통행·공격 차단, 원거리·포격·책략은 통과 | `startBattle`·`gateIntact`·`wallBlocked`·`drawObjective`·`openGateAttack` |
+| [자동] | 아군 턴 자동 진행 토글(`.act.auto`), 적 사거리→성문→접근 순 판단, 턴 넘김까지 이어감 | `toggleAuto`·`planAuto`·`autoStep` |
+| 책략 범위 | 사거리 타일 보라 + 효과 반경 주황 하이라이트 | `drawHighlights` |
+| 조각배 | 수전 물 타일 위 부대는 `assets/units/skiff.webp` | `unitImgFor` |
+| 시나리오 | `유언군` 개명, 190년 `cityCaps`(동탁 5·유표 4·원소 3, 그 외 1), `padStartRosters`로 카드=인게임 장수 수 일치·최소 6명 | `historical_scenarios.json`·`resolveScenario`·`factionCard` |
+| 초상화 | `top100` 100장 여백 크롭, 비어 있던 `5.webp`(하후연) 복구 | `assets/portraits/top100/` |
+
+> 새 저장 필드: `cs.order`, `sl.exp` — `SK.load()`에서 없으면 채웁니다(구세이브 호환).
 
 **지금 당장 할 일 하나만 고르라면**: 8장 **A. 공성전 맵 직교화**입니다. 사용자가 가장 크게 느끼는 불만이 "배경이 대각선이라 격자와 안 맞는다"입니다.
 
@@ -47,8 +69,8 @@ git add -A && git commit -m "v5.0.4 — (요약)"
 git push origin main              # GitHub Pages가 자동 갱신
 ```
 
-- **캐시 버스터**: `index.html` 안의 `?v=11` 9곳(`game.css`, `mapgeo.js`, `city_geo.js`, `data.js`, `bgm.js`, `sfx.js`, `app.js`, `map.js`, `battle.js`)을 배포마다 **+1** 합니다. 이걸 빼먹으면 폰에서 옛 파일이 계속 돌아 "고쳤는데 안 바뀐다"가 됩니다.
-- 라이브 확인은 폰 브라우저에서 `.../samgukji-jojo1/?v=14`처럼 버전을 붙여 여는 게 확실합니다.
+- **캐시 버스터**: `index.html` 안의 `?v=15` 9곳(`game.css`, `mapgeo.js`, `city_geo.js`, `data.js`, `bgm.js`, `sfx.js`, `app.js`, `map.js`, `battle.js`)을 배포마다 **+1** 합니다. 이걸 빼먹으면 폰에서 옛 파일이 계속 돌아 "고쳤는데 안 바뀐다"가 됩니다.
+- 라이브 확인은 폰 브라우저에서 `.../samgukji-jojo1/?v=15`처럼 버전을 붙여 여는 게 확실합니다.
 - 저장은 `localStorage` 키 **`samgukji-jojo-v4-save`** 하나입니다(`js/app.js` 상단 `SAVE_KEY`). 저장 구조를 바꾸면 이 키를 올리거나 마이그레이션을 넣으세요.
 
 ---

@@ -507,7 +507,7 @@ b { font-weight: 700; }
 .uc-buffs .bf.good { background: rgba(96, 170, 110, 0.22); border-color: rgba(160, 230, 170, 0.55); color: #e2ffe6; }
 
 .uc-stats b { color: #3b2e13; }
-.battle-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.battle-actions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
 .act {
   border: 1px solid #b99a5e; border-radius: 9px; padding: 5px 1px 4px; background: linear-gradient(180deg, #fffaf0, #e9d7b2);
   display: flex; flex-direction: column; align-items: center; gap: 1px; box-shadow: 0 2px 4px rgba(90, 70, 30, 0.14);
@@ -515,6 +515,10 @@ b { font-weight: 700; }
 .act span { font-family: var(--serif); font-size: 13px; font-weight: 900; color: #6b4d18; line-height: 1; }
 .act-ic { width: 17px; height: 17px; display: block; }
 .act b { font-size: 10px; color: #3a2d15; }
+.act.auto { background: linear-gradient(180deg, #e8dcb8, #d5c191); border-color: #8a7448; }
+.act.auto span { font-size: 14px; color: #4a3a1a; }
+.act.auto.active { background: linear-gradient(180deg, #7fc08a, #4f8a5c); border-color: #2c5b36; }
+.act.auto.active b, .act.auto.active span { color: #f4ffe8; }
 .act.active { background: linear-gradient(180deg, #ffe6a8, #dfae52); border-color: #8a621e; }
 .act.off { opacity: 0.42; }
 .act.endturn { background: linear-gradient(180deg, #5a7a4a, #3a5530); border-color: #24371d; }
@@ -1108,7 +1112,7 @@ b { font-weight: 700; }
 .rs-body { min-height: 220px; }
 .rs-table { border: 1px solid #cfb47d; border-radius: 9px; overflow: hidden; background: rgba(255, 252, 244, 0.7); }
 .rs-head, .rs-row {
-  display: grid; grid-template-columns: 1.5fr repeat(6, 0.62fr) 0.9fr 0.95fr;
+  display: grid; grid-template-columns: 2.15fr repeat(6, 0.5fr) 0.78fr 0.9fr;
   align-items: center; gap: 0; width: 100%;
 }
 .rs-head { background: linear-gradient(180deg, #4a2f14, #3a2410); }
@@ -1121,9 +1125,10 @@ b { font-weight: 700; }
 .rs-rows { max-height: 46vh; overflow-y: auto; }
 .rs-row { border: 0; border-top: 1px solid rgba(190, 165, 115, 0.5); background: rgba(255, 252, 244, 0.72); padding: 3px 0; text-align: center; }
 .rs-row:active { background: #fff6e2; }
-.rs-name { display: flex; align-items: center; gap: 4px; padding-left: 4px; text-align: left; min-width: 0; }
+.rs-name { display: flex; align-items: center; gap: 3px; padding-left: 3px; text-align: left; min-width: 0; }
 .rs-name img { width: 24px; height: 24px; border-radius: 5px; object-fit: cover; object-position: 50% 18%; border: 1px solid #c3a568; flex: 0 0 auto; }
-.rs-name b { font-size: 10.5px; color: #2e2510; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-name b { font-size: 10.5px; color: #2e2510; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.rs-name .rs-age { flex: 0 0 auto; }
 .rs-num { font-family: var(--serif); font-size: 10.5px; color: #3a2c10; }
 .rs-num.dim { color: #6b5830; }
 .rs-role { font-size: 8px; font-weight: 800; color: #fff6e0; background: #8a7448; border-radius: 5px; padding: 1px 3px; justify-self: center; }
@@ -1503,3 +1508,65 @@ b { font-weight: 700; }
 
 /* 큰 초상화 틀에서는 머리가 조금 더 차게 (작은 카드와 같은 구도를 유지하면서) */
 .intro-portrait img, .hi-portrait img { transform: scale(1.18); transform-origin: 50% 22%; }
+
+/* ═══════════ v5.2 — 시설 경험치 · 치안 · 관아 아이콘 · 병력 직접 입력 ═══════════ */
+/* 관아(본성) — 동그라미 대신 궁궐 건물 그림 */
+.hotspot.office .hs-ico {
+  width: 46px; height: 46px; object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(20, 14, 4, 0.55));
+  animation: hop 2.6s ease-in-out infinite;
+}
+@media (max-width: 420px) { .hotspot.office .hs-ico { width: 40px; height: 40px; } }
+
+/* 내성 시설 카드 — 경험치 바 */
+.slot-card .sc-main { padding-right: 2px; }
+.slot-card .sc-exp {
+  width: 100%; height: 4px; margin: 2px 0 1px; border-radius: 3px;
+  background: rgba(150, 120, 70, 0.28); overflow: hidden;
+}
+.slot-card .sc-exp i { display: block; height: 100%; background: linear-gradient(90deg, #6f9a4a, #a8cf72); }
+.slot-card .sc-exp.full i { background: linear-gradient(90deg, #d0a02a, #f2cf6a); }
+
+/* 성 마당 건물 — 경험치 띠 */
+.yard-b .yb-exp {
+  width: 30px; height: 3px; margin-top: 1px; border-radius: 2px;
+  background: rgba(30, 24, 10, 0.45); overflow: hidden;
+}
+.yard-b .yb-exp i { display: block; height: 100%; background: linear-gradient(90deg, #9fd070, #e8d06a); }
+
+/* 시설 상세 — 경험 상자 */
+.slot-expbox { margin: 7px 0 4px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 250, 238, 0.8); border: 1px solid #ddc79b; }
+.slot-expbox .se-head { display: flex; justify-content: space-between; align-items: baseline; }
+.slot-expbox .se-head b { font-size: 10px; color: #4a3a1a; }
+.slot-expbox .se-head span { font-size: 9px; font-weight: 800; color: #8a6a26; }
+.slot-expbox .se-bar { height: 6px; margin: 4px 0 4px; border-radius: 4px; background: rgba(150, 120, 70, 0.26); overflow: hidden; }
+.slot-expbox .se-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6f9a4a, #aad478); }
+.slot-expbox p { margin: 0; font-size: 8.5px; color: #7b6538; line-height: 1.4; }
+
+/* 출진 — 병력 직접 입력 */
+.hp-step .hp-count {
+  border: 1px dashed #c3a568; border-radius: 6px; background: #fff8e6;
+  min-width: 44px; padding: 2px 4px; text-align: center; font-size: 10px;
+  color: #8a5f2a; font-weight: 800;
+}
+.hp-step .hp-count:active { background: #ffeec4; }
+.troop-input { display: flex; flex-direction: column; gap: 7px; }
+.troop-input label { font-size: 10px; font-weight: 800; color: #4a3a1a; display: flex; justify-content: space-between; }
+.troop-input label em { font-style: normal; font-weight: 700; color: #8a6a26; }
+.troop-input input {
+  width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid #c3a568;
+  background: #fffdf6; font-family: var(--serif); font-size: 20px; font-weight: 900;
+  color: #2e2510; text-align: right; letter-spacing: 0.02em;
+}
+.troop-input .ti-quick { display: flex; flex-wrap: wrap; gap: 5px; }
+.troop-input .ti-quick button {
+  flex: 1 1 auto; min-width: 52px; padding: 6px 4px; border-radius: 7px;
+  border: 1px solid #c3a568; background: #f6ebd2; color: #5c4a24; font-size: 10px; font-weight: 800;
+}
+.troop-input .ti-note { margin: 0; font-size: 8.5px; color: #8a7448; }
+.slot-card .sc-main small { white-space: nowrap; }
+.slot-card .sc-up {
+  display: inline-block; margin-left: 3px; padding: 0 3px; border-radius: 4px;
+  font-size: 6.5px; font-weight: 900; color: #3a2d10; background: linear-gradient(180deg, #f2d27a, #dcae52);
+  vertical-align: 1px;
+}
