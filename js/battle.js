@@ -836,34 +836,29 @@
       ctx.lineWidth = 2.5;
       ctx.strokeRect(g.x * TILE + 5, g.y * TILE + 5, TILE - 10, TILE - 10);
     });
-    /* v5.2 — 성문 내구도 HP 바 */
+    /* v5.2 — 성문 내구도 HP 바 (성문 타일 **안**에 그려 위층 적 부대에 가리지 않게) */
     if (B.gate) {
       const g0 = B.gate.tiles[0], g1 = B.gate.tiles[B.gate.tiles.length - 1];
       const x0 = g0.x * TILE, x1 = (g1.x + 1) * TILE;
-      const w = x1 - x0 - 12, y = g0.y * TILE - 16;
+      const w = x1 - x0 - 12;
+      const y = g0.y * TILE + 4;
       const ratio = clamp(B.gate.hp / Math.max(1, B.gate.maxHp), 0, 1);
       const k = 1 / Math.max(0.45, cam.s);
       ctx.fillStyle = 'rgba(30,22,10,0.86)';
-      ctx.fillRect(x0 + 6, y - 2 * k, w, 9 * k);
+      ctx.fillRect(x0 + 6, y, w, 8 * k);
       ctx.fillStyle = ratio > 0.55 ? '#7fc08a' : ratio > 0.25 ? '#e8c268' : '#d9634f';
-      ctx.fillRect(x0 + 6, y - 2 * k, w * ratio, 9 * k);
+      ctx.fillRect(x0 + 6, y, w * ratio, 8 * k);
       ctx.strokeStyle = 'rgba(227,189,99,0.9)';
       ctx.lineWidth = 1 * k;
-      ctx.strokeRect(x0 + 6, y - 2 * k, w, 9 * k);
-      if (B.gate.hp > 0) {
-        ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillStyle = '#f6e6bc';
-        ctx.fillText(`성문 ${Math.round(B.gate.hp).toLocaleString('ko-KR')} / ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}`,
-          (x0 + x1) / 2, y - 4 * k);
-      } else {
-        ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillStyle = '#ffcf9a';
-        ctx.fillText('성문 파손 — 진입 가능', (x0 + x1) / 2, y - 4 * k);
-      }
+      ctx.strokeRect(x0 + 6, y, w, 8 * k);
+      ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = B.gate.hp > 0 ? '#f6e6bc' : '#ffcf9a';
+      const label = B.gate.hp > 0
+        ? `성문 ${Math.round(B.gate.hp).toLocaleString('ko-KR')} / ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}`
+        : '성문 파손 — 진입 가능';
+      ctx.fillText(label, (x0 + x1) / 2, y + 10 * k);
     }
     ctx.restore();
   }
