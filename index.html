@@ -115,7 +115,7 @@
           <button id="btn-slots" class="btn btn-ghost">세이브 슬롯</button>
         </div>
         <p class="title-foot">80개 거점 · 18 병과 · 585 장수 · 18×18 전장</p>
-        <p class="title-sound" id="title-sound">🔊 화면을 한 번 누르면 음악이 흐릅니다</p>
+        <p class="title-sound" id="title-sound" title="화면을 한 번 누르면 음악이 흐릅니다" aria-label="화면을 한 번 누르면 음악이 흐릅니다">🔊</p>
       </div>
     </div>
   </section>
@@ -232,8 +232,8 @@
         </div>
       </div>
       <div class="city-res">
-        <span class="res gold"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gold"></use></svg><b id="city-gold">0</b></span>
-        <span class="res food"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-food"></use></svg><b id="city-food">0</b></span>
+        <span class="res gold"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gold"></use></svg><b id="city-gold">0</b><small id="city-gold-total"></small></span>
+        <span class="res food"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-food"></use></svg><b id="city-food">0</b><small id="city-food-total"></small></span>
         <span class="res troop"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-troop"></use></svg><b id="city-troops">0</b></span>
       </div>
       <button class="icon-btn js-sound" aria-label="소리" title="소리"><span class="snd-glyph">♪</span></button>

@@ -3149,6 +3149,19 @@
   }
 
   /* v5.11 — 전투 결산: 아군 장수별 가한 피해(딜)·받은 피해(탱)·회복(힐)·처치·MVP */
+  /* v5.11 — 결산 MVP에게 공훈치 보너스 (전투 공훈 정산 연동) */
+  function awardMvpMerit() {
+    if (!B || !B.units) return null;
+    const list = B.units.filter((u) => u.side === 'ally' && u.uid).map((u) => {
+      const s = u.stat || { dealt: 0, taken: 0, heal: 0, kills: 0 };
+      return { u, score: s.dealt * 0.6 + s.taken * 0.18 + s.heal * 0.5 + s.kills * 150 };
+    }).sort((a, b) => b.score - a.score);
+    if (!list.length || list[0].score <= 0) return null;
+    const h = SK.state.heroes.find((x) => x.uid === list[0].u.uid);
+    if (h && SK.gainMerit) SK.gainMerit(h, 6);
+    return h ? h.name : null;
+  }
+
   function battleReportHTML() {
     if (!B || !B.units) return '';
     const list = B.units.filter((u) => u.side === 'ally').map((u) => {
@@ -3508,6 +3521,7 @@
     s.food += B.rewards.food;
     s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
     const drop = SK.rollTreasure ? SK.rollTreasure(defeatedNames, c.name) : null;
+    awardMvpMerit();
     /* v5.8 — 이긴 자리에서 적 장수 일부를 사로잡는다 */
     prisonCity = B.targetId;
     const prisoners = rollPrisoners();
@@ -3654,6 +3668,7 @@
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     s.fame = (s.fame || 0) + 10;
+    awardMvpMerit();
     const levelUps = [];
     B.units.forEach((u) => {
       if (u.side !== 'ally' || !u.uid) return;

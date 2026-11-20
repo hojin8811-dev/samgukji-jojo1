@@ -1909,6 +1909,10 @@
     $('#city-scene-img').src = `assets/scenes/${scene}.webp`;
     $('#city-gold').textContent = fmt(st.gold);
     $('#city-food').textContent = fmt(st.food);
+    const cgt = $('#city-gold-total'), cft = $('#city-food-total');
+    const allG = SK.totalGold(s), allF = SK.totalFood(s);
+    if (cgt) { cgt.textContent = Math.round(allG) === Math.round(st.gold || 0) ? '' : `/ ${fmt(allG)}`; cgt.title = '전체 성 금고 합계'; }
+    if (cft) { cft.textContent = Math.round(allF) === Math.round(st.food || 0) ? '' : `/ ${fmt(allF)}`; cft.title = '전체 성 창고 합계'; }
     $('#city-troops').textContent = fmt(st.troops);
     const gens = s.heroes.filter((h) => h.city === id);
     if (!gens.length) cityActorUid = null;
