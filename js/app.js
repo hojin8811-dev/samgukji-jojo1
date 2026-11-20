@@ -913,7 +913,11 @@
   const SCREENS = ['screen-title', 'screen-scenario', 'screen-faction', 'screen-map', 'screen-city', 'screen-battle'];
   let lastTheme = null;
   function bgm(theme) {
-    if (!window.JojoBGM || lastTheme === theme) return;
+    if (!window.JojoBGM) return;
+    /* v5.9 — 전투 화면은 battle.js가 JojoBGM을 직접 부르므로, 실제 재생 중인 곡과 견준다
+       (그러지 않으면 전투를 마치고 지도로 돌아와도 전장 음악이 그대로 남는다) */
+    const cur = window.JojoBGM.debug && window.JojoBGM.debug.current;
+    if (cur != null ? cur === theme : lastTheme === theme) return;
     lastTheme = theme;
     try { JojoBGM.play(theme); } catch (e) { /* ignore */ }
   }
@@ -4648,19 +4652,32 @@
 
   /* ── 병영 — 징병 · 훈련 선택 ── */
   function openBarracksMenu(cityId) {
+    const cs = SK.state.cities[cityId];
+    const wound = Math.round(cs.wounded || 0);
+    const cap = cityCap(cs);
+    const room = Math.max(0, cap - Math.round(cs.troops || 0));
+    const healCost = SK.healCostOf(Math.min(wound, room));
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 병영`,
       title: '군사를 일으킨다',
       body: `<div class="menu-list">
         <button data-b="recruit">징병 — 금 150 · 미 120 · 수비병 +2,500</button>
         <button data-b="train">훈련 — 금 80 · 주둔 장수 경험치</button>
-      </div>`,
+        ${wound ? `<button data-b="heal">부상병 치료 — ${fmt(wound)}명 회복중 · 금 ${fmt(healCost)}</button>` : ''}
+      </div>
+      ${wound ? `<p class="talent-note">부상병은 달이 바뀌면 35%(최소 200명)씩 저절로 돌아옵니다. 지금 금을 내면 한 번에 치료합니다.</p>` : ''}`,
       actions: [{ label: '닫기' }],
     });
     m.el.querySelectorAll('[data-b]').forEach((b) => {
-      b.onclick = () => { m.close(); doCommand(b.dataset.b); };
+      b.onclick = () => {
+        const k = b.dataset.b;
+        m.close();
+        if (k === 'heal') { SK.openHealWounded(cityId); return; }
+        doCommand(k);
+      };
     });
   }
+  SK.openBarracksMenu = openBarracksMenu;
 
   /* ── 관아 — 민심 · 태수/군사 임명 · 자동 내정 · 위임 · 포상 · 세율 · 군량 상인 ── */
   function openOffice(cityId) {
