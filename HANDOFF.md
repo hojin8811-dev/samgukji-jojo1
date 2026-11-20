@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.6** 도안 A 지도·80거점 확정 좌표·성 화면 하단 보정 · 2026-11-20 · 라이브 `?v=20`
+> 기준: **v5.7** 내정 편의·태수 위임·수송·충성·시세·세계제패 AI · 2026-11-20 · 라이브 `?v=21`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,14 +14,38 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=20`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=21`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | 내정 완성(v5.5에서 모션·파견·3단계 도시까지) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 8장 A·B는 완료 |
+| 다음 목표 | 내정 완성(v5.5 모션·파견, v5.7 위임·수송·충성·시세) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음은 외교·계략(이간·항복·동맹)과 선택지형 월간 이벤트 |
 
 ---
 
-## 0.3 v5.6에서 바뀐 것 — 도안 A 지도·80거점 확정 좌표·성 화면 하단 (2026-11-20)
+## 0.3 v5.7에서 바뀐 것 — 내정 편의·태수 위임·수송·충성·시세·세계제패 AI (2026-11-20)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 성 전환 | 성 화면 헤더 `◀ / ▶`로 내 거점을 넘기고, 성 이름을 누르면 보유 거점 시트. 본성 → 지도 순서, `2 / 5` 표시, 1곳이면 숨김 | `index.html` `.ct-line1/.ct-line2`, `app.js` `ownedCityList`·`renderCityNav`·`stepCity`·`openCityPicker`, `bind()` |
+| 태수 방침 5종 | `균형·상업 중시·농업 중시·전시 체제·수송 중시`. `chooseAutoAction`의 우선순위 표가 방침별로 갈리고, `수송 중시`는 `cs.supplyTo`로 매달 병력 자동 수송 | `POLICIES`·`policyOf`·`chooseAutoAction`·`runAutoDomestic`, 관아 `.op-grid`, `openSupplyPick` |
+| 태수 자동 증축 | 경험이 찬 시설 1곳을 금 잔액 400 이상일 때 태수가 스스로 증축, 월정산 보고에 `시장 Lv.2 증축 (금 −550)` | `pickAutoUpgrade`(AUTO_UPGRADE_RESERVE), `runAutoDomestic` |
+| 모두 증축 | 시설 머리 금테 `[모두 증축]` — 가능 수·총액 표시, 1탭 일괄(금 부족 시 앞에서부터) | `upgradableSlots`·`upgradeAll`·`renderCitySlots` `#btn-up-all` |
+| 나이 빈칸 | `EXTRA_GENERALS.birth` → `birthYear`, 모르는 인물은 `세` 숨김 | `js/data.js` `EXTRA_GENERALS`·`registerExtras`, `app.js` `heroAge`·`renderCityGens` |
+| 연병장 수련 | 수련 명단 최대 6명, 달이 바뀔 때 경험치(61~63) + 그달 행동 소모, 카드에 `연병장 수련` | `cs.trainCrew`·`trainCrewOf`·`crewGain`·`openTrainCrew`·`runTrainCrew`·`dutyOf` |
+| 수송·전출 | 군사 → 수송에서 병력·금·군량 + 장수 전출(보유/상한/남는 자리), 전출 시 배속·태수·군사 자리 자동 해제 | `openTransport`·`openTransportAmount` |
+| 충성 | 관아 `[포상]` 금 100 → +8(70↑ +4, 90↑ +2), 보물 +15. 40 미만 경고. 전장 공격·방어 ×(0.86+충성×0.0014) | `loyalOf`·`loyalGain`·`openReward`·`openTreasureGift`, `battle.js` `makeAlly` `loyMul` |
+| 시세 | `ricePrice()` — 월별 85~160 + 턴별 ±6(금 100당 쌀 80~160). `[군량 상인]` 사기/팔기 ×100·500·1000 | `RICE_YIELD`·`ricePrice`·`riceCheap`·`openRiceTrader` |
+| 세율 | 전 거점 공통 `낮음 0.75·민심+2` / `보통` / `높음 1.35·민심−3`. 예상 수지·월정산 동일 반영 | `TAX_RATES`·`taxRateOf`·`econForecast`·`advanceMonth`, 관아 `.tax-row` |
+| 출진 모달 | 카드에 소속 성·상태(대기/시장 담당/연병장 수련)·충성 40 미만 배지, 장수명 nowrap, 행군 1일엔 요격 문구 숨김 | `heroPickRow`, `openDeploy` `.march-note`, css `.hp-badges` |
+| 세계제패 AI | 4개월 유예 → 병력 1.45배면 이웃 중립·약소 성 점령(월 최대 2건, 승률 0.32+(배율−1.45)×0.5). 1.55배면 한 달 전 첩보 경고 → 다음 달 `pendingInvasion` | `AI_GRACE_TURNS`·`aiAttackPlan`·`resolveAiRaid`·`runAiCampaigns`·`planPlayerInvasion`·`syncFactionCities` |
+| 수성전 | `SK.BATTLE_TYPES.defense`(공성전 지도를 뒤집음). 주둔 장수 최대 6 + 수비병 부대. 승리 → 성 유지·민심+6·명성+10, 패배 → 성 상실·잔여 병력/장수는 가까운 내 성으로 | `defenseUnits`·`openPendingInvasion`·`startDefense`·`surrenderCity`·`loseCity`, `battle.js` `defenseVictory`·`defenseDefeat` |
+| v5.7.1 배속 파견 | 배속에서 `actedThisMonth`를 찍지 않고 `applyDuty`가 달 바뀔 때 집계. 주점 사신·정찰·위무·수송·내정 명령 목록에 담당 장수 노출(`시장 담당 · 파견 시 자동 해제`), 보내면 자동 해제 | `dispatchPool`·`dutyLabelOf`·`releaseDuty`·`consumeDispatch`·`pickActor`·`finishAction`·`applyDuty` |
+| 검증 | `tools/v57_smoke.py`·`v57_flow.py`·`v57_ai.py`·`v57_defwin.py`·`v57_supply.py`·`v57_crew.py`·`v57_play.py`·`v57_duty*.py`, 스크린샷 `preview/v57/` |  |
+
+주의: `SK.BATTLE_TYPES.defense`는 `map: 'siege'`를 쓰고 `SK.allySlots/enemySlots('defense')`가 공성전과 **반대** 좌표다. 수성전에는 성문(`B.gate`)을 만들지 않는다(성문 판정이 아군 이동까지 막는다).
+
+---
+
+## 0.4 v5.6에서 바뀐 것 — 도안 A 지도·80거점 확정 좌표·성 화면 하단 (2026-11-20)
 
 | 갈래 | 내용 | 코드 위치 |
 | --- | --- | --- |
@@ -39,7 +63,7 @@
 
 ---
 
-## 0.4 v5.5에서 바뀐 것 — 내정 모션·장수 파견·80거점 (2026-11-20)
+## 0.5 v5.5에서 바뀐 것 — 내정 모션·장수 파견·80거점 (2026-11-20)
 
 | 갈래 | 내용 | 코드 위치 |
 | --- | --- | --- |
@@ -64,7 +88,7 @@
 
 ---
 
-## 0.5 v5.4에서 바뀐 것 — 내정 경제 밸런스 (2026-11-20)
+## 0.6 v5.4에서 바뀐 것 — 내정 경제 밸런스 (2026-11-20)
 
 | 갈래 | 내용 | 코드 위치 |
 | --- | --- | --- |
@@ -91,7 +115,7 @@
 
 ---
 
-## 0.5 v5.3에서 바뀐 것 (2026-11-20)
+## 0.7 v5.3에서 바뀐 것 (2026-11-20)
 
 | 갈래 | 내용 | 코드 위치 |
 | --- | --- | --- |
@@ -116,7 +140,7 @@
 
 ---
 
-## 0.6 v5.2에서 바뀐 것 (2026-11-20)
+## 0.8 v5.2에서 바뀐 것 (2026-11-20)
 
 | 갈래 | 내용 | 코드 위치 |
 | --- | --- | --- |
@@ -140,7 +164,7 @@
 
 ---
 
-## 0.7 v16 — 시나리오 선택 화면 (2026-11-20)
+## 0.9 v16 — 시나리오 선택 화면 (2026-11-20)
 
 `새로 시작`을 누르면 뜨던 시나리오 선택 모달을 없애고, 사용자가 고른 **도안 A** 그대로 전용 화면(`#screen-scenario`)을 만들었습니다.
 

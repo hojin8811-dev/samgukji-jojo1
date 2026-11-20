@@ -79,23 +79,26 @@
     document.querySelectorAll('#modal-root .modal-layer').forEach((m) => m.remove());
     const s = SK.state;
     const target = SK.CITY[opts.targetId];
+    const defense = opts.defense || null;
     const type = opts.type || SK.battleTypeFor(target);
     const def = SK.BATTLE_TYPES[type];
     const mapRows = SK.MAPS[def.map];
     const tiles = mapRows.map((r) => r.split(''));
-    const faction = s.cities[opts.targetId].owner;
+    const faction = defense ? defense.faction : s.cities[opts.targetId].owner;
     const bossInfo = bossOfFaction(faction);
     const intercept = opts.intercept || null;
 
     const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i, opts.origin) : makeRegiment(spec, i)));
 
-    const cityTroops = s.cities[opts.targetId].troops;
+    /* v5.7 — 수성전이면 적 병력은 침공군 규모, 지키는 쪽이 아군 */
+    const cityTroops = defense ? Math.max(1200, defense.troops || 0) : s.cities[opts.targetId].troops;
     const enemyCount = intercept ? clamp(4 + Math.floor(cityTroops / 3200), 4, 6)
       : clamp(5 + Math.floor(cityTroops / 2600), 5, 8);
     const per = intercept
       ? clamp(Math.round((intercept.troops || 2400) / enemyCount / 100) * 100, 700, 2200)
       : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 600, 4200);
-    const defGens = (s.cities[opts.targetId].genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean)
+    const defGens = (defense ? (defense.genIds || []) : (s.cities[opts.targetId].genIds || []))
+      .map((id) => SK.GEN_BY_ID[id]).filter(Boolean)
       .slice(0, intercept ? 1 : 99);
     const enemies = [];
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
@@ -115,9 +118,9 @@
       enemies.push(makeEnemyCls(spec.cls, i, type, faction, per));
     }
 
-    /* v5.2 — 공성전 성문 내구도 (성문이 버리는 동안 근거리는 못 넘는다) */
+    /* v5.2 — 공성전 성문 내구도 (성문이 버리는 동안 근거리는 못 넘는다). 수성전은 성문 없이 벌인다 */
     const gateTiles = [];
-    if (type === 'siege' || type === 'fortress') {
+    if (!defense && (type === 'siege' || type === 'fortress')) {
       tiles.forEach((row, y) => row.forEach((ch, x) => { if (ch === 'G') gateTiles.push({ x, y }); }));
     }
     const gateInit = gateTiles.length
@@ -126,20 +129,19 @@
       : null;
 
     B = {
-      type, def, name: intercept ? `${intercept.name} · ${def.name}` : `${target.name} ${def.name}`,
+      type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name} · ${def.name}` : `${target.name} ${def.name}`),
       targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit,
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
       event: SK.pickEvent(target, defGens),
-      objective: def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
-      bondSeen: {}, intercept, marchId: opts.marchId || null,
+      objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
+      bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense,
     };
     placeSide(allies, SK.allySlots(type), 'ally');
     placeSide(enemies, SK.enemySlots(type), 'enemy');
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
-
     anims.length = 0;
     fx.length = 0;
     floats.length = 0;
@@ -173,13 +175,16 @@
     const passive = (SK.PASSIVES && SK.PASSIVES[h.name]) || null;
     const techAtk = 1 + ((SK.techPct ? SK.techPct('atkPct') : 0) / 100);
     const techDef = 1 + ((SK.techPct ? SK.techPct('defPct') : 0) / 100);
+    /* v5.7 — 충성: 100이면 그대로, 낮을수록 전투에서 힘을 덜 쓴다 (40 아래는 큰 폭) */
+    const loy = clamp(Number(h.loyal == null ? 100 : h.loyal) || 0, 0, 100);
+    const loyMul = 0.86 + loy * 0.0014;
     // 고유 특기(상시형)는 공격·방어에 소폭 보탬이 된다 — 값의 절반만, 사기적이지 않게
     const pMul = passive && passive.trigger === 'passive' ? 1 + (Number(passive.valuePct) || 0) / 200 : 1;
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
-      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * techAtk * pMul,
-      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * techDef * pMul,
+      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * techAtk * pMul * loyMul,
+      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * techDef * pMul * loyMul,
       mov: Math.min(9, C.mov + eq.move), rng: C.rng, minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
@@ -321,6 +326,17 @@
     }
     lines.push({ who: lordName, hanja: '', pt: lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong,
       side: 'ally', text: SK.quoteOf(lordName, 'deploy') || `${target.name}의 성문을 열어라. 오늘로 끝내겠다.` });
+    /* v5.7 — 수성전은 우리가 성 안에서 맞는다 */
+    if (type === 'defense') {
+      const mine2 = SK.factionInfo(SK.playerFaction());
+      const named = (defGens || [])[0];
+      lines.push({ who: lordName, hanja: '', pt: lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong,
+        side: 'ally', text: `${target.name}은 우리 성이다. 문을 닫고 한 걸음도 내주지 마라!` });
+      lines.push({ who: named ? named.name : `${SK.factionName(faction)} 장수`, hanja: '',
+        pt: named ? SK.genPortrait(named) : SK.CLASS_PORTRAIT.chaeksa, side: 'enemy',
+        text: `${mine2.name}의 성문을 열어라. 오늘로 이 땅을 끝내겠다.` });
+      return lines;
+    }
     const hint = {
       siege: '성벽이 높습니다. 성문을 향해 힘을 모으십시오.',
       naval: '물길은 내가 안다. 배를 따라오너라!',
@@ -3037,6 +3053,7 @@
   function victory() {
     if (B.over) return;
     if (B.intercept) { interceptVictory(); return; }
+    if (B.defense) { defenseVictory(); return; }
     B.over = true;
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
@@ -3110,6 +3127,7 @@
   function defeat() {
     if (B.over) return;
     if (B.intercept) { interceptDefeat(); return; }
+    if (B.defense) { defenseDefeat(); return; }
     B.over = true;
     SK.sfx.play('defeat');
     const s = SK.state;
@@ -3139,8 +3157,109 @@
     });
   }
 
+  /* ───────────── v5.7 — 수성전의 승패 ───────────── */
+  function defenseVictory() {
+    B.over = true;
+    SK.sfx.play('victory');
+    if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
+    const s = SK.state;
+    const st = s.cities[B.targetId];
+    const c = SK.CITY[B.targetId];
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    const dead = B.units.filter((u) => u.side === 'ally' && !u.alive);
+    const troopsLeft = survivors.reduce((a, u) => a + u.hp, 0);
+    if (st) {
+      st.troops = Math.max(600, Math.round(troopsLeft));
+      st.loyalty = clamp((st.loyalty || 50) + 6, 0, 100);
+      st.def = Math.max(25, Math.round((st.def || 50) - 6));
+    }
+    s.gold += B.rewards.gold;
+    s.food += B.rewards.food;
+    s.fame = (s.fame || 0) + 10;
+    const levelUps = [];
+    B.units.forEach((u) => {
+      if (u.side !== 'ally' || !u.uid) return;
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (!h) return;
+      h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv)));
+      if (u.alive) {
+        const ups = SK.gainExp(h, 70);
+        if (ups.length) levelUps.push({ name: h.name, lv: h.lv, title: SK.classTitle(h.cls, h.lv), promote: ups.some((x) => x.promote) });
+      } else h.hp = 1;
+    });
+    s.pendingInvasion = null;
+    SK.save();
+    SK.refreshHud();
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    SK.modal({
+      kicker: '수성전 승리',
+      title: `${SK.josa(c.name, 'eul')} 지켰습니다`,
+      body: `<div class="result-modal win"><div class="rm-seal">승</div>
+        <p class="rm-line">${SK.factionName(B.defense.faction)}의 침공을 막아냈습니다. 성은 우리 것입니다.</p>
+        <div class="rm-rewards">
+          <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
+          <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
+          <div><span>명성</span><b>+10</b></div>
+          <div><span>남은 수비병</span><b>${Math.round(troopsLeft).toLocaleString('ko-KR')}</b></div>
+        </div>
+        ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
+        <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
+        <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +6 · 성벽 −6</p></div>`,
+      actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
+      dismissible: false,
+    });
+  }
+
+  function defenseDefeat() {
+    B.over = true;
+    SK.sfx.play('defeat');
+    if (window.JojoBGM) { try { JojoBGM.play('defeat'); } catch (e) { /* ignore */ } }
+    const s = SK.state;
+    const c = SK.CITY[B.targetId];
+    const inv = B.defense || {};
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    const troopsLeft = survivors.reduce((a, u) => a + Math.max(0, u.hp), 0);
+    B.units.forEach((u) => {
+      if (u.side !== 'ally' || !u.uid) return;
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (h) h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2)));
+    });
+    const res = SK.loseCity ? SK.loseCity(B.targetId, inv.faction, {
+      troops: Math.round(troopsLeft * 0.8),
+      garrison: Math.max(700, Math.round((inv.troops || 2000) * 0.45)),
+      genIds: inv.genIds || [],
+    }) : { refuge: null, moved: 0 };
+    s.fame = Math.max(0, (s.fame || 0) - 10);
+    const left = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
+    s.pendingInvasion = null;
+    SK.save();
+    SK.refreshHud();
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    if (!left) {
+      SK.modal({
+        kicker: '천하 패배', title: '거점을 모두 잃었습니다',
+        body: `<div class="result-modal lose"><div class="rm-seal">망</div>
+          <p class="rm-line">마지막 성이 함락되어 천하를 잃었습니다.</p>
+          <p class="rm-note">처음부터 다시 도전할 수 있습니다. 메뉴의 [처음부터 시작]을 쓰십시오.</p></div>`,
+        actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
+        dismissible: false,
+      });
+      return;
+    }
+    SK.modal({
+      kicker: '수성전 패배', title: `${c.name} 함락`,
+      body: `<div class="result-modal lose"><div class="rm-seal">패</div>
+        <p class="rm-line">${SK.josa(SK.factionName(inv.faction), 'i')} 성을 차지했습니다.${res.refuge ? ` 남은 병력 ${Math.round(res.moved).toLocaleString('ko-KR')}과 장수는 <b>${SK.CITY[res.refuge].name}</b>으로 물러났습니다.` : ' 물러날 성이 없습니다.'}</p>
+        <p class="rm-note">명성 −10 · 성벽·민심이 무너지고, 다음 달부터 이 성은 적의 것입니다.</p></div>`,
+      actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
+      dismissible: false,
+    });
+  }
+
   function retreat() {
     if (!B) return;
+    /* v5.7 — 수성전에서 물러나면 성을 내주는 것과 같다 */
+    if (B.defense) { defenseDefeat(); return; }
     if (B.intercept || B.marchId) {
       /* 행군 중 후퇴 — 남은 병력은 본성으로, 행군은 취소된다 */
       const s = SK.state;

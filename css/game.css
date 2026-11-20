@@ -325,9 +325,30 @@ b { font-weight: 700; }
 .city-top .icon-btn { background: #f3e4c2; color: #5b4a27; border-color: #c3a568; }
 .city-lord { width: 42px; height: 42px; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--gold); box-shadow: 0 2px 6px rgba(80, 60, 20, 0.25); }
 .city-lord img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
-.city-title-wrap { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 5px; min-width: 0; }
-.city-title-wrap > * { flex: 0 0 auto; }
-.city-title-wrap h2 { margin: 0; font-family: var(--serif); font-size: 21px; letter-spacing: 0.02em; color: #2c2412; white-space: nowrap; }
+.city-title-wrap { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ct-line1, .ct-line2 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ct-line2 { flex-wrap: wrap; row-gap: 2px; }
+.ct-line1 > *, .ct-line2 > * { flex: 0 0 auto; }
+.city-title-wrap h2 { margin: 0; font-family: var(--serif); font-size: 19px; letter-spacing: 0.01em; color: #2c2412; white-space: nowrap; cursor: pointer; }
+.city-title-wrap h2:active { color: #8a5f2a; }
+/* v5.7 — 성 화면 안에서 내 거점을 ◀ ▶ 로 넘긴다 */
+.city-step {
+  width: 22px; height: 22px; flex: 0 0 22px; padding: 0; display: grid; place-items: center;
+  border-radius: 6px; border: 1px solid #c3a568; background: #f7e9ca; color: #7a5f24;
+  font-size: 9px; line-height: 1; box-shadow: 0 1px 2px rgba(90, 70, 30, 0.18);
+}
+.city-step:active { background: #efdcb0; }
+.city-step:disabled { opacity: 0.28; }
+.city-stepno { font-size: 8.5px; font-weight: 800; color: #8b7445; letter-spacing: 0.02em; }
+.city-pick-row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  border: 1px solid #d3bb8a; border-radius: 9px; background: rgba(255, 252, 244, 0.82); padding: 7px 9px; margin-bottom: 5px; }
+.city-pick-row.on { border-color: #47673c; background: #f2f7e6; box-shadow: inset 0 0 0 1px #47673c; }
+.city-pick-row .cp-lv { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; display: grid; place-items: center;
+  color: #fff8e8; font-size: 10px; font-weight: 900; }
+.city-pick-row .cp-main { flex: 1; min-width: 0; }
+.city-pick-row .cp-main b { display: block; font-family: var(--serif); font-size: 13px; color: #2e2510; }
+.city-pick-row .cp-main span { font-size: 9px; color: #7b6538; }
+.city-pick-row .cp-cap { flex: 0 0 auto; font-size: 9px; font-weight: 800; color: #8a5f2a; }
 .city-title-wrap #city-hanja { font-family: var(--sans); font-size: 9px; font-weight: 800; color: #8b7445; white-space: nowrap; background: #efe2c4; border: 1px solid #cdb489; border-radius: 7px; padding: 0 5px; }
 .faction-tag {
   align-self: center; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
@@ -2264,3 +2285,133 @@ b { font-weight: 700; }
 .sheet-gens .mini-gen > div { flex: 0 0 auto; min-width: 0; }
 .sheet-gens .mini-gen em { white-space: nowrap; }
 .sheet-gens .mini-gen { padding: 2px 9px 2px 2px; }
+
+/* ══════════════════════════════════════════════════════════════
+   v5.7 — 내정 편의 · 태수 위임 방침 · 충성 · 시세 · 세계제패 AI
+   ══════════════════════════════════════════════════════════════ */
+/* 출진 모달 — 소속 성 · 현재 상태 배지, 긴 장수명 줄바꿈 방지 */
+.hp-main { min-width: 0; }
+.hp-main b { white-space: nowrap; overflow: visible; }
+.hp-badges { display: flex; flex-wrap: nowrap; gap: 3px; margin-top: 2px; align-items: center; }
+.hp-badges i {
+  font-style: normal; font-size: 8px; font-weight: 800; letter-spacing: -0.01em;
+  padding: 0 4px; border-radius: 4px; white-space: nowrap;
+  border: 1px solid #cdb489; background: #f6ead0; color: #7a5f24;
+}
+.hp-badges i.hp-duty-wait { border-color: #9dbb86; background: #eef6e0; color: #4f7a2c; }
+.hp-badges i.hp-duty-busy { border-color: #d3a07a; background: #fbeee0; color: #a4652a; }
+.hp-badges i.hp-loyal-low { border-color: #c98a80; background: #fbe6e2; color: #a8443a; }
+.hero-pick.busy { background: rgba(250, 240, 222, 0.55); }
+.hero-pick .hp-main b { font-size: 12px; line-height: 1.15; }
+.deploy-list .hero-pick { gap: 6px; }
+
+/* 내성 시설 — [모두 증축] */
+.slot-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.slot-head .slot-upall {
+  flex: 0 0 auto; border-radius: 8px; padding: 3px 8px; font-size: 9.5px; font-weight: 900;
+  color: #6a4a10; background: linear-gradient(180deg, #ffe9ae, #e9c871);
+  border: 1.5px solid #b8862f; box-shadow: 0 1px 3px rgba(120, 90, 30, 0.28);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.slot-head .slot-upall em { font-style: normal; font-size: 8.5px; font-weight: 800; color: #7a5f24; }
+.slot-head .slot-upall:disabled { opacity: 0.55; }
+.upall-row { display: flex; align-items: center; gap: 7px; padding: 4px 2px; border-bottom: 1px dashed rgba(150, 120, 60, 0.28); }
+.upall-row img { width: 26px; height: 26px; object-fit: contain; }
+.upall-row b { flex: 1; font-size: 11.5px; color: #2e2510; }
+.upall-row span { font-size: 10px; color: #7b6538; }
+.upall-row em { font-style: normal; font-size: 10.5px; font-weight: 800; color: #8a5f2a; }
+.upall-total { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11.5px; font-weight: 800; color: #4a3a1a; }
+.upall-total b { color: #a8443a; font-size: 13px; }
+
+/* 관아 — 태수 위임 방침 5종 */
+.office-policy { margin: 6px 0 2px; }
+.office-policy > p { margin: 0 0 4px; font-size: 9.5px; font-weight: 800; color: #7a5f24; }
+.op-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.op-btn {
+  border: 1px solid #cdb489; border-radius: 8px; padding: 5px 3px; background: rgba(255, 252, 244, 0.8);
+  text-align: center; color: #4a3a1a;
+}
+.op-btn b { display: block; font-size: 10.5px; font-family: var(--serif); }
+.op-btn span { display: block; font-size: 8px; color: #8a7448; line-height: 1.15; margin-top: 1px; }
+.op-btn.on { border-color: #b8862f; background: linear-gradient(180deg, #fff3d2, #ecd39a); box-shadow: inset 0 0 0 1px #b8862f; }
+.op-note { margin: 4px 0 0; font-size: 9px; color: #7b6538; line-height: 1.35; }
+
+/* 관아 — 포상 · 충성 */
+.loyal-chip { font-style: normal; font-size: 8.5px; font-weight: 900; padding: 0 4px; border-radius: 4px; border: 1px solid #9dbb86; background: #eef6e0; color: #4f7a2c; }
+.loyal-chip.mid { border-color: #d8bd82; background: #fbf1d8; color: #8a5f2a; }
+.loyal-chip.low { border-color: #c98a80; background: #fbe6e2; color: #a8443a; }
+.reward-row { display: flex; align-items: center; gap: 7px; padding: 5px 3px; border-bottom: 1px dashed rgba(150, 120, 60, 0.28); }
+.reward-row img { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; object-position: 50% 18%; border: 1px solid #c3a568; }
+.reward-row .rw-main { flex: 1; min-width: 0; }
+.reward-row .rw-main b { display: block; font-size: 12px; color: #2e2510; }
+.reward-row .rw-main span { font-size: 9px; color: #7b6538; }
+.reward-row button {
+  flex: 0 0 auto; border: 1px solid #b8862f; border-radius: 7px; padding: 4px 7px;
+  font-size: 9.5px; font-weight: 800; color: #6a4a10; background: linear-gradient(180deg, #ffe9ae, #ecc979);
+}
+.reward-row button:disabled { opacity: 0.45; }
+.reward-row button.gift { border-color: #6a4a8a; color: #4a2f61; background: linear-gradient(180deg, #f1e4fb, #d9c2ec); }
+
+/* 군량 상인 · 세율 */
+.rice-quote {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  border: 1px solid #d8bd82; border-radius: 9px; padding: 7px 9px; margin-bottom: 7px;
+  background: linear-gradient(180deg, #fffaf0, #f3e4c2);
+}
+.rice-quote .rq-main { min-width: 0; }
+.rice-quote .rq-main b { display: block; font-family: var(--serif); font-size: 14px; color: #6a4a10; white-space: nowrap; }
+.rice-quote .rq-main span { display: block; font-size: 8.5px; color: #7b6538; line-height: 1.3; margin-top: 1px; }
+.rice-quote .rq-side { flex: 0 0 auto; text-align: right; }
+.rice-quote .rq-side span { display: block; font-size: 8.5px; color: #8a7448; white-space: nowrap; }
+.rice-quote .rq-side b { font-family: var(--serif); font-size: 11px; color: #4a3a1a; }
+.rice-modes { display: flex; gap: 5px; margin-bottom: 7px; }
+.rice-modes button {
+  flex: 1; border: 1px solid #cdb489; border-radius: 8px; padding: 6px 2px;
+  font-size: 11px; font-weight: 800; color: #4a3a1a; background: rgba(255, 252, 244, 0.85);
+}
+.rice-modes button.on { border-color: #b8862f; background: linear-gradient(180deg, #fff3d2, #ecd39a); box-shadow: inset 0 0 0 1px #b8862f; }
+.rice-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.rice-btns button {
+  border: 1px solid #9dbb86; border-radius: 8px; padding: 8px 2px; font-size: 11px; font-weight: 800;
+  color: #35521f; background: linear-gradient(180deg, #f2f9e6, #dfecc8); line-height: 1.25;
+}
+.rice-btns button small { display: block; font-size: 8.5px; font-weight: 700; color: #5f7a3a; }
+.rice-btns button.sell { border-color: #d3a07a; color: #7a3f12; background: linear-gradient(180deg, #fdf1e2, #f0dcc2); }
+.rice-btns button:disabled { opacity: 0.45; }
+.tax-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 5px 0 3px; }
+.tax-row button {
+  border: 1px solid #cdb489; border-radius: 8px; padding: 5px 2px; text-align: center;
+  font-size: 10.5px; font-weight: 800; color: #4a3a1a; background: rgba(255, 252, 244, 0.85);
+}
+.tax-row button small { display: block; font-size: 8px; font-weight: 700; color: #8a7448; margin-top: 1px; }
+.tax-row button.on { border-color: #b8862f; background: linear-gradient(180deg, #fff3d2, #ecd39a); box-shadow: inset 0 0 0 1px #b8862f; }
+
+/* 연병장 수련 명단 */
+.crew-row { display: flex; align-items: center; gap: 7px; padding: 4px 3px; border-bottom: 1px dashed rgba(150, 120, 60, 0.28); }
+.crew-row img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; object-position: 50% 18%; border: 1px solid #c3a568; }
+.crew-row .cw-main { flex: 1; min-width: 0; }
+.crew-row .cw-main b { display: block; font-size: 11.5px; color: #2e2510; }
+.crew-row .cw-main span { font-size: 9px; color: #7b6538; }
+.crew-row .cw-gain { flex: 0 0 auto; font-size: 9.5px; font-weight: 800; color: #4f7a2c; }
+.crew-row button.onoff { flex: 0 0 auto; border: 1px solid #cdb489; border-radius: 7px; padding: 3px 7px; font-size: 9.5px; font-weight: 800; color: #6a4a10; background: #f6ead0; }
+.crew-row button.onoff.on { border-color: #47673c; background: #e8f3d6; color: #35521f; }
+
+/* 월정산 — AI 세력 소식 · 침공 경고 */
+.mr-ai { margin-top: 6px; border-top: 1px dashed rgba(150, 120, 60, 0.35); padding-top: 5px; }
+.mr-ai-title { margin: 0 0 3px; font-size: 10px; font-weight: 900; color: #7a5417; }
+.mr-ai-row { display: flex; gap: 5px; font-size: 9.5px; color: #4a3a1a; line-height: 1.35; padding: 1px 0; }
+.mr-ai-row em { font-style: normal; flex: 0 0 auto; }
+.invasion-card {
+  border: 1.5px solid #a8443a; border-radius: 10px; padding: 9px; background: linear-gradient(180deg, #fbeee8, #f3dcd2);
+}
+.invasion-card h4 { margin: 0 0 4px; font-family: var(--serif); font-size: 14px; color: #7a2a20; }
+.invasion-card p { margin: 0 0 4px; font-size: 10px; color: #4a3a1a; line-height: 1.4; }
+.invasion-nums { display: flex; gap: 6px; flex-wrap: wrap; margin: 5px 0; }
+.invasion-nums span { font-size: 9.5px; color: #4a3a1a; background: #fff8ee; border: 1px solid #d8bd82; border-radius: 6px; padding: 2px 6px; }
+.invasion-nums b { font-size: 11px; color: #7a2a20; }
+/* v5.7.1 — 사신 줄: 담당 장수도 보낼 수 있다는 표시 */
+.ev-chip .ev-duty {
+  font-style: normal; font-size: 7.5px; font-weight: 900; letter-spacing: -0.02em;
+  padding: 0 3px; border-radius: 3px; color: #7a3f12;
+  background: #fbe6cf; border: 1px solid #d3a07a;
+}

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=20" />
+<link rel="stylesheet" href="css/game.css?v=21" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -177,12 +177,19 @@
       <button id="btn-city-back" class="icon-btn" aria-label="지도로">‹</button>
       <div class="city-lord"><img id="city-lord-img" src="assets/portraits/v2/caocao.webp" alt="" /></div>
       <div class="city-title-wrap">
-        <span class="faction-tag" id="city-faction">위</span>
-        <h2 id="city-name">허창</h2>
-        <span id="city-hanja">대도시</span>
-        <span id="city-level" class="city-level">Lv.1</span>
-        <span id="city-rank" class="rank-chip sm">현령</span>
-        <span id="city-date" class="city-date">190년 1월</span>
+        <div class="ct-line1">
+          <span class="faction-tag" id="city-faction">위</span>
+          <button id="btn-city-prev" class="city-step" type="button" aria-label="이전 성">◀</button>
+          <h2 id="city-name" title="보유 거점 고르기">허창</h2>
+          <button id="btn-city-go" class="city-step" type="button" aria-label="다음 성">▶</button>
+          <span id="city-hanja">대도시</span>
+        </div>
+        <div class="ct-line2">
+          <span id="city-level" class="city-level">Lv.1</span>
+          <span id="city-rank" class="rank-chip sm">현령</span>
+          <span id="city-date" class="city-date">190년 1월</span>
+          <span id="city-stepno" class="city-stepno">1 / 1</span>
+        </div>
       </div>
       <div class="city-res">
         <span class="res gold"><svg class="res-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-gold"></use></svg><b id="city-gold">0</b></span>
@@ -300,14 +307,14 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=20"></script>
-<script src="js/mapmask.js?v=20"></script>
-<script src="js/city_geo.js?v=20"></script>
-<script src="js/data.js?v=20"></script>
-<script src="js/bgm.js?v=20"></script>
-<script src="js/sfx.js?v=20"></script>
-<script src="js/app.js?v=20"></script>
-<script src="js/map.js?v=20"></script>
-<script src="js/battle.js?v=20"></script>
+<script src="js/mapgeo.js?v=21"></script>
+<script src="js/mapmask.js?v=21"></script>
+<script src="js/city_geo.js?v=21"></script>
+<script src="js/data.js?v=21"></script>
+<script src="js/bgm.js?v=21"></script>
+<script src="js/sfx.js?v=21"></script>
+<script src="js/app.js?v=21"></script>
+<script src="js/map.js?v=21"></script>
+<script src="js/battle.js?v=21"></script>
 </body>
 </html>

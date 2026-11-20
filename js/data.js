@@ -351,11 +351,11 @@ SK.cityIdByName = function (name) {
 SK.KOREAN_EXTRA = ['초고왕', '구수왕', '벌휴이사금', '내해이사금', '산상왕', '구수', '내해', '명림어수', '석우로', '사반왕'];
 SK.EXTRA_GENERALS = {
   '유언': { job: '군주', tier: 'A', war: 40, intel: 66, lead: 58 },
-  '초고왕': { job: '군주', tier: 'A', war: 72, intel: 70, lead: 74 },
-  '구수왕': { job: '군주', tier: 'B', war: 61, intel: 64, lead: 66 },
-  '벌휴이사금': { job: '군주', tier: 'A', war: 64, intel: 72, lead: 73 },
-  '내해이사금': { job: '군주', tier: 'B', war: 60, intel: 66, lead: 64 },
-  '산상왕': { job: '군주', tier: 'A', war: 73, intel: 68, lead: 70 },
+  '초고왕': { job: '군주', tier: 'A', war: 72, intel: 70, lead: 74, birth: 148 },
+  '구수왕': { job: '군주', tier: 'B', war: 61, intel: 64, lead: 66, birth: 218 },
+  '벌휴이사금': { job: '군주', tier: 'A', war: 64, intel: 72, lead: 73, birth: 154 },
+  '내해이사금': { job: '군주', tier: 'B', war: 60, intel: 66, lead: 64, birth: 164 },
+  '산상왕': { job: '군주', tier: 'A', war: 73, intel: 68, lead: 70, birth: 168 },
   '공손강': { job: '군주', tier: 'B', war: 58, intel: 62, lead: 60 },
   '무안국': { job: '창병', tier: 'B', war: 74, intel: 56, lead: 66 },
   '왕수': { job: '검병', tier: 'C', war: 62, intel: 50, lead: 58 },
@@ -368,8 +368,8 @@ SK.EXTRA_GENERALS = {
   '공손도': { job: '군주', tier: 'B', war: 62, intel: 70, lead: 66 },
   '공손공': { job: '기병', tier: 'B', war: 66, intel: 54, lead: 58 },
   '남중 호족': { job: '군주', tier: 'B', war: 55, intel: 52, lead: 58 },
-  '구수': { job: '군주', tier: 'A', war: 58, intel: 76, lead: 70 },
-  '내해': { job: '창병', tier: 'B', war: 66, intel: 60, lead: 62 },
+  '구수': { job: '군주', tier: 'A', war: 58, intel: 76, lead: 70, birth: 218 },
+  '내해': { job: '창병', tier: 'B', war: 66, intel: 60, lead: 62, birth: 164 },
   '마휴': { job: '기병', tier: 'B', war: 71, intel: 52, lead: 63 },
   '마철': { job: '기병', tier: 'B', war: 68, intel: 48, lead: 60 },
   '양홍': { job: '검병', tier: 'B', war: 63, intel: 55, lead: 62 },
@@ -379,9 +379,9 @@ SK.EXTRA_GENERALS = {
   '선우보': { job: '궁기', tier: 'B', war: 67, intel: 54, lead: 60 },
   '엄강': { job: '창병', tier: 'B', war: 70, intel: 56, lead: 62 },
   '국의': { job: '책사', tier: 'B', war: 30, intel: 74, lead: 58 },
-  '명림어수': { job: '책사', tier: 'A', war: 40, intel: 82, lead: 70 },
-  '석우로': { job: '창병', tier: 'A', war: 82, intel: 66, lead: 74 },
-  '사반왕': { job: '군주', tier: 'B', war: 45, intel: 58, lead: 55 },
+  '명림어수': { job: '책사', tier: 'A', war: 40, intel: 82, lead: 70, birth: 146 },
+  '석우로': { job: '창병', tier: 'A', war: 82, intel: 66, lead: 74, birth: 165 },
+  '사반왕': { job: '군주', tier: 'B', war: 45, intel: 58, lead: 55, birth: 210 },
   '번민': { job: '검병', tier: 'B', war: 64, intel: 58, lead: 60 },
   '이감': { job: '기병', tier: 'B', war: 68, intel: 50, lead: 57 },
   '염행': { job: '궁수', tier: 'B', war: 62, intel: 54, lead: 56 },
@@ -952,6 +952,7 @@ SK.registerExtras = function () {
       id: base + i, name, faction: '재야', tier: e.tier || 'B', job: e.job || '검병',
       leadership: e.lead, war: e.war, intel: e.intel,
       politics: Math.round((e.war + e.intel + e.lead) / 3), charm: 62, skill: e.skill || '',
+      birthYear: e.birth || null,
       region: SK.KOREAN_EXTRA.indexOf(name) >= 0 ? '한국' : '중국',
     };
     SK.GENERALS.push(g);
@@ -1474,6 +1475,9 @@ SK.BATTLE_TYPES = {
     objective: '여울과 다리를 건너 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   ambush: { name: '매복전', hanja: '', map: 'ambush', img: 'mountain', desc: '숲길에서 기습을 받았다',
     objective: '숲길 매복을 뚫고 적을 전멸시켜라', skill: '산적·야수병은 숲에서 강해집니다.' },
+  /* v5.7 — 수성전: 아군이 성 안에서 적 침공군을 맞는다 (지도는 공성전을 뒤집어 쓴다) */
+  defense: { name: '수성전', hanja: '', map: 'siege', desc: '성을 지켜 적을 물리쳐라',
+    objective: '성을 지켜라 — 적을 전멸시켜라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
 };
 
 /* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.
@@ -1497,6 +1501,7 @@ SK.enemyClassesFor = function (type, idx) {
     naval:    ['sujeok', 'sujeok', 'gungsu', 'sujeok', 'chaeksa', 'dosa', 'gunakdae', 'sujeok'],
     mountain: ['sanjeok', 'yasubyung', 'sanjeok', 'yeonnobyung', 'chaeksa', 'mudoga', 'sanjeok', 'yasubyung'],
     fortress: ['deunggabyung', 'gungsu', 'changbyung', 'pocha', 'chaeksa', 'balseokcha', 'yeonnobyung', 'geombyung'],
+    defense:  ['geombyung', 'yeonnobyung', 'chaeksa', 'pocha', 'changbyung', 'balseokcha', 'deunggabyung', 'gungsu'],
     plain:    ['gibi', 'changbyung', 'geombyung', 'gungsu', 'mudoga', 'chaeksa', 'gibi', 'gungsu'],
     ford:     ['sujeok', 'gungsu', 'changbyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'geombyung', 'sujeok'],
     ambush:   ['sanjeok', 'yasubyung', 'mudoga', 'sanjeok', 'gungsu', 'chaeksa', 'yasubyung', 'sanjeok'],
@@ -1508,6 +1513,8 @@ SK.enemyClassesFor = function (type, idx) {
 /* 배치 좌표 [x, y] (18×18) */
 SK.enemySlots = function (type) {
   /* v5.3 — 수비 2기는 망루(5,4)·(12,4)에 붙어 버틴다 */
+  /* v5.7 — 수성전은 공성전을 뒤집는다: 지키는 우리가 성 안쪽, 적이 성 앞 */
+  if (type === 'defense') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
   if (type === 'siege') return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5]];
   if (type === 'naval') return [[3, 2], [6, 2], [9, 2], [12, 2], [15, 2], [5, 1], [11, 1], [14, 1]];
   if (type === 'mountain') return [[16, 2], [14, 4], [11, 7], [10, 9], [8, 10], [13, 5], [15, 3], [9, 11]];
@@ -1517,6 +1524,7 @@ SK.enemySlots = function (type) {
   return [[12, 4], [15, 4], [13, 6], [16, 7], [11, 7], [12, 9], [14, 5], [16, 3]];
 };
 SK.allySlots = function (type) {
+  if (type === 'defense') return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5], [8, 4], [9, 4]];
   if (type === 'siege') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
   if (type === 'naval') return [[3, 15], [6, 15], [9, 15], [12, 15], [15, 15], [4, 16], [7, 16], [10, 16], [13, 16], [16, 16]];
   if (type === 'mountain') return [[2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 12], [3, 16], [4, 16], [5, 14], [6, 13]];
