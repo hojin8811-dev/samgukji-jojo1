@@ -37,6 +37,11 @@
   /* v5.10 — 자동전투 배속. 기본 1x = 예전 속도의 절반(2배 느리게), 2x = 예전 속도 */
   let autoSpeed = 1;
   const LV_GROW = 0.018;        // 1레벨마다 공·방 +1.8% (아군·적군 공통)
+  /* v5.10 — 전투 배속: ×1이면 전장의 모든 대기·연출이 2배 느려지고 ×2면 예전 그대로.
+     수동 조작 중(autoOn=false)에는 아무 영향이 없다. */
+  function paceMs(ms) { return autoOn ? Math.round((Number(ms) || 0) * (2 / autoSpeed)) : (Number(ms) || 0); }
+  function wait(fn, ms) { return setTimeout(fn, paceMs(ms)); }
+  SK.battlePace = paceMs;
   const anims = [];            // 타일 단위 이동 · 돌격 애니메이션
   let shakeT = 0, shakeAmp = 0; // 화면 진동
   let bondTick = 0;
@@ -192,7 +197,7 @@
     SKBattle.refreshUI();
     showIntro();
     if (supportNames.length) {
-      setTimeout(() => SK.toast(`적 지원군 합류 — ${supportNames.join(' · ')}`), 260);
+      wait(() => SK.toast(`적 지원군 합류 — ${supportNames.join(' · ')}`), 260);
     }
   };
 
@@ -592,7 +597,9 @@
   function loop(t) {
     const dt = Math.min(60, t - lastT);
     lastT = t;
-    const sdt = dt * timeScale;
+    /* v5.10 — 자동전투 배속은 대기 간격만이 아니라 이동·타격 연출에도 걸린다.
+       ×1이면 전장 전체가 절반 속도로 흐르고, ×2면 예전 그대로다. */
+    const sdt = dt * timeScale * (autoOn ? 1 / autoSpeed : 1);
     updateFx(sdt);
     updateAnims(sdt);
     updateUnits(sdt);
@@ -1742,7 +1749,7 @@
     d.textContent = text;
     el.appendChild(d);
     requestAnimationFrame(() => d.classList.add('in'));
-    setTimeout(() => { d.classList.remove('in'); setTimeout(() => d.remove(), 260); }, 3800);
+    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, 3800);
     while (el.children.length > 3) el.firstChild.remove();
   }
 
@@ -1786,7 +1793,7 @@
     el.textContent = text;
     el.className = 'battle-callout show ' + (kind || '');
     clearTimeout(calloutTimer);
-    calloutTimer = setTimeout(() => el.classList.remove('show'), 1750);
+    calloutTimer = wait(() => el.classList.remove('show'), 1750);
   }
 
   function shakeScreen(amp) { shakeAmp = amp || 5; shakeT = 240; }
@@ -1947,7 +1954,7 @@
       lunge(a, d, () => {
         addFx({ kind: 'slash', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.45) * TILE, life: 380 });
         SK.sfx.play('sword');
-        setTimeout(land, 70);
+        wait(land, 70);
       });
     } else {
       launchProjectile(a, d, kind, land);
@@ -1958,7 +1965,7 @@
     // a = 반격하는 방어자, d = 공격자
     if (!d.alive || !a.alive) return;
     if (cheb(a.x, a.y, d.x, d.y) <= effRng(a)) {
-      setTimeout(() => {
+      wait(() => {
         if (!a.alive || !d.alive || B.over) return;
         attackUnit(a, d, {}, () => finishCheck());
       }, 240);
@@ -2147,13 +2154,13 @@
       }
       busy = false;
       SKBattle.refreshUI();
-      if (!B.over) setTimeout(() => { if (B && !B.over) nextUnitOrWait(); }, 240);
+      if (!B.over) wait(() => { if (B && !B.over) nextUnitOrWait(); }, 240);
     };
     if (kind === 'melee') {
-      setTimeout(() => {
+      wait(() => {
         addFx({ kind: 'slash', x: cx, y: cy, life: 360 });
         SK.sfx.play('sword');
-        setTimeout(land, 70);
+        wait(land, 70);
       }, 120);
     } else {
       launchProjectile(a, target, kind, land);
@@ -2200,12 +2207,12 @@
     attackUnit(a, d, { mult: 1 }, () => {
       const wasAlive = d.alive && d.hp > 0;
       triggerPassive(a, 'on_attack');
-      setTimeout(() => {
+      wait(() => {
         if (!B || B.over) { busy = false; return; }
         if (wasAlive && d.alive && !B.over) counter(d, a);
         busy = false;
         finishCheck();
-        if (!B.over) setTimeout(() => { if (B && !B.over) nextUnitOrWait(); }, 300);
+        if (!B.over) wait(() => { if (B && !B.over) nextUnitOrWait(); }, 300);
       }, 320);
     });
     SKBattle.refreshUI();
@@ -2294,7 +2301,7 @@
     pendingSkill = null;
     mode = 'idle';
     SKBattle.refreshUI();
-    setTimeout(() => {
+    wait(() => {
       busy = false;
       if (!B || B.over) return;
       finishCheck();
@@ -2313,7 +2320,7 @@
     const finish = (delay) => {
       u.acted = true; pendingSkill = null; mode = 'idle';
       SKBattle.refreshUI();
-      setTimeout(() => {
+      wait(() => {
         busy = false;
         if (!B || B.over) return;
         finishCheck();
@@ -2372,7 +2379,7 @@
       castCircle(u, u.cls === 'balseokcha' ? '230,200,150' : '255,170,120');
       SK.sfx.play(u.cls === 'balseokcha' ? 'rock' : 'spell');
       const rad = sk.radius || 1;
-      setTimeout(() => {
+      wait(() => {
         if (!B || B.over) { finish(0); return; }
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 620, color: '255,150,80' });
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
@@ -2398,7 +2405,7 @@
     if (sk.kind === 'magic') {
       castCircle(u, '255,170,120');
       SK.sfx.play('spell');
-      setTimeout(() => {
+      wait(() => {
         if (!B || B.over) { finish(0); return; }
         const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90) * sizeScale(target) * 0.8));
         target.hp = Math.max(0, target.hp - dmg);
@@ -2431,7 +2438,7 @@
     const apply = (n) => {
       attackUnit(u, target, { mult, ignoreTerrain: sk.ignoreTerrain, forceKind }, () => {
         if (n > 1 && target.alive && B && !B.over) {
-          setTimeout(() => { if (B && !B.over && target.alive) apply(n - 1); else finish(300); }, 160);
+          wait(() => { if (B && !B.over && target.alive) apply(n - 1); else finish(300); }, 160);
         } else {
           if (B && !B.over) finishCheck();
           finish(300);
@@ -2454,7 +2461,7 @@
     SK.sfx.play('heal');
     u.acted = true;
     SKBattle.refreshUI();
-    setTimeout(() => { if (!B.over) nextUnitOrWait(); }, 450);
+    wait(() => { if (!B.over) nextUnitOrWait(); }, 450);
   }
 
   function waitUnit() {
@@ -2496,13 +2503,11 @@
     B.sel = null; mode = 'idle'; B.reachCache = null;
     SKBattle.refreshUI();
     banner('적군 페이즈', 'enemy');
-    setTimeout(enemyPhase, 650);
+    wait(enemyPhase, 650);
   }
 
   /* ───────────── v5.2 — 아군 턴 [자동] 진행 ───────────── */
   function autoClear() { if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; } }
-  /* v5.10 — 자동전투 배속: x1(기본) = 예전의 절반 속도, x2 = 예전 속도 */
-  function autoGap(ms) { return Math.round(ms * (autoOn ? (2 / autoSpeed) : 1)); }
   function speedLabel() { return '×' + autoSpeed; }
   function paintSpeedBtn() {
     const btn = document.querySelector('#btn-speed, .act.speed');
@@ -2519,7 +2524,7 @@
     SK.toast(autoSpeed === 2
       ? '전투 배속 ×2 — 빠르게 진행합니다.'
       : '전투 배속 ×1 — 기본 속도(절반)로 돌아갑니다.');
-    if (autoOn) { autoClear(); autoTimer = setTimeout(autoStep, autoGap(240)); }
+    if (autoOn) { autoClear(); autoTimer = wait(autoStep, 240); }
     return autoSpeed;
   }
 
@@ -2541,7 +2546,7 @@
     paintSpeedBtn();
     if (autoOn) {
       SK.toast(`자동 행군 — 아군 턴을 스스로 마칩니다. (배속 ${speedLabel()})`);
-      autoTimer = setTimeout(autoStep, autoGap(320));
+      autoTimer = wait(autoStep, 320);
     } else {
       autoStop('자동 행군을 멈췄습니다.');
     }
@@ -2802,8 +2807,8 @@
   function autoStep() {
     if (!autoOn) return;
     if (!B || B.over) { autoStop(); return; }
-    if (busy || !B.introDone) { autoTimer = setTimeout(autoStep, autoGap(220)); return; }
-    if (B.phase !== 'ally') { autoTimer = setTimeout(autoStep, autoGap(300)); return; }
+    if (busy || !B.introDone) { autoTimer = wait(autoStep, 220); return; }
+    if (B.phase !== 'ally') { autoTimer = wait(autoStep, 300); return; }
     if (autoPending) {
       const p = autoPending;
       autoPending = null;
@@ -2816,14 +2821,14 @@
         else if (p.target && p.target.alive && canHit(u, p.target)) doAttack(u, p.target);
         else { u.acted = true; SKBattle.refreshUI(); }
       }
-      autoTimer = setTimeout(autoStep, autoGap(420));
+      autoTimer = wait(autoStep, 420);
       return;
     }
     const u = B.units.find((v) => v.side === 'ally' && v.alive && !v.acted);
     if (!u) {
-      if (busy) { autoTimer = setTimeout(autoStep, autoGap(300)); return; }
+      if (busy) { autoTimer = wait(autoStep, 300); return; }
       endTurn();
-      autoTimer = setTimeout(autoStep, autoGap(600));   // 적군 페이즈가 끝나면 다시 아군 턴을 잡는다
+      autoTimer = wait(autoStep, 600);   // 적군 페이즈가 끝나면 다시 아군 턴을 잡는다
       return;
     }
     selectUnit(u);
@@ -2832,24 +2837,24 @@
       if (plan.x !== u.x || plan.y !== u.y) {
         autoPending = { uid: u.uid, skill: plan.key, x: plan.x, y: plan.y, sx: plan.tx, sy: plan.ty };
         moveUnit(u, plan.x, plan.y);
-        autoTimer = setTimeout(autoStep, autoGap(260));
+        autoTimer = wait(autoStep, 260);
         return;
       }
       const sk = SK.SKILLS[plan.key];
       if (!aiCast(u, sk, plan.tx == null ? plan.x : plan.tx, plan.ty == null ? plan.y : plan.ty)) { u.acted = true; SKBattle.refreshUI(); }
-      autoTimer = setTimeout(autoStep, autoGap(420));
+      autoTimer = wait(autoStep, 420);
       return;
     }
     if (plan && (plan.x !== u.x || plan.y !== u.y)) {
       autoPending = { uid: u.uid, target: plan.kind === 'hit' ? plan.target : null, gate: plan.kind === 'gate' ? plan.gate : null };
       moveUnit(u, plan.x, plan.y);
-      autoTimer = setTimeout(autoStep, autoGap(260));
+      autoTimer = wait(autoStep, 260);
       return;
     }
     if (plan && plan.kind === 'hit' && plan.target) doAttack(u, plan.target);
     else if (plan && plan.kind === 'gate' && plan.gate) doGateAttack(u, plan.gate);
     else { u.acted = true; SKBattle.refreshUI(); }
-    autoTimer = setTimeout(autoStep, autoGap(420));
+    autoTimer = wait(autoStep, 420);
   }
 
   function enemyPhase() {
@@ -2887,7 +2892,7 @@
       }
       const e = enemies[i++];
       if (!e.alive) { step(); return; }
-      enemyAct(e, () => setTimeout(step, autoGap(220)));
+      enemyAct(e, () => wait(step, 220));
     };
     step();
   }
@@ -2918,10 +2923,10 @@
         const ok = aiCast(e, sk, sup.tx == null ? sup.x : sup.tx, sup.ty == null ? sup.y : sup.ty);
         if (!ok) { e.acted = true; finishCheck(); done(); return; }
         e.acted = true;
-        setTimeout(() => { if (!B || B.over) { done(); return; } finishCheck(); done(); }, 760);
+        wait(() => { if (!B || B.over) { done(); return; } finishCheck(); done(); }, 760);
       };
       if (sup.x !== e.x || sup.y !== e.y) {
-        animatePath(e, findPath(e, sup.x, sup.y), { step: 88, onDone: () => setTimeout(go, 150) });
+        animatePath(e, findPath(e, sup.x, sup.y), { step: paceMs(88), onDone: () => wait(go, 150) });
       } else go();
       return;
     }
@@ -2945,7 +2950,7 @@
       e.acted = true;
       castCircle(e, '255,170,120');
       SK.sfx.play('spell');
-      setTimeout(() => {
+      wait(() => {
         if (!B || B.over) { done(); return; }
         const dmg = Math.max(6, Math.round((20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04) * sizeScale(target) * 0.9));
         target.hp = Math.max(0, target.hp - dmg);
@@ -2980,15 +2985,15 @@
     const moveTo = already ? null : (best && best.t);
     const finishMove = () => {
       const path = moveTo ? findPath(e, moveTo.x, moveTo.y) : [];
-      animatePath(e, path, { step: 88, onDone: () => {
-        setTimeout(() => {
+      animatePath(e, path, { step: paceMs(88), onDone: () => {
+        wait(() => {
           if (!B || B.over) { done(); return; }
           const dist = cheb(e.x, e.y, target.x, target.y);
           if (dist >= (e.minRng || 1) && dist <= rng && !(wallBlocked(e, target) && attackKind(e) === 'melee')) {
             attackUnit(e, target, {}, () => {
               if (!B || B.over) { done(); return; }
               if (target.alive && cheb(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
-                setTimeout(() => {
+                wait(() => {
                   if (!B || B.over) { done(); return; }
                   if (!target.alive || !e.alive) { e.acted = true; finishCheck(); done(); return; }
                   attackUnit(target, e, {}, () => { e.acted = true; finishCheck(); done(); });
@@ -3217,7 +3222,7 @@
         SK.save(); SK.refreshHud();
         m.close();
         lines.push(line);
-        setTimeout(() => openPrisoners(all, i + 1, lines), 240);
+        wait(() => openPrisoners(all, i + 1, lines), 240);
       };
     });
   }
@@ -3375,7 +3380,7 @@
       </div>`,
       actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle(); SK.showMap();
-        if (prisoners.length) setTimeout(() => openPrisoners(prisoners), 340);
+        if (prisoners.length) wait(() => openPrisoners(prisoners), 340);
       } }],
       dismissible: false,
     });
@@ -3475,7 +3480,7 @@
         <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +6 · 성벽 −6</p></div>`,
       actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle(); SK.showMap();
-        if (prisoners.length) setTimeout(() => openPrisoners(prisoners), 340);
+        if (prisoners.length) wait(() => openPrisoners(prisoners), 340);
       } }],
       dismissible: false,
     });
@@ -3569,7 +3574,7 @@
     if (!el) return;
     el.textContent = text;
     el.className = 'turn-banner show ' + side;
-    setTimeout(() => { el.className = 'turn-banner ' + side; }, 1200);
+    wait(() => { el.className = 'turn-banner ' + side; }, 1200);
   }
 
   function showIntro() {

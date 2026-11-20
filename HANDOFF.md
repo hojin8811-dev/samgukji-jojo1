@@ -42,7 +42,7 @@
 | 아·적 동반 성장 | `LV_GROW=0.018`(1레벨당 공·방 +1.8%, 승급 +6% 유지). 적 성 장수 **Lv.1 시작**(`cs.genLv`, 어려움 +1) | `battle.js` `makeAlly`·`makeNamedEnemy`, `app.js` `enemyGenLevel` |
 | AI 내정·등용 | 매달 병력·성벽 + 농업·상업·치안, 재야 인재 확률 등용, 소속 장수 경험치·공훈·레벨업 | `app.js` `runAiDomestic`·`aiGenBook`, `advanceMonth` |
 | 적 지원군 | 인접 같은 세력 성(병력 4,000+, 장수) → 70%로 최대 2성, 원 성 병력 45% 차감 후 적 부대로 합류. 출진·도착 창 경고 | `app.js` `aiSupportCandidates`·`rollAiSupport`·`openDeploy`·`openPendingMarch`, `battle.js` `opts.aiSupport` |
-| 전투 배속 | 자동전투 기본 **×1(예전의 2배 느림)**, `[×1 배속]` 버튼으로 ×2(예전 속도). 전투마다 ×1 시작 | `battle.js` `autoSpeed`·`autoGap`·`toggleSpeed`, `index.html` `#btn-speed`, `css` `.battle-speed` |
+| 전투 배속 | 자동전투 기본 **×1(예전의 2배 느림)**, `[×1 배속]` 버튼으로 ×2(예전 속도). `paceMs`/`wait`가 대기·연출·적군 페이즈를 함께 늦춘다(수동 조작 영향 없음). 전투마다 ×1 시작 | `battle.js` `autoSpeed`·`paceMs`·`wait`·`toggleSpeed`·`loop`(sdt), `index.html` `#btn-speed`, `css` `.battle-speed` |
 | 검증 도구 | `tools/v510_smoke.py`·`v510_logic.py`·`v510_month.py`·`v510_ui_gens.py` | `preview/v510/`·`preview/v510_live/` |
 
 ---
