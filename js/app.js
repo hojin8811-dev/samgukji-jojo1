@@ -1875,7 +1875,7 @@
   function slotCount(type) { return SLOT_MAX[type] || 4; }
   /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다
      v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다 */
-  function slotExpNeed(lv) { return 45 + (Number(lv) || 1) * 35; }
+  function slotExpNeed(lv) { return 40 + (Number(lv) || 1) * 35; }
   SK.slotExpNeed = slotExpNeed;
   function slotExpRatio(sl) {
     if (!sl || !sl.key) return 0;
