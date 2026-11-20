@@ -527,6 +527,13 @@
         const gov = gens.slice().sort((a, b) => (b.pol * 0.6 + b.tong * 0.4) - (a.pol * 0.6 + a.tong * 0.4))[0];
         if (gov) { cs.governor = gov.uid; changed = true; }
       }
+      /* v5.8 — 태수와 군사가 같은 사람이 되지 않게 한다 (군주가 성을 떠난 뒤 자주 생김) */
+      if (gens.length && cs.advisor && cs.advisor === cs.governor) {
+        const strat = gens.filter((h) => h.uid !== cs.governor)
+          .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
+        cs.advisor = strat ? strat.uid : null;
+        changed = true;
+      }
     });
     return changed;
   }
@@ -2915,7 +2922,7 @@
       name: '외교·계략', sub: '이간·항복·동맹',
       items: [
         { key: 'scout', label: '정찰 — 이웃 적성 첩보', desc: `금 ${scoutCost()} + 대기 장수 1명의 행동 — 3~5개월 동안 적성 내부를 봅니다` },
-        { key: 'estrange', label: '이간계 — 적 장수 지목', desc: '금 120 · 적 성의 장수 한 명을 지목해 충성을 깎고, 30 이하면 바로 회유합니다' },
+        { key: 'estrange', label: '이간계 — 적 장수 지목', desc: '금 120 · 적 성의 장수 한 명을 지목해 충성을 깎고, 50 이하면 바로 회유합니다' },
         { key: 'surrender', label: '항복 권고 — 싸움 없이 성 받기', desc: '금 300 · 규모 차가 큰 약소 세력에 사자를 보내 성을 넘겨받습니다' },
         { key: 'spy', label: '계략 — 적성 수비 약화', desc: '금 100 · 적성 수비병과 성벽을 깎습니다' },
         { key: 'rumor', label: '유언비어 — 적성 민심 흔들기', desc: '금 80 · 적성 민심과 병력을 깎습니다' },
