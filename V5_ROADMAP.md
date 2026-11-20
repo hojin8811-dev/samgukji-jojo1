@@ -20,7 +20,7 @@
 - **`[＋ 자동 배속]`·`[매달 최선]` → `[시설]` 탭** — `renderCitySlots`의 `.slot-tools`로 옮기고, `[장수]` 탭 `renderApBar`는 상태 요약 + `[군사 조언]`만 남겼다.
 - **`[군사 조언]` 이름 배지 대비** — `.ap-delegate span`을 `#5a3410` 바탕 + `#fff8e8` 글씨로.
 - **건물 창 담당 장수 카드** — `openSlot`이 `.sd-owner`(초상·이름·Lv·관직·5능력치·EXP 바)를 띄우고 누르면 `showHeroInfo`(`SK.openGeneralDetail`)로.
-- **장수 상세창 보물 `+N`** — `showHeroInfo`가 `SK.equipBonus`를 더한 **총합 + `(+N)`**과 무기/방어구/명마/병법서 목록, 보물 보정 줄, 공훈치 줄을 보여 준다. `equipLines`는 슬롯 이름까지 표시하도록 고쳤다.
+- **장수 상세창 보물 `+N`** — `showHeroInfo`가 `SK.equipBonus`를 더한 **총합 + `(+N)`**과 무기/방어구/명마/병법서 목록, 보물 보정 줄, 공훈치 줄을 보여 준다. `equipLines`는 슬롯 이름까지 표시하도록 고쳤다. 보정치는 `SK.effStat`을 거쳐 **내정 효율(slotMul)·민심/등용/탐색 판정(polMul·conMul·talentMul·recruitChance·explore)·건물 적합도(dutyScore)** 에도 반영된다.
 
 ### 3. 내정·주점·공훈·관직
 - **농원·시장 배속 → 농업·상업 상승** — `runSlots`의 `statGrowOf`가 매달 **+1~3**(건물 Lv·담당 정치 비례)을 `cs.agri`/`cs.comm`에 실제로 더하고 월정산 `농업·상업 성장`에 보고.

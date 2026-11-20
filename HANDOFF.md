@@ -34,7 +34,7 @@
 | 배속 버튼 이동 | `[＋ 자동 배속]`·`[매달 최선 ON/OFF]`를 `[시설]` 탭 `.slot-tools`로. `[장수]` 탭은 상태 요약 + `[군사 조언]`만 | `app.js` `renderCitySlots`·`renderApBar` |
 | 조언 배지 대비 | 이름 배지 `#5a3410` 바탕 + `#fff8e8` 글씨 | `css` `.ap-delegate span` |
 | 건물 창 담당 장수 | `.sd-owner`(초상·이름·Lv·관직·5능력치·EXP 바) → 누르면 장수 상세창 | `app.js` `openSlot`·`SK.openGeneralDetail` |
-| 보물 `+N` | 상세창 5능력치에 `SK.equipBonus` 합산 + `(+N)`, 슬롯별 장비 목록·보정 줄·공훈치 줄 | `app.js` `showHeroInfo`·`equipLines` |
+| 보물 `+N` | 상세창 5능력치에 `SK.equipBonus` 합산 + `(+N)`, 슬롯별 장비 목록·보정 줄·공훈치 줄. **보물 보정은 `SK.effStat`으로 내정 효율·탐색·등용·민심·배속 판정에도 들어간다** | `app.js` `showHeroInfo`·`equipLines`·`effStat` |
 | 농원·시장 → 농업·상업 | 담당 장수가 있으면 매달 +1~3(건물 Lv·정치 비례), 월정산 `농업·상업 성장` 보고 | `app.js` `statGrowOf`·`runSlots` |
 | 주점 배속 | 재야 인재가 있으면 **반값(50%) 등용** 자동 시도, 없으면 **주점 Lv×10% 보너스 탐색**. 월정산 보고 | `app.js` `runTavernDuty`, `explore(..., {boost})` |
 | 공훈치 | `h.merit` + `SK.gainMerit` · `SK.gainExp(h, exp, merit)`(기본 exp/12). 건물 담당 월 2+Lv, 탐색·등용·계략·전투 | `app.js` `gainExp`·`gainMerit`, `battle.js` `victory`·`defenseVictory` |
