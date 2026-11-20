@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=17" />
+<link rel="stylesheet" href="css/game.css?v=18" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -129,6 +129,13 @@
     </header>
 
     <div class="date-ribbon"><span id="map-date">190년 1월</span><i></i><span id="map-season" class="season-chip">봄</span><i></i><span id="map-rank" class="rank-chip">현령</span><i></i><span id="map-fame">명성 0</span></div>
+
+    <!-- v5.4 — 월 수지 줄: 순금 · 군량 · 다음 가을 대수확까지 (누르면 경제 현황) -->
+    <button id="econ-strip" class="econ-strip" aria-label="경제 현황 보기">
+      <span class="es-gold" id="eco-gold">월 순금 +0</span><i aria-hidden="true"></i>
+      <span class="es-food" id="eco-food">월 군량 −0</span><i aria-hidden="true"></i>
+      <span class="es-harvest" id="eco-harvest">🌾 대수확 8개월</span>
+    </button>
 
     <div id="world-viewport" class="world-viewport">
       <div id="world-layer" class="world-layer">
@@ -289,13 +296,13 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=17"></script>
-<script src="js/city_geo.js?v=17"></script>
-<script src="js/data.js?v=17"></script>
-<script src="js/bgm.js?v=17"></script>
-<script src="js/sfx.js?v=17"></script>
-<script src="js/app.js?v=17"></script>
-<script src="js/map.js?v=17"></script>
-<script src="js/battle.js?v=17"></script>
+<script src="js/mapgeo.js?v=18"></script>
+<script src="js/city_geo.js?v=18"></script>
+<script src="js/data.js?v=18"></script>
+<script src="js/bgm.js?v=18"></script>
+<script src="js/sfx.js?v=18"></script>
+<script src="js/app.js?v=18"></script>
+<script src="js/map.js?v=18"></script>
+<script src="js/battle.js?v=18"></script>
 </body>
 </html>

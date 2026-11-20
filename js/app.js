@@ -84,6 +84,123 @@
     return Math.round(({ capital: 700000, town: 260000, pass: 90000, fortress: 110000 }[c.type] || 150000));
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.4 — 내정 경제 밸런스
+     · 매달 금: 도시 세수 + 시장 Lv.1~5 + 관작 봉급 − 휘하 장수 봉급
+     · 매달 군량: 도시 기본 쌀 수확은 없앴다. 병력 1,000명당 유지비만 나간다
+     · 10월: 농업도·민심·농원 Lv·기술을 합산한 🌾 가을 대수확 한 번
+     ══════════════════════════════════════════════════════════════ */
+  const ECON = {
+    upkeepPer1000: 20,            // 병력 1,000명당 매달 군량
+    startFoodMonths: 10.5,        // 시작 군량 — 첫 수확까지 버티는 유지비 개월치
+    harvestMonth: 9,              // 0-indexed 10월
+    harvestBase: 0.30,            // 도시 기본 곡식(c.food) → 대수확 기준량
+    harvestFarm: 0.09,            // 농원 Lv × 담당 배율 → 대수확 추가 배율
+    farmTrickle: 30,              // 농원 Lv.1당 매달 비축 군량 (담당 배율 전). 주 수입은 10월 대수확
+    marketGold: [0, 110, 180, 280, 400, 560],   // 시장 Lv.1~5 매달 금 (담당 배율 전)
+    salary: { S: 28, A: 19, B: 14, C: 10 },     // 장수 등급별 매달 금 봉급
+    lordExtra: 4,                 // 군주는 봉급이 조금 더 든다
+    buildNew: 300,                // 공터 건설
+    buildUp: [0, 550, 1200, 2600, 5200],        // Lv.1→2 … Lv.4→5 증축 (금이 쌓일 곳)
+    famineLoyalty: 3,             // 군량이 바닥나면 성마다 민심 −3
+    famineDesert: 0.03,           // 병력 3%가 굶어 대열을 떠난다
+  };
+  SK.ECON = ECON;
+
+  /* 행군 중인 병력 — 성에서 빠져나갔지만 군량은 먹는다 */
+  function marchTroopsOf(s) {
+    return (s.marches || []).reduce((a, m) => a + (m.units || []).reduce((b, u) => b + (u.troops || 0), 0), 0);
+  }
+  /* 이번 달 병력 유지비 (군량) */
+  function upkeepOf(s) {
+    s = s || SK.state;
+    if (!s) return 0;
+    let t = 0;
+    SK.CITY_LIST.forEach((c) => { const cs = s.cities[c.id]; if (cs && cs.owner === PF()) t += cs.troops || 0; });
+    t += marchTroopsOf(s);
+    return Math.ceil(t / 1000 * ECON.upkeepPer1000);
+  }
+  SK.upkeepOf = upkeepOf;
+
+  /* 장수 한 명의 매달 금 봉급 — 등급 + 레벨. 군주는 조금 더 든다 */
+  function heroSalary(h) {
+    const s = SK.state;
+    const base = ECON.salary[h.tier] || ECON.salary.B;
+    const lord = s && s.factions ? ((s.factions[PF()] || {}).lord || '') : '';
+    const extra = (lord && h.name === lord) ? ECON.lordExtra : 0;
+    return Math.round((base + extra) * (1 + Math.max(0, (h.lv || 1) - 1) * 0.03));
+  }
+  SK.heroSalary = heroSalary;
+  function payrollOf(s) {
+    s = s || SK.state;
+    if (!s || !s.heroes) return 0;
+    return s.heroes.reduce((a, h) => a + heroSalary(h), 0);
+  }
+  SK.payrollOf = payrollOf;
+
+  /* 다음 가을 대수확까지 남은 개월 (이번 달 이미 거둔 10월이면 12) */
+  function monthsUntilHarvest(s) {
+    s = s || SK.state;
+    const d = ((ECON.harvestMonth - ((s && s.month) || 0)) + 12) % 12;
+    return d || 12;
+  }
+  SK.monthsUntilHarvest = monthsUntilHarvest;
+
+  /* 10월 대수확 — 성마다 농업도·민심·농원 Lv·기술을 함께 센다 */
+  function harvestOf(s) {
+    s = s || SK.state;
+    const fPct = 1 + (SK.techPct ? SK.techPct('foodPct') : 0) / 100;
+    let total = 0; const rows = [];
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      let farmM = 0;
+      (cs.slots || []).forEach((sl) => {
+        if (sl.key !== 'farm') return;
+        farmM += ECON.harvestFarm * (sl.lv || 1) * slotMul(cs, sl, slotOwner(c.id, sl));
+      });
+      const agriM = 0.6 + (cs.agri || 0) / 100;
+      const morM = 0.85 + (cs.loyalty == null ? 50 : cs.loyalty) / 250;
+      const v = Math.round(c.food * ECON.harvestBase * agriM * morM * (1 + farmM) * fPct);
+      if (v > 0) { total += v; rows.push({ city: c.name, food: v, farm: Math.round(farmM * 100) }); }
+    });
+    return { total: total, rows: rows };
+  }
+  SK.harvestOf = harvestOf;
+
+  /* 이번 달 예상 수지 — 상단 경제 줄과 월정산이 같은 계산을 쓴다 */
+  function econForecast(s) {
+    s = s || SK.state;
+    if (!s) return null;
+    let tax = 0, market = 0, farm = 0;
+    const gPct = 1 + (SK.techPct ? SK.techPct('goldPct') : 0) / 100;
+    SK.CITY_LIST.forEach((c) => {
+      const st = s.cities[c.id];
+      if (!st || st.owner !== PF()) return;
+      const base = econMul(c);
+      const morale = st.loyalty;
+      const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
+      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct);
+      (st.slots || []).forEach((sl) => {
+        if (!sl.key) return;
+        const mul = slotMul(st, sl, slotOwner(c.id, sl));
+        if (sl.key === 'market') market += Math.round(ECON.marketGold[clamp(sl.lv, 1, 5)] * mul);
+        else if (sl.key === 'workshop') market += Math.round((40 + sl.lv * 40) * mul);
+        else if (sl.key === 'farm') farm += Math.round(ECON.farmTrickle * sl.lv * mul * econMul(c));
+      });
+    });
+    const rank = SK.rankFor(s.fame);
+    const payroll = payrollOf(s);
+    const upkeep = upkeepOf(s);
+    return {
+      tax, market, rank: rank.salaryGold || 0, payroll, heroes: (s.heroes || []).length,
+      goldNet: tax + market + (rank.salaryGold || 0) - payroll,
+      farm, upkeep, foodNet: farm - upkeep,
+      months: monthsUntilHarvest(s), harvest: s.month === ECON.harvestMonth ? 0 : harvestOf(s).total,
+    };
+  }
+  SK.econForecast = econForecast;
+
   function hashStr(str) {
     let h = 2166136261;
     for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -170,7 +287,13 @@
        1성 소세력 1,200~1,500 · 대세력 2,500~4,000 */
     const nOwn = Math.max(1, playerCities.length);
     st.gold = Math.min(4000, 1150 + nOwn * 330 + (hashStr('g' + st.playerFaction) % 90));
-    st.food = Math.min(14000, 2700 + nOwn * 820 + (hashStr('f' + st.playerFaction) % 260));
+    /* v5.4 — 시작 군량은 첫 해 10월 대수확까지 버티는 유지비 10.5개월치.
+       병력이 많은 대세력은 더 많이, 1성 소세력은 적게 시작한다(±5%). */
+    let startTroops = 0;
+    playerCities.forEach((c) => { startTroops += (st.cities[c.id].troops || 0); });
+    const startUpkeep = Math.ceil(startTroops / 1000 * ECON.upkeepPer1000);
+    const fVar = 1 + ((hashStr('f' + st.playerFaction) % 80) - 40) / 800;
+    st.food = Math.round(startUpkeep * ECON.startFoodMonths * fVar);
     seedRoster(st, f, capital, ownedIds);
     giveStarters(st);
     assignGarrisons(st);
@@ -1039,6 +1162,54 @@
     });
   }
 
+  /* v5.4 — 경제 현황 — 상단 경제 줄을 누르면 열린다.
+     다음 달에 들어올 세수·봉급·군량 유지비와 다음 가을 대수확 예상량을 한 화면에 보여 준다. */
+  function openEcon() {
+    const s = SK.state;
+    if (!s) return;
+    const eco = econForecast(s);
+    const har = harvestOf(s);
+    const fPct = 1 + (SK.techPct ? SK.techPct('foodPct') : 0) / 100;
+    const monthsOfFood = eco.upkeep ? Math.floor(s.food / eco.upkeep) : 99;
+    const coverPct = eco.upkeep ? Math.round(har.total / (eco.upkeep * 12) * 100) : 0;
+    const cityRows = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).map((c) => {
+      const cs = s.cities[c.id];
+      const row = har.rows.find((r) => r.city === c.name) || { food: 0, farm: 0 };
+      return `<div class="ec-city"><b>${c.name}</b><span>농업 ${cs.agri} · 민심 ${Math.round(cs.loyalty)} · 농원 +${row.farm}%</span><em>+${fmt(row.food)}</em></div>`;
+    }).join('');
+    const topPay = (s.heroes || []).slice().sort((a, b) => heroSalary(b) - heroSalary(a)).slice(0, 5);
+    const payRows = topPay.map((h) => `<span class="ec-pay"><b>${h.name}</b>${h.tier}급 · Lv.${h.lv}<em>${fmt(heroSalary(h))}</em></span>`).join('');
+    const sign = (v) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v));
+    SK.modal({
+      kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
+      title: '경제 현황',
+      body: `<div class="econ-modal">
+        <div class="ec-head"><span>금</span><em>금고 <b>${fmt(s.gold)}</b></em></div>
+        <div class="ec-line"><span>도시 세수</span><b class="plus">+${fmt(eco.tax)}</b></div>
+        <div class="ec-line"><span>시장 · 공방</span><b class="plus">+${fmt(eco.market)}</b></div>
+        <div class="ec-line"><span>관작 봉급 · ${SK.rankFor(s.fame).title}</span><b class="plus">+${fmt(eco.rank)}</b></div>
+        <div class="ec-line"><span>장수 봉급 ${eco.heroes}명</span><b class="minus">−${fmt(eco.payroll)}</b></div>
+        <div class="ec-line sum"><span>이번 달 순금</span><b class="${eco.goldNet >= 0 ? 'plus' : 'minus'}">${sign(eco.goldNet)}</b></div>
+        <div class="ec-head"><span>군량</span><em>창고 <b>${fmt(s.food)}</b> · 약 ${monthsOfFood}개월치</em></div>
+        <div class="ec-line"><span>병력 유지 ${fmt(totalTroops() + marchTroopsOf(s))}명</span><b class="minus">−${fmt(eco.upkeep)}</b></div>
+        <div class="ec-line"><span>농원 비축</span><b class="plus">+${fmt(eco.farm)}</b></div>
+        <div class="ec-line sum"><span>이번 달 군량</span><b class="${eco.foodNet >= 0 ? 'plus' : 'minus'}">${sign(eco.foodNet)}</b></div>
+        <div class="ec-harvest">
+          <div class="eh-top"><b>🌾 다음 가을 대수확</b><em>${s.month === ECON.harvestMonth ? '이번 달 거뒀습니다' : `${monthsUntilHarvest(s)}개월 뒤 · 10월`}</em></div>
+          <div class="eh-num">예상 <b>+${fmt(har.total)}</b> <i>미</i></div>
+          <p>지금 병력 유지비로 <b>${Math.round(har.total / Math.max(1, eco.upkeep))}개월</b>치${coverPct >= 100 ? ' — 1년을 넉넉히 넘깁니다' : ' — 1년치에 ' + (100 - coverPct) + '% 모자랍니다. 농원 증축·개간으로 채우십시오'}${fPct > 1 ? ` · 기술 보정 +${Math.round((fPct - 1) * 100)}%` : ''}</p>
+          <div class="eh-cities">${cityRows || '<span>거점이 없습니다.</span>'}</div>
+        </div>
+        <div class="ec-head"><span>봉급이 큰 장수</span><em>등급 S·A일수록, Lv이 높을수록 금이 듭니다</em></div>
+        <div class="ec-pays">${payRows || '<span>휘하 장수가 없습니다.</span>'}</div>
+        <p class="ec-note">매달 1일이 되면 세수와 봉급, 병력 유지비가 정산됩니다. 군량이 바닥나면 민심 −${ECON.famineLoyalty}과 병력 이탈이 생기니, 10월 전에는 [개간]과 [탐색]으로 버티십시오.</p>
+      </div>`,
+      wide: true,
+      actions: [{ label: '닫기', primary: true }],
+    });
+  }
+  SK.openEcon = openEcon;
+
   /* ───────────── HUD ───────────── */
   SK.refreshHud = function () {
     const s = SK.state;
@@ -1075,8 +1246,24 @@
     }
     const owned = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).length;
     const fname = SK.factionName(PF());
+    /* v5.4 — 상단 경제 줄: 이번 달 예상 순금·군량과 다음 가을 대수확까지 */
+    const eco = econForecast(s);
+    const eg = $('#eco-gold'), ef = $('#eco-food'), eh = $('#eco-harvest');
+    if (eg && eco) {
+      eg.textContent = `월 순금 ${eco.goldNet >= 0 ? '+' : '−'}${fmt(Math.abs(eco.goldNet))}`;
+      eg.classList.toggle('down', eco.goldNet < 0);
+      ef.textContent = `월 군량 ${eco.foodNet >= 0 ? '+' : '−'}${fmt(Math.abs(eco.foodNet))}`;
+      ef.classList.toggle('down', eco.foodNet < 0);
+      ef.title = `병력 유지 −${fmt(eco.upkeep)} · 농원 +${fmt(eco.farm)}`;
+      const m = monthsUntilHarvest(s);
+      const harv = harvestOf(s).total;
+      eh.textContent = s.month === ECON.harvestMonth ? '🌾 대수확 거뒀음' : `🌾 대수확 ${m}개월`;
+      eh.classList.toggle('soon', m <= 2);
+      eh.classList.toggle('done', s.month === ECON.harvestMonth);
+      eh.title = `10월 가을 대수확 예상 미 +${fmt(harv)}`;
+    }
     $('#map-hint').textContent = owned >= SK.CITY_LIST.length ? `천하통일! 모든 거점이 ${fname}의 깃발 아래 있습니다.` :
-      `${fname} 거점 ${owned} / ${SK.CITY_LIST.length} · 다음 달이 되면 세수와 군량이 들어옵니다.`;
+      `${fname} 거점 ${owned} / ${SK.CITY_LIST.length} · 다음 달에 세수·봉급·군량 유지비가 정산됩니다.`;
   };
   function totalTroops() {
     return SK.CITY_LIST.reduce((sum, c) => sum + (SK.state.cities[c.id].owner === PF() ? SK.state.cities[c.id].troops : 0), 0);
@@ -1203,7 +1390,8 @@
   ];
   /* v5.0.3 — 성벽은 안뜰이 아니라 성문·외벽 위에 둔다 (2026-11-20 지적) */
   const WALL_SPOT = { x: 50, y: 82 };
-  const OFFICE_SPOT = { x: 50, y: 15 };
+  /* v5.4 — 관아 표지는 지붕 처마 아래로 내려 붙인다 (원형 아이콘 대신 금테 목재 간판) */
+  const OFFICE_SPOT = { x: 50, y: 20.5 };
   const HOTSPOTS = [{ key: 'office', name: '관아', x: OFFICE_SPOT.x, y: OFFICE_SPOT.y }];
 
   SK.openCity = function (id) {
@@ -1467,7 +1655,9 @@
       const list = rows();
       const head = ROSTER_COLS.map((c) => `<button class="rs-th ${c.num ? 'num' : ''} ${sortKey === c.key ? 'on' : ''}" data-k="${c.key}">${c.label}${sortKey === c.key ? (dir < 0 ? ' ▼' : ' ▲') : ''}</button>`).join('');
       const body = list.map((h) => `<button class="rs-row" data-uid="${h.uid}">
-          <span class="rs-name"><img style="--fa:${genAura(h.genId, h.name)}" src="${SK.ptSrc(h.portrait)}" alt=""><b>${h.name}</b><em class="rs-age">${heroAge(h) || '-'}</em></span>
+          <span class="rs-name"><img style="--fa:${genAura(h.genId, h.name)}" src="${SK.ptSrc(h.portrait)}" alt="">
+            <span class="rs-nm"><span class="rs-nm-top"><b>${h.name}</b><em class="rs-age">${heroAge(h) || '-'}</em></span>
+              <em class="rs-cls">${(SK.CLASSES[h.cls] || {}).name || '장수'}</em></span></span>
           <span class="rs-num">${h.tong}</span>
           <span class="rs-num">${h.wu}</span>
           <span class="rs-num">${h.ji}</span>
@@ -1664,8 +1854,8 @@
      · 장수는 한 달에 한 번, '건물 담당'이거나 '직접 명령' 중 하나를 한다
      ══════════════════════════════════════════════════════════════ */
   const SLOT_DEFS = {
-    market: { name: '시장', icon: 'market', stat: 'pol', res: 'gold', desc: '매달 금을 벌어들입니다' },
-    farm: { name: '농원', icon: 'farm', stat: 'pol', res: 'food', desc: '매달 군량을 쌓습니다' },
+    market: { name: '시장', icon: 'market', stat: 'pol', res: 'gold', desc: '매달 금을 벌어들입니다 (Lv가 오를수록 수입이 크게 늡니다)' },
+    farm: { name: '농원', icon: 'farm', stat: 'pol', res: 'food', desc: '10월 가을 대수확을 키웁니다 (매달 비축은 조금)' },
     barracks: { name: '병영', icon: 'barracks', stat: 'tong', res: 'troops', desc: '매달 수비병을 모읍니다' },
     training: { name: '연병장', icon: 'training', stat: 'tong', res: 'train', desc: '훈련도를 올리고 담당 장수를 키웁니다' },
     patrol: { name: '순찰소', icon: 'patrol', stat: 'cha', res: 'loyalty', desc: '민심과 치안을 다스립니다' },
@@ -1683,8 +1873,9 @@
     fortress: ['wall', 'barracks'],
   };
   function slotCount(type) { return SLOT_MAX[type] || 4; }
-  /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다 */
-  function slotExpNeed(lv) { return 60 + (Number(lv) || 1) * 45; }
+  /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다
+     v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다 */
+  function slotExpNeed(lv) { return 45 + (Number(lv) || 1) * 35; }
   SK.slotExpNeed = slotExpNeed;
   function slotExpRatio(sl) {
     if (!sl || !sl.key) return 0;
@@ -1733,16 +1924,27 @@
 
   function slotOwner(cityId, sl) { return sl && sl.uid ? cityGens(cityId).find((g) => g.uid === sl.uid) || null : null; }
 
-  /* 장수 상태 — 건물 담당 / 대기 / 완료 */
+  /* 장수 상태 — 건물 담당(건물 이름) / 대기 / 완료 */
   function dutyOf(h, cityId) {
     const cs = SK.state.cities[cityId || h.city];
-    if (cs && (cs.slots || []).some((sl) => sl.uid === h.uid)) return '건물 담당';
+    const sl = cs && (cs.slots || []).find((x) => x.uid === h.uid);
+    if (sl) {
+      /* v5.4 — '건물 담당' 대신 '순찰소 담당'처럼 맡은 시설 이름을 보여 준다 */
+      const def = SLOT_DEFS[sl.key] || {};
+      return `${def.name || '시설'} 담당`;
+    }
     if (h.actedThisMonth) return '이번 달 완료';
     return '대기';
   }
+  function onDuty(h, cityId) {
+    const cs = SK.state.cities[cityId || h.city];
+    return !!(cs && (cs.slots || []).some((sl) => sl.uid === h.uid));
+  }
+  SK.onDuty = onDuty;
   SK.dutyOf = dutyOf;
 
-  function buildCost(sl) { return sl.key ? Math.round(320 * (sl.lv + 1) * (1 + sl.lv * 0.35)) : 300; }
+  /* v5.4 — 증축 비용. Lv.1→2 550금부터 Lv.4→5 2,600금까지 오르고 수입은 배로 는다 */
+  function buildCost(sl) { return sl.key ? ECON.buildUp[clamp(sl.lv, 1, 4)] : ECON.buildNew; }
 
   function renderCitySlots(cityId) {
     const s = SK.state;
@@ -1758,7 +1960,7 @@
       <div class="slot-row">${cs.slots.map((sl, i) => {
         if (!sl.key) {
           return `<button class="slot-card empty" data-slot="${i}">
-            <span class="sc-empty">＋</span><b>공터</b><small>건설 300</small></button>`;
+            <span class="sc-empty">＋</span><b>공터</b><small>건설 ${fmt(ECON.buildNew)}</small></button>`;
         }
         const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
         const g = slotOwner(cityId, sl);
@@ -1784,7 +1986,7 @@
     const hs = $('#scene-hotspots');
     if (!hs || !cs) return;
     ensureSlots(cs, c);
-    const office = `<button class="hotspot office" style="left:${OFFICE_SPOT.x}%;top:${OFFICE_SPOT.y}%" data-key="office"><img class="hs-ico" src="assets/buildings/palace.webp" alt="관아"><span>관아</span></button>`;
+    const office = `<button class="hotspot office" style="left:${OFFICE_SPOT.x}%;top:${OFFICE_SPOT.y}%" data-key="office"><span class="hs-sign">🏛 관아</span></button>`;
     const yard = cs.slots.map((sl, i) => {
       const sp = sl.key === 'wall' ? WALL_SPOT : (YARD_SPOTS[i] || { x: 50, y: 60 });
       if (!sl.key) {
@@ -1831,10 +2033,10 @@
       const rows = Object.keys(SLOT_DEFS).map((k) => {
         const def = SLOT_DEFS[k];
         const same = cs.slots.filter((x) => x.key === k).length;
-        return `<button class="build-row" data-k="${k}" ${s.gold < 300 ? 'disabled' : ''}>
+        return `<button class="build-row" data-k="${k}" ${s.gold < ECON.buildNew ? 'disabled' : ''}>
           <img src="${bldSrc(def.icon, 1)}" onerror="${bldFallback(def.icon)}" alt="">
           <div><b>${def.name}${same ? ` <em>이미 ${same}곳</em>` : ''}</b><span>${def.desc}</span></div>
-          <em class="br-cost">금 ${fmt(300)}</em></button>`;
+          <em class="br-cost">금 ${fmt(ECON.buildNew)}</em></button>`;
       }).join('');
       const m = SK.modal({
         kicker: `${c.name} · 공터`, title: '무엇을 지을까',
@@ -1843,13 +2045,13 @@
       });
       m.el.querySelectorAll('.build-row').forEach((b) => {
         b.onclick = () => {
-          if (s.gold < 300) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 300)'); return; }
-          s.gold -= 300;
+          if (s.gold < ECON.buildNew) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${fmt(ECON.buildNew)})`); return; }
+          s.gold -= ECON.buildNew;
           sl.key = b.dataset.k; sl.lv = 1; sl.uid = null; sl.exp = 0;
           SK.save(); SK.refreshHud(); m.close();
           SK.openCity(cityId);
           SK.sfx.play('hammer');
-          SK.toast(`${josa(SLOT_DEFS[sl.key].name, 'eul')} 지었습니다 — 금 -300`);
+          SK.toast(`${josa(SLOT_DEFS[sl.key].name, 'eul')} 지었습니다 — 금 -${fmt(ECON.buildNew)}`);
         };
       });
       return;
@@ -1931,6 +2133,33 @@
     });
   }
 
+  /* v5.4 — [자동 배속] 빈 시설에 가장 알맞은 대기 장수를 한 번에 앉힌다.
+     담당이 정해지지 않은 건물만 대상으로 하고, 이미 일한 장수(이번 달 완료)는 건드리지 않는다. */
+  function autoAssignDuty(cityId) {
+    const s = SK.state;
+    const cs = s.cities[cityId];
+    if (!cs) return 0;
+    const lord = ((s.factions[PF()] || {}).lord) || '';
+    const empty = (cs.slots || []).filter((sl) => sl.key && !sl.uid);
+    if (!empty.length) { SK.toast('배속할 빈 건물이 없습니다.'); return 0; }
+    let n = 0;
+    empty.forEach((sl) => {
+      const def = SLOT_DEFS[sl.key] || { stat: 'pol' };
+      const cand = dutyCandidates(cityId, cs, def).find((h) => h.name !== lord && !h.actedThisMonth);
+      if (!cand) return;
+      sl.uid = cand.uid;
+      cand.actedThisMonth = true;
+      n += 1;
+    });
+    if (!n) { SK.toast('앉힐 수 있는 대기 장수가 없습니다.'); return 0; }
+    SK.save();
+    SK.openCity(cityId);
+    SK.sfx.play('ui');
+    SK.toast(`${n}곳에 담당 장수를 배속했습니다.`);
+    return n;
+  }
+  SK.autoAssignDuty = autoAssignDuty;
+
   function openDutyPick(cityId, idx) {
     const cs = SK.state.cities[cityId];
     const sl = cs.slots[idx];
@@ -1962,6 +2191,7 @@
       if (!cs || cs.owner !== PF()) return;
       ensureSlots(cs, c);
       let gold = 0, food = 0, troops = 0, train = 0, loyalty = 0, def = 0, rp = 0, order = 0;
+      const grow = [];                 // v5.4 — 월정산에 보여 줄 시설 성장 기록
       if (cs.order == null) cs.order = 55;
       cs.slots.forEach((sl) => {
         if (!sl.key) return;
@@ -1970,10 +2200,13 @@
         const lv = sl.lv;
         /* v5.2 — 시설 경험치. 담당 장수가 있으면 빨리, 없으면 천천히 쌓인다 */
         if (lv < 5) {
-          sl.exp = (sl.exp || 0) + Math.round((g ? 26 + lv * 8 : 6) * (g ? mul : 1));
+          const gain = Math.round((g ? 26 + lv * 8 : 6) * (g ? mul : 1));
+          sl.exp = (sl.exp || 0) + gain;
+          grow.push({ city: c.name, key: sl.key, name: (SLOT_DEFS[sl.key] || {}).name || sl.key,
+            lv: lv, gain: gain, exp: sl.exp, need: slotExpNeed(lv), duty: !!g });
         }
-        if (sl.key === 'market') gold += Math.round((90 + lv * 70) * mul);
-        else if (sl.key === 'farm') food += Math.round((130 + lv * 90) * mul);
+        if (sl.key === 'market') gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul);
+        else if (sl.key === 'farm') food += Math.round(ECON.farmTrickle * lv * mul * econMul(c));
         else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul);
         else if (sl.key === 'training') { train += 0.5 * lv * mul; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
         else if (sl.key === 'patrol') { order += 1.1 * lv * mul; loyalty += 0.25 * lv * mul; }
@@ -1992,7 +2225,7 @@
       else cs.order = clamp(cs.order - 0.5, 0, 100);          // 순찰소가 없으면 치안이 조금씩 풀린다
       if (def) cs.def = clamp(cs.def + def, 0, 100);
       if (rp) st.rp = (st.rp || 0) + rp;
-      if (gold || food || troops) log.push({ city: c.name, gold, food, troops });
+      if (gold || food || troops || grow.length) log.push({ city: c.name, gold, food, troops, grow });
     });
     return log;
   }
@@ -2509,7 +2742,9 @@
       info.innerHTML = `<span class="ci-item">인구 <b>${fmt(cs.pop)}</b></span>
         <span class="ci-item">최대 병력 <b>${fmt(cap)}</b> <em>(인구 17%)</em></span>
         <span class="ci-item">주둔병 <b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b> <em>${pct}%</em></span>
-        <span class="ci-item">훈련도 <b>${cs.train == null ? 50 : cs.train}</b></span>
+        <span class="ci-item">훈련도 <b>${Math.round(cs.train == null ? 50 : cs.train)}</b></span>
+        <span class="ci-item">월 군량 <b class="${upkeepOf(s) ? 'minus' : ''}">−${fmt(upkeepOf(s))}</b> <em>병력 1,000당 ${ECON.upkeepPer1000}</em></span>
+        <span class="ci-item">${s.month === ECON.harvestMonth ? '🌾 <b>가을 대수확</b> 거둠' : `🌾 대수확까지 <b>${monthsUntilHarvest(s)}개월</b>`} <em>이 성 예상 +${fmt((harvestOf(s).rows.find((r) => r.city === c.name) || { food: 0 }).food)}</em></span>
         <span class="ci-item">태수 <b>${govName}${govIsLord ? ' <em>(군주)</em>' : ''}</b></span>
         <span class="ci-item">군사 <b>${advName}</b></span>
         <span class="ci-item">주둔 장수 <b>${s.heroes.filter((h) => h.city === cityId).length}</b></span>`;
@@ -2587,9 +2822,10 @@
     el.innerHTML = (gens.map((g) => {
       const duty = dutyOf(g, cityId);
       const done = duty === '이번 달 완료';
-      const sel = !done && duty !== '건물 담당' && g.uid === cityActorUid;
+      const isDuty = onDuty(g, cityId);
+      const sel = !done && !isDuty && g.uid === cityActorUid;
       const role = roleOf(g);
-      return `<button class="gen-chip ${done ? 'done' : ''} ${duty === '건물 담당' ? 'duty' : ''} ${sel ? 'sel' : ''}" data-uid="${g.uid}">
+      return `<button class="gen-chip ${done ? 'done' : ''} ${isDuty ? 'duty' : ''} ${sel ? 'sel' : ''}" data-uid="${g.uid}">
         <img src="${SK.ptSrc(g.portrait)}" alt="">
         <div><b>${g.name}<em class="gc-age">${heroAge(g) || ''}세</em></b><span>${role === SK.CLASSES[g.cls].name ? role : `${role} · ${SK.CLASSES[g.cls].name}`} · Lv.${g.lv}</span>
           <em class="gc-stats"><i>통${g.tong}</i><i>무${g.wu}</i><i>지${g.ji}</i><i>정${g.pol || 60}</i><i>매${g.cha || 60}</i></em></div>
@@ -2645,12 +2881,26 @@
         <button class="ap-delegate" id="btn-delegate" title="군사에게 지금 성에 필요한 조언을 듣는다">
           <span>${advisor ? advisor.name : '군사'}</span>${advisor ? '조언' : '임명'}
         </button>
+        <button class="ap-auto" id="btn-auto-duty" title="빈 건물에 가장 알맞은 대기 장수를 한 번에 배속합니다">
+          <span>＋</span>자동 배속
+        </button>
       </div>`;
     const del = bar.querySelector('#btn-delegate');
     if (del) {
       del.onclick = () => {
         if (!advisor) { openAdvisorPick(cityId); return; }
         openAdvice(cityId);
+      };
+    }
+    const auto = bar.querySelector('#btn-auto-duty');
+    if (auto) {
+      const emptyN = slots.filter((sl) => sl.key && !sl.uid).length;
+      auto.classList.toggle('dim', !emptyN);
+      auto.title = emptyN ? `빈 건물 ${emptyN}곳에 담당 장수를 자동 배속` : '배속할 빈 건물이 없습니다';
+      auto.onclick = () => {
+        if (!emptyN) { SK.toast('배속할 빈 건물이 없습니다.'); return; }
+        SK.sfx.play('ui');
+        autoAssignDuty(cityId);
       };
     }
   }
@@ -2816,8 +3066,8 @@
         </div>`;
       }).join('');
       return {
-        msg: `훈련 완료 — 훈련도 ${beforeTrain}→${cs.train}${actor ? ` · ${actor.name} 경험치 +180` : ''}`,
-        hotKey: 'repair', hot: `훈련도 ${cs.train}`, exp: 0, train: cs.train,
+        msg: `훈련 완료 — 훈련도 ${Math.round(beforeTrain)}→${Math.round(cs.train)}${actor ? ` · ${actor.name} 경험치 +180` : ''}`,
+        hotKey: 'repair', hot: `훈련도 ${Math.round(cs.train)}`, exp: 0, train: cs.train,
         after: () => SK.modal({ kicker: `${CITY[cityId].name} 훈련장`, title: '병법을 익혔다', body: `<div class="train-list">${rows}</div>`, actions: [{ label: '확인', primary: true }] }),
       };
     } },
@@ -3052,7 +3302,7 @@
         <div class="office-stats">
           <div><span>민심</span><b>${cs.loyalty}</b></div>
           <div><span>성벽</span><b>${cs.def}</b></div>
-          <div><span>훈련도</span><b>${cs.train == null ? 50 : cs.train}</b></div>
+          <div><span>훈련도</span><b>${Math.round(cs.train == null ? 50 : cs.train)}</b></div>
           <div><span>대기 장수</span><b>${ready} / ${gens.length}</b></div>
         </div>
         <div class="office-officers">
@@ -3195,7 +3445,7 @@
     const cap = cityCap(cs);
     if (cs.troops < cap * 0.7 && s.gold >= 150 && s.food >= 120 && cs.pop > 12000) return 'recruit';
     if (cs.def < 65 && s.gold >= 120) return 'repair';
-    if (s.food < 5000 && s.gold >= 100) return 'farm';
+    if (s.food < upkeepOf(s) * 4 && s.gold >= 100) return 'farm';   // v5.4 — 유지비 4개월치 아래면 비상 개간
     if (s.gold < 6000 && s.food >= 80) return 'trade';
     if (cs.def < 92 && s.gold >= 120) return 'repair';
     if (s.gold >= 80) return 'train';
@@ -3213,7 +3463,7 @@
     if (cs.loyalty < 55 && s.gold >= 100 && !n.comfort) return 'comfort';
     if (cs.troops < cap * 0.75 && s.gold >= 150 && s.food >= 120 && cs.pop > 12000 && !n.recruit) return 'recruit';
     if (cs.def < 70 && s.gold >= 120 && !n.repair) return 'repair';
-    if (s.food < 6000 && s.gold >= 100 && (n.farm || 0) < 2) return 'farm';
+    if (s.food < upkeepOf(s) * 5 && s.gold >= 100 && (n.farm || 0) < 2) return 'farm';
     if (s.gold < 5000 && s.food >= 80 && (n.trade || 0) < 2) return 'trade';
     if ((cs.train == null ? 50 : cs.train) < 70 && s.gold >= 80 && !n.train) return 'train';
     if (cs.def < 95 && s.gold >= 120 && !n.repair) return 'repair';
@@ -3942,7 +4192,7 @@
     { title: '성벽 보수', hanja: '벽', text: '백성들이 스스로 성벽을 손봤습니다.',
       apply(s) { let n = 0; SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF() && st.def < 100) { st.def = clamp(st.def + 4, 0, 100); n += 1; } }); return n ? '전 거점 성벽 +4' : '성벽이 이미 완벽'; } },
     { title: '유민 유입', hanja: '민', text: '전란을 피해 백성이 몰려와 병사로 나섰습니다.',
-      apply(s) { SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF()) st.troops = clamp(st.troops + 400, 0, 20000); }); return '전 거점 수비병 +400'; } },
+      apply(s) { SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF()) st.troops = clamp(st.troops + 400, 0, cityCap(st)); }); return '전 거점 수비병 +400'; } },
     { title: '마을 축제', hanja: '락', text: '마을마다 풍악이 울리고 민심이 흡족합니다.',
       apply(s) { SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; if (st.owner === PF()) st.loyalty = clamp(st.loyalty + 3, 0, 100); }); return '전 거점 민심 +3'; } },
   ];
@@ -3985,11 +4235,18 @@
     const parts = [];
     const sign = (v) => (v > 0 ? '+' : '') + fmt(v);
     let gold = 0, food = 0, troops = 0, morale = 0;
-    if (eff.gold) { gold = Math.round(eff.gold); s.gold = Math.max(0, s.gold + gold); }
-    if (eff.food) { food = Math.round(eff.food); s.food = Math.max(0, s.food + food); }
+    /* v5.4 — 한 달 이벤트의 금·군량은 세력 규모에 맞춰 줄인다.
+       유지비 1개월(기준 240)을 1로 보아 0.35배로 잡는다 — 10월 대수확이 주 수입이고
+       이벤트는 석 달치 안팎의 보태기·위기가 되게. */
+    let taxBase = 0;
+    cities.forEach((c) => { taxBase += (c.gold / 22 + 60) * econMul(c); });
+    const fScale = clamp(upkeepOf(s) / 240, 0.55, 4.5);
+    const gScale = clamp(taxBase / 600, 0.55, 4.5);
+    if (eff.gold) { gold = Math.round(eff.gold * 0.35 * gScale); s.gold = Math.max(0, s.gold + gold); }
+    if (eff.food) { food = Math.round(eff.food * 0.35 * fScale); s.food = Math.max(0, s.food + food); }
     if (eff.troops && cities.length) {
       const per = Math.round(eff.troops / cities.length);
-      cities.forEach((c) => { const st = s.cities[c.id]; st.troops = clamp(st.troops + per, 0, 20000); });
+      cities.forEach((c) => { const st = s.cities[c.id]; st.troops = clamp(st.troops + per, 0, cityCap(st)); });
       troops = per * cities.length;
     }
     if (eff.morale && cities.length) {
@@ -4062,9 +4319,8 @@
     s.turn += 1;
     // 달이 바뀌기 전에 태수들이 남은 행동으로 내정을 마친다 (본성·태수 없는 성 제외)
     const autoLog = runAutoDomestic(s);
-    let gold = 0, food = 0, pop = 0, popGrowth = 0, unrest = 0;
+    let tax = 0, pop = 0, popGrowth = 0, unrest = 0;
     const gPct = 1 + (SK.techPct ? SK.techPct('goldPct') : 0) / 100;
-    const fPct = 1 + (SK.techPct ? SK.techPct('foodPct') : 0) / 100;
     SK.CITY_LIST.forEach((c) => {
       const st = s.cities[c.id];
       if (st.owner !== PF()) return;
@@ -4072,8 +4328,8 @@
       const morale = st.loyalty;
       // 민심이 좋으면 세수와 인구가 오르고, 나쁘면 줄고 소란이 난다
       const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
-      gold += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct);
-      food += Math.round((c.food / 30 + morale * 0.95) * base * (0.85 + st.agri / 250) * fPct);
+      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct);
+      // v5.4 — 도시 기본 쌀 수확은 없앴다. 군량은 10월 대수확과 농원 비축, 비상 개간으로만 들어온다
       const growing = Math.round(st.pop * (0.004 + st.agri / 100 * 0.010 + (morale - 50) / 100 * 0.006 + (SK.techPct ? SK.techPct('popPct') : 0) / 1000));
       if (morale >= 70) popGrowth += Math.round(st.pop * 0.004);
       if (morale < 40) {
@@ -4092,10 +4348,9 @@
       if (st.agri < 45 && Math.random() < 0.3) st.agri = clamp(st.agri + 1, 0, 100);
       if (st.comm < 45 && Math.random() < 0.3) st.comm = clamp(st.comm + 1, 0, 100);
     });
-    s.gold += gold; s.food += food; s.fame += 3;
+    s.gold += tax; s.fame += 3;
     const rank = SK.rankFor(s.fame);
-    const salary = rank.salaryGold || 0;
-    s.gold += salary;
+    const rankGold = rank.salaryGold || 0;
     // 적 세력도 계절마다 병력을 키운다
     SK.CITY_LIST.forEach((c) => {
       const st = s.cities[c.id];
@@ -4114,8 +4369,38 @@
     // v5 — 건물 담당 장수는 이번 달 건물 일을 한 것으로 치고, 건물이 결산을 내놓는다
     applyDuty(s);
     const slotLog = runSlots(s);
-    gold += slotLog.reduce((a, x) => a + (x.gold || 0), 0);
-    food += slotLog.reduce((a, x) => a + (x.food || 0), 0);
+    const growth = [];
+    slotLog.forEach((l) => (l.grow || []).forEach((g) => growth.push(g)));
+    growth.sort((a, b) => (b.exp / b.need) - (a.exp / a.need));
+    const marketGold = slotLog.reduce((a, x) => a + (x.gold || 0), 0);
+    const farmGain = slotLog.reduce((a, x) => a + (x.food || 0), 0);
+    /* ── v5.4 금 결산: 세수 + 시장·공방 + 관작 봉급 − 휘하 장수 봉급 ── */
+    const payroll = payrollOf(s);
+    const goldNet = tax + marketGold + rankGold - payroll;
+    s.gold += rankGold - payroll;
+    let goldShort = 0;
+    if (s.gold < 0) { goldShort = -s.gold; s.gold = 0; }
+    /* ── v5.4 군량 결산: 농원 비축 + (10월) 가을 대수확 − 병력 유지비 ── */
+    const upkeep = upkeepOf(s);
+    const isHarvest = s.month === ECON.harvestMonth;
+    const harvest = isHarvest ? harvestOf(s) : { total: 0, rows: [] };
+    const troopsNow = totalTroops() + marchTroopsOf(s);
+    let famine = null;
+    let foodAfter = s.food + harvest.total - upkeep;   // 농원 비축은 runSlots가 이미 s.food에 넣었다
+    if (foodAfter < 0) {
+      famine = { short: -foodAfter, lost: 0 };
+      foodAfter = 0;
+      SK.CITY_LIST.forEach((c) => {
+        const st = s.cities[c.id];
+        if (st.owner !== PF()) return;
+        st.loyalty = clamp(st.loyalty - ECON.famineLoyalty, 0, 100);
+        const lost = Math.round((st.troops || 0) * ECON.famineDesert);
+        st.troops = Math.max(0, (st.troops || 0) - lost);
+        famine.lost += lost;
+      });
+    }
+    s.food = foodAfter;
+    const foodNet = farmGain + harvest.total - upkeep;
     // 해가 바뀌면 새로 성년이 된 명장이 주점에 나타난다
     let debuted = [];
     if (s.month === 0 && (s.eraYear || 0) !== prevYear) debuted = SK.refreshDebut(s);
@@ -4148,10 +4433,32 @@
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
-        <div class="mr-row"><span>세입</span><b class="plus">금 +${fmt(gold)}</b></div>
-        <div class="mr-row"><span>군량</span><b class="plus">미 +${fmt(food)}</b></div>
+        <div class="mr-sec"><span>금</span><em>세수 · 봉급</em></div>
+        <div class="mr-row"><span>도시 세수</span><b class="plus">금 +${fmt(tax)}</b></div>
+        ${marketGold ? `<div class="mr-row"><span>시장 · 공방</span><b class="plus">금 +${fmt(marketGold)}</b></div>` : ''}
+        <div class="mr-row"><span>관작 봉급 · ${rank.title}</span><b class="plus">금 +${fmt(rankGold)}</b></div>
+        <div class="mr-row"><span>장수 봉급 <em>${(s.heroes || []).length}명 · 등급·레벨</em></span><b class="minus">금 −${fmt(payroll)}</b></div>
+        <div class="mr-row total"><span>순금</span><b class="${goldNet >= 0 ? 'plus' : 'minus'}">${goldNet >= 0 ? '+' : '−'}${fmt(Math.abs(goldNet))}<em>금고 ${fmt(s.gold)}</em></b></div>
+        ${goldShort ? `<div class="mr-row famine"><span>금고가 비었습니다</span><b class="minus">봉급 ${fmt(goldShort)} 미지급</b></div>` : ''}
+        <div class="mr-sec"><span>군량</span><em>${s.month === ECON.harvestMonth ? '가을 대수확' : `대수확까지 ${monthsUntilHarvest(s)}개월`}</em></div>
+        <div class="mr-row"><span>병력 유지 <em>${fmt(troopsNow)}명 · 1,000명당 ${ECON.upkeepPer1000}</em></span><b class="minus">미 −${fmt(upkeep)}</b></div>
+        ${farmGain ? `<div class="mr-row"><span>농원 비축</span><b class="plus">미 +${fmt(farmGain)}</b></div>` : ''}
+        ${isHarvest && harvest.total ? `<div class="mr-harvest"><span class="mh-ic">🌾</span>
+          <div class="mh-main"><b>10월 가을 대수확!</b><span>${harvest.rows.slice(0, 6).map((r) => `${r.city} +${fmt(r.food)}`).join(' · ')}${harvest.rows.length > 6 ? ' 외' : ''}</span></div>
+          <em>미 +${fmt(harvest.total)}</em></div>` : ''}
+        <div class="mr-row total"><span>군량 순</span><b class="${foodNet >= 0 ? 'plus' : 'minus'}">${foodNet >= 0 ? '+' : '−'}${fmt(Math.abs(foodNet))}<em>창고 ${fmt(s.food)}</em></b></div>
+        ${famine ? `<div class="mr-row famine"><span>군량이 바닥났습니다!</span><b class="minus">민심 −${ECON.famineLoyalty} · 병력 −${fmt(famine.lost)} 이탈</b></div>` : ''}
+        ${!isHarvest ? `<p class="mr-note">다음 가을 대수확까지 ${monthsUntilHarvest(s)}개월 — 그때 1년치 군량이 한 번에 들어옵니다. 그 전에는 [개간]과 [탐색]으로 버팁니다.</p>` : ''}
         <div class="mr-row"><span>징집</span><b>병 +${fmt(pop)}</b></div>
-        <div class="mr-row"><span>봉급 · ${rank.title}</span><b class="plus">금 +${fmt(salary)}</b></div>
+        ${growth.length ? `<div class="mr-grow">
+          <p class="mr-grow-title">시설 성장 <em>경험이 차면 증축할 수 있습니다</em></p>
+          ${growth.slice(0, 6).map((g) => `<div class="mr-grow-row${g.exp >= g.need ? ' up' : ''}">
+            <b>${g.city} ${g.name} <i>Lv.${g.lv}</i></b>
+            <span class="mg-bar"><i style="width:${Math.min(100, Math.round(g.exp / g.need * 100))}%"></i></span>
+            <em>+${g.gain} <i>(${Math.round(g.exp)}/${g.need})</i>${g.exp >= g.need ? ' · 증축 가능!' : ''}</em>
+          </div>`).join('')}
+          ${growth.length > 6 ? `<p class="mr-note">${growth.length - 6}곳 더 있습니다.</p>` : ''}
+        </div>` : ''}
         <div class="mr-row"><span>인구</span><b class="${popGrowth ? 'plus' : ''}">${popGrowth ? `인구 성장 +${fmt(popGrowth)}` : '인구 유지'}${unrest ? ` · 민심 흔들리는 성 ${unrest}곳` : ''}</b></div>
         <div class="mr-row"><span>명성</span><b>+3</b></div>
         ${autoLog.length ? `<div class="mr-auto">
@@ -4160,8 +4467,8 @@
         </div>` : ''}
         ${ev ? `<div class="mr-event ${ev.type === '위기' ? 'crisis' : ''}"><span class="me-seal">${ev.hanja}</span>
           <div class="me-main"><b>${ev.title} <em class="me-season">${ev.type || ''} · ${ev.season || ''}</em></b><span>${ev.text}</span><em>${ev.gain}</em></div></div>` : ''}
-        ${slotLog.length ? `<div class="mr-auto"><p class="mr-auto-title">내성 시설 수입</p>
-          ${slotLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${[l.gold ? `금 +${fmt(l.gold)}` : '', l.food ? `군량 +${fmt(l.food)}` : '', l.troops ? `병력 +${fmt(l.troops)}` : ''].filter(Boolean).join(' · ')}</span></div>`).join('')}</div>` : ''}
+        ${slotLog.some((l) => l.troops) ? `<div class="mr-auto"><p class="mr-auto-title">병영 징집</p>
+          ${slotLog.filter((l) => l.troops).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>수비병 +${fmt(l.troops)}</span></div>`).join('')}</div>` : ''}
         ${debuted.length ? `<div class="mr-event"><span class="me-seal">영</span><div class="me-main"><b>새 명장이 세상에 나왔습니다</b><span>${debuted.slice(0, 6).map((g) => g.name).join(' · ')}${debuted.length > 6 ? ' 외' : ''} — 각지 주점에 소문이 돕니다.</span></div></div>` : ''}
         <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 대기 장수로 내정을 마칩니다(본성 제외). 건물 담당 장수는 건물 일을 맡은 것으로 칩니다.</p>
       </div>`,
@@ -4247,6 +4554,8 @@
       SK.openCity(id);
     };
     $('#btn-map-menu').onclick = openMenu;
+    const estrip = $('#econ-strip');
+    if (estrip) estrip.onclick = openEcon;
     $('#btn-city-back').onclick = () => SK.showMap();
     $('#btn-battle-help').onclick = () => SK.showHelp();
     $$('.city-commands .cmd[data-grp]').forEach((b) => { b.onclick = () => openGroupMenu(b.dataset.grp); });
