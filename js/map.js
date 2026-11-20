@@ -983,7 +983,7 @@
     marchEls.forEach(({ m, el, tag }) => {
       const path = SK.roadPoints(m.origin, m.target);
       if (!path || path.length < 2) return;
-      const prog = Math.max(0.13, Math.min(0.94, 1 - Math.max(0, m.left) / Math.max(1, m.total)));
+      const prog = Math.max(0.22, Math.min(0.94, 1 - Math.max(0, m.left) / Math.max(1, m.total)));
       const idx = prog * (path.length - 1);
       const i0 = Math.floor(idx), i1 = Math.min(path.length - 1, i0 + 1), f = idx - i0;
       const px = path[i0][0] + (path[i1][0] - path[i0][0]) * f;
