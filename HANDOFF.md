@@ -42,7 +42,7 @@
 > 새 저장 필드: `state.marches`, `state.marchSeq`, `state.pendingMarch`, `state.recruitFail`, `hero.marchId` — `SK.load()`가 없으면 채웁니다.
 > 행군 중인 장수는 `h.marchId`가 붙고 `cityGens()`에서 빠집니다(성 화면·담당·출진 목록에서 안 보임). 도착·승리·패배·후퇴 때 해제됩니다.
 
-검증: `tools/v53_probe.py`(78거점·`roadIssues()` `[]`·190 20세력 전부 한 덩어리), `v53_smoke.py`, `v53_flow.py`(요격 승리→행군 계속→도착 공성→함락), `v53_siege.py`(10,000 vs 4,000 자동 승리: 11턴·잔여 5,807), `v53_ui.py`(등용 51%·실패 금 0·[추천]·기본 2,000). 스크린샷 `preview/v53/`.
+검증: `tools/v53_probe.py`(78거점·`roadIssues()` `[]`·190 20세력 전부 한 덩어리), `v53_smoke.py`, `v53_flow.py`(요격 승리→행군 계속→도착 공성→함락), `v53_siege.py`(10,000 vs 4,000 자동 승리: 8턴·잔여 6,655), `v53_hold.py`(망루·본성 턴 회복 +15%·지형 표시), `v53_ui.py`(등용 51%·실패 금 0·[추천]·기본 2,000). 스크린샷 `preview/v53/`.
 
 ---
 
