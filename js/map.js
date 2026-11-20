@@ -433,7 +433,7 @@
 
     /* ── 지역 색조 ── */
     (SK.MAPGEO.tints || []).forEach(([x, y, r, color, a]) => {
-      const aa = Math.min(0.40, a * 0.62);
+      const aa = Math.min(0.32, a * 0.50);
       const rg = g.createRadialGradient(x, y, r * 0.05, x, y, r);
       rg.addColorStop(0, rgba(color, aa));
       rg.addColorStop(0.45, rgba(color, aa * 0.75));
@@ -449,7 +449,7 @@
     if (reliefCanvas) {
       g.save();
       g.globalCompositeOperation = 'overlay';
-      g.globalAlpha = 0.86;
+      g.globalAlpha = 0.70;
       g.imageSmoothingEnabled = true;
       g.drawImage(reliefCanvas, 0, 0, MAPW, MAPH);
       g.restore();
@@ -559,11 +559,8 @@
       const pth = new Path2D();
       pth.moveTo(flat[0], flat[1]);
       for (let i = 2; i < flat.length; i += 2) pth.lineTo(flat[i], flat[i + 1]);
-      g.strokeStyle = 'rgba(124,130,94,0.075)';
-      g.lineWidth = 40;
-      g.stroke(pth);
-      g.strokeStyle = 'rgba(112,118,84,0.06)';
-      g.lineWidth = 22;
+      g.strokeStyle = 'rgba(124,130,94,0.03)';
+      g.lineWidth = 26;
       g.stroke(pth);
     });
 
@@ -723,7 +720,7 @@
       const t = SK.state.cities[c.id];
       return { id: c.id, u: c.u * MAPW, v: c.v * MAPH, type: c.type, owner: t ? t.owner : 'neutral' };
     });
-    const rad = { capital: 152, town: 126, pass: 104, fortress: 108 };
+    const rad = { capital: 132, town: 98, pass: 92, fortress: 96 };
     const unit = MAPW / GRID_W;            /* 격자 한 칸 = 2.5 world px */
     const img = new ImageData(GRID_W, GRID_H);
     const dat = img.data;
@@ -795,7 +792,7 @@
             if (t < 0) t = 0; else if (t > 1) t = 1;
             t = t * t * (3 - 2 * t);
             /* 경계로 갈수록 옅게 — 두 물감 사이에 종이가 비치는 자리 */
-            seam = 0.22 + 0.78 * t;
+            seam = 0.14 + 0.86 * t;
             b = 0.30 * (1 - t);
             rgb2 = colorOf(list[i2].owner) || PAPER;
           }
@@ -807,7 +804,7 @@
           bb = Math.round(bb * (1 - b) + rgb2[2] * b);
         }
         dat[o] = r; dat[o + 1] = gg; dat[o + 2] = bb;
-        dat[o + 3] = Math.round(255 * 0.30 * fade * seam);
+        dat[o + 3] = Math.round(255 * 0.31 * fade * seam);
       }
     }
 

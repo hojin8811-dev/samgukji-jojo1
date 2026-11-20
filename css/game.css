@@ -474,9 +474,9 @@ b { font-weight: 700; }
 .mpbar i { display: block; height: 100%; background: linear-gradient(180deg, #7fb8e8, #4d86c0); }
 .hpbar em, .mpbar em { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7.5px; font-weight: 800; color: #18200f; letter-spacing: 0.02em; }
 /* v5.0.3 — 전투 HUD 경험치 바 (금빛) */
-.expbar { position: relative; height: 6px; border-radius: 3px; background: #c9b287; overflow: hidden; }
+.expbar { position: relative; height: 9px; border-radius: 4px; background: #c9b287; overflow: hidden; }
 .expbar i { display: block; height: 100%; background: linear-gradient(180deg, #f0cf78, #b8862f); transition: width 0.3s; }
-.expbar em { position: absolute; inset: -1px 0 auto 0; display: grid; place-items: center; font-size: 6.5px; font-weight: 800; color: #2a1d06; letter-spacing: 0.02em; }
+.expbar em { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7px; font-weight: 800; color: #2a1d06; letter-spacing: 0.02em; }
 .uc-meta { display: flex; gap: 8px; font-size: 9px; color: #6a5732; margin: 1px 0 1px; }
 .uc-meta b { color: #3b2e13; font-variant-numeric: tabular-nums; }
 .uc-stats { display: flex; gap: 8px; font-size: 9px; color: #6a5732; }
