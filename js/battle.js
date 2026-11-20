@@ -841,7 +841,7 @@
       const g0 = B.gate.tiles[0], g1 = B.gate.tiles[B.gate.tiles.length - 1];
       const x0 = g0.x * TILE, x1 = (g1.x + 1) * TILE;
       const w = x1 - x0 - 12;
-      const y = g0.y * TILE + 4;
+      const y = (g0.y + 1) * TILE - 14;
       const ratio = clamp(B.gate.hp / Math.max(1, B.gate.maxHp), 0, 1);
       const k = 1 / Math.max(0.45, cam.s);
       ctx.fillStyle = 'rgba(30,22,10,0.86)';
@@ -851,14 +851,15 @@
       ctx.strokeStyle = 'rgba(227,189,99,0.9)';
       ctx.lineWidth = 1 * k;
       ctx.strokeRect(x0 + 6, y, w, 8 * k);
-      ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = B.gate.hp > 0 ? '#f6e6bc' : '#ffcf9a';
-      const label = B.gate.hp > 0
-        ? `성문 ${Math.round(B.gate.hp).toLocaleString('ko-KR')} / ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}`
-        : '성문 파손 — 진입 가능';
-      ctx.fillText(label, (x0 + x1) / 2, y + 10 * k);
+      /* 수치는 화면 위 목표 칩(#battle-objective)에 크게 적는다.
+         바는 성문 타일 위에만 그려 부대에 가리지 않게 한다. */
+      if (B.gate.hp <= 0) {
+        ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#ffcf9a';
+        ctx.fillText('파손', (x0 + x1) / 2, y - 3 * k);
+      }
     }
     ctx.restore();
   }
@@ -2788,6 +2789,14 @@
       const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
       $('#battle-name').textContent = B.name;
       $('#battle-kind').textContent = `${B.def.name} · ${B.objective}`;
+      /* v5.2 — 성문 내구도는 화면 위 칩에 숫자로 크게 보인다 */
+      const goalChip = $('#battle-objective');
+      if (goalChip) {
+        goalChip.textContent = (B.gate && B.gate.hp > 0)
+          ? `성문 ${Math.round(B.gate.hp).toLocaleString('ko-KR')} / ${Math.round(B.gate.maxHp).toLocaleString('ko-KR')}`
+          : B.objective;
+        goalChip.classList.toggle('gate', !!(B.gate && B.gate.hp > 0));
+      }
       $('#battle-turn').textContent = B.turn + '턴';
       $('#battle-phase').textContent = B.phase === 'ally' ? '아군' : '적군';
       $('#battle-phase').className = B.phase;

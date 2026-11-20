@@ -1570,3 +1570,4 @@ b { font-weight: 700; }
   font-size: 6.5px; font-weight: 900; color: #3a2d10; background: linear-gradient(180deg, #f2d27a, #dcae52);
   vertical-align: 1px;
 }
+.battle-objective.gate { color: #ffe1a4; border-color: rgba(255, 190, 90, 0.8); }
