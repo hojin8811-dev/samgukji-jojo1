@@ -1536,6 +1536,10 @@ b { font-weight: 700; }
 .bt-chip em { font-size: 8.5px; font-style: normal; color: #f3d6c2; }
 .bt-chip.ally em { color: #cbead8; }
 .bt-chip:active { transform: translateY(1px); }
+/* v5.13 — 풍수사 자가 치료: 대상 칩에 '나'가 붙은 자기 자신 */
+.bt-chip.self { border-color: #ffe08a; background: rgba(96, 74, 20, 0.72); color: #fff4cf;
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 150, 0.45); }
+.bt-chip.self em { color: #ffe6a8; }
 
 @media (max-width: 420px) {
   .yard-b { width: 50px; }
@@ -1842,6 +1846,16 @@ b { font-weight: 700; }
   background: var(--fc, #8b8677); border: 1.5px solid #f0d69c;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
+/* v5.13 — 군주 등급(S/A) 배지 — 시공초월 올스타 */
+.fx-tier {
+  position: absolute; right: -5px; top: -5px; min-width: 16px; height: 16px; padding: 0 3px;
+  display: grid; place-items: center; border-radius: 8px; font-style: normal;
+  font-family: var(--serif); font-size: 9.5px; font-weight: 900; color: #4a2c05;
+  background: linear-gradient(180deg, #ffe9a8 0%, #e8b84a 58%, #c68f24 100%);
+  border: 1.2px solid #fff3cf;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(120, 80, 10, 0.25);
+}
+.fx-tier.t-A { color: #23303f; background: linear-gradient(180deg, #e6f0fb 0%, #b7cde6 58%, #8ba9c9 100%); border-color: #f2f8ff; }
 .fx-main { min-width: 0; display: flex; flex-direction: column; gap: 0; }
 .fx-name {
   font-family: var(--serif); font-size: 13px; font-weight: 900; line-height: 1.22; color: #2c1d0c;
@@ -3242,4 +3256,27 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .sd-oname b .sd-role {
   font-style: normal; font-size: 8px; font-weight: 900; color: #fff5dd; background: #7d6a3c;
   border-radius: 6px; padding: 0 5px; margin-left: 4px; vertical-align: 1px;
+}
+
+/* ═══════════════ v5.13 · 세로 화면 전용 안내 오버레이 ═══════════════
+   일반 브라우저 탭에서 가로로 돌려도 게임이 찌그러지지 않게 덮어 준다.
+   (PWA·전체화면이면 manifest / screen.orientation.lock 으로 세로가 고정된다) */
+#rotate-guard { display: none; }
+@media (orientation: landscape) and (max-height: 560px) {
+  #rotate-guard {
+    position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
+    padding: 16px; text-align: center; color: #f4e6c2;
+    background: radial-gradient(circle at 50% 40%, #3d3118 0%, #221b0d 62%, #120e07 100%);
+  }
+  #rotate-guard .rg-inner { max-width: 320px; }
+  #rotate-guard .rg-phone { font-size: 42px; line-height: 1; display: block; margin-bottom: 10px;
+    animation: rg-tilt 1.9s ease-in-out infinite; transform-origin: 50% 60%; }
+  #rotate-guard b { display: block; font-family: var(--serif); font-size: 17px; letter-spacing: 0.05em; color: #ffe6a8; }
+  #rotate-guard p { margin: 8px 0 0; font-size: 11.5px; line-height: 1.6; color: #d9c9a2; }
+  #rotate-guard em { display: block; margin-top: 10px; font-style: normal; font-size: 10px; color: #a8966c; }
+}
+@keyframes rg-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(-90deg); }
+  55% { transform: rotate(-90deg); }
 }

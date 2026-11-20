@@ -1450,8 +1450,10 @@
     const roster = (f.startGenerals && f.startGenerals.length ? f.startGenerals : (f.generals || [])).length;
     const lord = SK.GEN_BY_NAME[f.lord];
     const pt = lord ? SK.genPortrait(lord) : (SK.CLASS_PORTRAIT.gunwoong || 'gen_bobyung');
+    /* v5.13 — 시공초월 올스타: 군주 등급(S/A)을 초상 옆에 바로 보여 준다 */
+    const tier = lord && lord.tier ? String(lord.tier) : '';
     return `<button class="fx-card ${rec ? 'reco' : ''}" data-fid="${f.id}" style="--fc:${f.color}">
-      <span class="fx-port"><img src="${SK.ptSrc(pt)}" alt=""><em class="fx-badge">${f.mark}</em>${rec ? '<em class="fx-reco">⭐ 입문 추천</em>' : ''}</span>
+      <span class="fx-port"><img src="${SK.ptSrc(pt)}" alt=""><em class="fx-badge">${f.mark}</em>${tier ? `<em class="fx-tier t-${tier}">${tier}</em>` : ''}${rec ? '<em class="fx-reco">⭐ 입문 추천</em>' : ''}</span>
       <div class="fx-main">
         <b class="fx-name">${f.name}</b>
         <span class="fx-lord">${f.lord || '재야'}</span>
@@ -7267,28 +7269,48 @@
     return { win: false, from: plan.from, target: plan.target, faction: fid };
   }
 
-  /* 플레이어 접경 성을 노리는 침공 — 한 달 전에 경고만 남긴다 */
+  /* 플레이어 접경 성을 노리는 침공 — 한 달 전에 경고만 남긴다
+     v5.13 — 인접 성 1곳만 보지 않고 같은 세력의 인접+주변(2칸) 성 출진 병력을 합산해 판단한다.
+     기준 배율도 1.55 → 1.20으로 낮춰 적이 실제로 플레이어를 노린다 (graceOf 유예는 그대로). */
+  const INVASION_RATIO = 1.20;
   function planPlayerInvasion(s) {
     if ((s.turn || 1) <= graceOf(s)) return null;
     if (s.invasionWarn || s.pendingInvasion) return null;
+    const turn = s.turn || 0;
     let best = null;
     SK.CITY_LIST.forEach((pc) => {
       if (s.cities[pc.id].owner !== PF()) return;
-      SK.allNeighbors(pc.id).forEach((aid) => {
+      const adj = SK.allNeighbors(pc.id);
+      /* 접경 성의 한 다리 안쪽까지 — 같은 세력의 후방 성도 원군으로 합산 */
+      const ring = adj.slice();
+      adj.forEach((aid) => SK.allNeighbors(aid).forEach((a2) => { if (a2 !== pc.id && ring.indexOf(a2) < 0) ring.push(a2); }));
+      const byF = {};
+      ring.forEach((aid) => {
         const as = s.cities[aid];
         if (!as || as.owner === PF() || as.owner === 'neutral') return;
-        if (s.truce && s.truce[as.owner] > (s.turn || 0)) return;
+        if (s.truce && s.truce[as.owner] > turn) return;
         const strength = (as.troops || 0) - AI_CITY_RESERVE;
-        if (strength < 2200) return;
-        const ratio = strength / cityPower(s.cities[pc.id]);
-        if (ratio < 1.55) return;
+        if (strength < 800) return;
+        (byF[as.owner] = byF[as.owner] || []).push({ id: aid, strength, front: adj.indexOf(aid) >= 0 });
+      });
+      Object.keys(byF).forEach((fid) => {
+        const crew = byF[fid].sort((a, b) => b.strength - a.strength || (b.front ? 1 : 0) - (a.front ? 1 : 0));
+        const lead = crew.find((c) => c.front) || crew[0];
+        const sum = crew.reduce((a, c) => a + c.strength, 0);
+        const ratio = sum / cityPower(s.cities[pc.id]);
+        if (ratio < INVASION_RATIO) return;
         if (!best || ratio > best.ratio) {
-          best = { from: aid, target: pc.id, faction: as.owner, ratio, troops: Math.round(strength * 0.75) };
+          best = {
+            from: lead.id, target: pc.id, faction: fid, ratio,
+            troops: Math.round(sum * 0.7),
+            helpers: crew.filter((c) => c.id !== lead.id).slice(0, 2).map((c) => c.id),
+          };
         }
       });
     });
     if (!best) return null;
-    s.invasionWarn = { from: best.from, target: best.target, faction: best.faction, troops: best.troops, turn: s.turn };
+    s.invasionWarn = { from: best.from, target: best.target, faction: best.faction,
+      troops: best.troops, helpers: best.helpers || [], turn: s.turn };
     return best;
   }
 
@@ -7300,9 +7322,19 @@
       const w = s.invasionWarn;
       const ts = s.cities[w.target], as = s.cities[w.from];
       if (ts && as && ts.owner === PF() && as.owner === w.faction) {
+        /* v5.13 — 예고한 인접+주변 성이 함께 출진한다 (경고 병력과 실제 병력이 어긋나지 않게) */
+        const helpers = (w.helpers || []).filter((id) => { const hs = s.cities[id]; return hs && hs.owner === w.faction; });
+        let commit = Math.round((as.troops || 0) * 0.55);
+        as.troops = Math.max(AI_CITY_RESERVE, (as.troops || 0) - commit);
+        helpers.forEach((id) => {
+          const hs = s.cities[id];
+          const part = Math.round(Math.max(0, (hs.troops || 0) - AI_CITY_RESERVE) * 0.45);
+          hs.troops = Math.max(AI_CITY_RESERVE, (hs.troops || 0) - part);
+          commit += part;
+        });
         s.pendingInvasion = {
           from: w.from, target: w.target, faction: w.faction,
-          troops: Math.max(1200, Math.round((as.troops || 0) * 0.55)), turn: s.turn,
+          troops: Math.max(1200, commit), turn: s.turn, helpers,
         };
         news.push({ kind: 'invasion', text: `${SK.josa(SK.factionName(w.faction), 'i')} ${SK.josa(CITY[w.target].name, 'euro')} 진군했습니다 — 수성전` });
       }
@@ -7335,6 +7367,8 @@
     return news;
   }
   SK.runAiCampaigns = runAiCampaigns;
+  SK.planPlayerInvasion = planPlayerInvasion;   // v5.13 — 침공 판단 점검용
+  SK.cityPower = cityPower;
 
   /* ══════════════════════════════════════════════════════════════
      v5.10 — 적 AI 세력도 달마다 내정·등용·장수 성장을 함께 굴린다
@@ -8335,6 +8369,20 @@
     });
   };
 
+  /* v5.13 — 모바일 세로 고정.
+     PWA·전체화면에서는 screen.orientation.lock('portrait')으로 실제 잠그고,
+     잠금이 막히는 일반 브라우저 탭은 CSS 오버레이(#rotate-guard)가 가로를 막는다. */
+  let orientationTried = false;
+  function lockPortrait() {
+    try {
+      const o = screen.orientation || window.orientation || null;
+      const p = o && o.lock ? o.lock('portrait') : null;
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) { /* 잠금 미지원 브라우저는 조용히 넘어간다 */ }
+    orientationTried = true;
+  }
+  SK.lockPortrait = lockPortrait;
+
   /* ───────────── 이벤트 연결 ───────────── */
   function bind() {
     const has = SK.hasSave();
@@ -8352,6 +8400,16 @@
     ['pointerdown', 'touchstart', 'wheel', 'keydown'].forEach((ev) => {
       window.addEventListener(ev, titleKick, { passive: true, once: true });
     });
+    /* v5.13 — 첫 터치·전체화면 진입 때마다 세로 잠금을 다시 시도 */
+    ['pointerdown', 'touchstart'].forEach((ev) => {
+      window.addEventListener(ev, () => { if (!orientationTried) lockPortrait(); }, { passive: true, once: true });
+    });
+    document.addEventListener('fullscreenchange', () => { lockPortrait(); });
+    /* 홈 화면 앱(standalone)으로 이미 열렸다면 첫 터치를 기다리지 않고 바로 시도 */
+    try {
+      const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone;
+      if (standalone) lockPortrait();
+    } catch (e) { /* ignore */ }
     $('#btn-next-month').onclick = confirmNextMonth;
     const capitalBtn = $('#btn-capital');
     if (capitalBtn) capitalBtn.onclick = () => {

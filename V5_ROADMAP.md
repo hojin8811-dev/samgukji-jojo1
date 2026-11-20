@@ -1,6 +1,16 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=26`
+기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=27`
+
+## ✅ v5.13 — 한국 3국 S급 올스타 · 세로 고정 · 풍수사 자가 치료 · AI 침공 압박 (2026-11-21 · `?v=27`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 한국 3국 | 1막~4막 시작부터 **고구려=광개토대왕(S)**(을지문덕·연개소문·양만춘·을파소) · **백제=근초고왕(S)**(계백·흑치상지·성충·복신) · **신라=진흥왕(S)**(김유신·문무왕·장보고·김춘추). 옛 군주 고국천왕·동천왕·초고왕·구수왕·벌휴이사금·내해이사금·산상왕은 재야 장수로 내림 | `data/historical_scenarios.json`, `data/generals.json` |
+| 등급 표시 | 세력 선택 카드 초상에 군주 등급 배지 `S`·`A` — 시공초월 올스타 컨셉을 한눈에 | `app.js` `factionScreenCard`, `css/game.css` `.fx-tier` |
+| 세로 고정 | `manifest.webmanifest`(standalone·portrait·아이콘 192/512) + `screen.orientation.lock('portrait')` 첫 터치·전체화면 진입 때 시도 + 일반 탭 가로 회전 시 `📱 세로 화면 전용` 오버레이 | `manifest.webmanifest`, `index.html`, `js/app.js` `lockPortrait`, `css/game.css` `#rotate-guard` |
+| 풍수사 | `소보급`·`고무` 선택 시 **자기 발밑 타일도 초록 하이라이트**(`minR 0`) · 대상 칩 `나 (이름)` 표시 · 회복 설명에 "자기 자신 포함" | `js/battle.js` `drawRange`·`renderTargetBar`·`trySkillAt`, `js/data.js` |
+| 적 AI | `planPlayerInvasion` 배율 **1.55 → 1.20**, 인접 성 1곳 대신 **같은 세력의 인접+주변(2칸) 성 병력 합산**(최대 3성 연계 출진). `graceOf` 유예는 그대로 | `js/app.js` `planPlayerInvasion`·`runAiCampaigns` |
 
 ## ✅ v5.12 — 코믹·올스타 리브랜딩 · 개그 한마디 · 내정 확장 (2026-11-21 · `?v=26`)
 
@@ -17,6 +27,13 @@
 | 탐색 | 보상 40~45% 하향(금 70~220·군량 90~220·의용병 소폭) + **능력치 기반 실패**(지력·매력 평균 90 → 5%, 70 → 18%, 45 → 40%) | `app.js` `explore` |
 | 대상인 | 시장 큰 성 우선으로 가끔 방문해 **2개월 체류** — 군량 특가 +18%, 희귀 보물 1~2점 판매, 성 상단 칩·월정산·상인 창에 표시 | `app.js` `advanceMonth`·`openRiceTrader`·`openCity` |
 | 시설 | 모든 건물 **주담당 + 부장 2명** — 부장 효과 +45%, 월 시설 EXP·공훈치, `[자동 배속]`은 주담당만 | `app.js` `slotMul`·`runSlots`·`openSlot`·`autoAssignDuty` |
+
+## 📝 다음 패치 제보 메모 (`?v=26` 이후) — **아래 4건은 v5.13에서 모두 반영 완료**
+
+- **풍수사 자가 치료 가시화 & 편의**: `소보급`/`heal` 선택 시 자기 발밑 타일도 초록 하이라이트(`minR = 0`) + `[나]` 칩 표시, 턴 시작 자가 회복/자동 치료 보강 검토 (`js/battle.js`).
+- **적 AI 침공 기준 완화 & 압박 강화(확정)**: `planPlayerInvasion`의 `1.55배` 컷을 **`1.15~1.25배`**로 낮추고, 적 세력이 인접 성 1곳뿐 아니라 주변 여러 성 병력을 합산·연계해서도 플레이어 성을 노리도록 개선 (`js/app.js`).
+- **모바일 세로 화면 고정(확정)**: `manifest.webmanifest` `"orientation": "portrait"` + `screen.orientation.lock('portrait')` 시도 + 일반 브라우저 탭 가로 회전 시 `세로 화면 안내 오버레이` 또는 `9:16 세로 프레임 고정` 적용 (`index.html`, `css/game.css`).
+- **한국 3국 시작 군주·에이스 S급 올스타 개편(확정)**: 시공초월 올스타 컨셉에 맞춰 `초고왕·벌휴이사금·내해이사금·고국천왕` 대신 1~4막 시작부터 **고구려=`광개토대왕(S)`(+을지문덕/연개소문)**, **백제=`근초고왕(S)`(+계백)**, **신라=`진흥왕(S)`(+김유신/문무왕/장보고)**으로 전면 승격 (`data/historical_scenarios.json`).
 
 ## 📝 다음 패치 제보 메모 (`?v=25` 이후) — **아래 항목은 v5.12에서 모두 반영 완료**
 

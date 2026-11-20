@@ -1132,17 +1132,23 @@
     }
     if (mode === 'attack' || mode === 'skillTarget') {
       const rng = pendingSkill ? (pendingSkill.range || pendingSkill.radius || u.rng) : u.rng;
-      const minR = pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1);
+      /* v5.13 — 회복·아군 버프는 자기 발밑(거리 0)도 대상 — 풍수사가 제 발밑을 치료한다 */
+      const selfSkill = !!(pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly'));
+      const minR = selfSkill ? 0 : (pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1));
       /* v5.2 — 책략 선택 시 사거리·효과 범위 바닥 타일을 먼저 밝혀 준다 */
       if (mode === 'skillTarget' && pendingSkill) {
         const pulse2 = 0.5 + 0.5 * Math.sin(performance.now() / 400);
+        /* v5.13 — 회복·아군 버프는 범위 자체를 초록으로 물들인다 (자기 발밑 포함) */
+        const greenRange = pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly';
         for (let y2 = 0; y2 < N; y2++) {
           for (let x2 = 0; x2 < N; x2++) {
             const d2 = cheb(u.x, u.y, x2, y2);
             if (d2 < minR || d2 > rng) continue;
-            ctx.fillStyle = `rgba(150,120,240,${0.13 + pulse2 * 0.07})`;
+            ctx.fillStyle = greenRange
+              ? `rgba(125,255,180,${0.32 + pulse2 * 0.10})`
+              : `rgba(150,120,240,${0.13 + pulse2 * 0.07})`;
             ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
-            ctx.strokeStyle = 'rgba(190,170,255,0.42)';
+            ctx.strokeStyle = greenRange ? 'rgba(180,255,210,0.78)' : 'rgba(190,170,255,0.42)';
             ctx.lineWidth = 1;
             ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
           }
@@ -1179,6 +1185,12 @@
           if (cheb(u.x, u.y, t.x, t.y) > (pendingSkill.range || u.rng)) return;
           ctx.fillStyle = 'rgba(80,180,120,0.30)';
           ctx.fillRect(t.x * TILE + 3, t.y * TILE + 3, TILE - 6, TILE - 6);
+          /* v5.13 — 시전자 자기 발밑은 초록 테두리까지 그려 '나도 치료 가능'을 분명히 */
+          if (t === u) {
+            ctx.strokeStyle = 'rgba(190,255,215,1)';
+            ctx.lineWidth = 2.6;
+            ctx.strokeRect(t.x * TILE + 3.5, t.y * TILE + 3.5, TILE - 7, TILE - 7);
+          }
         });
       }
       if (gateIntact()) {
@@ -1849,7 +1861,8 @@
     if (!active) { tb.hidden = true; tb.innerHTML = ''; return; }
     const heal = pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly');
     const rng = pendingSkill && pendingSkill.range ? pendingSkill.range : u.rng;
-    const minR = pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1);
+    /* v5.13 — 회복은 시전자 자신(거리 0)도 고를 수 있다 */
+    const minR = heal ? 0 : (pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1));
     const list = B.units.filter((t) => {
       if (!t.alive) return false;
       if (heal) return t.side === u.side && cheb(u.x, u.y, t.x, t.y) <= rng;
@@ -1863,7 +1876,10 @@
       return;
     }
     tb.innerHTML = `<span class="bt-hint">${heal ? '아군' : '적'} 선택</span>`
-      + list.map((t) => `<button class="bt-chip ${t.side}" data-id="${t.id}"><b>${t.name}</b><em>${Math.round(t.hp).toLocaleString('ko-KR')}</em></button>`).join('');
+      + list.map((t) => {
+        const me = heal && t === u;                    // v5.13 — 자기 자신은 '나'로 표시
+        return `<button class="bt-chip ${t.side}${me ? ' self' : ''}" data-id="${t.id}"><b>${me ? `나 (${t.name})` : t.name}</b><em>${Math.round(t.hp).toLocaleString('ko-KR')}</em></button>`;
+      }).join('');
     tb.querySelectorAll('.bt-chip').forEach((b) => {
       b.onclick = () => {
         const t = B.units.find((x) => x.id === b.dataset.id);
@@ -2436,7 +2452,9 @@
     const sk = pendingSkill;
     if (!u || !sk) return;
     const dist = cheb(u.x, u.y, x, y);
-    if (sk.minRange && dist < sk.minRange) { SK.toast(`최소 사거리 ${sk.minRange}칸입니다.`); return; }
+    /* v5.13 — 회복·아군 버프는 거리 0(자기 자신) 허용 */
+    const selfSkill = sk.kind === 'heal' || sk.kind === 'buffAlly';
+    if (!selfSkill && sk.minRange && dist < sk.minRange) { SK.toast(`최소 사거리 ${sk.minRange}칸입니다.`); return; }
     if (dist > (sk.range || u.rng)) { SK.toast('사거리 밖입니다.'); return; }
     const target = B.units.find((o) => o.alive && o.x === x && o.y === y);
     const finish = (delay) => {
@@ -3966,6 +3984,14 @@
       endTurn,
       openSkillMenu,
       beginSkill,
+      /* v5.13 — 자동전투 판단 점검: 이 부대가 고를 책략(회복 포함)을 그대로 돌려준다 */
+      planSupport(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const p = planSupportSkill(u);
+        return p ? { kind: p.kind, mode: p.mode, key: p.key, tx: p.tx, ty: p.ty,
+          x: p.x, y: p.y, target: p.target ? p.target.name : null, score: p.score } : null;
+      },
       hurtEnemies(n) { B.units.filter((u) => u.side === 'enemy').forEach((u) => { u.hp = n; if (n <= 0) u.alive = false; }); },
       finish() { finishCheck(); },
       closeBattle,

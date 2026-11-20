@@ -75,7 +75,7 @@ SK.SKILLS = {
   gwantung: { name: '관통창', hanja: '貫通槍', mp: 8, kind: 'power', range: 2, power: 1.4, vsMount: 0.4,
     desc: '2칸 찌르기. 기병에게 +40% 추가 피해' },
   sobogeup: { name: '소보급', hanja: '小補給', mp: 10, kind: 'heal', range: 2, healPct: 0.16,
-    desc: '아군 1명의 병력을 최대 병력의 16% 회복 (최대 22%)' },
+    desc: '아군 1명(자기 자신 포함)의 병력을 최대 병력의 16% 회복 (최대 22%)' },
   daebogeup: { name: '대보급', hanja: '大補給', mp: 20, kind: 'healArea', radius: 2, healPct: 0.13,
     desc: '주변 2칸 아군 전원을 최대 병력의 13% 회복' },
   gomu: { name: '고무', hanja: '鼓舞', mp: 12, kind: 'buffAlly', range: 2, atk: 0.3, turns: 3,
@@ -1028,6 +1028,9 @@ SK.genScore = function (g) {
 SK.topStatOf = function (g) {
   return Math.max(g.war || 0, g.intel || 0, g.leadership || 0, g.politics || 0, g.charm || 0);
 };
+/* v5.13 — 시공초월 올스타: 한국 3국 군주는 등급 재산정에서도 S로 고정한다.
+   (근초고왕 정치 92처럼 한 끗 차이로 A로 내려가면 '3국 S급 올스타' 컨셉이 무너진다) */
+SK.TIER_LOCK = { '광개토대왕': 'S', '근초고왕': 'S', '진흥왕': 'S' };
 SK.rebalanceTiers = function () {
   /* 원본 등급을 남겨 둔다 — 최고 스탯 95+ 또는 원본 S는 S/A로 보호한다 */
   SK.GENERALS.forEach((g) => { if (!g.origTier) g.origTier = g.tier; });
@@ -1035,6 +1038,7 @@ SK.rebalanceTiers = function () {
   const n = list.length;
   if (!n) return;
   list.forEach((g, i) => {
+    if (SK.TIER_LOCK[g.name]) { g.tier = SK.TIER_LOCK[g.name]; return; }
     const p = (i + 0.5) / n;
     let t = (SK.TIER_MIX.find((m) => p <= m.to) || SK.TIER_MIX[SK.TIER_MIX.length - 1]).t;
     const top = SK.topStatOf(g);
