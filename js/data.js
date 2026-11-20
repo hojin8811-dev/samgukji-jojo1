@@ -599,7 +599,7 @@ SK.setScenarios = function (list) { SK.SCENARIOS = list || []; };
 SK.normName = function (n) { return SK.NAME_ALIAS[n] || n; };
 
 /* 시나리오 하나를 실제 영지 배치로 푼다.
-   · faction.cities 이름을 78거점으로 별칭 변환
+   · faction.cities 이름을 80거점으로 별칭 변환
    · 여러 세력이 같은 거점을 주장하면 "자기 영지 중심"이 가까운 세력이 가져간다
    · 아무도 주장하지 않은 거점은 가장 가까운 세력(300px 이내), 그 밖은 재야 */
 /* 변방·요새·섬 — 시나리오가 비워 두는 공백지(재야) 후보.
@@ -1059,7 +1059,7 @@ SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 
   ['nanhai', 'guiyang'], ['nanhai', 'gangju'], ['gangju', 'guiyang'],
   ['jianning', 'yunnan'], ['wuwei', 'tianshui'], ['lushui', 'chengdu'], ['lushui', 'jianning']];
 
-/* v5.0.3 — 78거점 역참로를 손으로 고정한다.
+/* v5.0.3 — 역참로를 손으로 고정한다 (v5.5: 80거점).
    거리만 보는 자동 최소신장트리는 호로관↔낙양·업↔남피 같은 뻔한 길을 놓치고,
    삭방↔함곡관·산해관↔남피처럼 바다를 가로지르거나 지도를 관통하는 선을 만들었다.
    순서: 서량 → 관중 → 하북·병주·유주 → 중원 → 서주·회남 → 형주 → 익주·남만 → 강동 → 요동·한국 */
@@ -1148,7 +1148,7 @@ SK.buildRoads = function () {
     SK.ROADS.push([a.id, b.id]);
     return true;
   };
-  // 1) 손으로 고정한 역참로 — 78거점의 실제 지리를 따른다
+  // 1) 손으로 고정한 역참로 — 80거점의 실제 지리를 따른다
   SK.ROAD_EDGES.forEach(([a, b]) => {
     if (SK.CITY[a] && SK.CITY[b]) add(SK.CITY[a], SK.CITY[b]);
   });
@@ -1208,7 +1208,7 @@ SK.allNeighbors = function (id) { return SK.neighbors(id).concat(SK.seaNeighbors
 
 /* ───────────── 도로망 자체 점검 (v5.0.3) ─────────────
    ‣ 육로가 바다를 건너는가 — 지도 폴리곤 위에서 40점을 찍어 본다
-   ‣ 관문이 양쪽을 잇는가 · 홀로 남은 거점이 있는가 · 78거점이 한 덩어리인가
+   ‣ 관문이 양쪽을 잇는가 · 홀로 남은 거점이 있는가 · 80거점이 한 덩어리인가
    QA에서 SK.roadIssues() 로 확인한다. 평소 게임 진행에는 쓰이지 않는다. */
 SK.roadIssues = function () {
   const out = [];
