@@ -24,7 +24,7 @@ SK.CLASSES = {
     skills: ['jihwi'], weapon: 'sword', desc: '군 전체를 이끄는 군주. 지휘로 아군을 강화한다.' },
   gibi: { name: '기병', hanja: '騎兵', role: '돌격·기동', atk: 34, def: 17, mov: 6, rng: 1, mp: 20,
     skills: ['dolpa'], weapon: 'spear', mount: true, desc: '이동 6의 돌격 병과. 평지·도로에서 공격 +15%, 산지 통행 불가.' },
-  gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 3, mp: 26,
+  gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 4, mp: 26,
     skills: ['jipsajung'], weapon: 'bow', mount: true, desc: '대각선 포함 3칸 사격. 산이나 성 위에서 사거리 +1.' },
   changbyung: { name: '창병', hanja: '槍兵', role: '대기병·성문', atk: 28, def: 21, mov: 4, rng: 2, mp: 18,
     skills: ['gwantung'], weapon: 'spear', desc: '긴 창으로 2칸을 찌른다. 기병에게 +40%, 성문에서 방어 +20%.' },
@@ -40,7 +40,7 @@ SK.CLASSES = {
     skills: ['sobogeup', 'daebogeup', 'gomu', 'pungsu'], weapon: 'staff', desc: '보급으로 아군을 살리고 고무로 공격을 올린다.' },
   dosa: { name: '도사', hanja: '道士', role: '저주·회복', atk: 18, def: 12, mov: 4, rng: 3, mp: 64,
     skills: ['yosul', 'sobogeup'], weapon: 'staff', desc: '요술로 적의 공격을 약화시키고 부상병을 회복한다.' },
-  gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 3, mp: 16,
+  gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 4, mp: 16,
     skills: ['jipsajung'], weapon: 'bow', desc: '3칸 밖에서 일방적으로 사격. 산·성 위에서 사거리 +1.' },
   mudoga: { name: '무도가', hanja: '武道家', role: '연격·기동', atk: 33, def: 15, mov: 5, rng: 1, mp: 20,
     skills: ['yeongyeok'], weapon: 'fist', desc: '맨몸의 연격으로 두 번 때린다. 평지에서 공격 +10%.' },
@@ -48,25 +48,25 @@ SK.CLASSES = {
     skills: ['yaseup'], weapon: 'claw', desc: '호랑이 부대. 숲·산지에서 공격 +20%, 이동 6.' },
   muhui: { name: '무희', hanja: '舞姬', role: '유혹·교란', atk: 20, def: 10, mov: 5, rng: 2, mp: 48,
     skills: ['yuhok'], weapon: 'ribbon', desc: '춤으로 적의 공격을 크게 떨어뜨린다. 사거리 2.' },
-  yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 4, mp: 18,
+  yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 5, mp: 18,
     skills: ['yeonno'], weapon: 'crossbow', desc: '연발 쇠뇌로 4칸을 두 번 쏜다. 느리지만 화력이 뛰어나다.' },
   deunggabyung: { name: '등갑병', hanja: '藤甲兵', role: '철벽 방어', atk: 28, def: 31, mov: 3, rng: 1, mp: 12,
     skills: ['bangpae'], weapon: 'sword', desc: '등나무 갑옷의 중장 보병. 느리지만 좀처럼 뚫리지 않는다.' },
   gunakdae: { name: '군악대', hanja: '軍樂隊', role: '사기·지원', atk: 12, def: 12, mov: 4, rng: 2, mp: 60,
     skills: ['gomu', 'jihwi'], weapon: 'drum', desc: '북과 나팔로 아군의 사기를 올린다. 직접 싸움은 약하다.' },
-  pocha: { name: '포차', hanja: '砲車', role: '공성 병기', atk: 46, def: 26, mov: 2, rng: 4, minRng: 2, mp: 10,
+  pocha: { name: '포차', hanja: '砲車', role: '공성 병기', atk: 46, def: 26, mov: 2, rng: 5, minRng: 2, mp: 10,
     skills: ['pogyeok'], weapon: 'ram', siege: true, desc: '성문·성벽에 2배 피해. 인접한 적은 칠 수 없고 이동이 느리다.' },
-  balseokcha: { name: '발석차', hanja: '發石車', role: '투석 병기', atk: 56, def: 18, mov: 1, rng: 6, minRng: 3, mp: 10,
+  balseokcha: { name: '발석차', hanja: '發石車', role: '투석 병기', atk: 56, def: 18, mov: 1, rng: 7, minRng: 3, mp: 10,
     skills: ['tuseok'], weapon: 'catapult', siege: true, desc: '먼 곳을 범위로 때리는 투석기. 성문 공략의 결정타.' },
 };
 
 /* ───────────── 책략 ───────────── */
 SK.SKILLS = {
-  jihwi: { name: '지휘', hanja: '指揮', mp: 12, kind: 'buffAreaAllies', radius: 3, atk: 0.2, turns: 2,
-    desc: '주변 3칸 아군 전원 공격 +20% (2턴)' },
+  jihwi: { name: '지휘', hanja: '指揮', mp: 12, kind: 'buffAreaAllies', radius: 3, atk: 0.2, turns: 3,
+    desc: '주변 3칸 아군 전원 공격 +20% (3턴)' },
   dolpa: { name: '돌파', hanja: '突破', mp: 10, kind: 'power', range: 1, power: 1.55,
     desc: '한 명에게 강력한 돌격 (공격력 155%)' },
-  jipsajung: { name: '집중사격', hanja: '集中射擊', mp: 8, kind: 'power', range: 3, power: 1.45,
+  jipsajung: { name: '집중사격', hanja: '集中射擊', mp: 8, kind: 'power', range: 4, power: 1.45,
     desc: '사거리 안의 적 하나를 집중 사격' },
   gwantung: { name: '관통창', hanja: '貫通槍', mp: 8, kind: 'power', range: 2, power: 1.4, vsMount: 0.4,
     desc: '2칸 찌르기. 기병에게 +40% 추가 피해' },
@@ -74,43 +74,43 @@ SK.SKILLS = {
     desc: '아군 1명의 병력을 최대 병력의 16% 회복 (최대 22%)' },
   daebogeup: { name: '대보급', hanja: '大補給', mp: 20, kind: 'healArea', radius: 2, healPct: 0.13,
     desc: '주변 2칸 아군 전원을 최대 병력의 13% 회복' },
-  gomu: { name: '고무', hanja: '鼓舞', mp: 12, kind: 'buffAlly', range: 2, atk: 0.3, turns: 2,
-    desc: '아군 1명 공격 +30% (2턴)' },
-  pungsu: { name: '풍수', hanja: '風水', mp: 16, kind: 'debuffDef', range: 3, radius: 2, turns: 2, amount: -0.25,
-    desc: '지점 2칸 안의 적 방어 -25% (2턴)' },
+  gomu: { name: '고무', hanja: '鼓舞', mp: 12, kind: 'buffAlly', range: 2, atk: 0.3, turns: 3,
+    desc: '아군 1명 공격 +30% (3턴)' },
+  pungsu: { name: '풍수', hanja: '風水', mp: 16, kind: 'debuffDef', range: 3, radius: 2, turns: 3, amount: -0.25,
+    desc: '지점 2칸 안의 적 방어 -25% (3턴)' },
   hwagye: { name: '화계', hanja: '火計', mp: 12, kind: 'magic', range: 3, power: 260,
     desc: '불을 질러 방어를 무시하는 피해' },
   sangang: { name: '산악강타', hanja: '山岳强打', mp: 8, kind: 'power', range: 1, power: 1.5, ignoreTerrain: true,
     desc: '지형 방어를 무시하는 강타' },
   suryu: { name: '수류참', hanja: '水流斬', mp: 8, kind: 'power', range: 1, power: 1.5, waterBonus: true,
     desc: '물 위에서 더 강한 일격 (+15%)' },
-  bangpae: { name: '방패벽', hanja: '防牌壁', mp: 8, kind: 'buffSelf', def: 0.5, turns: 2,
-    desc: '자신의 방어 +50% (2턴)' },
-  yosul: { name: '요술', hanja: '妖術', mp: 14, kind: 'debuffAtk', range: 3, radius: 1, turns: 2, amount: -0.3,
-    desc: '적 1명의 공격 -30% (2턴)' },
+  bangpae: { name: '방패벽', hanja: '防牌壁', mp: 8, kind: 'buffSelf', def: 0.5, turns: 3,
+    desc: '자신의 방어 +50% (3턴)' },
+  yosul: { name: '요술', hanja: '妖術', mp: 14, kind: 'debuffAtk', range: 3, radius: 1, turns: 3, amount: -0.3,
+    desc: '적 1명의 공격 -30% (3턴)' },
   yeongyeok: { name: '연격', hanja: '連擊', mp: 10, kind: 'power', range: 1, power: 1.3, hits: 2,
     desc: '두 번 연속 공격 (각 130%)' },
   yaseup: { name: '야습', hanja: '夜襲', mp: 10, kind: 'power', range: 1, power: 1.6,
     desc: '숲·산지에서 기습적인 강타' },
-  yuhok: { name: '유혹', hanja: '誘惑', mp: 12, kind: 'debuffAtk', range: 2, radius: 2, turns: 2, amount: -0.35,
-    desc: '주변 2칸 적의 공격 -35% (2턴)' },
-  pogyeok: { name: '포격', hanja: '砲擊', mp: 8, kind: 'power', range: 4, minRange: 2, power: 2.0, siegeBonus: 1.0,
+  yuhok: { name: '유혹', hanja: '誘惑', mp: 12, kind: 'debuffAtk', range: 2, radius: 2, turns: 3, amount: -0.35,
+    desc: '주변 2칸 적의 공격 -35% (3턴)' },
+  pogyeok: { name: '포격', hanja: '砲擊', mp: 8, kind: 'power', range: 5, minRange: 2, power: 2.0, siegeBonus: 1.0,
     desc: '성문·성벽 위의 적에게 2배 피해' },
-  tuseok: { name: '투석', hanja: '投石', mp: 8, kind: 'magicArea', range: 6, minRange: 3, radius: 1, power: 320,
+  tuseok: { name: '투석', hanja: '投石', mp: 8, kind: 'magicArea', range: 7, minRange: 3, radius: 1, power: 320,
     desc: '먼 지점 1칸 범위에 돌을 던진다' },
-  yeonno: { name: '연노사격', hanja: '連弩射擊', mp: 10, kind: 'power', range: 4, power: 1.15, hits: 2,
+  yeonno: { name: '연노사격', hanja: '連弩射擊', mp: 10, kind: 'power', range: 5, power: 1.15, hits: 2,
     desc: '4칸 밖의 적을 두 번 연속으로 쏜다' },
-  gwanse: { name: '관통사격', hanja: '貫通射擊', mp: 12, kind: 'power', range: 4, power: 1.7,
+  gwanse: { name: '관통사격', hanja: '貫通射擊', mp: 12, kind: 'power', range: 5, power: 1.7,
     desc: '4칸 밖에서 꿰뚫는 강력한 사격' },
   paedo: { name: '해일', hanja: '海溢', mp: 18, kind: 'magicArea', range: 3, radius: 2, power: 300,
     desc: '거대한 물결로 범위를 휩쓴다' },
   cheonmu: { name: '천무', hanja: '天武', mp: 14, kind: 'power', range: 1, power: 1.85,
     desc: '하늘을 가르는 무도의 일격' },
-  hwanmu: { name: '환무', hanja: '幻舞', mp: 16, kind: 'debuffAtk', range: 2, radius: 2, turns: 2, amount: -0.4,
+  hwanmu: { name: '환무', hanja: '幻舞', mp: 16, kind: 'debuffAtk', range: 2, radius: 2, turns: 3, amount: -0.4,
     desc: '현혹의 춤으로 적 공격 -40%' },
-  yeonpo: { name: '연속포격', hanja: '連發砲擊', mp: 14, kind: 'power', range: 5, minRange: 2, power: 2.4, siegeBonus: 0.8,
+  yeonpo: { name: '연속포격', hanja: '連發砲擊', mp: 14, kind: 'power', range: 6, minRange: 2, power: 2.4, siegeBonus: 0.8,
     desc: '성문에 연달아 포탄을 퍼붓는다' },
-  hwayeom: { name: '화염투석', hanja: '火焰投石', mp: 16, kind: 'magicArea', range: 6, minRange: 3, radius: 2, power: 380,
+  hwayeom: { name: '화염투석', hanja: '火焰投石', mp: 16, kind: 'magicArea', range: 7, minRange: 3, radius: 2, power: 380,
     desc: '불붙은 돌을 던져 범위를 불바다로 만든다' },
 };
 
@@ -135,7 +135,17 @@ SK.CLASS_PORTRAIT = {
   geombyung: 'gen_bobyung', sanjeok: 'gen_sanjeok', sujeok: 'gen_sujeok', chaeksa: 'gen_chaeksa',
   pungsusa: 'gen_chaeksa', dosa: 'gen_dosa', gungsu: 'gen_gungbyung', mudoga: 'gen_mudoga',
   yasubyung: 'gen_yasubyung', muhui: 'gen_muhui', pocha: 'gen_pocha', balseokcha: 'gen_pocha',
-  yeonnobyung: 'gen_gungbyung', deunggabyung: 'gen_bobyung', gunakdae: 'gen_muhui',
+  yeonnobyung: 'gen_gungbyung', deunggabyung: 'gen_bobyung',
+  /* v5.0.3 — 군악대 기본값을 여성 무희 초상에서 남성 악사 초상으로 바꾼다.
+     (간옹·유염 같은 남성 장수가 여성 무희 그림을 받던 문제) 여성 장수만 무희 초상을 쓴다. */
+  gunakdae: 'gen_gunak_m',
+};
+/* 여성 장수 — 이 이름들만 여성 초상(gen_muhui)을 쓴다. 남성은 절대 받지 않는다. */
+SK.FEMALE_GENERALS = ['초선', '허황옥', '보연사', '견희', '대교', '소교', '신헌영', '왕원희',
+  '진덕여왕', '황진이', '손노반', '손노육', '채문희', '허난설헌', '손상향', '선덕여왕',
+  '축융', '포삼랑', '황월영', '관은병', '장성채', '마운록', '화만', '향랑'];
+SK.isFemaleGeneral = function (g) {
+  return !!(g && SK.FEMALE_GENERALS.indexOf(g.name) >= 0);
 };
 SK.REGIMENTS = [
   { cls: 'geombyung', name: '검병대', cost: 1800 },
@@ -254,17 +264,19 @@ SK.markOf = function (f) {
    위=군청 · 촉=에메랄드 · 오=크림슨 · 여포=보라먹 · 원소=금 · 동탁=숯회색
    고구려=인디고 · 백제=틸 · 신라=주황, 나머지 군웅은 서로 겹치지 않는 밝은 색 */
 SK.FACTION_COLOR = {
+  /* v5.0.3 — 190년 지도에서 길·근접으로 맞닿는 세력끼리 색 거리(ΔE) 49 이상이 되도록 다시 배치했다.
+     (유비군 녹색 ↔ 도겸군 연두색이 거의 같아 보이던 문제) 조조·유비·손견·동탁·원소는 상징색 유지. */
   caocao: '#1D4ED8', cao_wei_pre: '#1D4ED8', cao_wei: '#1D4ED8',
   liubei: '#15803D', shu_han: '#15803D',
   sunjian: '#DC2626', sunquan: '#DC2626', sun_wu: '#B91C1C',
   lubu: '#7E22CE', lvbu: '#7E22CE',
   yuanshao: '#CA8A04', dongzhuo: '#374151',
-  goguryeo: '#4338CA', baekje: '#0F766E', silla: '#EA580C',
-  yuanshu: '#BE185D', liubiao: '#0891B2', liuzong: '#9333EA', liuyan: '#92400E',
-  liuzhang: '#92400E', mateng: '#B45309', hansui: '#78716C', gongsunzan: '#475569',
-  taoqian: '#65A30D', zhanglu: '#3F6212', gongsunkang: '#64748B', shi_xie: '#A16207',
+  goguryeo: '#6D28D9', baekje: '#7E1D3E', silla: '#0B7285',
+  yuanshu: '#DB2777', liubiao: '#0E7490', liuzong: '#9333EA', liuyan: '#7E22CE',
+  liuzhang: '#92400E', mateng: '#B45309', hansui: '#3F6212', gongsunzan: '#9F1239',
+  taoqian: '#7C2D12', zhanglu: '#BE185D', gongsunkang: '#78350F', shi_xie: '#A16207',
   meng_huo: '#4D7C0F', neutral: '#8B8777',
-  kongrong: '#0EA5E9', liuyao: '#7E22CE', yanbaihu: '#C2410C', wanglang: '#A21CAF',
+  kongrong: '#475569', liuyao: '#0891B2', yanbaihu: '#1E40AF', wanglang: '#4D7C0F',
 };
 
 SK.factionInfo = function (key) {
@@ -535,10 +547,10 @@ SK.applyClassData = function (list) {
         if (area) def.radius = 2;
         def.range = Math.max(2, rng.max);
       } else if (/아군/.test(eff) && /(공격|사기|방어|진형)/.test(eff)) {
-        def.kind = 'buffAreaAllies'; def.radius = 2; def.atk = 0.2; def.turns = 2;
+        def.kind = 'buffAreaAllies'; def.radius = 2; def.atk = 0.2; def.turns = 3;
       } else if (/적/.test(eff) && /(방어|사기|공격|혼란|매혹)/.test(eff) && !/피해/.test(eff)) {
         def.kind = /방어/.test(eff) ? 'debuffDef' : 'debuffAtk';
-        def.radius = 2; def.amount = -0.25; def.turns = 2;
+        def.radius = 2; def.amount = -0.25; def.turns = 3;
       } else if (/(화|뇌|불|폭풍|충격|붕괴|석|해일|천벌)/.test(sk.name + eff) && /피해|폭발|광역|휩쓸/.test(eff)) {
         def.kind = 'magicArea'; def.radius = 1; def.power = 240 + sk.mp * 9;
       } else {
@@ -852,7 +864,11 @@ SK.genPortrait = function (g) {
   const art = SK.artPortrait(g && g.name);
   if (art) return art;
   const core = Object.values(SK.HEROES).find((h) => h.name === g.name);
-  return core ? core.pt : (SK.CLASS_PORTRAIT[SK.genClass(g)] || 'gen_bobyung');
+  if (core) return core.pt;
+  const cls = SK.genClass(g);
+  /* 여성 초상은 여성 장수에게만 — 남성 군악대·무희가 여성 그림을 받지 않게 한다 */
+  if (cls === 'gunakdae' || cls === 'muhui') return SK.isFemaleGeneral(g) ? 'gen_muhui' : 'gen_gunak_m';
+  return SK.CLASS_PORTRAIT[cls] || 'gen_bobyung';
 };
 SK.genUnit = function (g) {
   const art = SK.artUnit(g && g.name);
@@ -929,7 +945,7 @@ SK.setCities = function (list) {
    산해관과 북해·안시성 사이는 바다다. 육로는 산해관 → 요동 → 안시성으로 돌아간다.
    섬(탐라·대만)은 배로만 오가고, 대만 안의 타이베이↔타이난만 육로다. */
 SK.SEA_ONLY_PAIRS = [['shanhaiguan', 'beihai'], ['shanhaiguan', 'ansiseong'],
-  ['liaodong', 'pyongyang'], ['langya', 'beihai'],
+  ['liaodong', 'pyongyang'],
   /* v5.0.1 — 지도에서 겹치던 관통 직통선을 없앤다 (장사→남해·강주, 무위→한중) */
   ['changsha', 'nanhai'], ['changsha', 'gangju'], ['wuwei', 'hanzhong']];
 /* 섬 — 육로는 섬 안에서만 난다. 바깥으로는 배(SEALANES)로만 오간다. */
@@ -941,6 +957,64 @@ SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 
   ['taipei', 'tainan'], ['xinye', 'xiangyang'], ['shangyong', 'hanzhong'], ['wuling', 'changsha'],
   ['nanhai', 'guiyang'], ['nanhai', 'gangju'], ['gangju', 'guiyang'],
   ['jianning', 'yunnan'], ['wuwei', 'tianshui'], ['lushui', 'chengdu'], ['lushui', 'jianning']];
+
+/* v5.0.3 — 77거점 역참로를 손으로 고정한다.
+   거리만 보는 자동 최소신장트리는 호로관↔낙양·업↔남피 같은 뻔한 길을 놓치고,
+   삭방↔함곡관·산해관↔남피처럼 바다를 가로지르거나 지도를 관통하는 선을 만들었다.
+   순서: 서량 → 관중 → 하북·병주·유주 → 중원 → 서주·회남 → 형주 → 익주·남만 → 강동 → 요동·한국 */
+SK.ROAD_EDGES = [
+  /* 서량 — 하서회랑과 농서 */
+  ['wuwei', 'tianshui'], ['wuwei', 'anding'], ['tianshui', 'anding'], ['tianshui', 'yangping'],
+  ['anding', 'changan'], ['anding', 'shuofang'], ['shuofang', 'dai'],
+  /* 관중 — 장안·동관·함곡관·낙양 */
+  ['changan', 'dongguan'], ['dongguan', 'hangu'], ['hangu', 'luoyang'],
+  ['changan', 'hanzhong'], ['luoyang', 'wan'], ['luoyang', 'huluguan'],
+  /* 하북·병주 — 태행산맥 양쪽과 하북 평야 */
+  ['jinyang', 'dai'], ['jinyang', 'shangdang'], ['jinyang', 'ye'],
+  ['shangdang', 'hoguan'], ['hoguan', 'ye'], ['shangdang', 'luoyang'],
+  ['ye', 'nanpi'], ['ye', 'puyang'], ['nanpi', 'ji'], ['nanpi', 'pingyuan'],
+  ['ji', 'beiping'], ['ji', 'dai'], ['beiping', 'shanhaiguan'], ['shanhaiguan', 'liaodong'],
+  /* 청주·서주 */
+  ['pingyuan', 'puyang'], ['pingyuan', 'beihai'], ['beihai', 'langya'],
+  ['langya', 'xiapi'], ['xiapi', 'xiaopei'], ['xiapi', 'guangling'], ['guangling', 'hailing'],
+  ['xiaopei', 'chenliu'], ['xiaopei', 'shouchun'],
+  /* 중원 — 진류·허창·여남·복양 */
+  ['puyang', 'chenliu'], ['chenliu', 'xuchang'], ['chenliu', 'huluguan'],
+  ['huluguan', 'xuchang'], ['xuchang', 'wan'], ['xuchang', 'runan'],
+  ['wan', 'xinye'], ['runan', 'shouchun'], ['shouchun', 'hefei'],
+  /* 형주 */
+  ['xinye', 'xiangyang'], ['xiangyang', 'jiangling'], ['xiangyang', 'jiangxia'],
+  ['xiangyang', 'shangyong'], ['jiangling', 'jiangxia'], ['jiangling', 'wuling'],
+  ['jiangling', 'changsha'], ['wuling', 'changsha'], ['changsha', 'lingling'],
+  ['lingling', 'guiyang'], ['changsha', 'guiyang'], ['guiyang', 'nanhai'],
+  ['nanhai', 'gangju'], ['gangju', 'guiyang'], ['jiangxia', 'changsha'],
+  /* 익주·남만 */
+  ['hanzhong', 'yangping'], ['yangping', 'jiange'], ['jiange', 'zhidong'],
+  ['zhidong', 'chengdu'], ['chengdu', 'yongan'], ['chengdu', 'lushui'],
+  ['yongan', 'jiangling'], ['lushui', 'jianning'], ['jianning', 'yunnan'],
+  ['jianning', 'yongchang'], ['yunnan', 'yongchang'],
+  /* 강동 */
+  ['hefei', 'jianye'], ['hefei', 'jiangxia'], ['runan', 'jiangxia'],
+  ['jianye', 'wu'], ['jianye', 'jianan'], ['wu', 'shishang'], ['shishang', 'kuaiji'],
+  ['shishang', 'jianan'], ['kuaiji', 'jianan'], ['nanhai', 'jianan'],
+  /* 요동·한국 */
+  ['liaodong', 'ansiseong'], ['ansiseong', 'guknaeseong'], ['guknaeseong', 'hamhung'],
+  ['hamhung', 'pyongyang'], ['pyongyang', 'gaeseong'], ['gaeseong', 'cheolwon'],
+  ['gaeseong', 'hanseong'], ['cheolwon', 'wonju'], ['hanseong', 'wonju'],
+  ['hanseong', 'ungjin'], ['hanseong', 'gwangju'], ['wonju', 'cheongju'],
+  ['wonju', 'daegwallyeong'], ['daegwallyeong', 'gyeongju'], ['cheongju', 'ungjin'],
+  ['cheongju', 'wansan'], ['ungjin', 'wansan'], ['ungjin', 'gwangju'], ['wansan', 'gwangju'],
+  ['gyeongju', 'busan'],
+  /* 섬 — 같은 섬 안에서만 */
+  ['taipei', 'tainan'],
+];
+
+SK.ROAD_VIA = {
+  'shanhaiguan|liaodong': [[1312.5, 227.6], [1332.5, 227.6], [1353.1, 218.8], [1374.4, 201.3], [1403.8, 191.9], [1441.2, 190.7], [1477.5, 181.9], [1512.5, 165.7]],
+  'gaeseong|hanseong': [[1665.0, 338.9], [1715.0, 356.4]],
+  'hanseong|ungjin': [[1731.2, 382.6], [1713.8, 417.7]],
+  'ungjin|gwangju': [[1706.2, 457.7], [1708.8, 502.7]],
+};
 
 SK.buildRoads = function () {
   const pts = SK.CITY_LIST;
@@ -967,49 +1041,32 @@ SK.buildRoads = function () {
     SK.ROADS.push([a.id, b.id]);
     return true;
   };
-  // 1) 최소 신장 트리 — 모든 거점 연결 보장
-  const inTree = new Set([pts[0].id]);
-  const rest = pts.slice(1);
-  while (rest.length) {
-    let bi = 0, bj = 0, bd = Infinity;
-    rest.forEach((b, j) => {
-      pts.forEach((a) => {
-        if (!inTree.has(a.id)) return;
-        const d = dist(a, b);
-        if (d < bd) { bd = d; bi = j; bj = 0; }
-      });
-    });
-    const b = rest.splice(bi, 1)[0];
-    let best = null, bdist = Infinity;
-    inTree.forEach((aid) => {
-      const a = SK.CITY[aid];
-      const d = dist(a, b);
-      if (d < bdist) { bdist = d; best = a; }
-    });
-    if (best) add(best, b);
-    inTree.add(b.id);
-  }
-  // 2) 가까운 두 이웃 추가 — 길이 갈라지고 순환로가 생긴다
-  pts.forEach((a) => {
-    pts.filter((b) => b !== a && !banned.has(pairKey(a.id, b.id)) && landOk(a.id, b.id))
-      .sort((x, y) => dist(a, x) - dist(a, y)).slice(0, 2).forEach((b) => add(a, b));
+  // 1) 손으로 고정한 역참로 — 77거점의 실제 지리를 따른다
+  SK.ROAD_EDGES.forEach(([a, b]) => {
+    if (SK.CITY[a] && SK.CITY[b]) add(SK.CITY[a], SK.CITY[b]);
   });
-  // 3) 반드시 있어야 할 길
+  // 2) 반드시 있어야 할 길 (안전망 — 목록에서 빠져도 여기서 살아난다)
   SK.MUST_ROADS.forEach(([a, b]) => {
     if (SK.CITY[a] && SK.CITY[b]) add(SK.CITY[a], SK.CITY[b]);
   });
-  // 4) 막다른 길 보수 — 육로가 하나뿐인 거점은 가장 가까운 (금지되지 않은) 이웃과 하나 더 잇는다
+  // 3) 목록에 없는 새 거점이 생기면 가장 가까운 이웃과 잇는다 (앞으로 거점을 늘릴 때 대비)
   pts.forEach((a) => {
-    if (a.roads.length >= 2) return;
+    if (a.roads.length) return;
+    const near = pts.filter((b) => b !== a && !banned.has(pairKey(a.id, b.id)) && landOk(a.id, b.id))
+      .sort((x, y) => dist(a, x) - dist(a, y));
+    near.slice(0, 2).forEach((b) => add(a, b));
+  });
+  // 4) 막다른 길 보수 — 육로도 해로도 없이 홀로 남은 거점만 잇는다
+  pts.forEach((a) => {
+    if (a.roads.length + a.sea.length) return;
     const cand = pts.filter((b) => b !== a && !a.roads.includes(b.id) && !banned.has(pairKey(a.id, b.id)) && landOk(a.id, b.id))
       .sort((x, y) => dist(a, x) - dist(a, y));
     if (cand.length) add(a, cand[0]);
   });
-  // 5) 해로 — 배로만 건너는 길은 모두 여기에 둔다
-  const sea = [['tamna', 'busan'], ['tamna', 'jianye'], ['taipei', 'jianan'], ['tainan', 'nanhai'],
-    ['hailing', 'jianye'], ['liaodong', 'pyongyang'], ['busan', 'tainan'], ['langya', 'beihai'],
-    ['beihai', 'liaodong'], ['shanhaiguan', 'beihai'], ['tamna', 'haenam'],
-    ['tainan', 'jianan'], ['jianye', 'guangling'], ['kuaiji', 'jianan']];
+  // 5) 해로 — 배로만 건너는 길은 모두 여기에 둔다 (탐라·대만·발해·황해·남해)
+  const sea = [['tamna', 'busan'], ['tamna', 'hailing'], ['tamna', 'jianye'],
+    ['taipei', 'jianan'], ['tainan', 'nanhai'], ['jianye', 'guangling'],
+    ['liaodong', 'pyongyang'], ['beihai', 'liaodong'], ['shanhaiguan', 'beihai']];
   sea.forEach(([a, b]) => {
     if (!SK.CITY[a] || !SK.CITY[b]) return;
     SK.CITY[a].sea.push(b); SK.CITY[b].sea.push(a);
@@ -1017,9 +1074,109 @@ SK.buildRoads = function () {
   });
 };
 
+/* v5.0.3 — 길이 지나는 점들. 바다를 가로지르는 구간은 SK.ROAD_VIA 의 꺾은점을 따라 해안으로 돌아간다.
+   map.js 그리기와 SK.roadIssues 감사가 같은 좌표를 쓴다. */
+SK.roadPoints = function (a, b) {
+  const A = SK.CITY[a], B = SK.CITY[b];
+  if (!A || !B) return [];
+  const ax = A.u * 2000, ay = A.v * 1333, bx = B.u * 2000, by = B.v * 1333;
+  const via = (SK.ROAD_VIA || {})[a + '|' + b] || (SK.ROAD_VIA || {})[b + '|' + a] || null;
+  if (via && via.length) {
+    return [[ax, ay]].concat(via.map((p) => [p[0], p[1]]), [[bx, by]]);
+  }
+  const mx = (ax + bx) / 2 + (by - ay) * -0.045;
+  const my = (ay + by) / 2 + (bx - ax) * 0.045;
+  const pts = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    pts.push([(1 - t) * (1 - t) * ax + 2 * (1 - t) * t * mx + t * t * bx,
+      (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * my + t * t * by]);
+  }
+  return pts;
+};
+
 SK.neighbors = function (id) { return (SK.CITY[id] && SK.CITY[id].roads) || []; };
 SK.seaNeighbors = function (id) { return (SK.CITY[id] && SK.CITY[id].sea) || []; };
 SK.allNeighbors = function (id) { return SK.neighbors(id).concat(SK.seaNeighbors(id)); };
+
+/* ───────────── 도로망 자체 점검 (v5.0.3) ─────────────
+   ‣ 육로가 바다를 건너는가 — 지도 폴리곤 위에서 40점을 찍어 본다
+   ‣ 관문이 양쪽을 잇는가 · 홀로 남은 거점이 있는가 · 77거점이 한 덩어리인가
+   QA에서 SK.roadIssues() 로 확인한다. 평소 게임 진행에는 쓰이지 않는다. */
+SK.roadIssues = function () {
+  const out = [];
+  const pts = SK.CITY_LIST;
+  if (!pts.length) return ['거점이 없다'];
+  const MAPW = 2000, MAPH = 1333;
+  let landPath = null, lctx = null;
+  if (typeof Path2D !== 'undefined' && SK.MAPGEO) {
+    try {
+      landPath = new Path2D();
+      SK.MAPGEO.land.forEach((flat) => {
+        landPath.moveTo(flat[0], flat[1]);
+        for (let i = 2; i < flat.length; i += 2) landPath.lineTo(flat[i], flat[i + 1]);
+        landPath.closePath();
+      });
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      lctx = cv.getContext('2d');
+    } catch (e) { landPath = null; }
+  }
+  const onLand = (x, y) => (lctx && landPath ? lctx.isPointInPath(landPath, x, y) : true);
+  const deg = {};
+  const seaDeg = {};
+  SK.CITY_LIST.forEach((c) => { deg[c.id] = 0; seaDeg[c.id] = 0; });
+  SK.ROADS.forEach(([a, b]) => {
+    deg[a] = (deg[a] || 0) + 1; deg[b] = (deg[b] || 0) + 1;
+    const A = SK.CITY[a], B = SK.CITY[b];
+    if (!A || !B) { out.push(`없는 거점 ${a}-${b}`); return; }
+    const path = SK.roadPoints(a, b);
+    let wet = 0, total = 0;
+    for (let i = 0; i < path.length; i++) {
+      total++;
+      if (!onLand(path[i][0], path[i][1])) wet++;
+      if (i < path.length - 1) {
+        for (let k = 1; k < 6; k++) {
+          const t = k / 6;
+          total++;
+          if (!onLand(path[i][0] + (path[i + 1][0] - path[i][0]) * t,
+            path[i][1] + (path[i + 1][1] - path[i][1]) * t)) wet++;
+        }
+      }
+    }
+    if (wet / Math.max(1, total) > 0.06) out.push(`바다 횡단 ${A.name}-${B.name} (${wet}/${total})`);
+  });
+  SK.SEALANES.forEach(([a, b]) => {
+    seaDeg[a] = (seaDeg[a] || 0) + 1; seaDeg[b] = (seaDeg[b] || 0) + 1;
+  });
+  const island = SK.ISLAND_GROUP || {};
+  SK.CITY_LIST.forEach((c) => {
+    if (island[c.id]) return;
+    if (deg[c.id] + seaDeg[c.id] === 0) out.push(`홀로 남은 거점 ${c.name}`);
+    else if (deg[c.id] < 2 && seaDeg[c.id] === 0) out.push(`길이 하나뿐 ${c.name} (${deg[c.id]})`);
+  });
+  /* 관문 — 양쪽을 잇는 두 갈래 이상의 육로 */
+  SK.CITY_LIST.filter((c) => c.type === 'pass').forEach((c) => {
+    if (deg[c.id] < 2) out.push(`관문 ${c.name} — 육로 ${deg[c.id]}개`);
+  });
+  /* 한 덩어리인가 (섬 제외) */
+  const seen = new Set();
+  const stack = [pts[0].id];
+  while (stack.length) {
+    const id = stack.pop();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    (SK.neighbors(id) || []).forEach((n) => { if (!seen.has(n)) stack.push(n); });
+  }
+  const islandIds = Object.keys(island);
+  const dry = pts.filter((c) => !islandIds.includes(c.id) && !seen.has(c.id));
+  if (dry.length) out.push(`길이 끊긴 무리: ${dry.map((c) => c.name).join(', ')}`);
+  SK.SEALANES.forEach(([a, b]) => {
+    if (islandIds.includes(a) && !seaDeg[a]) out.push(`섬 ${a} 해로 없음`);
+    if (islandIds.includes(b) && !seaDeg[b]) out.push(`섬 ${b} 해로 없음`);
+  });
+  return out;
+};
 
 /* 도시 유형·데이터의 battleType을 그대로 사용 */
 SK.battleTypeFor = function (city) {

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 천하통일</title>
-<link rel="stylesheet" href="css/game.css?v=10" />
+<link rel="stylesheet" href="css/game.css?v=11" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -105,8 +105,10 @@
         <button id="zoom-out" class="round-btn" aria-label="축소">−</button>
         <button id="zoom-fit" class="round-btn small" aria-label="전체 보기">⤢</button>
         <button id="go-capital" class="round-btn small" aria-label="수도로">위</button>
+        <button id="legend-toggle" class="round-btn small" aria-label="범례" aria-expanded="false">ⓘ</button>
       </div>
-      <div class="map-legend">
+      <!-- v5.0.3 — 범례는 기본으로 접어 두어 남쪽 거점(여남·영릉 등)을 가리지 않는다 -->
+      <div class="map-legend" id="map-legend" hidden>
         <span><img class="lg-img" src="assets/icons/capital.webp" alt="" />대도시</span>
         <span><img class="lg-img" src="assets/icons/town.webp" alt="" />소도시</span>
         <span><img class="lg-img" src="assets/icons/pass.webp" alt="" />관문</span>
@@ -217,12 +219,14 @@
           <div class="uc-bars">
             <div class="hpbar"><i id="uc-hp"></i><em id="uc-hp-txt">0/0</em></div>
             <div class="mpbar"><i id="uc-mp"></i><em id="uc-mp-txt">0/0</em></div>
+            <div class="expbar"><i id="uc-exp"></i><em id="uc-exp-txt">EXP 0/0</em></div>
           </div>
           <div class="uc-meta">
             <span>병력 <b id="uc-troops">0</b></span>
             <span>훈련도 <b id="uc-train">0</b></span>
           </div>
-          <div class="uc-stats"><span>공 <b id="uc-atk">0</b></span><span>방 <b id="uc-def">0</b></span><span>이동 <b id="uc-mov">0</b></span><span>사거리 <b id="uc-rng">0</b></span></div>
+          <div class="uc-stats"><span>공 <b id="uc-atk">0</b></span><span>방 <b id="uc-def">0</b></span><span>책공 <b id="uc-matk">0</b></span><span>책방 <b id="uc-mdef">0</b></span><span>이동 <b id="uc-mov">0</b></span><span>사거리 <b id="uc-rng">0</b></span></div>
+          <div class="uc-buffs" id="uc-buffs"></div>
         </div>
       </div>
       <div class="battle-actions" id="battle-actions">
@@ -246,13 +250,13 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=10"></script>
-<script src="js/city_geo.js?v=10"></script>
-<script src="js/data.js?v=10"></script>
-<script src="js/bgm.js?v=10"></script>
-<script src="js/sfx.js?v=10"></script>
-<script src="js/app.js?v=10"></script>
-<script src="js/map.js?v=10"></script>
-<script src="js/battle.js?v=10"></script>
+<script src="js/mapgeo.js?v=11"></script>
+<script src="js/city_geo.js?v=11"></script>
+<script src="js/data.js?v=11"></script>
+<script src="js/bgm.js?v=11"></script>
+<script src="js/sfx.js?v=11"></script>
+<script src="js/app.js?v=11"></script>
+<script src="js/map.js?v=11"></script>
+<script src="js/battle.js?v=11"></script>
 </body>
 </html>

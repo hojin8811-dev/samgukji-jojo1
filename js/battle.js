@@ -1391,11 +1391,24 @@
   function effDef(u) {
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
-    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * (1 + buffVal(u, 'def'));
+    /* 방어 강화·약화를 실제 피해 계산에 반영한다 (0 아래로는 내려가지 않는다) */
+    const mul = Math.max(0.05, 1 + buffVal(u, 'def'));
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * mul;
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
     return u.rng + aff.rng;
+  }
+  /* v5.0.3 — 책략 공격력(책공)과 책략 방어력(책방/정신력).
+     지력이 책공의 바탕이고, 지력+통솔이 책방의 바탕이다. 병력이 줄면 함께 약해진다. */
+  function magicAtk(u) {
+    const tp = troopPower(u);
+    return (u.ji * 1.05 + u.lv * 3 + Math.min(400, u.hp * 0.02) * 0.25) * tp * (1 + buffVal(u, 'atk') * 0.6);
+  }
+  function magicDef(u) {
+    const ch = B.tiles[u.y][u.x];
+    const mul = Math.max(0.05, 1 + buffVal(u, 'def') * 0.6);
+    return (u.ji * 0.62 + u.tong * 0.34 + u.lv * 2) * troopGuard(u) * (1 + terr(u).def * 0.6) * mul;
   }
   function canHit(a, d, rng) {
     const dist = cheb(a.x, a.y, d.x, d.y);
@@ -1773,7 +1786,7 @@
       castCircle(u, sk.kind === 'heal' ? '150,240,180' : '255,215,120');
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
       if (sk.kind === 'heal') {
-        const heal = healAmount(sk, target);
+        const heal = Math.round(healAmount(sk, target) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 420)));
         target.hp = Math.min(target.maxHp, target.hp + heal);
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + heal, '#a8f0b8');
         addFx({ kind: 'heal', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 700 });
@@ -1795,8 +1808,11 @@
       const color = sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215';
       B.units.forEach((t) => {
         if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
-          if (sk.kind === 'debuffDef') t.buffs.def = { v: sk.amount, t: sk.turns };
-          else t.buffs.atk = { v: sk.amount, t: sk.turns };
+          /* 책략이 강할수록 약화가 깊어진다 (0.75 ~ 1.35배) */
+          const potency = Math.max(0.75, Math.min(1.35, 1 + (magicAtk(u) - magicDef(t)) / 500));
+          const amt = sk.amount * potency;
+          if (sk.kind === 'debuffDef') t.buffs.def = { v: amt, t: sk.turns };
+          else t.buffs.atk = { v: amt, t: sk.turns };
           addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.3) * TILE, sk.kind === 'debuffDef' ? '방어↓' : '공격↓',
             sk.kind === 'debuffDef' ? '#c9a6ff' : '#ffb0d8');
           addFx({ kind: 'spell', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.7) * TILE, life: 640, color });
@@ -1820,7 +1836,7 @@
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && cheb(x, y, t.x, t.y) <= rad) {
-            const dmg = Math.max(10, Math.round(sk.power * 0.9 + u.ji * 0.35 + Math.min(400, u.hp * 0.02) - t.ji * 0.14));
+            const dmg = Math.max(10, Math.round(sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80));
             t.hp = Math.max(0, t.hp - dmg);
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
@@ -1842,7 +1858,7 @@
       SK.sfx.play('spell');
       setTimeout(() => {
         if (!B || B.over) { finish(0); return; }
-        const dmg = Math.max(10, Math.round(sk.power * 0.9 + u.ji * 1.5 + Math.min(600, u.hp * 0.04) - target.ji * 0.4));
+        const dmg = Math.max(10, Math.round(sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90));
         target.hp = Math.max(0, target.hp - dmg);
         target.flash = 1; target.shake = 240;
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
@@ -1923,7 +1939,7 @@
         <div class="bi-main">
           <p class="bi-cls">${C.name} · Lv.${t.lv} ${t.boss ? '· 적장' : ''}${t.tier ? ` · ${t.tier}급` : ''}</p>${t.skillName ? `<p class="bi-skill">특기 — ${t.skillName}</p>` : ''}
           <div class="bi-hp"><i style="width:${Math.round(t.hp / t.maxHp * 100)}%"></i><span>병력 ${Math.round(t.hp).toLocaleString('ko-KR')} / ${Math.round(t.maxHp).toLocaleString('ko-KR')}</span></div>
-          <p class="bi-train">훈련도 ${t.train == null ? trainOf(t.lv, t.tier) : t.train}</p><div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>이동 ${t.mov}</span><span>사거리 ${effRng(t)}</span></div>
+          <p class="bi-train">훈련도 ${t.train == null ? trainOf(t.lv, t.tier) : t.train}</p><div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>책공 ${Math.round(magicAtk(t))}</span><span>책방 ${Math.round(magicDef(t))}</span><span>이동 ${t.mov}</span><span>사거리 ${effRng(t)}</span></div>
           <p class="bi-terr">지형 ${tr.name} · 방어 ${Math.round(tr.def * 100)}%${bondAllyMul(t) > 1 ? ' · 인연 공격 +15%' : ''}</p>
         </div>
       </div>${bonds ? `<div class="hi-bonds">${bonds}</div>` : ''}`,
@@ -2271,10 +2287,29 @@
         $('#uc-hp-txt').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-mp').style.width = Math.round(u.mp / u.maxMp * 100) + '%';
         $('#uc-mp-txt').textContent = `${u.mp}/${u.maxMp}`;
+        /* v5.0.3 — 경험치 바 */
+        const needExp = SK.expNeed ? SK.expNeed(u.lv) : 100;
+        const ex = $('#uc-exp'), exT = $('#uc-exp-txt');
+        if (ex) ex.style.width = Math.max(0, Math.min(100, Math.round((u.exp || 0) / needExp * 100))) + '%';
+        if (exT) exT.textContent = `EXP ${u.exp || 0}/${needExp}`;
         $('#uc-troops').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-train').textContent = `${u.train == null ? trainOf(u.lv, u.tier) : u.train}`;
         $('#uc-atk').textContent = Math.round(effAtk(u));
         $('#uc-def').textContent = Math.round(effDef(u));
+        const ma = $('#uc-matk'), md = $('#uc-mdef');
+        if (ma) ma.textContent = Math.round(magicAtk(u));
+        if (md) md.textContent = Math.round(magicDef(u));
+        const bfBox = $('#uc-buffs');
+        if (bfBox) {
+          const pills = [];
+          ['atk', 'def'].forEach((k) => {
+            const b = u.buffs[k];
+            if (!b || b.t <= 0) return;
+            const pct = Math.round(b.v * 100);
+            pills.push(`<span class="bf ${pct >= 0 ? 'good' : 'bad'}">${k === 'atk' ? '공' : '방'}${pct >= 0 ? '+' : ''}${pct}% (${b.t}턴)</span>`);
+          });
+          bfBox.innerHTML = pills.join('');
+        }
         $('#uc-mov').textContent = u.mov;
         $('#uc-rng').textContent = effRng(u);
         const canAct = u.side === 'ally' && !u.acted;
@@ -2282,9 +2317,12 @@
       } else {
         card.classList.remove('on');
         $('#uc-name').textContent = '부대를 선택하세요';
+        const bfBox0 = $('#uc-buffs'); if (bfBox0) bfBox0.innerHTML = '';
         $('#uc-cls').textContent = B.def.desc;
         $('#uc-terrain').textContent = '';
         $('#uc-hp').style.width = '0%'; $('#uc-mp').style.width = '0%';
+        const ex0 = $('#uc-exp'); if (ex0) ex0.style.width = '0%';
+        const exT0 = $('#uc-exp-txt'); if (exT0) exT0.textContent = 'EXP 0/0';
         $('#uc-hp-txt').textContent = ''; $('#uc-mp-txt').textContent = '';
         $('#uc-troops').textContent = '0'; $('#uc-train').textContent = '-';
         $('#uc-atk').textContent = '-'; $('#uc-def').textContent = '-';
@@ -2304,6 +2342,7 @@
       get floats() { return floats.map((f) => f.text); },
       get anims() { return anims.map((a) => a.kind); },
       tap(x, y) { onTileTap(x, y); },
+      select(name) { const u = B.units.find((o) => o.name === name && o.alive); if (u) { selectUnit(u); return { x: u.x, y: u.y }; } return null; },
       endTurn,
       openSkillMenu,
       beginSkill,
@@ -2315,7 +2354,9 @@
       setTimeScale(v) { timeScale = v > 0 ? v : 1; return timeScale; },
       eff(name) {
         const u = B.units.find((o) => o.name === name);
-        return u ? { atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), rng: effRng(u), bond: bondAllyMul(u) } : null;
+        return u ? { atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), matk: Math.round(magicAtk(u)),
+          mdef: Math.round(magicDef(u)), rng: effRng(u), bond: bondAllyMul(u),
+          buffs: JSON.parse(JSON.stringify(u.buffs || {})) } : null;
       },
       place(unitName, x, y) { const u = B.units.find((o) => o.name === unitName); if (u) { u.x = x; u.y = y; u.rx = x; u.ry = y; } return u ? { x: u.x, y: u.y } : null; },
       attack(targetId) { const u = B.sel; const t = B.units.find((o) => o.id === targetId); if (u && t) doAttack(u, t); },

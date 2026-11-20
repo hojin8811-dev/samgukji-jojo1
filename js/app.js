@@ -246,9 +246,17 @@
     SK.CITY_LIST.forEach((c) => {
       const cs = st.cities[c.id];
       if (cs.owner !== st.playerFaction) return;
-      /* v5.0.1 — 군주는 군주로 둔다. 자기 성의 태수·군사로 자동 임명하지 않는다 */
       const all = st.heroes.filter((h) => h.city === c.id);
-      const gens = all.filter((h) => h.name !== lord);
+      /* v5.0.3 — 군주가 주둔한 성은 군주가 친히 다스린다 (태수 = 군주, 군사는 나머지 중 최적) */
+      const lordHero = all.find((h) => h.name === lord) || null;
+      if (lordHero) {
+        cs.governor = lordHero.uid;
+        const strat = all.filter((h) => h.uid !== lordHero.uid)
+          .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
+        cs.advisor = strat ? strat.uid : null;
+        return;
+      }
+      const gens = all;
       if (!gens.length) { cs.governor = null; cs.advisor = null; return; }
       const gov = gens.slice().sort((a, b) => (b.pol * 0.6 + b.tong * 0.4) - (a.pol * 0.6 + a.tong * 0.4))[0];
       cs.governor = gov ? gov.uid : null;
@@ -257,6 +265,43 @@
       cs.advisor = strat ? strat.uid : null;
     });
   }
+
+  /* v5.0.3 — 군주가 있는 성은 반드시 군주가 태수다.
+     군주가 다른 성으로 옴기면 그 성의 태수가 되고, 떠난 성은 남은 장수 중 가장 나은 사람이 맡는다.
+     플레이어가 고른 태수는 군주가 그 성에 없는 한 그대로 둔다. */
+  function enforceLordGovernor(st) {
+    st = st || SK.state;
+    if (!st || !st.factions) return false;
+    const fid = st.playerFaction;
+    const lord = (st.factions[fid] || {}).lord;
+    if (!lord) return false;
+    const lordHero = (st.heroes || []).find((h) => h.name === lord);
+    const lordCity = lordHero && st.cities[lordHero.city] && st.cities[lordHero.city].owner === fid
+      ? lordHero.city : null;
+    let changed = false;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      if (!cs || cs.owner !== fid) return;
+      const gens = (st.heroes || []).filter((h) => h.city === c.id);
+      if (c.id === lordCity) {
+        if (cs.governor !== lordHero.uid) { cs.governor = lordHero.uid; changed = true; }
+        if (cs.advisor === lordHero.uid) {
+          const strat = gens.filter((h) => h.uid !== lordHero.uid)
+            .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
+          cs.advisor = strat ? strat.uid : null;
+          changed = true;
+        }
+        return;
+      }
+      if (lordHero && cs.governor === lordHero.uid) { cs.governor = null; changed = true; }
+      if (cs.governor == null && gens.length) {
+        const gov = gens.slice().sort((a, b) => (b.pol * 0.6 + b.tong * 0.4) - (a.pol * 0.6 + a.tong * 0.4))[0];
+        if (gov) { cs.governor = gov.uid; changed = true; }
+      }
+    });
+    return changed;
+  }
+  SK.enforceLordGovernor = enforceLordGovernor;
 
   /* 인물 하나를 내정 장수로 — 모든 장수는 Lv.1에서 출발한다 */
   function makeHero(name, cityId, lv) {
@@ -541,13 +586,13 @@
         ensureSlots(cs, c);                 // v5 — 공터 슬롯 이관
         if (cs.scoutedUntil == null) cs.scoutedUntil = 0;
       });
+      /* v5.0.3 — 예전 저장 파일: 군주를 태수에서 빼 둔 것을 되돌린다 */
+      enforceLordGovernor(s);
       const lordName = ((s.factions || {})[s.playerFaction] || {}).lord;
       if (lordName) {
         SK.CITY_LIST.forEach((c) => {
           const cs = s.cities && s.cities[c.id];
           if (!cs) return;
-          const g = (s.heroes || []).find((h) => h.uid === cs.governor);
-          if (g && g.name === lordName) cs.governor = null;
           const a = (s.heroes || []).find((h) => h.uid === cs.advisor);
           if (a && a.name === lordName) cs.advisor = null;
         });
@@ -1103,9 +1148,11 @@
      공터 슬롯(소도시 5 · 대도시 8 · 관문 2 · 요새 3)이 이 자리에 그대로 그려지고,
      건물을 누르면 건설/증축/담당 배치가 바로 열린다. */
   const YARD_SPOTS = [
-    { x: 20, y: 34 }, { x: 35, y: 27 }, { x: 66, y: 25 }, { x: 81, y: 37 },
-    { x: 27, y: 51 }, { x: 45, y: 47 }, { x: 63, y: 53 }, { x: 78, y: 61 },
+    { x: 18, y: 26 }, { x: 34, y: 21 }, { x: 66, y: 21 }, { x: 82, y: 26 },
+    { x: 18, y: 58 }, { x: 34, y: 62 }, { x: 66, y: 62 }, { x: 82, y: 58 },
   ];
+  /* v5.0.3 — 성벽은 안뜰이 아니라 성문·외벽 위에 둔다 (2026-11-20 지적) */
+  const WALL_SPOT = { x: 50, y: 82 };
   const OFFICE_SPOT = { x: 50, y: 15 };
   const HOTSPOTS = [{ key: 'office', name: '관아', x: OFFICE_SPOT.x, y: OFFICE_SPOT.y }];
 
@@ -1114,6 +1161,8 @@
     const c = CITY[id];
     const st = s.cities[id];
     if (st.owner !== PF()) { SK.openCitySheet(id); return; }
+    /* v5.0.3 — 군주가 주둔한 성은 언제나 군주가 친히 다스린다 */
+    if (enforceLordGovernor(s)) SK.save();
     s.lastCity = id;
     SK.save();
     const f = SK.factionInfo(st.owner);
@@ -1516,6 +1565,7 @@
       b.onclick = () => {
         const dest = b.dataset.c;
         g.city = dest;
+        enforceLordGovernor(s);
         SK.save();
         m.close();
         SK.toast(`${josa(g.name, 'i')} ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
@@ -1654,7 +1704,7 @@
     ensureSlots(cs, c);
     const office = `<button class="hotspot office" style="left:${OFFICE_SPOT.x}%;top:${OFFICE_SPOT.y}%" data-key="office"><i></i><span>관아</span></button>`;
     const yard = cs.slots.map((sl, i) => {
-      const sp = YARD_SPOTS[i] || { x: 50, y: 60 };
+      const sp = sl.key === 'wall' ? WALL_SPOT : (YARD_SPOTS[i] || { x: 50, y: 60 });
       if (!sl.key) {
         return `<button class="yard-b empty" data-slot="${i}" style="left:${sp.x}%;top:${sp.y}%" aria-label="공터 건설">
           <span class="yb-plus">＋</span><span class="yb-tag">공터</span></button>`;
@@ -2222,7 +2272,8 @@
     const m = SK.modal({
       kicker: `${CITY[from].name} → ${CITY[to].name}`, title: '수송품을 정하세요',
       body: `<div class="transport">
-        <label>병력 <input id="tp-t" type="range" min="0" max="${maxT}" step="100" value="${t}"><b id="tp-tv">${fmt(t)}</b></label>
+        <label>병력 <input id="tp-t" type="range" min="0" max="${maxT}" step="1" value="${t}"><b id="tp-tv">${fmt(t)}</b>
+          <span class="tp-step"><button id="tp-tminus" aria-label="1 줄이기">−1</button><button id="tp-tplus" aria-label="1 늘리기">＋1</button></span></label>
         <label>금 <input id="tp-g" type="range" min="0" max="${maxG}" step="50" value="${g}"><b id="tp-gv">${fmt(g)}</b></label>
         <label>군량 <input id="tp-f" type="range" min="0" max="${maxF}" step="100" value="${f}"><b id="tp-fv">${fmt(f)}</b></label>
         <p class="talent-note">도착할 성의 병력 상한은 ${fmt(cityCap(s.cities[to]))}입니다.</p>
@@ -2251,6 +2302,16 @@
       if (el) el.oninput = () => { setter(Number(el.value)); lab.textContent = fmt(Number(el.value)); };
     };
     bindRange('#tp-t', '#tp-tv', (v) => { t = v; });
+    const tEl = m.el.querySelector('#tp-t');
+    const tLab = m.el.querySelector('#tp-tv');
+    const stepT = (d) => {
+      t = Math.max(0, Math.min(maxT, Math.round(t) + d));
+      if (tEl) tEl.value = String(t);
+      if (tLab) tLab.textContent = fmt(t);
+    };
+    const tm = m.el.querySelector('#tp-tminus'), tp = m.el.querySelector('#tp-tplus');
+    if (tm) tm.onclick = () => stepT(-1);
+    if (tp) tp.onclick = () => stepT(1);
     bindRange('#tp-g', '#tp-gv', (v) => { g = v; });
     bindRange('#tp-f', '#tp-fv', (v) => { f = v; });
   }
@@ -2326,13 +2387,16 @@
     if (info) {
       const cap = cityCap(cs);
       const pct = Math.round(cs.troops / cap * 100);
-      const govName = (cityGens(cityId).find((g) => g.uid === cs.governor) || {}).name || '없음';
+      const govG = cityGens(cityId).find((g) => g.uid === cs.governor) || null;
+      const govName = govG ? govG.name : '없음';
+      const lordNow = SK.factionInfo(PF()).lord;
+      const govIsLord = !!(govG && lordNow && govG.name === lordNow);
       const advName = (cityGens(cityId).find((g) => g.uid === cs.advisor) || {}).name || '없음';
       info.innerHTML = `<span class="ci-item">인구 <b>${fmt(cs.pop)}</b></span>
         <span class="ci-item">최대 병력 <b>${fmt(cap)}</b> <em>(인구 17%)</em></span>
         <span class="ci-item">주둔병 <b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b> <em>${pct}%</em></span>
         <span class="ci-item">훈련도 <b>${cs.train == null ? 50 : cs.train}</b></span>
-        <span class="ci-item">태수 <b>${govName}</b></span>
+        <span class="ci-item">태수 <b>${govName}${govIsLord ? ' <em>(군주)</em>' : ''}</b></span>
         <span class="ci-item">군사 <b>${advName}</b></span>
         <span class="ci-item">주둔 장수 <b>${s.heroes.filter((h) => h.city === cityId).length}</b></span>`;
     }
@@ -2674,7 +2738,8 @@
     B: ['쓸 만한 인재라 합니다', '한 고을을 맡길 만하다는 평입니다', '아직 세상에 알려지지 않았을 뿐이지요'],
     C: ['젊은 데다 패기가 있습니다', '발이 빠르다 합니다', '성실하다는 소문입니다'],
   };
-  const TALENT_LIMIT = 10;
+  /* v5.0.3 — 성 하나에 장수 10명 제한을 없앴다. 삼국지처럼 한 성에 인재를 모을 수 있다 */
+  const TALENT_LIMIT = 99;
 
   /* 이 성 + 길로 이어진 성의 재야 인재 (주점 진열) — 같은 지역 인물만 보인다 */
   function tavernPool(cityId) {
@@ -2774,7 +2839,7 @@
           return;
         }
         if (s.gold < cost) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${fmt(cost)})`); return; }
-        if (cityGens(cityId).length >= TALENT_LIMIT) { SK.toast('이 성에는 더 이상 장수를 둘 수 없습니다.'); return; }
+        if (cityGens(cityId).length >= TALENT_LIMIT) { SK.toast('이 성의 장수가 99명을 넘었습니다. 다른 성으로 옮겨 주십시오.'); return; }
         s.gold -= cost;
         const hero = makeHero(g.name, cityId, 1);
         if (!hero) return;
@@ -2835,7 +2900,7 @@
         </div>
         <div class="office-officers">
           <button class="office-officer" data-o="governor" ${gens.length ? '' : 'disabled'}>
-            <span>태수</span><b>${gov ? gov.name : '임명 필요'}</b>
+            <span>태수</span><b>${gov ? gov.name + (SK.factionInfo(PF()).lord === gov.name ? ' (군주)' : '') : '임명 필요'}</b>
             <em>${gov ? `정치 ${gov.pol} · 통솔 ${gov.tong} · 매력 ${gov.cha}` : '정치·통솔이 높을수록 개간·상업·보수·민심이 좋아집니다'}</em>
           </button>
           <button class="office-officer" data-o="advisor" ${gens.length ? '' : 'disabled'}>
@@ -2895,13 +2960,15 @@
   function openGovernorPick(cityId) {
     const cs = SK.state.cities[cityId];
     const lord = SK.factionInfo(PF()).lord;
-    const gens = cityGens(cityId).filter((g) => g.name !== lord);
-    if (!gens.length) { SK.toast('이 성에 태수로 앉힐 장수가 없습니다. (군주는 태수가 되지 않습니다)'); return; }
+    const all = cityGens(cityId);
+    const lordHero = all.find((g) => g.name === lord) || null;
+    const gens = lordHero ? [lordHero].concat(all.filter((g) => g.uid !== lordHero.uid)) : all;
+    if (!gens.length) { SK.toast('이 성에 태수로 앉힐 장수가 없습니다.'); return; }
     const score = (g) => g.pol * 0.6 + g.tong * 0.4;
-    const list = gens.slice().sort((a, b) => score(b) - score(a));
+    const list = lordHero ? gens : gens.slice().sort((a, b) => score(b) - score(a));
     const rows = list.map((g) => `<button class="target-card" data-uid="${g.uid}">
       <img class="tc-portrait" src="${SK.ptSrc(g.portrait)}" alt="">
-      <div class="tc-main"><b>${g.name}${cs.governor === g.uid ? ' <em>태수</em>' : ''}</b>
+      <div class="tc-main"><b>${g.name}${cs.governor === g.uid ? ' <em>태수</em>' : ''}${g.name === lord ? ' <em>군주</em>' : ''}</b>
         <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}</span></div>
       <div class="tc-troops"><span>정치 ${g.pol} · 통솔</span><b>${g.tong}</b></div>
       <span class="tc-go">▸</span>
@@ -2909,13 +2976,19 @@
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 인사`,
       title: '태수로 임명할 장수',
-      body: `<p class="talent-note">태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다. 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>이(가) 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
       actions: [{ label: '취소' }],
       wide: true,
     });
     m.el.querySelectorAll('.target-card').forEach((b) => {
       b.onclick = () => {
-        cs.governor = b.dataset.uid;
+        const pickUid = b.dataset.uid;
+        const pick = gens.find((g) => g.uid === pickUid);
+        if (lordHero && pickUid !== lordHero.uid) {
+          SK.toast(`군주 ${lordHero.name}이(가) 주둔한 성은 군주가 친히 다스립니다. 군주를 옮기면 다른 장수에게 맡길 수 있습니다.`);
+          return;
+        }
+        cs.governor = pickUid;
         SK.save();
         m.close();
         const g = SK.state.heroes.find((h) => h.uid === cs.governor);
@@ -3371,7 +3444,7 @@
         <div><span>남는 병력</span><b id="dp-left">0</b></div>
         <div><span>부대</span><b id="dp-units">0 / ${MAX_UNITS}</b></div>
       </div>
-      <p class="deploy-tip">${SK.BATTLE_TYPES[bt].skill} 병력이 곧 부대의 HP입니다. 장수 줄을 눌러 출진을 켜고 끄고, −／＋로 병력을 500씩 조절하세요.</p>
+      <p class="deploy-tip">${SK.BATTLE_TYPES[bt].skill} 병력이 곧 부대의 HP입니다. 장수 줄을 눌러 출진을 켜고 끄고, −／＋로 병력을 1명씩 조절하세요(길게 누르면 빠르게 오릅니다).</p>
       <div class="deploy-section"><span>명장 출진</span><em>장수별 병력 조절 (최소 500)</em></div>
       <div class="deploy-list" id="deploy-list">${pool.map((h) => heroPickRow(h, pick[h.uid] != null, pick[h.uid] != null ? pick[h.uid] : baseTroops(h))).join('') || '<p class="empty-gens">주둔 장수가 없습니다. 병종 부대만으로 출진할 수 있습니다.</p>'}</div>
       <div class="deploy-section"><span>병종 부대 편성</span><em>병력이 남으면 일반 부대를 더 편성할 수 있습니다</em></div>
@@ -3460,11 +3533,26 @@
         if (e.target.closest('.hp-step')) return;
         toggleHero(uid);
       };
+      /* v5.0.3 — 병력은 1명 단위로. 길게 누르면 점점 빠르게(1→5→25→100) 오른다. */
       el.querySelectorAll('.hp-step button').forEach((b) => {
-        b.onclick = (e) => {
-          e.stopPropagation();
-          adjustHero(uid, Number(b.dataset.d) * 500);
+        const dir = Number(b.dataset.d);
+        let timer = null, held = 0;
+        const tick = () => {
+          held += 1;
+          const step = held < 12 ? 1 : held < 30 ? 5 : held < 60 ? 25 : 100;
+          adjustHero(uid, dir * step);
         };
+        const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+        b.onpointerdown = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          held = 0;
+          tick();
+          timer = setInterval(tick, 55);
+        };
+        b.onpointerup = stop;
+        b.onpointerleave = stop;
+        b.onpointercancel = stop;
       });
     });
     m.el.querySelectorAll('.reg-row').forEach((row) => {
@@ -3701,6 +3789,13 @@
     SK.save();
     SK.refreshHud();
     if (window.SKMap) SKMap.refresh();
+    /* v5.0.3 — 성 화면에서 [다음 달]을 누르면 열려 있던 성 화면도 새 달로 다시 그린다.
+       (예전에는 대기 0명·이번 달 완료 표시가 그대로 남아 있었다) */
+    const cityScr = document.getElementById('screen-city');
+    const inCity = cityScr && cityScr.classList.contains('active');
+    if (inCity && s.lastCity && s.cities[s.lastCity] && s.cities[s.lastCity].owner === PF()) {
+      SK.openCity(s.lastCity);
+    }
     SK.sfx.play('month');
     showMonthBanner(SK.dateLabel(s.eraYear || (195 + s.year), s.month));
     SK.modal({

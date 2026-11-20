@@ -211,11 +211,18 @@ b { font-weight: 700; }
 @keyframes targetPulse { 0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.85); } 50% { opacity: 1; transform: translateX(-50%) scale(1.2); } }
 
 .map-controls { position: absolute; right: 10px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 4; }
+/* v5.0.3 — 범례는 오른쪽 조작 버튼 위로 접어 둔다 (남쪽 거점을 가리지 않게) */
 .map-legend {
-  position: absolute; left: 10px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 6px 10px;
-  padding: 5px 9px; border-radius: 8px; background: rgba(38, 31, 18, 0.62);
-  color: #f0e0b8; font-size: 9px; letter-spacing: 0.04em; max-width: 240px;
+  position: absolute; right: 64px; bottom: 26px; z-index: 6;
+  display: grid; grid-template-columns: 1fr; gap: 4px 10px;
+  padding: 7px 10px; border-radius: 10px; background: rgba(32, 26, 15, 0.90);
+  border: 1px solid rgba(227, 189, 99, 0.55); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  color: #f0e0b8; font-size: 9.5px; letter-spacing: 0.04em; max-width: 168px;
+  animation: legendIn 0.16s ease-out;
 }
+.map-legend[hidden] { display: none; }
+@keyframes legendIn { from { opacity: 0; transform: translateY(4px); } }
+#legend-toggle { font-size: 12px; line-height: 1; }
 .map-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .lg { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
 .lg-img { width: 18px; height: 13px; object-fit: contain; display: inline-block; vertical-align: -2px;
@@ -466,9 +473,23 @@ b { font-weight: 700; }
 .mpbar { height: 7px; }
 .mpbar i { display: block; height: 100%; background: linear-gradient(180deg, #7fb8e8, #4d86c0); }
 .hpbar em, .mpbar em { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7.5px; font-weight: 800; color: #18200f; letter-spacing: 0.02em; }
+/* v5.0.3 — 전투 HUD 경험치 바 (금빛) */
+.expbar { position: relative; height: 6px; border-radius: 3px; background: #c9b287; overflow: hidden; }
+.expbar i { display: block; height: 100%; background: linear-gradient(180deg, #f0cf78, #b8862f); transition: width 0.3s; }
+.expbar em { position: absolute; inset: -1px 0 auto 0; display: grid; place-items: center; font-size: 6.5px; font-weight: 800; color: #2a1d06; letter-spacing: 0.02em; }
 .uc-meta { display: flex; gap: 8px; font-size: 9px; color: #6a5732; margin: 1px 0 1px; }
 .uc-meta b { color: #3b2e13; font-variant-numeric: tabular-nums; }
 .uc-stats { display: flex; gap: 8px; font-size: 9px; color: #6a5732; }
+/* v5.0.3 — 전투 중 적용된 강화·약화 표시 (방패벽·지휘·요술 등) */
+.uc-buffs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; min-height: 0; }
+.uc-buffs:empty { display: none; }
+.uc-buffs .bf {
+  font-size: 8.5px; font-weight: 800; line-height: 1; padding: 2px 5px; border-radius: 8px;
+  background: rgba(86, 140, 196, 0.20); border: 1px solid rgba(150, 200, 255, 0.55); color: #dcefff;
+}
+.uc-buffs .bf.bad { background: rgba(190, 80, 80, 0.22); border-color: rgba(255, 160, 150, 0.6); color: #ffe1da; }
+.uc-buffs .bf.good { background: rgba(96, 170, 110, 0.22); border-color: rgba(160, 230, 170, 0.55); color: #e2ffe6; }
+
 .uc-stats b { color: #3b2e13; }
 .battle-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
 .act {

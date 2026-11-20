@@ -100,29 +100,69 @@
     riverMain = G.rivers.map((r) => MAIN_RIVERS.indexOf(r.n) >= 0);
 
     /* 산맥 — 봉우리 삼각형 배치 (촘촘하게) */
+    /* v5.0.3 — 같은 삼각형이 일렬로 늘어서던 것을 산군(群) 단위로 바꾼다.
+       산줄기를 따라 26~42px 간격으로 덩어리를 놓고, 덩어리마다 1~3개의 크기가 다른 봉우리를
+       능선 좌우로 흔들어 배치한다. 길·성 바로 위에는 봉우리를 놓지 않는다. */
+    const roadPts = [];
+    SK.ROADS.forEach(([a, b]) => {
+      const A = city(a), B = city(b);
+      if (!A || !B) return;
+      const ax = A.u * MAPW, ay = A.v * MAPH, bx = B.u * MAPW, by = B.v * MAPH;
+      const mx = (ax + bx) / 2 + (by - ay) * -0.045;
+      const my = (ay + by) / 2 + (bx - ax) * 0.045;
+      for (let i = 0; i <= 12; i++) {
+        const t = i / 12;
+        roadPts.push([(1 - t) * (1 - t) * ax + 2 * (1 - t) * t * mx + t * t * bx,
+          (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * my + t * t * by]);
+      }
+    });
+    const cityPts = SK.CITY_LIST.map((c) => [c.u * MAPW, c.v * MAPH]);
+    const clearOf = (x, y, r) => {
+      for (let i = 0; i < cityPts.length; i++) {
+        const dx = x - cityPts[i][0], dy = y - cityPts[i][1];
+        if (dx * dx + dy * dy < 30 * 30) return false;
+      }
+      const r2 = r * r;
+      for (let i = 0; i < roadPts.length; i++) {
+        const dx = x - roadPts[i][0], dy = y - roadPts[i][1];
+        if (dx * dx + dy * dy < r2) return false;
+      }
+      return true;
+    };
     peaks = [];
     (G.mountains || []).forEach((m, mi) => {
       const flat = m.p;
       const n = flat.length / 2;
-      let carry = 0;
+      let carry = 0, idx = 0;
       for (let i = 0; i < n - 1; i++) {
         const a = pt(flat, i), b = pt(flat, i + 1);
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const step = 11.5;
+        if (len < 0.5) continue;
+        const ux = (b[0] - a[0]) / len, uy = (b[1] - a[1]) / len;
+        const nx = -uy, ny = ux;
+        const step = 26 + 16 * hash2(i + 11, mi + 3);
         let d = carry;
         while (d < len) {
           const t = d / len;
-          const x = a[0] + (b[0] - a[0]) * t;
-          const y = a[1] + (b[1] - a[1]) * t;
-          const jx = Math.sin((i + 1) * 2.7 + d * 0.21 + mi) * 6;
-          const jy = Math.cos((i + 1) * 1.9 + d * 0.17 + mi) * 4.5;
-          const s = 0.72 + 0.55 * Math.abs(Math.sin((i + 2) * 1.3 + d * 0.09 + mi * 0.7));
-          peaks.push({ x: x + jx, y: y + jy, w: 33 * s, h: 24 * s, v: hash2(i, mi) });
-          d += step * (0.85 + 0.4 * Math.abs(Math.cos(d * 0.13)));
+          const bx0 = a[0] + ux * d, by0 = a[1] + uy * d;
+          const clump = 1 + Math.floor(hash2(idx + 7, mi + 13) * 2.6);   /* 1 ~ 3 봉우리 */
+          for (let k = 0; k < clump; k++) {
+            const hs = hash2(idx * 31 + k * 7, mi * 17 + k * 3);
+            const hs2 = hash2(idx * 13 + k * 29, mi * 7 + 5);
+            const side = (hash2(idx + k * 19, mi + 2) - 0.5) * 34;
+            const x = bx0 + nx * side + (hs - 0.5) * 22;
+            const y = by0 + ny * side + (hs2 - 0.5) * 16;
+            const s = 0.40 + hs * 0.78 + (k === 0 ? 0.12 : 0);
+            if (!clearOf(x, y, 15)) continue;
+            peaks.push({ x, y, w: 27 * s, h: (13 + 11 * hs2) * s, v: hs, deep: k === 0 ? 1 : 0 });
+          }
+          idx++;
+          d += step * (0.85 + 0.5 * hash2(idx + 5, mi + 9));
         }
         carry = d - len;
       }
     });
+    peaks.sort((p1, p2) => p1.y - p2.y);
 
     /* 숲 — 초록 계열 색조 안쪽에만 나무를 흩뿌린다 */
     trees = [];
@@ -167,6 +207,14 @@
       const A = city(a), B = city(b);
       if (!A || !B) return;
       const ax = A.u * MAPW, ay = A.v * MAPH, bx = B.u * MAPW, by = B.v * MAPH;
+      const via = (SK.ROAD_VIA || {})[a + '|' + b] || (SK.ROAD_VIA || {})[b + '|' + a];
+      if (via && via.length) {
+        /* 해안으로 돌아가는 길 — 꺾은점을 따라 그린다 */
+        roadPath.moveTo(ax, ay);
+        via.forEach((p) => roadPath.lineTo(p[0], p[1]));
+        roadPath.lineTo(bx, by);
+        return;
+      }
       const mx = (ax + bx) / 2 + (by - ay) * -0.045;
       const my = (ay + by) / 2 + (bx - ax) * 0.045;
       roadPath.moveTo(ax, ay);
@@ -505,112 +553,84 @@
       g.fill();
     });
 
-    /* ── 산맥 바탕 — 산줄기를 따라 깔리는 흙빛 덩어리 ── */
+    /* ── 산맥 바탕 — 산줄기를 따라 깔리는 흙빛 덩어리 (아주 옅게) ── */
     (SK.MAPGEO.mountains || []).forEach((m) => {
       const flat = m.p;
       const pth = new Path2D();
       pth.moveTo(flat[0], flat[1]);
       for (let i = 2; i < flat.length; i += 2) pth.lineTo(flat[i], flat[i + 1]);
-      g.strokeStyle = 'rgba(122,128,92,0.16)';
-      g.lineWidth = 54;
+      g.strokeStyle = 'rgba(124,130,94,0.075)';
+      g.lineWidth = 40;
       g.stroke(pth);
-      g.strokeStyle = 'rgba(112,118,84,0.14)';
-      g.lineWidth = 34;
+      g.strokeStyle = 'rgba(112,118,84,0.06)';
+      g.lineWidth = 22;
       g.stroke(pth);
     });
 
-    /* ── 산맥 — 겹겹 능선과 그늘면, 설관 ── */
-    peaks.forEach((p, pi) => {
+    /* ── 산맥 — 크기가 다른 봉우리들을 포개 산군처럼 (v5.0.3) ── */
+    peaks.forEach((p) => {
       const { x, y, w, h } = p;
       const v = p.v || 0;
-      /* 발치 그늘 — 산이 땅에 서 있는 느낌 */
-      g.fillStyle = 'rgba(88,96,66,0.16)';
+      const tall = h > 19;
+      /* 발치 그늘 — 산이 땅에 서 있는 느낌만큼만 */
+      g.fillStyle = 'rgba(96,104,72,0.10)';
       g.beginPath();
-      g.ellipse(x + w * 0.12, y + 1.4, w * 0.72, h * 0.14, 0, 0, Math.PI * 2);
+      g.ellipse(x + w * 0.08, y + 1.2, w * 0.62, h * 0.13, 0, 0, Math.PI * 2);
       g.fill();
-      /* 뒤쪽 봉우리 그림자 */
-      g.fillStyle = 'rgba(90,98,72,0.28)';
+      /* 몸통 — 좌우 비탈이 비대칭인 부드러운 능선 */
+      const apexX = x - w * (0.06 + 0.10 * v);
       g.beginPath();
-      g.moveTo(x - w * 0.7, y + 3.0);
-      g.lineTo(x + w * 0.12, y - h * 0.8);
-      g.lineTo(x + w * 0.8, y + 3.0);
+      g.moveTo(x - w / 2, y + 0.6);
+      g.quadraticCurveTo(x - w * 0.26, y - h * 0.52, apexX, y - h);
+      g.quadraticCurveTo(x + w * 0.20, y - h * 0.46, x + w / 2, y + 0.6);
       g.closePath();
-      g.fill();
-      /* 몸통 */
-      g.beginPath();
-      g.moveTo(x - w / 2, y);
-      g.lineTo(x - w * 0.06, y - h);
-      g.lineTo(x + w / 2, y);
-      g.closePath();
-      const mg = g.createLinearGradient(x - w * 0.12, y - h, x + w * 0.22, y);
+      const mg = g.createLinearGradient(apexX, y - h, x + w * 0.25, y);
       if (v > 0.5) {
-        mg.addColorStop(0, '#a9ae7d');
-        mg.addColorStop(0.5, '#858e64');
-        mg.addColorStop(1, '#6d7854');
+        mg.addColorStop(0, '#b9bc93');
+        mg.addColorStop(0.55, '#969d76');
+        mg.addColorStop(1, '#7a845f');
       } else {
-        mg.addColorStop(0, '#9ea578');
-        mg.addColorStop(0.5, '#7d875e');
-        mg.addColorStop(1, '#67724f');
+        mg.addColorStop(0, '#b2b58c');
+        mg.addColorStop(0.55, '#8f9770');
+        mg.addColorStop(1, '#737e59');
       }
       g.fillStyle = mg;
       g.fill();
-      /* 그늘진 오른쪽 면 */
+      /* 그늘진 오른쪽 비탈 — 낮은 투명도 */
       g.beginPath();
-      g.moveTo(x + w / 2, y);
-      g.lineTo(x - w * 0.06, y - h);
-      g.lineTo(x + w * 0.18, y);
+      g.moveTo(apexX, y - h);
+      g.quadraticCurveTo(x + w * 0.22, y - h * 0.44, x + w * 0.46, y + 0.4);
+      g.lineTo(x + w * 0.02, y + 0.4);
       g.closePath();
-      g.fillStyle = 'rgba(72,82,58,0.95)';
+      g.fillStyle = 'rgba(74,84,58,0.20)';
       g.fill();
       /* 햇빛 받는 왼쪽 능선 */
       g.beginPath();
-      g.moveTo(x - w * 0.06, y - h);
-      g.lineTo(x - w * 0.5, y);
-      g.lineTo(x - w * 0.18, y);
+      g.moveTo(apexX, y - h);
+      g.quadraticCurveTo(x - w * 0.30, y - h * 0.5, x - w * 0.46, y + 0.2);
+      g.lineTo(x - w * 0.10, y + 0.2);
       g.closePath();
-      g.fillStyle = 'rgba(228,228,196,0.34)';
+      g.fillStyle = 'rgba(236,234,202,0.22)';
       g.fill();
-      /* 암벽 결 — 그늘면에 짧은 선 */
-      if (h > 20) {
-        g.strokeStyle = 'rgba(76,86,62,0.30)';
-        g.lineWidth = 0.7;
-        for (let i = 0; i < 2; i++) {
-          const t = 0.35 + i * 0.3;
-          g.beginPath();
-          g.moveTo(x + w * (0.02 + t * 0.12), y - h * (0.72 - i * 0.28));
-          g.lineTo(x + w * (0.22 + t * 0.1), y - h * (0.42 - i * 0.2));
-          g.stroke();
-        }
-      }
       /* 설관 — 아주 높은 봉우리에만, 작게 */
-      if (h > 27 && v > 0.72) {
+      if (tall && v > 0.82) {
         g.beginPath();
-        g.moveTo(x - w * 0.06, y - h);
-        g.lineTo(x - w * 0.16, y - h * 0.76);
-        g.lineTo(x - w * 0.05, y - h * 0.8);
-        g.lineTo(x + w * 0.03, y - h * 0.74);
-        g.lineTo(x + w * 0.09, y - h * 0.82);
+        g.moveTo(apexX, y - h);
+        g.lineTo(apexX - w * 0.09, y - h * 0.80);
+        g.lineTo(apexX - w * 0.02, y - h * 0.84);
+        g.lineTo(apexX + w * 0.05, y - h * 0.79);
         g.closePath();
-        g.fillStyle = 'rgba(250,250,244,0.92)';
+        g.fillStyle = 'rgba(250,250,244,0.78)';
         g.fill();
       }
-      g.strokeStyle = 'rgba(58,66,44,0.55)';
-      g.lineWidth = 0.8;
+      /* 윤곽 — 삼각형이 도드라지지 않게 아주 옅은 선만 */
+      g.strokeStyle = 'rgba(70,80,52,0.22)';
+      g.lineWidth = 0.55;
       g.beginPath();
-      g.moveTo(x - w / 2, y);
-      g.lineTo(x - w * 0.06, y - h);
-      g.lineTo(x + w / 2, y);
+      g.moveTo(x - w / 2, y + 0.6);
+      g.quadraticCurveTo(x - w * 0.26, y - h * 0.52, apexX, y - h);
+      g.quadraticCurveTo(x + w * 0.20, y - h * 0.46, x + w / 2, y + 0.6);
       g.stroke();
-      /* 발치 언덕 — 봉우리 사이를 메워 산줄기로 보이게 */
-      if ((pi % 3) === 0) {
-        g.beginPath();
-        g.moveTo(x - w * 0.95, y + 1.5);
-        g.lineTo(x - w * 0.45, y - h * 0.42);
-        g.lineTo(x + w * 0.05, y + 1.5);
-        g.closePath();
-        g.fillStyle = 'rgba(128,136,96,0.65)';
-        g.fill();
-      }
     });
 
     /* ── 강 — 기슭 그늘, 물줄기, 물결빛 ── */
@@ -647,31 +667,42 @@
   }
 
   /* ───────────── 길 레이어 (지형·영토 위에 늘 선명하게) ───────────── */
-  function renderRoutes() {
+  let routeScale = 0;
+  function renderRoutes(R) {
     if (!routeCanvas) return;
-    const R = 1.35;
+    R = clamp(R || 1.35, 1.2, 2.2);
     const cw = Math.round(MAPW * R), ch = Math.round(MAPH * R);
-    routeCanvas.width = cw; routeCanvas.height = ch;
+    if (routeCanvas.width !== cw || routeCanvas.height !== ch) { routeCanvas.width = cw; routeCanvas.height = ch; }
     const g = rcx;
     g.setTransform(R, 0, 0, R, 0, 0);
     g.clearRect(0, 0, MAPW, MAPH);
     g.lineJoin = 'round';
     g.lineCap = 'round';
-    /* 육로 — 밑그림 + 금빛 점선 */
-    g.strokeStyle = 'rgba(58,42,16,0.30)';
-    g.lineWidth = 4.6;
+    /* 육로 — 지형 위에서도 또렷하게: 파치먼트 빛 테 → 먹색 밑그림 → 금빛 점선 → 안쪽 하이라이트 */
+    g.strokeStyle = 'rgba(255, 246, 220, 0.42)';
+    g.lineWidth = 6.4;
     g.stroke(roadPath);
-    g.setLineDash([7, 6]);
-    g.strokeStyle = 'rgba(250,214,128,0.96)';
-    g.lineWidth = 2.2;
+    g.strokeStyle = 'rgba(52,38,14,0.34)';
+    g.lineWidth = 4.2;
+    g.stroke(roadPath);
+    g.setLineDash([7, 5.5]);
+    g.strokeStyle = 'rgba(250,214,128,0.98)';
+    g.lineWidth = 2.3;
     g.stroke(roadPath);
     g.setLineDash([]);
+    g.strokeStyle = 'rgba(255,246,205,0.45)';
+    g.lineWidth = 0.9;
+    g.stroke(roadPath);
     /* 해로 */
     g.setLineDash([5, 9]);
-    g.strokeStyle = 'rgba(224,246,250,0.82)';
+    g.strokeStyle = 'rgba(18,52,68,0.28)';
+    g.lineWidth = 3.4;
+    g.stroke(seaPath);
+    g.strokeStyle = 'rgba(224,246,250,0.86)';
     g.lineWidth = 1.9;
     g.stroke(seaPath);
     g.setLineDash([]);
+    routeScale = R;
   }
 
   /* ───────────── 세력 영토 ───────────── */
@@ -692,67 +723,91 @@
       const t = SK.state.cities[c.id];
       return { id: c.id, u: c.u * MAPW, v: c.v * MAPH, type: c.type, owner: t ? t.owner : 'neutral' };
     });
-    const rad = { capital: 168, town: 132, pass: 116, fortress: 120 };
-    const unit = MAPW / GRID_W;            /* 격자 한 칸 = 4 world px */
+    const rad = { capital: 152, town: 126, pass: 104, fortress: 108 };
+    const unit = MAPW / GRID_W;            /* 격자 한 칸 = 2.5 world px */
     const img = new ImageData(GRID_W, GRID_H);
     const dat = img.data;
-    const ownerIdx = new Int16Array(GRID_W * GRID_H);
     const colors = {};
+    /* 물감이 종이에 번지는 느낌 — 세력색을 파치먼트 쪽으로 살짝 무명하게 섞는다 */
+    const PAPER = [232, 219, 184];
+    const mixPaper = (rgb, k) => [
+      Math.round(rgb[0] + (PAPER[0] - rgb[0]) * k),
+      Math.round(rgb[1] + (PAPER[1] - rgb[1]) * k),
+      Math.round(rgb[2] + (PAPER[2] - rgb[2]) * k),
+    ];
     const colorOf = (o) => {
       if (!o || o === 'neutral') return null;
       if (!colors[o]) {
         const c = (SK.factionInfo ? SK.factionInfo(o).color : '#8b8777') || '#8b8777';
         colors[o] = {
-          rgb: [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)],
+          rgb: mixPaper([parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)], 0.16),
         };
       }
       return colors[o].rgb;
     };
+    /* 부드러운 경계 — 보로노이 칸을 그대로 칠하지 않고, 이웃 세력과의 거리 차이로 색을 섞는다.
+       경계에서 14 world px 폭으로 두 세력 색이 자연스럽게 번지므로 계단 현상이 사라진다. */
+    const BLEND = 34;                      /* 격자 칸 수 (약 70 world px) — 물감이 번지는 폭 */
+    const invB = 1 / BLEND;
     for (let gy = 0; gy < GRID_H; gy++) {
       const wy = (gy + 0.5) * unit;
       for (let gx = 0; gx < GRID_W; gx++) {
         const wx = (gx + 0.5) * unit;
-        let best = -1, bestD = 1e9;
+        const i0 = gy * GRID_W + gx, o = i0 * 4;
+        dat[o + 3] = 0;
+        let d1 = 1e12, d2 = 1e12, i1 = -1, i2 = -1;
         for (let i = 0; i < list.length; i++) {
           const c = list[i];
           const dx = wx - c.u, dy = wy - c.v;
           const d = dx * dx + dy * dy;
-          if (d < bestD) { bestD = d; best = i; }
+          if (d < d1) { d1 = d; i1 = i; }
+          else if (d < d2) { d2 = d; i2 = i; }
         }
-        const i0 = gy * GRID_W + gx, o = i0 * 4;
-        ownerIdx[i0] = best;
-        if (best < 0) continue;
-        const c = list[best];
-        const rgb = colorOf(c.owner);
-        if (!rgb) continue;
-        /* 보로노이 칸을 그대로 채우고, 바깥 한계에서만 부드럽게 사라진다 */
-        const d = Math.sqrt(bestD);
-        const rr = rad[c.type] || 130;
+        if (i1 < 0) continue;
+        /* 가장 가까운 이웃이 같은 세력이면 두 번째 이웃을 다른 세력 하나로 다시 찾는다 */
+        if (i2 >= 0 && list[i2].owner === list[i1].owner) {
+          d2 = 1e12;
+          for (let i = 0; i < list.length; i++) {
+            if (list[i].owner === list[i1].owner) continue;
+            const dx = wx - list[i].u, dy = wy - list[i].v;
+            const d = dx * dx + dy * dy;
+            if (d < d2) { d2 = d; i2 = i; }
+          }
+        }
+        const c1 = list[i1];
+        const rgb1 = colorOf(c1.owner);
+        if (!rgb1) {
+          dat[o + 3] = 0;
+          continue;
+        }
+        const d = Math.sqrt(d1);
+        const rr = rad[c1.type] || 118;
         if (d > rr) continue;
-        const fade = 34;
-        const t = d <= rr - fade ? 1 : (rr - d) / fade;
-        const a = Math.round(255 * 0.30 * t);
-        dat[o] = rgb[0]; dat[o + 1] = rgb[1]; dat[o + 2] = rgb[2]; dat[o + 3] = a;
-      }
-    }
-    /* 세력 경계 — 이웃 칸의 주인이 다르면 살짝 진하게 */
-    for (let gy = 1; gy < GRID_H - 1; gy++) {
-      for (let gx = 1; gx < GRID_W - 1; gx++) {
-        const i0 = gy * GRID_W + gx, o = i0 * 4;
-        if (dat[o + 3] < 40) continue;
-        const c = list[ownerIdx[i0]];
-        if (!c || !c.owner || c.owner === 'neutral') continue;
-        let edge = false;
-        for (let k = 0; k < 4; k++) {
-          const nx = gx + (k === 0 ? 1 : k === 1 ? -1 : 0);
-          const ny = gy + (k === 2 ? 1 : k === 3 ? -1 : 0);
-          const nb = list[ownerIdx[ny * GRID_W + nx]];
-          if (!nb || nb.owner !== c.owner) { edge = true; break; }
+        const fade = d <= rr - 44 ? 1 : (rr - d) / 44;
+        /* 이웃 세력과의 거리 차이 → 경계에서 반반으로 섞는다.
+           경계선이 자로 그은 듯 곧지 않도록 잡음을 섞어 손으로 칠한 느낌을 낸다. */
+        let b = 0, rgb2 = null, seam = 1;
+        if (i2 >= 0 && d2 < 1e11) {
+          const wobble = (fbm(wx * 0.008, wy * 0.008, 3) - 0.5) * 58 + (fbm(wx * 0.028, wy * 0.028, 2) - 0.5) * 16;
+          const gap = Math.sqrt(d2) - d + wobble;
+          if (gap < BLEND) {
+            let t = gap * invB;
+            if (t < 0) t = 0; else if (t > 1) t = 1;
+            t = t * t * (3 - 2 * t);
+            /* 경계로 갈수록 옅게 — 두 물감 사이에 종이가 비치는 자리 */
+            seam = 0.22 + 0.78 * t;
+            b = 0.30 * (1 - t);
+            rgb2 = colorOf(list[i2].owner) || PAPER;
+          }
         }
-        if (edge) {
-          dat[o] = Math.round(dat[o] * 0.70); dat[o + 1] = Math.round(dat[o + 1] * 0.70); dat[o + 2] = Math.round(dat[o + 2] * 0.70);
-          dat[o + 3] = Math.min(255, Math.round(dat[o + 3] * 1.15) + 10);
+        let r = rgb1[0], gg = rgb1[1], bb = rgb1[2];
+        if (b > 0 && rgb2) {
+          r = Math.round(r * (1 - b) + rgb2[0] * b);
+          gg = Math.round(gg * (1 - b) + rgb2[1] * b);
+          bb = Math.round(bb * (1 - b) + rgb2[2] * b);
         }
+        dat[o] = r; dat[o + 1] = gg; dat[o + 2] = bb;
+        dat[o + 3] = Math.round(255 * 0.30 * fade * seam);
       }
     }
 
@@ -767,7 +822,10 @@
     g.clearRect(0, 0, cw, ch);
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'high';
+    /* 물감이 종이에 스민 느낌 — 업스케일할 때 살짝 흐리게 */
+    g.filter = 'blur(3px)';
     g.drawImage(small, 0, 0, cw, ch);
+    g.filter = 'none';
     /* 바다로 새지 않게 육지 모양으로 오려낸다 */
     g.setTransform(TERR_SCALE, 0, 0, TERR_SCALE, 0, 0);
     g.globalCompositeOperation = 'destination-in';
@@ -821,6 +879,8 @@
       const rr = clamp((window.devicePixelRatio || 1) * cam.s, 0.9, 1.9);
       renderTerrain(rr);
       renderFeatures(rr);
+      const rs = clamp((window.devicePixelRatio || 1) * cam.s, 1.3, 2.0);
+      if (!routeScale || Math.abs(rs - routeScale) / routeScale > 0.2) renderRoutes(rs);
     }, 110);
   }
 
@@ -1214,6 +1274,15 @@
     $('#zoom-out').onclick = () => animatedZoom(cam.s / 1.5);
     $('#zoom-fit').onclick = fitAll;
     $('#go-capital').onclick = () => { labelAnchorDirty = true; focusCity((SK.state && SK.state.playerCapital) || SK.state.lastCity || 'xuchang', false); };
+    const lgBtn = $('#legend-toggle'), lgBox = $('#map-legend');
+    if (lgBtn && lgBox) {
+      lgBtn.onclick = (e) => {
+        e.stopPropagation();
+        const open = lgBox.hidden;
+        lgBox.hidden = !open;
+        lgBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+    }
     window.addEventListener('resize', () => {
       if (!built) return;
       clampCam();

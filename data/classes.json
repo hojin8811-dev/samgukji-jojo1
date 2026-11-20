@@ -82,7 +82,7 @@
       "신궁기병"
     ],
     "moveRange": 5,
-    "attackRange": "1~3",
+    "attackRange": "1~4",
     "terrainBonus": {
       "siege": 0,
       "naval": -10,
@@ -378,7 +378,7 @@
       "천궁정예"
     ],
     "moveRange": 4,
-    "attackRange": "2~3",
+    "attackRange": "2~4",
     "terrainBonus": {
       "siege": 15,
       "naval": -5,
@@ -563,7 +563,7 @@
       "천노병단"
     ],
     "moveRange": 4,
-    "attackRange": "2~3",
+    "attackRange": "2~5",
     "terrainBonus": {
       "siege": 15,
       "naval": -5,
