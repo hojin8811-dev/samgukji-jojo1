@@ -12,7 +12,7 @@
 | 장르 | 턴제 전략 시뮬레이션 (삼국지 조조전 오마주) |
 | 화면 | ① 천하 지도 → ② 내정 → ③ 인물·장비 → ④ 18×18 격자 전장 |
 | 무대 | 후한 말 ~ 삼국 초, 중국 대륙 + 요동 + 한반도 15거점 + 대만 |
-| 거점 | 77개 (`data/cities.json`) — 대도시·소도시·관문·요새 |
+| 거점 | 78개 (`data/cities.json`) — 대도시·소도시·관문·요새 |
 | 장수 | 499명 (`data/generals.json`) + 코어 6명 전용 초상화/SD |
 | 병과 | 18종 (`data/classes.json`) + 승급 4단계 |
 | 보물 | 150종 (`data/treasures.json`) — 무기·방어구·명마·병법서 |
@@ -25,7 +25,7 @@
 ## 2. 4단계 화면
 
 ### 1단계 — 천하 지도 (`#screen-map`)
-- `assets/maps/v2/terrain.webp` (수채화+먹선 동아시아 지형) 위에 77개 마커를 절대좌표(`u,v` 0~1)로 배치. 좌표는 `js/city_geo.js`(이름→좌표)와 `data/cities.json`을 이름으로 연결한다.
+- `assets/maps/v2/terrain.webp` (수채화+먹선 동아시아 지형) 위에 78개 마커를 절대좌표(`u,v` 0~1)로 배치. 좌표는 `js/city_geo.js`(이름→좌표)와 `data/cities.json`을 이름으로 연결한다.
 - 두 손가락 확대·축소, 한 손가락 드래그, 휠 줌. 마커는 역스케일(`--inv`)로 화면 크기를 유지한다(축소 시엔 지도와 함께 작아짐).
 - 마커 크기: 대도시 46px, 소도시 30px, 관문·요새 28px. 아이콘은 `assets/icons/*.webp`(생성 원화에서 누끼).
 - 도로는 `SK.ROADS`(황금빛 육로) / `SK.SEALANES`(점선 해로)로 SVG에 그린다.
@@ -116,12 +116,12 @@
 
 ## 4. 데이터 스키마와 연결 규칙
 
-### `data/cities.json` (77 거점) — 지도·내정·전장의 단일 원천
+### `data/cities.json` (78 거점) — 지도·내정·전장의 단일 원천
 ```json
 { "id": 24, "name": "허창", "type": "대도시", "faction": "위", "battleType": "siege",
   "gold": 12000, "food": 18000, "troops": 15000, "defense": 85, "governor": "조조" }
 ```
-- 부팅 시 `SK.setCities()`가 77개를 `SK.CITY`로 만들고, `js/city_geo.js`의 이름별 좌표·한자·지역을 붙인다.
+- 부팅 시 `SK.setCities()`가 78개를 `SK.CITY`로 만들고, `js/city_geo.js`의 이름별 좌표·한자·지역을 붙인다.
 - `type` → capital/town/pass/fortress 아이콘. `faction` → 위/촉/오/군웅/한국 5세력. `battleType` → 그 성을 공격할 때 열리는 전장(공성/수전/산전/요새)을 **그대로** 결정.
 - `troops/defense` → 초기 수비병·성벽. `gold/food` → 월 세입 계산. `governor` → 그 성의 수비장(적성) 또는 주둔 장수(아군).
 - 도로는 좌표 기반으로 최소 신장 트리 + 근접 2이웃으로 자동 생성하고, 섬·항구는 `SEALANES`로 연결한다.
@@ -131,7 +131,7 @@
 { "id": 1, "year": 190, "title": "반동탁과 군웅할거", "summary": "...",
   "factions": { "위": {"leader":"조조","capital":"진류","intro":"...","allies":["촉","오"],"enemies":["군웅"]}, ... } }
 ```
-- 새 게임 시 시나리오 선택 → `SK.applyScenario()`가 각 세력 수도와의 거리(Voronoi)로 77개 거점 소유를 다시 칠한다. 플레이 세력은 위(魏)·조조.
+- 새 게임 시 시나리오 선택 → `SK.applyScenario()`가 각 세력 수도와의 거리(Voronoi)로 78개 거점 소유를 다시 칠한다. 플레이 세력은 위(魏)·조조.
 - 수도에 따라 시작 위치·장수 배치·영토가 달라지고, 상단 날짜가 `서기 190년`으로 표시된다. 세력별 `intro`는 시작 연출에, `allies/enemies`는 외교 정보로 저장된다.
 - 시나리오를 고르지 않고 취소하면 `cities.json` 기본 소유로 시작한다.
 
@@ -188,13 +188,13 @@ js/data.js                 지형·병과·책략·장수·거점·도로·전�
 js/app.js                  상태·저장·내정·인재·보물·이동·월정산·모달
 js/map.js                  1단계 지도 팬/줌·마커·도로
 js/battle.js               4단계 전장(캔버스)·이동/공격/책략/AI/승패
-data/cities.json           77 거점 (소유·battleType·병력·태수)
+data/cities.json           78 거점 (소유·battleType·병력·태수)
 data/generals.json         499 장수
 data/classes.json          18 병과·승급·전장보정·책략
 data/treasures.json        150 보물
 data/events.json           30 이벤트
 data/scenarios.json        4 시나리오 (190/200/208/220)
-js/city_geo.js             77 거점 이름→좌표·한자·지역
+js/city_geo.js             78 거점 이름→좌표·한자·지역
 assets/portraits/v2/       초상화 WebP (코어·지원·병과·군주)
 assets/units/v2/           SD 유닛 WebP (투명 배경)
 assets/icons/              대도시·소도시·관문·요새 아이콘

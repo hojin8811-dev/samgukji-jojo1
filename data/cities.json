@@ -922,5 +922,17 @@
     "troops": 7900,
     "defense": 74,
     "governor": "고을나"
+  },
+  {
+    "id": 78,
+    "name": "금성",
+    "type": "소도시",
+    "faction": "군웅",
+    "battleType": "mountain",
+    "gold": 6000,
+    "food": 9200,
+    "troops": 7200,
+    "defense": 68,
+    "governor": "한수"
   }
 ]

@@ -85,13 +85,18 @@
     const tiles = mapRows.map((r) => r.split(''));
     const faction = s.cities[opts.targetId].owner;
     const bossInfo = bossOfFaction(faction);
+    const intercept = opts.intercept || null;
 
     const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i, opts.origin) : makeRegiment(spec, i)));
 
     const cityTroops = s.cities[opts.targetId].troops;
-    const enemyCount = clamp(5 + Math.floor(cityTroops / 2600), 5, 8);
-    const per = clamp(Math.round(cityTroops / enemyCount / 100) * 100, 900, 4200);
-    const defGens = (s.cities[opts.targetId].genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
+    const enemyCount = intercept ? clamp(4 + Math.floor(cityTroops / 3200), 4, 6)
+      : clamp(5 + Math.floor(cityTroops / 2600), 5, 8);
+    const per = intercept
+      ? clamp(Math.round((intercept.troops || 2400) / enemyCount / 100) * 100, 700, 2200)
+      : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 600, 4200);
+    const defGens = (s.cities[opts.targetId].genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean)
+      .slice(0, intercept ? 1 : 99);
     const enemies = [];
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
     const SUPPORT_CLS = { gunakdae: 1, muhui: 1, pungsusa: 1 };
@@ -116,23 +121,24 @@
       tiles.forEach((row, y) => row.forEach((ch, x) => { if (ch === 'G') gateTiles.push({ x, y }); }));
     }
     const gateInit = gateTiles.length
-      ? { tiles: gateTiles, hp: clamp(Math.round(cityTroops * 0.28) + 1000, 1600, 4200),
-          maxHp: clamp(Math.round(cityTroops * 0.28) + 1000, 1600, 4200) }
+      ? { tiles: gateTiles, hp: clamp(Math.round(cityTroops * 0.18) + 700, 1000, 2400),
+          maxHp: clamp(Math.round(cityTroops * 0.18) + 700, 1000, 2400) }
       : null;
 
     B = {
-      type, def, name: `${target.name} ${def.name}`, targetId: opts.targetId, origin: opts.origin,
+      type, def, name: intercept ? `${intercept.name} · ${def.name}` : `${target.name} ${def.name}`,
+      targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit,
-      introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens)),
+      introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
       event: SK.pickEvent(target, defGens),
       objective: def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
-      bondSeen: {},
+      bondSeen: {}, intercept, marchId: opts.marchId || null,
     };
     placeSide(allies, SK.allySlots(type), 'ally');
     placeSide(enemies, SK.enemySlots(type), 'enemy');
-    B.rewards.gold = Math.round(cityTroops * 0.16 + 320);
-    B.rewards.food = Math.round(cityTroops * 0.11 + 240);
+    B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
+    B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
 
     anims.length = 0;
     fx.length = 0;
@@ -196,10 +202,11 @@
     return {
       id: 'r' + i, side: 'ally', uid: null, name: spec.name, hanja: '', cls: spec.cls, lv,
       hp: spec.troops, maxHp: spec.troops, mp: C.mp, maxMp: C.mp,
-      atk: C.atk + 1, def: C.def + 1, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
-      wu: 66, ji: 58, tong: 62, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
+      /* v5.3 — 일반 부대는 Lv.1 C급 장수보다 약하게 (장수 부대가 확실히 우위) */
+      atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
+      wu: 52, ji: 50, tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
       skills: C.skills.slice(), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
-      train: 58,
+      train: 45,
     };
   }
 
@@ -251,11 +258,12 @@
       id: 'e' + i, side: 'enemy', name: `${SK.factionName(faction).replace(/군$/, '')} ${C.name}대`,
       hanja: '', cls, lv,
       hp: troops, maxHp: troops, mp: C.mp + lv, maxMp: C.mp + lv,
-      atk: (C.atk + lv * 1.15) * (1 + season * 0.03), def: (C.def + lv * 0.75) * (1 + season * 0.03),
-      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 60 + lv * 3, ji: 55 + lv * 2, tong: 60 + lv * 2,
+      /* v5.3 — 무명 일반 수비병도 아군 일반 부대와 같은 낮은 기준 (명장 부대가 확실히 강하다) */
+      atk: C.atk - 1.5, def: C.def - 1.5,
+      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48, tong: 50,
       portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: C.skills.slice(),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
-      train: trainOf(lv, 'B'),
+      train: 45,
     };
   }
 
@@ -287,12 +295,30 @@
     return { x: 1, y: 1 };
   }
 
-  function buildIntro(type, target, faction, bossInfo, defGens, event) {
+  function buildIntro(type, target, faction, bossInfo, defGens, event, intercept) {
     const lines = [];
     if (event) lines.push({ event });
     const mine = SK.factionInfo(SK.playerFaction());
     const lordName = mine.lord || '조조';
     const lordG = SK.GEN_BY_NAME[lordName];
+    const lordPt = lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong;
+    if (intercept) {
+      lines.push({ who: lordName, hanja: '', pt: lordPt, side: 'ally',
+        text: SK.quoteOf(lordName, 'deploy') || '길을 막는 자는 뚫고 지나간다.' });
+      lines.push({ who: lordName, hanja: '', pt: lordPt, side: 'ally',
+        text: {
+          plain: '들을 가로지른다. 대형을 흐트러뜨리지 마라!',
+          ford: '물이 얕은 곳을 찾아라. 강을 건너면 우리 땅이다.',
+          mountain: '산길이 좁다. 앞사람만 따라와라.',
+          naval: '적선을 나란히 붙여라. 물길은 내가 안다.',
+          ambush: '숲이 조용하다. 매복을 먼저 찾아라!',
+        }[type] || '막아서는 자들을 밀어내라.' });
+      const raider = (defGens || [])[0];
+      lines.push({ who: raider ? raider.name : '적 요격대', hanja: '',
+        pt: raider ? SK.genPortrait(raider) : SK.CLASS_PORTRAIT.chaeksa, side: 'enemy',
+        text: '이 길로는 못 지나간다. 여기서 발을 붙여 보아라!' });
+      return lines;
+    }
     lines.push({ who: lordName, hanja: '', pt: lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong,
       side: 'ally', text: SK.quoteOf(lordName, 'deploy') || `${target.name}의 성문을 열어라. 오늘로 끝내겠다.` });
     const hint = {
@@ -300,6 +326,9 @@
       naval: '물길은 내가 안다. 배를 따라오너라!',
       mountain: '산길은 좁다. 내 뒤에 붙어라!',
       fortress: '목책 하나, 부수면 그만이다.',
+      plain: '넓은 들이다. 기병을 살려라.',
+      ford: '여울을 먼저 잡아라. 강을 등지면 끝이다.',
+      ambush: '숲의 숨소리를 들어라. 매복이 있다.',
     }[type];
     const speaker = (SK.state.heroes || []).find((h) => h.city === (B && B.origin) && SK.quoteOf(h.name, 'deploy'));
     if (hint) {
@@ -547,6 +576,8 @@
         if (ch === 'R') siegeRoad(g, x, y, at);
         else if (ch === 'D') siegeYard(g, x, y);
         else if (ch === 'H') siegeRoof(g, x, y, at);
+        else if (ch === 'K') siegeKeep(g, x, y, at);
+        else if (ch === 'T') siegeTower(g, x, y);
         else if (ch === 'W') siegeWater(g, x, y, at);
         else if (ch === 'S') siegeFord(g, x, y);
         else if (ch === 'B') siegeBridge(g, x, y, at);
@@ -617,6 +648,36 @@
     if (!down) { g.fillStyle = '#3d1c14'; g.fillRect(left ? 0 : 2, TILE - 12, TILE - (left ? 0 : 2) - (right ? 0 : 2), 5); g.fillStyle = '#e6d8b0'; g.fillRect(left ? 0 : 2, TILE - 7, TILE - (left ? 0 : 2) - (right ? 0 : 2), 4); }
     if (!up && !left) { g.fillStyle = '#d6b45a'; g.fillRect(2, 3, 5, 5); }
     if (!up && !right) { g.fillStyle = '#d6b45a'; g.fillRect(TILE - 7, 3, 5, 5); }
+  }
+
+  /* v5.3 — 본성(금빛 지붕 계단)과 망루(2층 목탑) */
+  function siegeKeep(g, x, y, at) {
+    siegeYard(g, x, y);
+    const left = at(x - 1, y) === 'K', right = at(x + 1, y) === 'K';
+    g.fillStyle = '#a49a83'; g.fillRect(left ? 0 : 5, 16, TILE - (left ? 0 : 5) - (right ? 0 : 5), TILE - 20);
+    g.fillStyle = '#c9bfa4'; g.fillRect(left ? 0 : 10, 21, TILE - (left ? 0 : 10) - (right ? 0 : 10), TILE - 30);
+    g.strokeStyle = 'rgba(120,104,74,0.6)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(12, 34); g.lineTo(TILE - 12, 34); g.moveTo(12, 46); g.lineTo(TILE - 12, 46); g.stroke();
+    g.fillStyle = '#8a5a1c'; g.fillRect(left ? 0 : 6, 7, TILE - (left ? 0 : 6) - (right ? 0 : 6), 13);
+    g.fillStyle = '#d6b45a'; g.fillRect(left ? 0 : 6, 7, TILE - (left ? 0 : 6) - (right ? 0 : 6), 3);
+    g.fillStyle = '#5e3a12';
+    g.fillRect(left ? 0 : 6, 18, TILE - (left ? 0 : 6) - (right ? 0 : 6), 3);
+    if (!left) { g.fillStyle = '#7c3c2c'; g.fillRect(2, 6, 6, 16); }
+    if (!right) { g.fillStyle = '#7c3c2c'; g.fillRect(TILE - 8, 6, 6, 16); }
+  }
+
+  function siegeTower(g, x, y) {
+    siegeYard(g, x, y);
+    g.fillStyle = '#a49a83'; g.beginPath(); g.ellipse(32, 50, 25, 9, 0, 0, 6.283); g.fill();
+    g.fillStyle = '#b9af96'; g.fillRect(13, 30, 38, 18);
+    g.fillStyle = '#6b4a26'; g.fillRect(16, 20, 6, 22); g.fillRect(42, 20, 6, 22);
+    g.fillStyle = '#7c3c2c';
+    g.beginPath(); g.moveTo(5, 24); g.lineTo(32, 6); g.lineTo(59, 24); g.closePath(); g.fill();
+    g.fillStyle = '#a2603f';
+    g.beginPath(); g.moveTo(10, 24); g.lineTo(32, 10); g.lineTo(54, 24); g.closePath(); g.fill();
+    g.fillStyle = '#e6d8b0'; g.fillRect(30, 2, 4, 8);
+    g.strokeStyle = 'rgba(60,40,20,0.5)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(2, 52); g.lineTo(62, 52); g.stroke();
   }
 
   function siegeWater(g, x, y, at) {
@@ -764,7 +825,7 @@
       ctx.drawImage(B.siegeLayer, 0, 0, WORLD, WORLD);
       drawSiegeWater();
     } else {
-      const bg = loadImg(`assets/maps/v2/battle_${B.def.map}.webp`);
+      const bg = loadImg(`assets/maps/v2/battle_${B.def.img || B.def.map}.webp`);
       if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
       else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
     }
@@ -1724,7 +1785,9 @@
     const aff = SK.affinity(u.cls, ch);
     /* 방어 강화·약화를 실제 피해 계산에 반영한다 (0 아래로는 내려가지 않는다) */
     const mul = Math.max(0.05, 1 + buffVal(u, 'def'));
-    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * mul;
+    /* v5.3 — 망루·본성 위에서는 방어 +45% */
+    const hold = (ch === 'T' || ch === 'K') ? 1.45 : 1;
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * mul * hold;
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -2405,8 +2468,216 @@
     }
   }
 
-  /* 한 부대가 할 최선의 행동을 고른다 — 사거리 안 적 공격 > 성문 타격 > 접근 */
+  /* ───────────── v5.3 — 전 병종 책략 판단 ─────────────
+     회복 > 디버프 > 광역 버프 > 공격 책략 > 단일 버프/자기 버프 순으로
+     “지금 쓸 값이 있는가”를 따져 고른다. 값이 없으면 기본 공격·접근으로 돌아간다. */
+  function skillListOf(u) {
+    if (!u || !u.skills || !u.skills.length) return [];
+    return u.skills.map((k) => {
+      const s = SK.SKILLS[k];
+      return s ? Object.assign({ key: k }, s) : null;
+    }).filter((s) => s && (u.mp || 0) >= (s.mp || 0));
+  }
+
+  function moveTiles(u) {
+    const tiles = [{ x: u.x, y: u.y }];
+    const set = (B.reachCache && B.reachCache.uid === u.id) ? B.reachCache.set : reachSet(u);
+    set.forEach((k) => {
+      const [x, y] = k.split(',').map(Number);
+      if (B.units.some((o) => o.alive && o.x === x && o.y === y)) return;
+      tiles.push({ x, y });
+    });
+    return tiles;
+  }
+
+  function estBasicDmg(u, f) {
+    const def = effDef(f);
+    let base = (effAtk(u) * 0.92 - def * 0.62) * 16 * sizeScale(f) * atkScale(u);
+    if (attackKind(u) === 'rock') base *= 0.55;
+    return Math.max(4, Math.round(base));
+  }
+
+  function estSkillDmg(u, f, sk) {
+    if (sk.kind === 'power') {
+      let mult = sk.power || 1.4;
+      if (sk.vsMount && (f.cls === 'gibi' || (SK.CLASSES[f.cls] && SK.CLASSES[f.cls].mount))) mult += sk.vsMount;
+      let base = (effAtk(u) * mult * 0.92 - effDef(f) * 0.62) * 16 * sizeScale(f) * atkScale(u);
+      if (attackKind(u) === 'rock') base *= 0.55;
+      return Math.max(4, Math.round(base)) * (sk.hits || 1);
+    }
+    if (sk.kind === 'magic') {
+      return Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(f) * 0.90) * sizeScale(f) * 0.8));
+    }
+    if (sk.kind === 'magicArea') {
+      return Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(f) * 0.80) * sizeScale(f) * 0.8));
+    }
+    return 0;
+  }
+
+  function planSupportSkill(u) {
+    const skills = skillListOf(u);
+    if (!skills.length) return null;
+    const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+    const allies = B.units.filter((o) => o.alive && o.side === u.side);
+    const tiles = moveTiles(u);
+    const dTo = (t, x, y) => cheb(t.x, t.y, x, y);
+
+    /* 1) 회복 — HP 85% 이하 아군이 있으면 최우선 */
+    const heals = skills.filter((s) => s.kind === 'heal' || s.kind === 'healArea');
+    const hurt = allies.filter((a) => a.hp < a.maxHp * 0.85).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+    if (heals.length && hurt.length) {
+      let best = null;
+      heals.forEach((sk) => {
+        tiles.forEach((t) => {
+          if (sk.kind === 'heal') {
+            const reach = sk.range || u.rng;
+            hurt.forEach((a) => {
+              if (dTo(t, a.x, a.y) > reach) return;
+              const sc = (1 - a.hp / a.maxHp) * 130 - dTo(t, u.x, u.y) * 0.4;
+              if (!best || sc > best.score) best = { kind: 'skill', mode: 'heal', key: sk.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
+            });
+          } else {
+            const rad = sk.radius || 2;
+            const inRange = hurt.filter((a) => dTo(t, a.x, a.y) <= rad);
+            if (!inRange.length) return;
+            let sc = 0;
+            inRange.forEach((a) => { sc += (1 - a.hp / a.maxHp) * 90; });
+            sc += inRange.length > 1 ? 30 : 0;
+            sc -= dTo(t, u.x, u.y) * 0.4;
+            if (!best || sc > best.score) best = { kind: 'skill', mode: 'heal', key: sk.key, x: t.x, y: t.y, tx: t.x, ty: t.y, target: inRange[0], score: sc };
+          }
+        });
+      });
+      if (best && best.score > 0) return best;
+    }
+
+    /* 2) 디버프 — 적 핵심 부대가 아직 걸리지 않았을 때 */
+    const debs = skills.filter((s) => s.kind === 'debuffDef' || s.kind === 'debuffAtk');
+    if (debs.length && foes.length) {
+      const threat = (f) => effAtk(f) * f.maxHp;
+      const core = foes.slice().sort((a, b) => threat(b) - threat(a)).slice(0, 3);
+      let best = null;
+      debs.forEach((sk) => {
+        const bk = sk.kind === 'debuffDef' ? 'def' : 'atk';
+        const rad = sk.radius || 1;
+        const range = sk.range || u.rng;
+        tiles.forEach((t) => {
+          core.forEach((f) => {
+            if (f.buffs[bk] && f.buffs[bk].t > 0) return;
+            if (dTo(t, f.x, f.y) > range) return;
+            const hit = foes.filter((o) => !o.buffs[bk] && cheb(f.x, f.y, o.x, o.y) <= rad).length;
+            const sc = 34 + hit * 16 + threat(f) / 9000 - dTo(t, u.x, u.y) * 0.3;
+            if (!best || sc > best.score) best = { kind: 'skill', mode: 'debuff', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
+          });
+        });
+      });
+      if (best) return best;
+    }
+
+    /* 3) 광역 버프 — 주변 아군 2기 이상이 아직 버프를 못 받았을 때 */
+    const areaBuf = skills.find((s) => s.kind === 'buffAreaAllies');
+    if (areaBuf && foes.length) {
+      const rad = areaBuf.radius || 2;
+      let best = null;
+      tiles.forEach((t) => {
+        const group = allies.filter((a) => dTo(t, a.x, a.y) <= rad);
+        const need = group.filter((a) => !a.buffs.atk || a.buffs.atk.t <= 0).length;
+        if (need < 2) return;
+        const sc = need * 24 + group.length * 5 - dTo(t, u.x, u.y) * 0.3;
+        if (!best || sc > best.score) best = { kind: 'skill', mode: 'instant', key: areaBuf.key, x: t.x, y: t.y, tx: t.x, ty: t.y, score: sc };
+      });
+      if (best) return best;
+    }
+
+    /* 4) 공격 책략 — 기대 피해가 기본 공격보다 확실히 크거나 처치 가능할 때 */
+    const dmgs = skills.filter((s) => s.kind === 'power' || s.kind === 'magic' || s.kind === 'magicArea');
+    if (dmgs.length && foes.length) {
+      let basic = 0;
+      tiles.forEach((t) => {
+        foes.forEach((f) => {
+          const d = dTo(t, f.x, f.y);
+          if (d < 1 || d > effRng(u)) return;
+          if (wallBlocked({ x: t.x, y: t.y }, f) && attackKind(u) === 'melee') return;
+          basic = Math.max(basic, estBasicDmg(u, f));
+        });
+      });
+      let best = null;
+      dmgs.forEach((sk) => {
+        const range = sk.range || u.rng;
+        const minR = sk.minRange || 1;
+        if (sk.kind === 'magicArea') {
+          tiles.forEach((t) => {
+            foes.forEach((f) => {
+              if (dTo(t, f.x, f.y) > range) return;
+              const rad = sk.radius || 1;
+              const hit = foes.filter((o) => cheb(f.x, f.y, o.x, o.y) <= rad);
+              let sum = 0, kill = false;
+              hit.forEach((o) => { const e = estSkillDmg(u, o, sk); sum += e; if (e >= o.hp) kill = true; });
+              const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) - dTo(t, u.x, u.y) * 0.3;
+              if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
+            });
+          });
+        } else {
+          tiles.forEach((t) => {
+            foes.forEach((f) => {
+              const d = dTo(t, f.x, f.y);
+              if (d < minR || d > range) return;
+              const e = estSkillDmg(u, f, sk);
+              const kill = e >= f.hp;
+              const sc = e * (sk.hits || 1) + (kill ? 170 : 0) - dTo(t, u.x, u.y) * 0.3;
+              if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
+            });
+          });
+        }
+      });
+      if (best && (best.score > basic * 1.08 + 12 || (best.target && estSkillDmg(u, best.target, SK.SKILLS[best.key]) >= best.target.hp))) return best;
+    }
+
+    /* 5) 단일 아군 버프 */
+    const allyBuf = skills.find((s) => s.kind === 'buffAlly');
+    if (allyBuf) {
+      let best = null;
+      tiles.forEach((t) => {
+        allies.forEach((a) => {
+          if (a.buffs.atk && a.buffs.atk.t > 0) return;
+          if (dTo(t, a.x, a.y) > (allyBuf.range || u.rng)) return;
+          const sc = 22 + effAtk(a) * 0.5 + (1 - a.hp / a.maxHp) * 30 - dTo(t, u.x, u.y) * 0.3;
+          if (!best || sc > best.score) best = { kind: 'skill', mode: 'buff', key: allyBuf.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
+        });
+      });
+      if (best) return best;
+    }
+
+    /* 6) 자기 버프 — 교전 직전 한 번 */
+    const selfBuf = skills.find((s) => s.kind === 'buffSelf');
+    if (selfBuf && foes.length && !(u.buffs.def && u.buffs.def.t > 0)) {
+      const near = Math.min.apply(null, foes.map((f) => cheb(u.x, u.y, f.x, f.y)));
+      if (near <= 3) return { kind: 'skill', mode: 'instant', key: selfBuf.key, x: u.x, y: u.y, tx: u.x, ty: u.y, score: 18 };
+    }
+    return null;
+  }
+
+  /* 책략을 실제로 펼친다 (UI 조작 없이). 성공하면 true */
+  function aiCast(u, sk, x, y) {
+    if (!u || !sk || u.acted || (u.mp || 0) < (sk.mp || 0)) return false;
+    const tgt = B.units.find((o) => o.alive && o.x === x && o.y === y);
+    if (sk.kind === 'heal' || sk.kind === 'buffAlly') { if (!tgt || tgt.side !== u.side) return false; }
+    if (sk.kind === 'power' || sk.kind === 'magic') { if (!tgt || tgt.side === u.side) return false; }
+    const dist = cheb(u.x, u.y, x, y);
+    if (sk.minRange && dist < sk.minRange) return false;
+    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && dist > (sk.range || u.rng)) return false;
+    B.sel = u;
+    mode = 'skillTarget';
+    pendingSkill = Object.assign({ key: sk.key }, sk);
+    if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea') { castInstant(u, sk); return true; }
+    trySkillAt(x, y);
+    return true;
+  }
+
+  /* 한 부대가 할 최선의 행동을 고른다 — 책략 > 사거리 안 적 공격 > 성문 타격 > 접근 */
   function planAuto(u) {
+    const sup = planSupportSkill(u);
+    if (sup) return sup;
     const rng = effRng(u);
     const minR = u.minRng || 1;
     const foes = B.units.filter((o) => o.alive && o.side !== u.side);
@@ -2441,7 +2712,9 @@
     tiles.forEach((t) => {
       const d = foes.length ? Math.min(...foes.map((f) => cheb(t.x, t.y, f.x, f.y))) : 99;
       const gy = gateIntact() && B.gate ? Math.min(...B.gate.tiles.map((g) => cheb(t.x, t.y, g.x, g.y))) - 1 : 99;
-      const score = -Math.min(d, gy);
+      let score = -Math.min(d, gy);
+      /* 수비측은 망루·본성에 붙어 버티는 쪽을 조금 더 선호한다 */
+      if (u.side === 'enemy' && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'K')) score += 2.5;
       if (!pick || score > pick.score) pick = { x: t.x, y: t.y, score, kind: 'move' };
     });
     return pick;
@@ -2457,7 +2730,10 @@
       autoPending = null;
       const u = B.units.find((v) => v.uid === p.uid && v.alive);
       if (u && !u.acted) {
-        if (p.gate && gateIntact()) doGateAttack(u, p.gate);
+        if (p.skill) {
+          const sk = SK.SKILLS[p.skill];
+          if (!aiCast(u, sk, p.sx == null ? p.x : p.sx, p.sy == null ? p.y : p.sy)) { u.acted = true; SKBattle.refreshUI(); }
+        } else if (p.gate && gateIntact()) doGateAttack(u, p.gate);
         else if (p.target && p.target.alive && canHit(u, p.target)) doAttack(u, p.target);
         else { u.acted = true; SKBattle.refreshUI(); }
       }
@@ -2473,6 +2749,18 @@
     }
     selectUnit(u);
     const plan = planAuto(u);
+    if (plan && plan.kind === 'skill') {
+      if (plan.x !== u.x || plan.y !== u.y) {
+        autoPending = { uid: u.uid, skill: plan.key, x: plan.x, y: plan.y, sx: plan.tx, sy: plan.ty };
+        moveUnit(u, plan.x, plan.y);
+        autoTimer = setTimeout(autoStep, 260);
+        return;
+      }
+      const sk = SK.SKILLS[plan.key];
+      if (!aiCast(u, sk, plan.tx == null ? plan.x : plan.tx, plan.ty == null ? plan.y : plan.ty)) { u.acted = true; SKBattle.refreshUI(); }
+      autoTimer = setTimeout(autoStep, 420);
+      return;
+    }
     if (plan && (plan.x !== u.x || plan.y !== u.y)) {
       autoPending = { uid: u.uid, target: plan.kind === 'hit' ? plan.target : null, gate: plan.kind === 'gate' ? plan.gate : null };
       moveUnit(u, plan.x, plan.y);
@@ -2501,6 +2789,14 @@
           Object.keys(u.buffs).forEach((k) => { u.buffs[k].t -= 1; if (u.buffs[k].t <= 0) delete u.buffs[k]; });
           if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3);
           else u.mp = Math.min(u.maxMp, u.mp + 2);
+          /* v5.3 — 망루·본성에 선 부대는 턴마다 병력 15% 회복 */
+          const holdCh = B.tiles[u.y][u.x];
+          if ((holdCh === 'T' || holdCh === 'K') && u.hp < u.maxHp) {
+            const hh = Math.max(1, Math.round(u.maxHp * 0.15));
+            u.hp = Math.min(u.maxHp, u.hp + hh);
+            addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.4) * TILE, '+' + hh, '#a8f0b8');
+            addFx({ kind: 'heal', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520 });
+          }
         });
         B.phase = 'ally';
         B.units.forEach((u) => { if (u.side === 'ally' && u.alive) triggerPassive(u, 'turn_start'); });
@@ -2527,6 +2823,23 @@
       return !best || d < best.d ? { t, d } : best;
     }, null).t;
     const rng = effRng(e);
+
+    /* v5.3 — 적도 책략을 판단해 쓴다 (회복·버프·디버프·공격 책략) */
+    const sup = planSupportSkill(e);
+    if (sup) {
+      const sk = SK.SKILLS[sup.key];
+      const go = () => {
+        if (!B || B.over) { done(); return; }
+        const ok = aiCast(e, sk, sup.tx == null ? sup.x : sup.tx, sup.ty == null ? sup.y : sup.ty);
+        if (!ok) { e.acted = true; finishCheck(); done(); return; }
+        e.acted = true;
+        setTimeout(() => { if (!B || B.over) { done(); return; } finishCheck(); done(); }, 760);
+      };
+      if (sup.x !== e.x || sup.y !== e.y) {
+        animatePath(e, findPath(e, sup.x, sup.y), { step: 88, onDone: () => setTimeout(go, 150) });
+      } else go();
+      return;
+    }
 
     // cast a heal on a wounded ally if priest
     if (e.cls === 'pungsusa' && e.mp >= 10) {
@@ -2622,9 +2935,102 @@
     return SK.quoteOf(lord, 'victory') || SK.quoteOf('조조', 'victory');
   }
 
+  /* ───────────── v5.3 — 행군 요격전의 승패 ───────────── */
+  function marchOf(id) { return ((SK.state && SK.state.marches) || []).find((m) => m.id === id); }
+
+  function interceptVictory() {
+    B.over = true;
+    SK.sfx.play('victory');
+    if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
+    const s = SK.state;
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    const dead = B.units.filter((u) => u.side === 'ally' && !u.alive);
+    const m = marchOf(B.intercept && B.intercept.marchId);
+    if (m) {
+      m.units = survivors.map((u) => (u.uid
+        ? { kind: 'hero', uid: u.uid, troops: Math.max(1, Math.round(u.hp)) }
+        : { kind: 'regiment', cls: u.cls, name: u.name, troops: Math.max(1, Math.round(u.hp)) }));
+      m.heroes = m.units.filter((x) => x.kind === 'hero').map((x) => x.uid);
+    }
+    dead.forEach((u) => {
+      if (!u.uid) return;
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (h) { h.marchId = null; h.hp = 1; }
+    });
+    survivors.forEach((u) => {
+      if (!u.uid) return;
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (h) { h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv))); SK.gainExp(h, 45); }
+    });
+    s.gold += B.rewards.gold;
+    s.food += B.rewards.food;
+    s.fame += 2;
+    s.pendingMarch = null;
+    SK.save();
+    SKBattle.refreshUI();
+    const m2 = marchOf(B.intercept && B.intercept.marchId);
+    const left = m2 ? m2.left : 0;
+    SK.modal({
+      kicker: '요격전 승리',
+      title: `${B.def.name} 돌파`,
+      body: `<div class="result-modal win"><div class="rm-seal">승</div>
+        <p class="rm-line">길을 막던 적 요격대를 물리쳤습니다. <b>${left > 0 ? `${left}개월 뒤 도착` : '곧 도착'}</b> — 행군을 이어갑니다.</p>
+        <div class="rm-rewards">
+          <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
+          <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
+          <div><span>병력</span><b>${Math.round(survivors.reduce((a, u) => a + u.hp, 0)).toLocaleString('ko-KR')}</b></div>
+        </div>
+        <p class="rm-note">다음 달에 행군이 한 달 더 진행됩니다.</p></div>`,
+      actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
+      dismissible: false,
+    });
+  }
+
+  function interceptDefeat() {
+    B.over = true;
+    SK.sfx.play('defeat');
+    const s = SK.state;
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    const troopsLeft = survivors.reduce((sum, u) => sum + Math.max(0, u.hp), 0);
+    const st = s.cities[B.origin];
+    if (st) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
+    const mid = B.intercept && B.intercept.marchId;
+    s.marches = (s.marches || []).filter((m) => m.id !== mid);
+    B.units.forEach((u) => {
+      if (u.side !== 'ally' || !u.uid) return;
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (h) { h.marchId = null; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2))); }
+    });
+    s.gold = Math.max(0, s.gold - 100);
+    s.pendingMarch = null;
+    SK.save();
+    SK.modal({
+      kicker: '행군 실패',
+      title: '본성으로 회군',
+      body: `<div class="result-modal lose"><div class="rm-seal">패</div>
+        <p class="rm-line">요격대에 길이 막혔습니다. 남은 병력은 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}으로 돌아갑니다.</p>
+        <p class="rm-note">복귀 병력 ${Math.round(troopsLeft).toLocaleString('ko-KR')} · 금 -100</p></div>`,
+      actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
+      dismissible: false,
+    });
+  }
+
+  function clearMarchFlags() {
+    const s = SK.state;
+    B.units.forEach((u) => {
+      if (u.side !== 'ally' || !u.uid) return;
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (h) h.marchId = null;
+    });
+    const mid = B.marchId || (B.intercept && B.intercept.marchId);
+    if (mid) s.marches = (s.marches || []).filter((m) => m.id !== mid);
+    s.pendingMarch = null;
+  }
+
   /* ───────────── 승패 ───────────── */
   function victory() {
     if (B.over) return;
+    if (B.intercept) { interceptVictory(); return; }
     B.over = true;
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
@@ -2656,6 +3062,7 @@
       if (u) {
         h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv)));
         h.mp = u.mp;
+        h.marchId = null;
         if (u.alive) h.city = B.targetId;
         const gain = (u.expGain || 0) + (u.alive ? 70 : 30) + (B.def.name === '공성전' ? 15 : 0);
         const ups = SK.gainExp(h, gain);
@@ -2663,6 +3070,7 @@
       }
     });
     // move wounded survivors to the captured city
+    clearMarchFlags();
     SK.save();
     SKBattle.refreshUI();
     const owned = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
@@ -2695,6 +3103,7 @@
 
   function defeat() {
     if (B.over) return;
+    if (B.intercept) { interceptDefeat(); return; }
     B.over = true;
     SK.sfx.play('defeat');
     const s = SK.state;
@@ -2707,9 +3116,10 @@
     B.units.forEach((u) => {
       if (u.side === 'ally' && u.uid) {
         const h = s.heroes.find((x) => x.uid === u.uid);
-        if (h) h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4));
+        if (h) { h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4)); h.marchId = null; }
       }
     });
+    clearMarchFlags();
     SK.save();
     SK.modal({
       kicker: '패배',
@@ -2725,6 +3135,21 @@
 
   function retreat() {
     if (!B) return;
+    if (B.intercept || B.marchId) {
+      /* 행군 중 후퇴 — 남은 병력은 본성으로, 행군은 취소된다 */
+      const s = SK.state;
+      const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+      const troopsLeft = survivors.reduce((sum, u) => sum + Math.max(0, u.hp), 0);
+      const st = s.cities[B.origin];
+      if (st) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
+      B.units.forEach((u) => {
+        if (u.side !== 'ally' || !u.uid) return;
+        const h = s.heroes.find((x) => x.uid === u.uid);
+        if (h) { h.marchId = null; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.6)); }
+      });
+      clearMarchFlags();
+      SK.save();
+    }
     B.over = true;
     closeBattle();
     SK.showMap();
@@ -2818,7 +3243,8 @@
         $('#uc-name').textContent = u.name;
         $('#uc-cls').textContent = SK.CLASSES[u.cls].name;
         const tr = SK.TERRAIN[B.tiles[u.y][u.x]];
-        $('#uc-terrain').textContent = tr.name + (tr.def ? ` 방어+${Math.round(tr.def * 100)}%` : '') + (SK.affinity(u.cls, B.tiles[u.y][u.x]).label ? ` · ${SK.affinity(u.cls, B.tiles[u.y][u.x]).label}` : '') + (typeBonus(u) ? ` · ${B.def.name} ${typeBonus(u) > 0 ? '+' : ''}${Math.round(typeBonus(u) * 100)}%` : '');
+        const holdTag = B.tiles[u.y][u.x] === 'T' ? '망루 방어↑·회복' : B.tiles[u.y][u.x] === 'K' ? '본성 방어↑·회복' : '';
+        $('#uc-terrain').textContent = tr.name + (tr.def ? ` 방어+${Math.round(tr.def * 100)}%` : '') + (holdTag ? ` · ${holdTag}` : '') + (SK.affinity(u.cls, B.tiles[u.y][u.x]).label ? ` · ${SK.affinity(u.cls, B.tiles[u.y][u.x]).label}` : '') + (typeBonus(u) ? ` · ${B.def.name} ${typeBonus(u) > 0 ? '+' : ''}${Math.round(typeBonus(u) * 100)}%` : '');
         $('#uc-hp').style.width = Math.round(u.hp / u.maxHp * 100) + '%';
         $('#uc-hp-txt').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-mp').style.width = Math.round(u.mp / u.maxMp * 100) + '%';
@@ -2862,6 +3288,9 @@
         $('#uc-hp-txt').textContent = ''; $('#uc-mp-txt').textContent = '';
         $('#uc-troops').textContent = '0'; $('#uc-train').textContent = '-';
         $('#uc-atk').textContent = '-'; $('#uc-def').textContent = '-';
+        const ma0 = $('#uc-matk'), md0 = $('#uc-mdef');
+        if (ma0) ma0.textContent = '-';
+        if (md0) md0.textContent = '-';
         $('#uc-mov').textContent = '-'; $('#uc-rng').textContent = '-';
       }
       document.querySelectorAll('.act').forEach((b) => {
@@ -2874,6 +3303,11 @@
     retreat,
     debug: {
       get battle() { return B; },
+      get mode() { return mode; },
+      get busy() { return busy; },
+      get pending() { return pendingSkill; },
+      get autoOn() { return autoOn; },
+      get anims() { return anims.map((a) => a.kind); },
       get fx() { return fx.map((f) => f.kind); },
       get floats() { return floats.map((f) => f.text); },
       get anims() { return anims.map((a) => a.kind); },

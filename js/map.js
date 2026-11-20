@@ -962,6 +962,38 @@
   }
 
   /* ───────────── 거점 마커 ───────────── */
+  let marchEls = [];
+  function syncMarchMarks() {
+    if (!markersEl) return;
+    const list = (SK.state && SK.state.marches) || [];
+    markersEl.querySelectorAll('.march-mark').forEach((el) => el.remove());
+    marchEls = list.map((m) => {
+      const el = document.createElement('div');
+      el.className = 'march-mark';
+      el.innerHTML = `<span class="mm-dot">⚔</span><span class="mm-tag">행군</span>`;
+      markersEl.appendChild(el);
+      return { m, el, tag: el.querySelector('.mm-tag') };
+    });
+    placeMarchMarks();
+  }
+
+  function placeMarchMarks() {
+    if (!marchEls.length) return;
+    const s = cam.s;
+    marchEls.forEach(({ m, el, tag }) => {
+      const path = SK.roadPoints(m.origin, m.target);
+      if (!path || path.length < 2) return;
+      const prog = Math.max(0.13, Math.min(0.94, 1 - Math.max(0, m.left) / Math.max(1, m.total)));
+      const idx = prog * (path.length - 1);
+      const i0 = Math.floor(idx), i1 = Math.min(path.length - 1, i0 + 1), f = idx - i0;
+      const px = path[i0][0] + (path[i1][0] - path[i0][0]) * f;
+      const py = path[i0][1] + (path[i1][1] - path[i0][1]) * f;
+      el.style.transform = `translate3d(${(cam.tx + px * s).toFixed(2)}px, ${(cam.ty + py * s).toFixed(2)}px, 0)`;
+      const leg = Math.min(m.total, Math.max(1, m.total - m.left + 1));
+      if (tag) tag.textContent = `행군 ${leg}/${m.total}`;
+    });
+  }
+
   function buildMarkers() {
     markersEl.innerHTML = '';
     marks = SK.CITY_LIST.map((c) => {
@@ -1011,6 +1043,7 @@
       m.el.style.setProperty('--iw', iconW(m.city.type, s).toFixed(1) + 'px');
       m.el.dataset.a = m.anchor;
     }
+    placeMarchMarks();
   }
 
   /* 라벨 겹침 해소 — 아이콘·이름이 서로 겹치지 않게 자리를 고르고, 자리가 없으면 잠시 감춘다 */
@@ -1157,6 +1190,7 @@
     }
     labelAnchorDirty = true;
     placeMarks();
+    syncMarchMarks();
   }
 
   /* ───────────── 제스처 ───────────── */

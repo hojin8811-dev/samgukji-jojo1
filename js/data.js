@@ -17,6 +17,9 @@ SK.TERRAIN = {
   C: { name: '성벽', def: 0.50, cost: 99, icon: 'wall' },
   D: { name: '마당', def: 0.08, cost: 1, icon: 'yard' },
   H: { name: '관아', def: 0.40, cost: 99, icon: 'wall' }, /* v5.1 — 성 안 궁궐·관아 건물(통행 불가) */
+  /* v5.3 — 공성전 보루. 방어 +45%·턴 시작 회복은 battle.js effDef/턴 리셋에서 처리한다 */
+  T: { name: '망루', def: 0, cost: 2, icon: 'tower' },
+  K: { name: '본성', def: 0, cost: 1, icon: 'keep' },
 };
 
 /* ───────────── 병과 (16종) ───────────── */
@@ -149,16 +152,16 @@ SK.isFemaleGeneral = function (g) {
   return !!(g && SK.FEMALE_GENERALS.indexOf(g.name) >= 0);
 };
 SK.REGIMENTS = [
-  { cls: 'geombyung', name: '검병대', cost: 1800 },
-  { cls: 'changbyung', name: '창병대', cost: 1900 },
-  { cls: 'gungsu', name: '궁수대', cost: 1700 },
-  { cls: 'gibi', name: '기병대', cost: 2100 },
-  { cls: 'sanjeok', name: '산적대', cost: 1800 },
-  { cls: 'sujeok', name: '수적대', cost: 1800 },
-  { cls: 'mudoga', name: '무도가대', cost: 1800 },
-  { cls: 'yasubyung', name: '야수병대', cost: 2200 },
-  { cls: 'pocha', name: '포차대', cost: 2400 },
-  { cls: 'balseokcha', name: '발석차대', cost: 2600 },
+  { cls: 'geombyung', name: '검병대', cost: 2000 },
+  { cls: 'changbyung', name: '창병대', cost: 2000 },
+  { cls: 'gungsu', name: '궁수대', cost: 2000 },
+  { cls: 'gibi', name: '기병대', cost: 2000 },
+  { cls: 'sanjeok', name: '산적대', cost: 2000 },
+  { cls: 'sujeok', name: '수적대', cost: 2000 },
+  { cls: 'mudoga', name: '무도가대', cost: 2000 },
+  { cls: 'yasubyung', name: '야수병대', cost: 2000 },
+  { cls: 'pocha', name: '포차대', cost: 2000 },
+  { cls: 'balseokcha', name: '발석차대', cost: 2000 },
 ];
 
 /* 지형 상성 */
@@ -300,7 +303,7 @@ SK.CITY_ALIAS = {
   '양양': 'xiangyang', '강릉': 'jiangling', '강하': 'jiangxia', '남군': 'jiangling',
   '성도': 'chengdu', '광한': 'zitong', '파군': 'yongan', '건위': 'jianning',
   '한중': 'hanzhong', '남정': 'hanzhong', '양평관': 'yangping',
-  '무위': 'wuwei', '서량': 'wuwei', '서량군': 'wuwei', '금성': 'tianshui', '천수': 'tianshui',
+  '무위': 'wuwei', '서량': 'wuwei', '서량군': 'wuwei', '천수': 'tianshui',
   '안정': 'anding', '서평': 'anding', '삭방': 'shuofang',
   '북평': 'beiping', '요서': 'beiping', '계': 'ji', '역경': 'ji',
   '하비': 'xiapi', '팽성': 'xiaopei', '낭야': 'langya', '광릉': 'guangling', '초': 'xiaopei',
@@ -309,7 +312,7 @@ SK.CITY_ALIAS = {
   '압록강 유역': 'hamhung', '동옥저': 'hamhung', '함흥': 'hamhung',
   '위례성': 'hanseong', '한성': 'hanseong', '미추홀': 'hanseong',
   '마한 북부': 'wansan', '한강 유역': 'wonju', '웅진': 'ungjin',
-  '서라벌': 'gyeongju', '금성': 'gyeongju', '경주': 'gyeongju',
+  '서라벌': 'gyeongju', '경주': 'gyeongju',
   '동해안': 'daegwallyeong', '낙동강 동부': 'busan',
   '허창': 'xuchang', '관도': 'puyang', '여남': 'runan', '신야': 'xinye',
   '건업': 'jianye', '오군': 'wu', '회계': 'kuaiji', '단양': 'shishang',
@@ -325,8 +328,14 @@ SK.CITY_ALIAS = {
 
 /* 세력별로 뜻이 갈리는 지명 (서량의 金城 ↔ 신라의 金城) */
 SK.ALIAS_BY_FACTION = {
-  hansui: { '금성': 'tianshui', '서평': 'anding', '무위': 'wuwei' },
-  mateng: { '금성': 'tianshui', '서량': 'wuwei' },
+  /* v5.3 — 실제 거점 '금성'이 생겼다. 한수의 본거지 금성은 그 성을 쓰고,
+     서평은 금성에 붙인다(같은 성으로 모이면 한 곳으로 센다). */
+  hansui: { '서평': 'geumseong' },
+  mateng: { '서량': 'wuwei' },
+  /* 신라의 '금성'은 경주(서라벌)다 — 서북의 금성과 이름이 같아 세력별로 갈라 둔다 */
+  silla: { '금성': 'gyeongju' },
+  /* 백제 '마한 북부'는 한강 유역이므로 한성으로 (전주 완산으로 보내지 않는다) */
+  baekje: { '마한 북부': 'hanseong' },
 };
 
 SK.cityIdByName = function (name) {
@@ -590,7 +599,7 @@ SK.setScenarios = function (list) { SK.SCENARIOS = list || []; };
 SK.normName = function (n) { return SK.NAME_ALIAS[n] || n; };
 
 /* 시나리오 하나를 실제 영지 배치로 푼다.
-   · faction.cities 이름을 77거점으로 별칭 변환
+   · faction.cities 이름을 78거점으로 별칭 변환
    · 여러 세력이 같은 거점을 주장하면 "자기 영지 중심"이 가까운 세력이 가져간다
    · 아무도 주장하지 않은 거점은 가장 가까운 세력(300px 이내), 그 밖은 재야 */
 /* 변방·요새·섬 — 시나리오가 비워 두는 공백지(재야) 후보.
@@ -1004,7 +1013,7 @@ SK.equipBonus = function (h) {
 
 /* ───────────── 76 거점 ─────────────
    [id, 이름, 한자, u, v, 유형, 세력, 지역] */
-/* ───────────── 77 거점 (data/cities.json) ───────────── */
+/* ───────────── 78 거점 (data/cities.json) ───────────── */
 SK.CITY = {};
 SK.CITY_LIST = [];
 SK.ROADS = [];
@@ -1050,7 +1059,7 @@ SK.MUST_ROADS = [['hanzhong', 'yangping'], ['hanzhong', 'changan'], ['changan', 
   ['nanhai', 'guiyang'], ['nanhai', 'gangju'], ['gangju', 'guiyang'],
   ['jianning', 'yunnan'], ['wuwei', 'tianshui'], ['lushui', 'chengdu'], ['lushui', 'jianning']];
 
-/* v5.0.3 — 77거점 역참로를 손으로 고정한다.
+/* v5.0.3 — 78거점 역참로를 손으로 고정한다.
    거리만 보는 자동 최소신장트리는 호로관↔낙양·업↔남피 같은 뻔한 길을 놓치고,
    삭방↔함곡관·산해관↔남피처럼 바다를 가로지르거나 지도를 관통하는 선을 만들었다.
    순서: 서량 → 관중 → 하북·병주·유주 → 중원 → 서주·회남 → 형주 → 익주·남만 → 강동 → 요동·한국 */
@@ -1064,6 +1073,7 @@ SK.ROAD_EDGES = [
   /* 하북·병주 — 태행산맥 양쪽과 하북 평야 */
   ['jinyang', 'dai'], ['jinyang', 'shangdang'], ['jinyang', 'ye'],
   ['shangdang', 'hoguan'], ['hoguan', 'ye'], ['shangdang', 'luoyang'],
+  ['geumseong', 'wuwei'], ['geumseong', 'tianshui'], ['geumseong', 'anding'],
   ['ye', 'nanpi'], ['ye', 'puyang'], ['nanpi', 'ji'], ['nanpi', 'pingyuan'],
   ['ji', 'beiping'], ['ji', 'dai'], ['beiping', 'shanhaiguan'], ['shanhaiguan', 'liaodong'],
   /* 청주·서주 */
@@ -1093,10 +1103,10 @@ SK.ROAD_EDGES = [
   ['liaodong', 'ansiseong'], ['ansiseong', 'guknaeseong'], ['guknaeseong', 'hamhung'],
   ['hamhung', 'pyongyang'], ['pyongyang', 'gaeseong'], ['gaeseong', 'cheolwon'],
   ['gaeseong', 'hanseong'], ['cheolwon', 'wonju'], ['hanseong', 'wonju'],
-  ['hanseong', 'ungjin'], ['hanseong', 'gwangju'], ['wonju', 'cheongju'],
+  ['hanseong', 'ungjin'], ['wonju', 'cheongju'],
   ['wonju', 'daegwallyeong'], ['daegwallyeong', 'gyeongju'], ['cheongju', 'ungjin'],
-  ['cheongju', 'wansan'], ['ungjin', 'wansan'], ['ungjin', 'gwangju'], ['wansan', 'gwangju'],
-  ['gyeongju', 'busan'],
+  ['cheongju', 'wansan'], ['ungjin', 'gwangju'], ['wansan', 'gwangju'],
+  ['gyeongju', 'busan'], ['busan', 'wansan'],
   /* 섬 — 같은 섬 안에서만 */
   ['taipei', 'tainan'],
 ];
@@ -1106,6 +1116,9 @@ SK.ROAD_VIA = {
   'gaeseong|hanseong': [[1665.0, 338.9], [1715.0, 356.4]],
   'hanseong|ungjin': [[1731.2, 382.6], [1713.8, 417.7]],
   'ungjin|gwangju': [[1706.2, 457.7], [1708.8, 502.7]],
+  /* v5.3 — 요동과 안시성 사이는 바다가 아니라 육지로 돌아간다. 두 성 사이 땅을 벌리고 길을 곧게 편다 */
+  /* v5.3 — 부산에서 완산으로 가는 남해안 길 */
+  'busan|wansan': [[1852.0, 520.0], [1808.0, 527.0], [1789.0, 524.0]],
 };
 
 SK.buildRoads = function () {
@@ -1133,7 +1146,7 @@ SK.buildRoads = function () {
     SK.ROADS.push([a.id, b.id]);
     return true;
   };
-  // 1) 손으로 고정한 역참로 — 77거점의 실제 지리를 따른다
+  // 1) 손으로 고정한 역참로 — 78거점의 실제 지리를 따른다
   SK.ROAD_EDGES.forEach(([a, b]) => {
     if (SK.CITY[a] && SK.CITY[b]) add(SK.CITY[a], SK.CITY[b]);
   });
@@ -1193,7 +1206,7 @@ SK.allNeighbors = function (id) { return SK.neighbors(id).concat(SK.seaNeighbors
 
 /* ───────────── 도로망 자체 점검 (v5.0.3) ─────────────
    ‣ 육로가 바다를 건너는가 — 지도 폴리곤 위에서 40점을 찍어 본다
-   ‣ 관문이 양쪽을 잇는가 · 홀로 남은 거점이 있는가 · 77거점이 한 덩어리인가
+   ‣ 관문이 양쪽을 잇는가 · 홀로 남은 거점이 있는가 · 78거점이 한 덩어리인가
    QA에서 SK.roadIssues() 로 확인한다. 평소 게임 진행에는 쓰이지 않는다. */
 SK.roadIssues = function () {
   const out = [];
@@ -1301,6 +1314,9 @@ function siegeMap() {
   row(0, 'C');
   /* 궁궐·관아 */
   for (let y = 1; y <= 2; y++) row(y, 'H', 7, 10);
+  /* v5.3 — 본성(관아 앞 계단) 2칸 + 좌우 망루 2칸 */
+  g[3][8] = 'K'; g[3][9] = 'K';
+  g[4][5] = 'T'; g[4][12] = 'T';
   /* 정면 외벽 + 성문 2칸 */
   row(6, 'C'); g[6][8] = 'G'; g[6][9] = 'G';
   /* 해자: 다리 2칸(성문 앞) + 양옆 여울 */
@@ -1370,11 +1386,59 @@ function fortressMap() {
   return g2s(g);
 }
 
+/* v5.3 — 행군 도중 요격전용 전장: 넓은 들(평야전) · 강 건널목(도하전) · 숲길(매복전) */
+function plainMap() {
+  const g = blankGrid();
+  paint(g, [[2, 2], [2, 3], [3, 2], [14, 14], [15, 14], [14, 15], [15, 15], [6, 13], [7, 13], [6, 14]], 'F');
+  paint(g, [[0, 0], [0, 1], [1, 0], [0, 17], [1, 17], [1, 16], [17, 0], [17, 1], [16, 0], [17, 17], [16, 17], [17, 16]], 'M');
+  for (let x = 0; x < 18; x++) { g[9][x] = x % 5 === 4 ? 'S' : 'R'; }
+  paint(g, [[4, 6], [4, 7], [5, 8], [12, 9], [13, 10], [11, 5], [3, 12], [14, 3]], 'R');
+  return g2s(g);
+}
+
+function fordMap() {
+  const g = blankGrid();
+  for (let x = 0; x < 18; x++) { g[7][x] = 'W'; g[8][x] = 'W'; }
+  /* 중앙 나무다리 + 좌우 여울(징검돌) — 배경 그림의 다리·징검돌과 자리를 맞춘다 */
+  [[4, 7], [5, 7], [4, 8], [5, 8], [12, 7], [13, 7], [12, 8], [13, 8]].forEach(([x, y]) => { g[y][x] = 'S'; });
+  paint(g, [[7, 8], [8, 8], [7, 9], [8, 9]], 'B');
+  paint(g, [[1, 1], [1, 2], [2, 1], [6, 14], [7, 14], [6, 15], [15, 2], [16, 2], [15, 3], [12, 16], [13, 16]], 'F');
+  paint(g, [[0, 0], [0, 1], [1, 0], [17, 17], [17, 16], [16, 17], [0, 17], [1, 17], [0, 16]], 'M');
+  for (let y = 0; y <= 6; y++) { g[y][8] = 'R'; }
+  for (let y = 9; y < 18; y++) { g[y][9] = 'R'; }
+  return g2s(g);
+}
+
+function ambushMap() {
+  const g = blankGrid();
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) if ((x * 7 + y * 13) % 5 < 3) g[y][x] = 'F';
+  const path = [[16, 3], [14, 4], [13, 6], [11, 7], [10, 9], [8, 10], [7, 12], [5, 13], [3, 15]];
+  let prev = path[0];
+  const carve = (y, x) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const ny = y + dy, nx = x + dx;
+      if (ny >= 0 && ny < 18 && nx >= 0 && nx < 18) g[ny][nx] = (dx === 0 && dy === 0) ? 'R' : 'P';
+    }
+  };
+  carve(prev[0], prev[1]);
+  path.slice(1).forEach((p) => {
+    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
+    for (let i = 1; i <= steps; i++) carve(Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps));
+    prev = p;
+  });
+  paint(g, [[2, 2], [2, 3], [3, 2], [2, 4], [14, 2], [15, 2], [14, 3], [6, 6], [7, 6], [6, 7], [12, 12], [13, 12], [12, 13]], 'F');
+  paint(g, [[0, 0], [0, 1], [1, 0], [17, 17], [17, 16], [16, 17], [0, 17], [0, 16]], 'M');
+  return g2s(g);
+}
+
 SK.MAPS = {
   siege: siegeMap(),
   naval: navalMap(),
   mountain: mountainMap(),
   fortress: fortressMap(),
+  plain: plainMap(),
+  ford: fordMap(),
+  ambush: ambushMap(),
 };
 
 /* 전장 유형 정보 */
@@ -1387,6 +1451,13 @@ SK.BATTLE_TYPES = {
     objective: '허리 길을 따라 올라가 적을 전멸시켜라', skill: '산적은 산지·숲에서 강해집니다.' },
   fortress: { name: '요새전', hanja: '要塞戰', map: 'fortress', desc: '목책과 망루를 함락하라',
     objective: '목책의 성문을 부수고 적을 전멸시켜라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
+  /* v5.3 — 행군 요격전 5종 */
+  plain: { name: '평야전', hanja: '', map: 'plain', img: 'plain', desc: '넓은 들에서 적 요격대와 맞붙는다',
+    objective: '평야에서 적 요격대를 전멸시켜라', skill: '기병·무도가는 평지에서 강합니다.' },
+  ford: { name: '도하전', hanja: '', map: 'ford', img: 'ford', desc: '강 건널목을 사이에 두고 맞선다',
+    objective: '여울과 다리를 건너 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
+  ambush: { name: '매복전', hanja: '', map: 'ambush', img: 'mountain', desc: '숲길에서 기습을 받았다',
+    objective: '숲길 매복을 뚫고 적을 전멸시켜라', skill: '산적·야수병은 숲에서 강해집니다.' },
 };
 
 /* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.
@@ -1410,6 +1481,9 @@ SK.enemyClassesFor = function (type, idx) {
     naval:    ['sujeok', 'sujeok', 'gungsu', 'sujeok', 'chaeksa', 'dosa', 'gunakdae', 'sujeok'],
     mountain: ['sanjeok', 'yasubyung', 'sanjeok', 'yeonnobyung', 'chaeksa', 'mudoga', 'sanjeok', 'yasubyung'],
     fortress: ['deunggabyung', 'gungsu', 'changbyung', 'pocha', 'chaeksa', 'balseokcha', 'yeonnobyung', 'geombyung'],
+    plain:    ['gibi', 'changbyung', 'geombyung', 'gungsu', 'mudoga', 'chaeksa', 'gibi', 'gungsu'],
+    ford:     ['sujeok', 'gungsu', 'changbyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'geombyung', 'sujeok'],
+    ambush:   ['sanjeok', 'yasubyung', 'mudoga', 'sanjeok', 'gungsu', 'chaeksa', 'yasubyung', 'sanjeok'],
   };
   const t = tables[type] || tables.siege;
   return t[idx % t.length];
@@ -1417,15 +1491,22 @@ SK.enemyClassesFor = function (type, idx) {
 
 /* 배치 좌표 [x, y] (18×18) */
 SK.enemySlots = function (type) {
-  if (type === 'siege') return [[8, 3], [6, 4], [11, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5]];
+  /* v5.3 — 수비 2기는 망루(5,4)·(12,4)에 붙어 버틴다 */
+  if (type === 'siege') return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5]];
   if (type === 'naval') return [[3, 2], [6, 2], [9, 2], [12, 2], [15, 2], [5, 1], [11, 1], [14, 1]];
   if (type === 'mountain') return [[16, 2], [14, 4], [11, 7], [10, 9], [8, 10], [13, 5], [15, 3], [9, 11]];
+  if (type === 'plain') return [[4, 2], [8, 2], [12, 2], [6, 3], [10, 3], [13, 3], [3, 3], [15, 3]];
+  if (type === 'ford') return [[5, 1], [8, 1], [11, 1], [6, 2], [9, 2], [12, 2], [7, 3], [13, 2]];
+  if (type === 'ambush') return [[14, 4], [12, 6], [10, 8], [8, 10], [6, 12], [13, 5], [11, 7], [9, 9]];
   return [[12, 4], [15, 4], [13, 6], [16, 7], [11, 7], [12, 9], [14, 5], [16, 3]];
 };
 SK.allySlots = function (type) {
   if (type === 'siege') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
   if (type === 'naval') return [[3, 15], [6, 15], [9, 15], [12, 15], [15, 15], [4, 16], [7, 16], [10, 16], [13, 16], [16, 16]];
   if (type === 'mountain') return [[2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 12], [3, 16], [4, 16], [5, 14], [6, 13]];
+  if (type === 'plain') return [[4, 15], [8, 15], [12, 15], [6, 16], [10, 16], [14, 16], [3, 16], [16, 15], [7, 14], [11, 14]];
+  if (type === 'ford') return [[4, 15], [7, 15], [10, 15], [13, 15], [5, 16], [8, 16], [11, 16], [6, 14], [12, 14], [14, 16]];
+  if (type === 'ambush') return [[3, 15], [5, 14], [7, 13], [9, 12], [11, 13], [4, 16], [6, 15], [8, 14], [10, 13], [12, 14]];
   return [[3, 15], [5, 16], [7, 15], [9, 16], [4, 13], [6, 14], [8, 16], [2, 14], [10, 16], [5, 14]];
 };
 

@@ -10,11 +10,11 @@
 ```
 너는 《꼬마영웅 천하통일》 웹게임을 이어서 개발하는 개발자다.
 저장소: https://github.com/hojin8811-dev/samgukji-jojo1 (main)
-라이브: https://hojin8811-dev.github.io/samgukji-jojo1/?v=11
+라이브: https://hojin8811-dev.github.io/samgukji-jojo1/?v=17
 먼저 저장소 최상위의 HANDOFF.md 를 끝까지 읽고, README.md 와 V5_ROADMAP.md 로 최신 상태를 확인해라.
 
 [프로젝트] 모바일 세로 390×844 우선, 정적 HTML/CSS/JS(빌드 없음), 후한 말 삼국 배경 턴제 전략.
-전국 지도 77거점 내정 + 《삼국지 조조전》식 18×18 격자 전장. 585장수·19병과·4시나리오.
+전국 지도 78거점 내정 + 《삼국지 조조전》식 18×18 격자 전장. 585장수·19병과·4시나리오.
 GitHub Pages가 main 브랜치를 그대로 서빙한다. 배포는 push 후 index.html의 ?v= 숫자를 +1.
 
 [절대 규칙] UI에 한자 금지 / 날짜는 "190년 1월" / 모바일 390×844 우선 / 군주는 자기가 있는 성의 태수
@@ -33,7 +33,7 @@ GitHub Pages가 main 브랜치를 그대로 서빙한다. 배포는 push 후 ind
    기병·궁기병(job_cavalry·job_horse_archer)을 말 탄 모습으로 다시 그려라.
 
 [검증] 390×844 headless로 새 게임→내정→건설→다음 달→출진→전투 승리까지 돌리고,
-window.__errs 0, SK.CITY_LIST 77, SK.roadIssues() [] 를 확인해라. 끝나면 바뀐 파일·검증 결과·남은 일을 요약해라.
+window.__errs 0, SK.CITY_LIST 78, SK.roadIssues() [] 를 확인해라. 끝나면 바뀐 파일·검증 결과·남은 일을 요약해라.
 ```
 
 **GitHub 연결이 안 될 때(채팅만 쓸 때)** — 위 지시문 맨 앞 두 줄을 이렇게 바꾸고 `HANDOFF.md` 파일을 첨부하세요.

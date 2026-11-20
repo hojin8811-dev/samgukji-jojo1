@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.2** 통합 업데이트 + **v16** 시나리오 선택 화면(도안 A) · 2026-11-20 · 라이브 `?v=16`
+> 기준: **v5.3** 통합 업데이트(화면·지도·내정·행군·전투 AI) · 2026-11-20 · 라이브 `?v=17`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,35 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=16`) |
-| 규모 | 77거점 · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=17`) |
+| 규모 | 78거점 · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | **v5.1 나머지** — 8장 A(직교 공성전 맵)는 v5.1에서 완료. 다음은 8장 B(2~3턴 행군·요격전) |
+| 다음 목표 | 8장 A(직교 공성전)·B(행군·요격전) 완료. 다음은 설정·도감·연대기, 행상인, 신무장, 일기토/설전 |
+
+---
+
+## 0.4 v5.3에서 바뀐 것 (2026-11-20)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 세력 선택 | 모달 → 전용 화면 `#screen-faction`(먹·나무결·금테). 카드에 군주 초상·색 뱃지·수도·거점·장수 | `index.html`, `openFactionPicker` · `factionScreenCard` |
+| 성 내성 | 핫스팟 명패(금테 목재), 관아 금테 원형, 시장 위치 보정, 수치판·장수 카드·6버튼 양피지+금테 | `css/game.css` 끝 `v5.3` 블록, `YARD_SPOTS` |
+| 신규 거점 | **금성(geumseong)** — 서북 황하 굽이. 77→78거점, 무위·천수·안정과 도로 | `js/mapgeo.js`, `js/city_geo.js`, `data/cities.json`, `SK.ROAD_EDGES` |
+| 지도 수정 | 190 원소=`업·남피·호관`, 안시성↔요동 간격·직선 도로, 한반도 `부산↔완산`(웅진↔완산·광주↔한성 제거) | `data/historical_scenarios.json`, `SK.ROAD_EDGES` |
+| 세력 별칭 | 한수군 금성=실제 성, 신라 금성=경주, 백제 마한북부=한성 | `SK.ALIAS_BY_FACTION` |
+| 등용 | `recruitChance()` — 등급+매력·지력+명성+친밀. 실패 시 금 0, 행동만 소모, 그달 재시도 불가(`state.recruitFail[genId]=turn`) | `openTavern` |
+| 담당 정렬 | `dutyCandidates()` — `SLOT_DEFS[key].stat` 내림차순, 1등 `[추천]` | `openSlot`·`openDutyPick` |
+| 출진 | 최소 1,000 / 기본 2,000, `SK.REGIMENTS` 전부 2,000, `makeRegiment` 스탯 하향 | `openDeploy`, `js/data.js`, `js/battle.js` |
+| 행군 | `state.marches`(id·origin·target·units·total·left), `startMarch`·`stepMarches`·`openPendingMarch`, 지도 ⚔ 마커 | `js/app.js`, `js/map.js` `syncMarchMarks` |
+| 요격전 | 평야·도하·산악·수전·매복 5종. `interceptTypeFor()`가 바다·강·지형으로 고름. 승리 시 잔여 병력으로 계속, 패배 시 회군 | `SK.BATTLE_TYPES`·`SK.MAPS`·`SK.enemySlots/allySlots`, `interceptVictory/Defeat` |
+| 책략 AI | 회복>디버프>광역버프>공격책략>단일·자기버프. `planSupportSkill()`·`aiCast()`를 아군 `[자동]`·적 AI 공용 | `planAuto`, `autoStep`, `enemyAct` |
+| 공성전 | 성문 HP `clamp(수비병*0.18+700,1000,2400)`, 무명 수비 스탯 하향, **망루 `T` 2칸·본성 `K` 2칸**(방어 ×1.45, 턴당 15% 회복) | `siegeMap()`·`siegeTower`·`siegeKeep`·`effDef`·턴 리셋 |
+| HUD | 미선택 시 책공/책방 `-` 초기화 | `SKBattle.refreshUI` |
+
+> 새 저장 필드: `state.marches`, `state.marchSeq`, `state.pendingMarch`, `state.recruitFail`, `hero.marchId` — `SK.load()`가 없으면 채웁니다.
+> 행군 중인 장수는 `h.marchId`가 붙고 `cityGens()`에서 빠집니다(성 화면·담당·출진 목록에서 안 보임). 도착·승리·패배·후퇴 때 해제됩니다.
+
+검증: `tools/v53_probe.py`(78거점·`roadIssues()` `[]`·190 20세력 전부 한 덩어리), `v53_smoke.py`, `v53_flow.py`(요격 승리→행군 계속→도착 공성→함락), `v53_siege.py`(10,000 vs 4,000 자동 승리: 11턴·잔여 5,807), `v53_ui.py`(등용 51%·실패 금 0·[추천]·기본 2,000). 스크린샷 `preview/v53/`.
 
 ---
 
@@ -63,7 +88,7 @@
 
 ## 1. 지금 상태 (v5.0.3)
 
-- 지도 도로망 77거점을 손으로 고정(`SK.ROAD_EDGES`)하고, 지형·영토·산맥·성 아이콘을 v5.0.2에서 다시 그렸습니다.
+- 지도 도로망 78거점을 손으로 고정(`SK.ROAD_EDGES`)하고, 지형·영토·산맥·성 아이콘을 v5.0.2에서 다시 그렸습니다.
 - 내정은 《삼국지 12》식 **성 마당 공터 건설**(시장·농원·병영·연병장·순찰소·주점·성벽·연구소·공방, Lv.1~5)까지 동작.
 - 전장은 18×18 격자, 병과 19종, 책략·강화·약화(3턴)·경험치 바·병과 배지까지 동작.
 - 최근 반영분: 군주=태수, 초상 100장 재프레이밍, 남성 군악대 초상, 병력 1단위 조절, 사거리 +1, 책공/책방, 다음 달 확인창.
@@ -123,7 +148,7 @@ assets/icons/             # 지도용 아이콘 4장
 
 | 파일 | 개수 | 필드 | 비고 |
 | --- | --- | --- | --- |
-| `cities.json` | 77 | `id, name, type(대도시/소도시/관문/요새), faction(위/촉/오/군웅/한국), battleType, gold, food, troops, defense, governor` | 좌표는 `js/city_geo.js`에서 이름으로 연결 |
+| `cities.json` | 78 | `id, name, type(대도시/소도시/관문/요새), faction(위/촉/오/군웅/한국), battleType, gold, food, troops, defense, governor` | 좌표는 `js/city_geo.js`에서 이름으로 연결 |
 | `generals.json` | 585 | `id, name, faction, tier(S/A/B/C), job, leadership, war, intel, politics, charm, skill(고유특기명), birthYear, debutYear` | `debutYear` 전에는 등용·수비 배치에서 제외 |
 | `historical_scenarios.json` | 4 | `id, year, title, historyNote, timelineEvents[], factions[]` | 190(20세력)·200(13)·208(12)·220(9) |
 | `classes.json` | 18 | `job, promotions[4], moveRange, attackRange('1' 또는 '1~4'), terrainBonus{siege,naval,mountain,fortress}, skills[{name,mp,unlockLv,effect}]` | **런타임에 `SK.CLASSES`를 덮어쓴다** (7장 규칙 7) |
@@ -152,7 +177,7 @@ assets/icons/             # 지도용 아이콘 4장
 
 ## 6. 게임 규칙 요약
 
-- **지도**: 77거점 = 대도시·소도시·관문·요새. 육로 102개 + 해로 9개. 한국(고구려·백제·신라 계열)·대만 포함, 일본 제외. 섬(탐라·대만)은 배로만.
+- **지도**: 78거점 = 대도시·소도시·관문·요새. 육로 105개 + 해로 9개. 한국(고구려·백제·신라 계열)·대만 포함, 일본 제외. 섬(탐라·대만)은 배로만.
 - **전장 유형**: 도시=**공성전 고정**, 관문=산전, 요새=요새전. 수전은 바다를 건너는 행군·요격전에서 쓸 예정(`SK.battleTypeFor`).
 - **내정**: 성마다 건물 슬롯, 담당 장수에 따라 생산 50~150%, 장수는 **월 1행동**. `다음 달` → 확인창(대기 장수 N명) → 월 배너 → 월정산.
 - **인재**: 주점 등용(성 인근·길로 이어진 성), 탐색(금 0, 월 행동 소모)으로 보물·은거 인재·의용병·산적·맹수·일기토. 성당 장수 상한 **99명**.
@@ -196,7 +221,9 @@ assets/icons/             # 지도용 아이콘 4장
 - **주의**: 타일 문자를 바꾸면 `SK.TERRAIN`(def·cost·icon), `passable()`, `moveCost()`, `drawTerrainTint()`, `drawTerrainBadge()`를 함께 갱신. `SK.enemySlots('siege')`·`SK.allySlots('siege')`도 새 배치에 맞춰 다시 잡아야 하고, 포차(mov 2, rng 5)·발석차(mov 1, rng 7)가 성문까지 닿는지 반드시 확인.
 - **합격 기준**: 화면에서 격자선과 벽·성문·해자가 어긋나지 않고, 성문 앞 2칸이 길이며, 1턴에 아군이 해자까지, 3~4턴에 성문을 부술 수 있다.
 
-### B. 2~3턴 행군 + 요격전 4~5종
+### B. 2~3턴 행군 + 요격전 4~5종 — ✅ v5.3에서 완료(`?v=17`)
+
+> 완료 내용: `state.marches`·지도 ⚔ 마커·한 달 단위 전진, 평야·도하·산악·수전·매복 5종 요격전, 승리 시 잔여 병력으로 계속·패배 시 회군. `tools/v53_flow.py`로 검증.
 
 - 지도에서 출진하면 곧바로 전투가 아니라 **2~3턴 행군**을 거치고, 도중 확률적으로 **요격전**이 걸립니다.
 - 요격전은 이름 붙은 전장 4~5종(예: 관도·장판·적벽·오소·계교) 풀에서 고르고, 지형·적 편성·도입 대사가 달라야 합니다.
@@ -242,7 +269,7 @@ assets/icons/             # 지도용 아이콘 4장
 ```js
 // 콘솔에서 (앱이 수집하는 오류 배열)
 window.__errs.length            // 0 이어야 함
-SK.CITY_LIST.length             // 77
+SK.CITY_LIST.length             // 78
 SK.ROAD_EDGES.length            // 102
 SK.roadIssues()                 // [] 이어야 함 (끊긴 길·바다 관통·겹침 감사)
 Object.keys(SK.CLASSES).length  // 19
@@ -283,11 +310,11 @@ Object.keys(SK.CLASSES).length  // 19
 ```
 너는 《꼬마영웅 천하통일》 웹게임을 이어서 개발하는 개발자다.
 저장소: https://github.com/hojin8811-dev/samgukji-jojo1 (main)
-라이브: https://hojin8811-dev.github.io/samgukji-jojo1/?v=11
+라이브: https://hojin8811-dev.github.io/samgukji-jojo1/?v=17
 먼저 저장소 최상위의 HANDOFF.md 를 끝까지 읽고, README.md 와 V5_ROADMAP.md 로 최신 상태를 확인해라.
 
 [프로젝트] 모바일 세로 390×844 우선, 정적 HTML/CSS/JS(빌드 없음), 후한 말 삼국 배경 턴제 전략.
-전국 지도 77거점 내정 + 《삼국지 조조전》식 18×18 격자 전장. 585장수·19병과·4시나리오.
+전국 지도 78거점 내정 + 《삼국지 조조전》식 18×18 격자 전장. 585장수·19병과·4시나리오.
 GitHub Pages가 main 브랜치를 그대로 서빙한다. 배포는 push 후 index.html의 ?v= 숫자를 +1.
 
 [절대 규칙] UI에 한자 금지 / 날짜는 "190년 1월" / 모바일 390×844 우선 / 군주는 자기가 있는 성의 태수
@@ -306,7 +333,7 @@ GitHub Pages가 main 브랜치를 그대로 서빙한다. 배포는 push 후 ind
    기병·궁기병(job_cavalry·job_horse_archer)을 말 탄 모습으로 다시 그려라.
 
 [검증] 390×844 headless로 새 게임→내정→건설→다음 달→출진→전투 승리까지 돌리고,
-window.__errs 0, SK.CITY_LIST 77, SK.roadIssues() [] 를 확인해라. 끝나면 바뀐 파일·검증 결과·남은 일을 요약해라.
+window.__errs 0, SK.CITY_LIST 78, SK.roadIssues() [] 를 확인해라. 끝나면 바뀐 파일·검증 결과·남은 일을 요약해라.
 ```
 
 ---
