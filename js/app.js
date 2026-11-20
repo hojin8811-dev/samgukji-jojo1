@@ -3330,6 +3330,8 @@
           });
           s.fame = (s.fame || 0) + 8;
           syncFactionCities(s);
+          /* v5.8 — 세력을 모두 잃으면 명부에서 지우므로, 이름은 지우기 전에 적어 둔다 */
+          const fname = SK.factionName(fid);
           const leftF = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid).length;
           if (!leftF) delete s.factions[fid];
           SK.save(); SK.refreshHud();
@@ -3339,7 +3341,7 @@
           SK.modal({
             kicker: '항복 권고 성사', title: `${SK.josa(CITY[tid].name, 'i')} 문을 열었다`, wide: true,
             body: `<div class="surr-card"><span class="surr-seal">降</span>
-              <div><b>${SK.factionName(fid)}</b>
+              <div><b>${fname}</b>
               <p>${josa(actor.name, 'i')} 설득한 끝에 상대가 싸우지 않고 성을 넘겼습니다. 명성 +8 · 병력 ${fmt(ts.troops)}을 그대로 받았습니다.</p>
               ${join.length ? `<em>성안 장수 ${join.map((id) => (SK.GEN_BY_ID[id] || {}).name).filter(Boolean).join(' · ')} 항복</em>` : '<em>성안 장수는 성을 떠났습니다</em>'}</div></div>`,
             actions: [{ label: '성으로', primary: true }],
