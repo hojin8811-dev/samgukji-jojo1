@@ -89,6 +89,8 @@
     const intercept = opts.intercept || null;
 
     const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i, opts.origin) : makeRegiment(spec, i)));
+    /* v5.9 — 인접 성에서 온 지원군 표시 (전투가 끝나면 원래 성으로 돌아간다) */
+    if (opts.reinforce) allies.forEach((u, i) => { if (opts.units[i] && opts.units[i].rfg) u.rfg = opts.reinforce.from; });
 
     /* v5.7 — 수성전이면 적 병력은 침공군 규모, 지키는 쪽이 아군 */
     const cityTroops = defense ? Math.max(1200, defense.troops || 0) : s.cities[opts.targetId].troops;
@@ -137,6 +139,7 @@
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense,
+      reinforce: opts.reinforce || null,
     };
     placeSide(allies, SK.allySlots(type), 'ally');
     placeSide(enemies, SK.enemySlots(type), 'enemy');
@@ -3171,6 +3174,62 @@
     };
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.9 — 부상병 · 지원군 정산
+     · 아군 손실 일부가 전사 대신 부상병으로 남아 성에서 회복한다
+     · 수성전에 온 원군은 살아남으면 원래 성으로 병력을 데리고 돌아간다
+     ══════════════════════════════════════════════════════════════ */
+  function deployedOf(side) {
+    return (B.units || []).filter((u) => u.side === side).reduce((a, u) => a + (u.maxHp || u.hp || 0), 0);
+  }
+  function lostOf(side, filter) {
+    const list = (B.units || []).filter((u) => u.side === side && (!filter || filter(u)));
+    const max = list.reduce((a, u) => a + (u.maxHp || 0), 0);
+    const left = list.reduce((a, u) => a + Math.max(0, u.hp || 0), 0);
+    return Math.max(0, Math.round(max - left));
+  }
+  function settleReinforce() {
+    const s = SK.state;
+    const r = B && B.reinforce;
+    if (!r) return null;
+    const list = (B.units || []).filter((u) => u.side === 'ally' && u.rfg);
+    const left = Math.round(list.filter((u) => u.alive).reduce((a, u) => a + Math.max(0, u.hp || 0), 0));
+    const lost = lostOf('ally', (u) => !!u.rfg);
+    const home = s.cities[r.from];
+    const homeOk = !!(home && home.owner === SK.playerFaction());
+    if (homeOk) {
+      home.troops = Math.min(20000, Math.round(home.troops || 0) + left);
+    } else {
+      const tgt = s.cities[B.targetId];
+      if (tgt && tgt.owner === SK.playerFaction()) tgt.troops = Math.min(20000, Math.round(tgt.troops || 0) + left);
+    }
+    const wound = (homeOk && SK.addWounded && lost) ? SK.addWounded(r.from, lost, { ratio: SK.woundedRatio(B.origin) }) : 0;
+    let gensBack = 0;
+    (r.units || []).forEach((spec) => {
+      if (!spec.uid) return;
+      const h = (s.heroes || []).find((x) => x.uid === spec.uid);
+      if (!h) return;
+      delete h.rfgTo;
+      h.city = homeOk ? r.from : B.targetId;
+      const bu = list.find((u) => u.uid === spec.uid);
+      if (bu) {
+        h.hp = Math.max(1, Math.round((Math.max(0, bu.hp) / bu.maxHp) * SK.maxHpOf(h.cls, h.lv)));
+        if (bu.alive) SK.gainExp(h, 40);
+      }
+      gensBack += 1;
+    });
+    s.reinforce = null;
+    B.reinforce = null;
+    return { from: r.from, home: SK.CITY[r.from] ? SK.CITY[r.from].name : '', left, lost, wound, gens: gensBack, homeOk };
+  }
+  /* 전투가 끝나면(B.reinforce가 없어도) 남아 있는 지원군 표시를 풀어 준다 */
+  function clearReinforceFlags() {
+    const s = SK.state;
+    if (!s) return;
+    if (s.reinforce) return;
+    (s.heroes || []).forEach((h) => { if (h.rfgTo) delete h.rfgTo; });
+  }
+
   /* ───────────── 승패 ───────────── */
   function victory() {
     if (B.over) return;
@@ -3186,8 +3245,12 @@
     const defeatedNames = B.units.filter((u) => u.side === 'enemy').map((u) => u.name);
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
+    /* v5.9 — 잃은 병력의 35~50%는 전사 대신 부상병으로 함락한 성에 남는다 */
+    const lostN = lostOf('ally');
     st.owner = SK.playerFaction();
     st.genIds = [];
+    st.wounded = 0;
+    const woundedAdd = lostN && SK.addWounded ? SK.addWounded(B.targetId, lostN, { ratio: SK.woundedRatio(B.origin) }) : 0;
     st.troops = Math.max(1200, Math.round(troopsLeft));
     st.def = Math.max(30, Math.round(st.def * 0.8));
     st.loyalty = 55;
@@ -3234,6 +3297,7 @@
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
           <div><span>명성</span><b>+12</b></div>
           <div><span>영토</span><b>${owned} / ${SK.CITY_LIST.length}</b></div>
+          ${woundedAdd ? `<div class="rm-wound"><span>부상병</span><b>${woundedAdd.toLocaleString('ko-KR')}</b><em>회복중</em></div>` : ''}
         </div>
         ${drop ? `<div class="rm-treasure" style="--gc:${SK.GRADE_COLOR[drop.grade]}">
           <span class="rt-grade">${drop.grade} 보물</span>
@@ -3242,6 +3306,7 @@
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
         ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        ${woundedAdd ? `<p class="rm-note">부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 ${c.name}에서 회복 중입니다 — 달이 바뀌면 돌아오고, [병영]에서 금으로 바로 치료할 수 있습니다.</p>` : ''}
         ${B.event ? `<p class="rm-event">특별 이벤트 — ${B.event.title} · 명성 +5</p>` : ''}
         ${victoryQuote() ? `<p class="rm-quote">“${victoryQuote()}”</p>` : ''}
         <p class="rm-note">${owned >= SK.CITY_LIST.length ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
@@ -3266,6 +3331,8 @@
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
     if (st) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
+    /* v5.9 — 퇴각해도 잃은 병력의 일부는 부상병으로 본성에 돌아온다 */
+    const woundedAdd = (lostOf('ally') && SK.addWounded) ? SK.addWounded(B.origin, lostOf('ally'), { ratio: SK.woundedRatio(B.origin) }) : 0;
     s.gold = Math.max(0, s.gold - 200);
     B.units.forEach((u) => {
       if (u.side === 'ally' && u.uid) {
@@ -3281,7 +3348,7 @@
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
-        <p class="rm-note">보유 금 -200 · 부상병이 생겼습니다.</p></div>`,
+        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}에서 회복 중입니다` : '없음'}</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });
@@ -3295,9 +3362,12 @@
     const s = SK.state;
     const st = s.cities[B.targetId];
     const c = SK.CITY[B.targetId];
-    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
-    const dead = B.units.filter((u) => u.side === 'ally' && !u.alive);
+    /* v5.9 — 원군은 자기 성으로 돌아가고, 이 성의 손실 일부는 부상병으로 남는다 */
+    const rfgInfo = settleReinforce();
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive && !u.rfg);
+    const dead = B.units.filter((u) => u.side === 'ally' && !u.alive && !u.rfg);
     const troopsLeft = survivors.reduce((a, u) => a + u.hp, 0);
+    const woundedAdd = SK.addWounded ? SK.addWounded(B.targetId, lostOf('ally', (u) => !u.rfg), { ratio: SK.woundedRatio(B.targetId) }) : 0;
     if (st) {
       st.troops = Math.max(600, Math.round(troopsLeft));
       st.loyalty = clamp((st.loyalty || 50) + 6, 0, 100);
@@ -3339,6 +3409,7 @@
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
         ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        ${woundedAdd || (rfgInfo && rfgInfo.left) ? `<p class="rm-note">${woundedAdd ? `부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 성에서 회복 중입니다. ` : ''}${rfgInfo && rfgInfo.home ? `${rfgInfo.home} 원군 ${Math.round(rfgInfo.left).toLocaleString('ko-KR')}명이 돌아갔습니다.` : ''}</p>` : ''}
         <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +6 · 성벽 −6</p></div>`,
       actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle(); SK.showMap();
@@ -3355,7 +3426,9 @@
     const s = SK.state;
     const c = SK.CITY[B.targetId];
     const inv = B.defense || {};
-    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    /* v5.9 — 원군은 살아서 자기 성으로 돌아간다 (성을 내주더라도) */
+    const rfgInfo = settleReinforce();
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive && !u.rfg);
     const troopsLeft = survivors.reduce((a, u) => a + Math.max(0, u.hp), 0);
     B.units.forEach((u) => {
       if (u.side !== 'ally' || !u.uid) return;
@@ -3368,6 +3441,7 @@
       genIds: inv.genIds || [],
     }) : { refuge: null, moved: 0 };
     s.fame = Math.max(0, (s.fame || 0) - 10);
+    if (s.cities[B.targetId] && s.cities[B.targetId].owner !== SK.playerFaction()) s.cities[B.targetId].wounded = 0;
     const left = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
     s.pendingInvasion = null;
     SK.save();
@@ -3388,7 +3462,7 @@
       kicker: '수성전 패배', title: `${c.name} 함락`,
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-line">${SK.josa(SK.factionName(inv.faction), 'i')} 성을 차지했습니다.${res.refuge ? ` 남은 병력 ${Math.round(res.moved).toLocaleString('ko-KR')}과 장수는 <b>${SK.CITY[res.refuge].name}</b>으로 물러났습니다.` : ' 물러날 성이 없습니다.'}</p>
-        <p class="rm-note">명성 −10 · 성벽·민심이 무너지고, 다음 달부터 이 성은 적의 것입니다.</p></div>`,
+        <p class="rm-note">명성 −10 · 성벽·민심이 무너지고, 다음 달부터 이 성은 적의 것입니다.${rfgInfo && rfgInfo.home ? ` ${rfgInfo.home} 원군은 자기 성으로 돌아갔습니다.` : ''}</p></div>`,
       actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });

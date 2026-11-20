@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 천하통일》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.8** 외교·포로·관직·돌발이벤트·입문가이드·30인 아트 · 2026-11-20 · 라이브 `?v=22`
+> 기준: **v5.9** 성 화면 시안 A 리뉴얼·부상병·지원군 파견·BGM 16비트 FM · 2026-11-20 · 라이브 `?v=23`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,14 +14,30 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=22`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=23`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | 내정 완성(v5.5~v5.8) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 AI 방어·후퇴 판단과 포로 몸값 거래 |
+| 다음 목표 | 내정 완성(v5.5~v5.9) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 AI 방어·후퇴 판단과 포로 몸값 거래 |
 
 ---
 
-## 0.2 v5.8에서 바뀐 것 — 외교·포로·관직·돌발이벤트·입문가이드·30인 아트 (2026-11-20)
+## 0.2 v5.9에서 바뀐 것 — 성 화면 시안 A·부상병·지원군·BGM (2026-11-20)
+
+| 갈래 | 내용 | 코드 위치 |
+| --- | --- | --- |
+| 성 화면 3단 탭 | 그림 아래 `[내정]·[시설]·[장수]` 탭(`position:sticky`). 탭 배지 `3/6`·`9`. `cityTab`은 성을 넘겨도 유지 | `index.html` `#city-tabs`·`.city-panes`, `app.js` `setCityTab`·`renderCityTabs`(openCity에서 호출) |
+| 성 그림 정리 | 얼굴 스티커·건물 아이콘·이중 Lv 배지 제거 → `.hs-pin > .hs-name` 1줄 이름표. 빈 터는 점선 `＋공터`. 클릭은 그대로 `openSlot` | `app.js` `renderYard`, `css` `.hs-pin` |
+| 내정 탭 | `.dev-grid` 2열 막대 카드 6장(`devCard`) + `.ci-grid` 성 요약 8칸(`renderCityDev`의 `#city-info`) | `app.js` `devCard`·`renderCityDev` |
+| 시설 탭 | `.slot-head`(칸·공터·`[모두 증축 N곳·금 N]`) + `.slot-grid` 2열 카드(담당 장수·경험 바·`증축` 배지) | `app.js` `renderCitySlots` |
+| 장수 탭 | `renderApBar`(담당/대기/완료·매달 최선·군사·자동 배속) + `.gen-list` 카드(관직 배지 `SK.officeOf`, 충성, 대기/담당/수련/완료) | `app.js` `renderCityGens`·`renderApBar` |
+| 부상병 | 손실의 35%+병영 Lv×3%p(≤50%)가 `cs.wounded`로. 달 바뀜에 35%(최소 200) 회복, 금 0.45/명 즉시 치료. 상한 = 성 병력 상한의 50% | `app.js` `SK.WOUND`·`woundedRatio`·`woundedCap`·`addWounded`·`tendWounded`·`openHealWounded`·`advanceMonth`(woundHeal), `battle.js` `lostOf` |
+| 지원군 파견 | 육로/해로 인접 내 성에서 장수 3명·병력 파견 → 수성전 아군 합류 → 종료 시 원 성 귀환(손실은 부상병). 장수는 `h.rfgTo`로 명부 제외, `s.reinforce`에 편성 보관 | `app.js` `reinforceNeighbors`·`openReinforce`·`openReinforcePick`·`dispatchReinforce`·`cancelReinforce`·`openPendingInvasion`·`startDefense`, `battle.js` `settleReinforce`·`clearReinforceFlags` |
+| BGM | 4레이어 FM 편곡(리드·아르페지오·패드·리듬) + 4탭 딜레이 잔향, 테마 6종(표지·내정·지도·야전·공성·승리), 1.15초 크로스페이드, `prewarm` 선렌더 | `js/bgm.js` 전체(`playLead`·`playPluck`·`playString`·`playBass`·`playDrum`·`makeFxBus`·`renderTheme`·`startTheme`), `app.js` DOMContentLoaded의 `bgm('title')` |
+| 검증 도구 | `tools/v59_ui.py`(탭·레이아웃 390×680/800) · `v59_logic.py`(부상병·치료·지원군 귀환) · `v59_bgm.py`(6테마 렌더·레벨·크로스페이드) · `v59_run.sh`(로컬 서버+LD_LIBRARY_PATH) | `preview/v59/`, `preview/v59_live/` |
+
+---
+
+## 0.2b v5.8에서 바뀐 것 — 외교·포로·관직·돌발이벤트·입문가이드·30인 아트 (2026-11-20)
 
 | 갈래 | 내용 | 코드 위치 |
 | --- | --- | --- |
