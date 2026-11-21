@@ -819,6 +819,32 @@
       }
       cs.talents = take;
     });
+    /* v5.22 — 왕실 인물을 재야에서 빼면서 한국 주점 풀이 바닥나, 내 본성(완산 등)에
+       인재가 한 명도 없는 판이 생겼다. 남은 재야로 빈 성을 한 명, 내 본성은 두 명까지 채운다. */
+    const spare = {};
+    groups.forEach((grp) => { spare[grp] = []; });
+    SK.GENERALS.forEach((g) => {
+      if (used.has(g.id) || SK.isLordOnly(g, lordSet) || !SK.debutOk(g, year)) return;
+      const grp = genPoolGroup(g);
+      if (spare[grp]) spare[grp].push(g.id);
+    });
+    groups.forEach((grp) => spare[grp].sort((a, b) => SK.genScore(SK.GEN_BY_ID[b]) - SK.genScore(SK.GEN_BY_ID[a]) || a - b));
+    const homeCap = SK.CITY_LIST.find((c) => c.type === 'capital' && st.cities[c.id].owner === st.playerFaction)
+      || SK.CITY_LIST.find((c) => st.cities[c.id].owner === st.playerFaction);
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      const want = homeCap && homeCap.id === c.id ? 2 : 1;
+      if ((cs.talents || []).length >= want) return;
+      const grp = tavernGroupOf(st, c.id);
+      const pools = [spare[grp] || []].concat(groups.filter((x) => x !== grp).map((x) => spare[x]));
+      for (let pi = 0; pi < pools.length && cs.talents.length < want; pi++) {
+        while (pools[pi].length && cs.talents.length < want) {
+          const id = pools[pi].shift();
+          if (used.has(id) || cs.talents.indexOf(id) >= 0) continue;
+          cs.talents.push(id); used.add(id);
+        }
+      }
+    });
   }
 
   /* 해가 바뀔 때 — 새로 성년이 된 명장을 각지 주점에 풀어 놓는다 (v5) */
