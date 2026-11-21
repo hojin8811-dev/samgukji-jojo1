@@ -5361,7 +5361,9 @@
     const lordSet = SK.lordNameSet(st);
     const take = (g, fromId, here) => {
       if (!g || seen.has(g.id)) return;
-      if (genPoolGroup(g) !== grp) return;
+      /* v5.22 — 이 성에 이미 앉혀 둔 재야(here)는 그대로 보여 준다.
+         (왕실 제외로 지역 풀이 바닥나 다른 지역 인물을 긴급히 채운 경우까지 막히던 문제) */
+      if (genPoolGroup(g) !== grp && !here) return;
       if (SK.isLordOnly(g, lordSet)) return;   // v5.20 — 군주·왕은 재야 인재가 아니다
       if (!SK.debutOk(g, eraYearOf(st))) return;
       if (SK.isDead(g.id, g.name)) return;          // v5.8 — 처형한 장수는 다시 나오지 않는다
