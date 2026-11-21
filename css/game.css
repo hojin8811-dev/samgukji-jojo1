@@ -632,8 +632,12 @@ b { font-weight: 700; }
 .modal h3 { margin: 0 0 10px; font-family: var(--serif); font-size: 20px; color: #2c2412; letter-spacing: 0.02em; }
 .modal h3 .hanja { font-size: 12px; color: #8a7448; margin-left: 4px; }
 .modal-p { font-size: 13px; line-height: 1.55; color: #4a3d20; margin: 0; }
-.modal-actions { display: flex; gap: 8px; margin-top: 14px; }
-.modal-actions .btn { flex: 1; padding: 11px 8px; font-size: 14px; }
+.modal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.modal-actions .btn { flex: 1 1 88px; padding: 11px 8px; font-size: 13.5px; }
+/* v5.32 — 요격 출진 편성 요약 */
+.is-sum { display: flex; gap: 6px; margin: 0 0 7px; }
+.is-sum span { flex: 1; text-align: center; padding: 5px 3px; border-radius: 8px; border: 1px solid #dcc9a0; background: #fffaf0; font-size: 9px; color: #7c6636; }
+.is-sum b { display: block; font-size: 11.5px; color: #3a2c10; margin-top: 1px; }
 .modal::-webkit-scrollbar { width: 4px; }
 .modal::-webkit-scrollbar-thumb { background: #c3a568; border-radius: 4px; }
 
@@ -826,6 +830,44 @@ b { font-weight: 700; }
 .hi-exp i { display: block; height: 100%; background: linear-gradient(90deg, #b8862f, #e3bd63); }
 .hi-exp em { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7.5px; font-weight: 800; color: #3a2c10; }
 .hi-next { margin: 0 0 3px; font-size: 8.5px; color: #8a5f2a; }
+/* v5.32 — 훈련 결과 상단 병사 훈련도 배너 (50 → 59 +9) */
+.train-banner { margin: 0 0 8px; padding: 8px 9px; border-radius: 10px; border: 1.5px solid #c69a4c;
+  background: linear-gradient(120deg, #fff6dc, #f4e2b4); box-shadow: inset 0 0 0 1px rgba(255,250,235,.7); }
+.tb-top { display: flex; align-items: baseline; gap: 6px; }
+.tb-top > span { font-size: 9.5px; font-weight: 900; color: #7a4a12; letter-spacing: .01em; }
+.tb-top > b { font-family: var(--serif); font-size: 17px; color: #3f2c0a; }
+.tb-top > b em { font-style: normal; font-size: 12px; color: #a07a34; margin: 0 1px; }
+.tb-gain { margin-left: auto; font-style: normal; font-size: 11px; font-weight: 900; color: #1f6b3a;
+  background: #dff1d8; border: 1px solid #9dc98d; border-radius: 8px; padding: 1px 7px; }
+.tb-bar { position: relative; display: block; height: 9px; margin: 6px 0 4px; border-radius: 5px; background: #e0cda4; overflow: hidden; }
+.tb-bar s { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #b8862f, #ffd86b); }
+.tb-bar u { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #5a4212; opacity: .75; }
+.tb-note { margin: 0; font-size: 9px; line-height: 1.45; color: #7c6636; }
+/* v5.32 — 탐색 모달: 한 명씩 / 여러 명 한번에 */
+.ex-tabs { display: flex; gap: 4px; margin: 0 0 7px; padding: 3px; border-radius: 9px; background: #efe0bd; border: 1px solid #d9c396; }
+.ex-tabs button { flex: 1; padding: 6px 4px; border: 1px solid transparent; border-radius: 7px; background: none; cursor: pointer;
+  font-family: inherit; font-size: 11px; font-weight: 900; color: #7c6636; }
+.ex-tabs button.on { background: linear-gradient(180deg, #fff8e6, #f0dba6); border-color: #b8862f; color: #4a2f0c; box-shadow: 0 1px 3px rgba(120,80,24,.25); }
+.ex-many-bar { display: flex; align-items: center; gap: 5px; margin: 0 0 7px; }
+.ex-many-bar button { padding: 5px 8px; border-radius: 7px; border: 1px solid #c9a86c; background: #fffaf0; cursor: pointer;
+  font-family: inherit; font-size: 9.5px; font-weight: 800; color: #6b5324; }
+.ex-many-bar b { margin-left: auto; font-size: 10px; color: #8a5a1a; }
+.ex-pick { position: relative; }
+.ex-pick.on { border-color: #b8862f; background: #fff6de; box-shadow: inset 0 0 0 1px #e0c07a; }
+.ex-check { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid #b49a68; background: #fffdf6;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: transparent; }
+.ex-check.on { background: linear-gradient(180deg, #ffe08a, #d9a63f); border-color: #a97c22; color: #3a2a06; }
+.ex-go { display: block; width: 100%; margin: 8px 0 0; padding: 10px; border-radius: 9px; cursor: pointer;
+  border: 1.5px solid #2f6fd0; background: linear-gradient(180deg, #5a97e8, #2f6fd0); color: #fff;
+  font-family: inherit; font-size: 12px; font-weight: 900; box-shadow: 0 2px 6px rgba(30,60,120,.3); }
+.ex-go:disabled { cursor: default; opacity: .45; box-shadow: none; }
+.exr-list { display: flex; flex-direction: column; gap: 5px; max-height: 52vh; overflow-y: auto; }
+.exr-row { display: flex; align-items: baseline; gap: 7px; padding: 6px 8px; border-radius: 9px; border: 1px solid #dcc9a0; background: #fffaf0; }
+.exr-row.fail { opacity: .72; border-style: dashed; }
+.exr-row > b { flex: 0 0 58px; font-size: 11px; color: #3a2c10; }
+.exr-row > div { flex: 1; min-width: 0; }
+.exr-row span { display: block; font-size: 10px; font-weight: 800; color: #6b5324; }
+.exr-row em { display: block; font-style: normal; font-size: 9px; color: #8a7448; margin-top: 1px; }
 .train-list { display: flex; flex-direction: column; gap: 6px; }
 .train-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid #dcc9a0; border-radius: 9px; background: rgba(255, 251, 240, .72); }
 .train-row.up { border-color: #b8862f; background: #fdf3dc; }
@@ -3408,7 +3450,12 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   font-size: 9px; font-weight: 800; letter-spacing: -0.02em; color: #6b3f10;
   background: linear-gradient(180deg, #ffeec4, #e7c987); border: 1px solid #b8862f;
   border-radius: 9px; padding: 1px 7px; white-space: nowrap;
+  /* v5.32 — 누르면 군량 상인(대상인)이 열리는 버튼 */
+  font-family: inherit; line-height: 1.35; cursor: pointer; -webkit-appearance: none; appearance: none;
+  box-shadow: 0 1px 2px rgba(120, 80, 24, 0.25);
 }
+.merchant-chip:active { transform: scale(0.95); filter: brightness(0.96); }
+.merchant-chip:focus-visible { outline: 2px solid #b8862f; outline-offset: 1px; }
 .merchant-chip[hidden] { display: none !important; }
 .gm-banner {
   margin: 0 0 8px; padding: 8px 10px; border-radius: 10px;
@@ -3556,6 +3603,19 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .cdx-stat i { font-style: normal; font-size: 8.5px; color: #9a875e; }
 .cdx-stat b { font-size: 14px; color: #3a2c10; }
 .cdx-detail-skill { margin: 8px 0 0; font-size: 10.5px; color: #6b5324; line-height: 1.5; }
+/* v5.32 — 전원 열전(한 줄 대사) · 생년/등장 · 보물 획득 경로 */
+.cdx-detail-story { margin: 7px 0 0; padding: 6px 8px; border-radius: 8px; border: 1px dashed #d9c396; background: #fffaf0; font-size: 10.5px; line-height: 1.5; color: #5d4a24; }
+.cdx-detail-meta { display: block; margin: 6px 0 0; font-size: 9px; color: #9a875e; }
+.cdx-row[data-tid] { cursor: pointer; }
+.cdx-row[data-tid]:active { transform: scale(0.99); }
+.cdx-hint { display: block; margin-top: 2px; font-style: normal; font-size: 8px; line-height: 1.35; color: #a4601e; opacity: 0.9; }
+.cdx-tre-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cdx-tre-top b { font-size: 11.5px; color: #3a2c10; }
+.cdx-tre-top em { font-style: normal; margin-left: auto; font-size: 9px; font-weight: 800; color: #7a5a1c; }
+.cdx-tre-effect { margin: 8px 0 4px; padding: 7px 9px; border-radius: 8px; border: 1px solid #ddc9a0; background: #fffaf0; font-size: 11px; line-height: 1.55; color: #3a2c10; }
+.cdx-tre-stat { margin: 0 0 4px; font-size: 9.5px; color: #6b5324; }
+.cdx-tre-hint { margin: 0; font-size: 9.5px; line-height: 1.5; color: #7c6636; }
+.cdx-tre-hint b { color: #a4601e; }
 .unify-card { text-align: center; padding: 4px 0 2px; }
 .unify-seal {
   display: inline-block; padding: 10px 14px; margin-bottom: 6px; border-radius: 6px;
@@ -3648,6 +3708,20 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 /* v5.17 — 전장 우측 상단 미니맵 */
 .battle-minimap { position: absolute; right: 8px; top: 8px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.mm-bar { display: flex; align-items: center; gap: 4px; }
+/* v5.32 — 미니맵 확대/축소 토글 */
+.mm-size {
+  height: 20px; padding: 0 6px; border-radius: 6px; line-height: 1;
+  font-size: 8.5px; font-weight: 900; letter-spacing: 0.02em; color: #ffe9b8; cursor: pointer;
+  background: rgba(36, 28, 14, 0.86); border: 1.5px solid rgba(226, 186, 92, 0.8);
+  box-shadow: 0 1px 4px rgba(10, 8, 4, 0.5);
+}
+.mm-size.on { color: #2c210c; background: linear-gradient(180deg, #ffe08a, #d9a63f); border-color: #fff0c0; }
+.mm-size:active { transform: scale(0.94); }
+.mm-box.big { box-shadow: 0 3px 12px rgba(10, 8, 4, 0.6), inset 0 0 0 1px rgba(255, 226, 160, 0.35); }
+.mm-box.big #mm-canvas { border-radius: 5px; }
+/* 확대한 미니맵이 목표 띠를 가리지 않게, 띠를 왼쪽 위로 비켜 둔다 */
+.battle-stage.mm-big .battle-objective { left: 8px; transform: none; top: 8px; max-width: calc(100% - 190px); font-size: 9px; padding: 3px 8px; }
 .mm-box { padding: 3px; border-radius: 7px; background: rgba(20, 15, 8, 0.78); border: 1.5px solid rgba(226, 186, 92, 0.8); box-shadow: 0 2px 8px rgba(10, 8, 4, 0.55), inset 0 0 0 1px rgba(90, 66, 24, 0.5); }
 #mm-canvas { display: block; border-radius: 4px; }
 /* v5.28 — 극단 줌아웃에서 미니맵 점 읽는 법 */

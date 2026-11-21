@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=45" />
+<link rel="stylesheet" href="css/game.css?v=46" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -232,7 +232,7 @@
           <span id="city-level" class="city-level">Lv.1</span>
           <span id="city-rank" class="rank-chip sm">현령</span>
           <span id="city-date" class="city-date">1년차 1월</span>
-          <span id="city-merchant" class="merchant-chip" hidden></span>
+          <button type="button" id="city-merchant" class="merchant-chip" hidden aria-label="군량 상인 열기"></button>
           <span id="city-stepno" class="city-stepno">1 / 1</span>
         </div>
       </div>
@@ -329,7 +329,10 @@
       </div>
       <!-- v5.17 — 우측 상단 《조조전》식 미니맵 -->
       <div class="battle-minimap" id="battle-minimap">
-        <button class="mm-toggle" id="mm-toggle" aria-label="미니맵 접기">◧</button>
+        <div class="mm-bar">
+          <button class="mm-size" id="mm-size" aria-label="미니맵 확대">⤢ 확대</button>
+          <button class="mm-toggle" id="mm-toggle" aria-label="미니맵 접기">◧</button>
+        </div>
         <div class="mm-box" id="mm-box"><canvas id="mm-canvas"></canvas><div class="mm-legend" id="mm-legend"><i class="ml-a"></i>아군<i class="ml-e"></i>적군<i class="ml-w"></i>위태</div></div>
       </div>
       <div class="battle-tip" id="battle-tip">화면을 끌어 이동 · 부대를 눌러 선택</div>
@@ -395,15 +398,15 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=45"></script>
-<script src="js/mapmask.js?v=45"></script>
-<script src="js/city_geo.js?v=45"></script>
-<script src="js/data.js?v=45"></script>
-<script src="js/bgm.js?v=45"></script>
-<script src="js/sfx.js?v=45"></script>
-<script src="js/app.js?v=45"></script>
-<script src="js/map.js?v=45"></script>
-<script src="js/battle.js?v=45"></script>
-<script src="js/backguard.js?v=45"></script>
+<script src="js/mapgeo.js?v=46"></script>
+<script src="js/mapmask.js?v=46"></script>
+<script src="js/city_geo.js?v=46"></script>
+<script src="js/data.js?v=46"></script>
+<script src="js/bgm.js?v=46"></script>
+<script src="js/sfx.js?v=46"></script>
+<script src="js/app.js?v=46"></script>
+<script src="js/map.js?v=46"></script>
+<script src="js/battle.js?v=46"></script>
+<script src="js/backguard.js?v=46"></script>
 </body>
 </html>

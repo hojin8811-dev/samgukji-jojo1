@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.31** 7라운드 실플레이 점검 — 보물 사기·상태이상·내정·외교 연결·수전 조각배·원정 회군 · 2026-11-22 · 라이브 `?v=45`
+> 기준: **v5.32** 8라운드 — 사기·상태이상 장기전 튜닝·3턴 원정 야영·미니맵 확대·도감 열전·주점 누수 수정·훈련/탐색·뒤로가기 종료 확인·침공 요격 출진 · 2026-11-22 · 라이브 `?v=46`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,36 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=45`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=46`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | 7라운드까지 실플레이로 다듬음(보물 사기·상태이상·내정·외교 253절 전부 연결, 수전 조각배 승선/하선, 3턴 행군·회군). 다음 후보는 실기기 검증, 사기/상태이상 밸런스, 조각배 2프레임 SD, 전원 열전·보물 도감 |
+| 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
+
+---
+
+## 0.0 v5.32 — 8라운드 + 실기기 제보 9건 (2026-11-22 · `?v=46`)
+
+390×844에서 24~31턴 장기전(수성전·32×32 공성)과 22성·24개월을 돌리고, 사용자가 안드로이드 실기기에서 보낸 제보를 함께 고쳤습니다.
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 사기·상태이상 장기전 | 사기 하한 25(항복하지 않음) · 턴 회복 1→2(사기 50 미만 3) · 기절에서 깬 뒤 2턴 기절 면역 · 같은 상태이상 반복 시 저항 누적(1/(1+0.4n)). 실측 사기 40→56(6턴), 기절 4회 시도 중 2회만 성공, 하한 25 | `js/battle.js` `initStatus`·`moraleShift`·`ailApply`·`ailPhase`, `debug.status`에 `stunCd`·`ailRes` |
+| 3턴 원정 중도 야영 | 3일 행군 2일차에 `중도 야영지` — 야영·보급(군량 1,000명당 20, 병력 +2%, 사기 +12) / 강행군(병력 −4%, 사기 −4, 하루 당김, 적 사기 −8) / 그대로. 도착 창에 결과 한 줄 | `js/app.js` `stepMarches`·`openMarchCamp`·`marchCampCost`·`openPendingMarch`, `js/battle.js` `moraleBonus`·`surprise` |
+| 미니맵 확대 | `⤢ 확대` 104→164px(화면 폭 42%, 최대 168), 점·범례·목표 띠 회피, 더블탭, 크기 기억(localStorage) | `js/battle.js` `mmPx`·`mmSetBig`·`buildMinimap`·`drawMinimap`·`bindMinimap`, `index.html` `#mm-size`, `css/game.css` `.mm-size`·`.mm-stage.mm-big` |
+| 도감 | 인물 상세에 697명 전원 한 줄 열전(`gagOf`)·생년/나이/등장·주둔, 보물 목록에 획득 경로, 보물 상세 창(효과·능력치·부위·경로) | `js/app.js` `openCodexGen`·`openCodexTre`·`codexTreRows`, `css/game.css` `.cdx-hint`·`.cdx-tre-*` |
+| 뒤로가기 | 첫 `pointerdown`/`touchstart`/`keydown` 때 히스토리 가드 재설치(안드로이드 크롬 skip 대응), 지도·타이틀에서 `게임을 종료하시겠습니까?`(계속하기/종료), 종료는 가드 항목을 최대 12칸 물러나 이탈 | `js/backguard.js` `ensureGuard`·`askExit`·`leave`·`backAction` |
+| 주점 누수 (중요) | `assignGarrisons`가 성마다 3~4명만 앉히고 버리던 것을 전원 배치로(1성 세력 전원), `garrisonedIds()`로 주점·탐색·선택지·재충전에서 AI 세력 명부까지 차단. 성도 8명·진등=하비·요화=여남·주점 누수 0 | `js/app.js` `garrisonedIds`·`assignGarrisons`·`seedTalents`·`refillTalents`·`explore`·`choiceTalentPool`, QA `SK.garrisonLeaks()` |
+| 훈련 | `cs.train` +7~11(예전 +2~4), 결과 창에 `병사 훈련도 50 → 59 (+9)` 배너·막대 | `js/app.js` `CMDS.train`, `css/game.css` `.train-banner`·`.tb-*` |
+| 탐색 | 지휘관 정렬 `actorPoolBy`(대기 우선), `한 명씩 / 여러 명 한번에` 탭·전체 선택·N명 보내기·결과 요약 | `js/app.js` `openExplore`, `css/game.css` `.ex-tabs`·`.ex-*`·`.exr-*` |
+| 대상인 칩 | 성 상단 `대상인 체류 N개월 ▸` 버튼 → `openRiceTrader`. 커서·눌림·aria | `index.html` `#city-merchant`, `js/app.js` renderCityHeader, `css/game.css` `.merchant-chip` |
+| 침공 요격 출진 | 침공 창 `[요격 출진]` — 길목 8종 지형, 장수 선택·병력 분배(성 30% 잔류), 승리 시 성벽 피해 0·침공 격퇴·적 잔여 출발 성행·포로/보물, 패배 시 생존 병력 복귀·줄어든 적으로 수성전 재개 | `js/app.js` `openInterceptSortie`·`openPendingInvasion`, `js/battle.js` `invasionInterceptVictory`·`invasionInterceptDefeat`, `css/game.css` `.is-sum`·`.modal-actions` wrap |
+| 타이베이 좌표 | `SK.CITY_COORD_FIX`에 `[0.738, 0.8327]`(1476, 1110) — 대만 섬 북부 내륙, 타이난과 52px | `js/city_geo.js` |
+| 병력 배지 | 줌·밀집도 무관 `shortNum` 고정(2.7k/10k/729), 하단 카드는 정확 수치 | `js/battle.js` `drawUnit` |
+| 전투 종료 규칙 (중요) | 총대장 격파 즉시 승패 제거 — 승패는 **전멸·본진 점령**만. 목표 `적 전멸 · 적 본진 점령`, 패배 창에 `패배 사유:` 표시(수성전·공성·요격·패망 공통). 수성전에서 선봉 1명 퇴각으로 13,935명 남기고 패배하던 사고 제거 | `js/battle.js` `finishCheck`·`B.objective`·`defeat`·`defenseDefeat`·`invasionInterceptDefeat`, `js/data.js` `BATTLE_TYPES.objective`, `js/app.js` `SK.gameOver` |
+
+**검증 메모** — ① 사기 피해 611/548/486/470, 하한 25. ② 기절 4턴 시도 성공 1·중단 2·성공 1, `ailRes` 누적. ③ 야영 군량 5,000→4,880·병력 6,000→6,120·전장 사기 112, 강행군 병력 5,760·적 사기 92·하루 당김. ④ 미니맵 104→164px·목표 띠 겹침 0·탭 이동·기억. ⑤ 뒤로가기: 타이틀/지도 확인 창, 계속하기 유지, 종료 시 이전 페이지, 성→지도·창 닫기 유지. ⑥ 주점 116명 중 타 세력 0, 80성 재충전 후 0, `SK.garrisonLeaks()` 0. ⑦ 훈련 50→59→68. ⑧ 일괄 탐색 10명 acted·EXP +22/+10·결과 10줄. ⑨ 요격 승리 성벽 70 유지·pendingInvasion 정리·4,000 합류, 패배 시 7,812로 재개. ⑩ 22성 24개월 콘솔/pageerror/HTTP 0, 저장 67KB.
+
+**검증 훅(다음 라운드)** — `SK.backGuard.info()`·`SK.garrisonedIds()`·`SK.garrisonLeaks()`·`SK.openInterceptSortie(inv)`·`SK.mmSetBig(bool)`·`SKBattle.debug.status(name).stunCd/ailRes`.
 
 ---
 

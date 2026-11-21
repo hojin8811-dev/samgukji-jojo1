@@ -1,12 +1,17 @@
 /* ══════════════════════════════════════════════════════════════
    꼬마영웅 대난투 — 안드로이드·모바일 뒤로가기(popstate) 이탈 방지
-   v5.23 (?v=37)
+   v5.23 (?v=37) · v5.32 (?v=46) 보강
 
    · 모달이 열려 있으면  → 맨 위 모달만 닫는다 (dismissible:false 는 무시)
    · 전장 화면이면       → 상단 ‹ 버튼과 같은 '후퇴할까요?' 확인을 띄운다
    · 성(내정) 화면이면   → 지도로 돌아간다
    · 시나리오·세력 화면  → 한 단계 앞 화면으로 돌아간다
-   · 지도·타이틀이면     → "한 번 더 누르면 종료됩니다" 토스트, 2초 안에 또 누르면 실제로 나간다
+   · 지도·타이틀이면     → "게임을 종료하시겠습니까?" 확인 창 (계속하기 / 종료)
+
+   v5.32 — 안드로이드 크롬의 User-Activation History Intervention 대응:
+   사용자 제스처 없이 넣은 pushState 항목은 크롬이 무시할 수 있어, 앱을 연 직후
+   지도에서 뒤로가기를 누르면 그대로 사이트를 나가 버린다. 그래서 boot() 뿐 아니라
+   첫 pointerdown·touchstart·keydown 때 history.state 에 가드가 없으면 한 번 더 얹는다.
 
    히스토리 설계: 앱을 열 때 pushState 로 '가드' 항목 하나를 얹는다.
    뒤로가기가 오면 항상 같은 항목을 다시 얹어(popstate → pushState) 제자리로 돌아오므로
@@ -15,13 +20,14 @@
 'use strict';
 (function () {
   const SK = window.SK || (window.SK = {});
-  const GUARD_WINDOW = 2000;   // 지도·타이틀에서 두 번째 뒤로가기를 받아 주는 시간
-  let armedAt = 0;             // 첫 뒤로가기 시각 (0 이면 대기 중이 아님)
+  const GUARD_WINDOW = 2000;   // (v5.32 — 실제 종료 확인 창으로 바뀌며 대기 시간은 쓰지 않는다)
+  let armedAt = 0;             // 첫 뒤로가기 시각 (점검용, 0 이면 대기 중이 아님)
   let exiting = false;         // 실제 이탈 처리 중
   let navigatedAway = false;   // 페이지가 떠나는 중 (pagehide)
   let guardStopped = false;    // pushState 가 막힌 환경
   let guardCount = 0;          // 지금까지 얹은 가드 항목 수 (점검용)
   let lockedAt = 0;            // 필수 선택 모달에서 뒤로가기를 누른 시각
+  let exitOpen = false;        // "게임을 종료하시겠습니까?" 창이 열려 있는가
 
   /* ── 가드 항목 ───────────────────────────────────────────── */
   function pushGuard() {
@@ -35,6 +41,21 @@
       try { console.warn('[backguard] pushState 실패 — 뒤로가기 가드를 쓰지 않습니다.', e); } catch (e2) {}
     }
   }
+  /* v5.32 — 지금 히스토리 항목에 가드가 없으면 다시 얹는다.
+     안드로이드 크롬은 사용자 제스처 없이 만든 pushState 항목을 무시할 수 있어,
+     첫 터치/키 입력 순간에 이 검사를 한 번 더 해야 지도에서 바로 나가지 않는다. */
+  let gestureSeen = false;
+  function ensureGuard() {
+    let has = false;
+    try { has = !!(history.state && history.state.skBackGuard); } catch (e) { has = false; }
+    /* 가드가 없으면 당연히 얹고, 첫 제스처 전에 만든 가드는 크롬이 건너뛸 수 있으므로
+       제스처가 들어온 이 순간 한 번 더 얹어 '제스처 있는 항목'으로 바꿔 둔다. */
+    if (!has || !gestureSeen) pushGuard();
+    gestureSeen = true;
+  }
+  ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, ensureGuard, { once: true, capture: true, passive: true });
+  });
 
   /* ── 지금 화면 상태 읽기 ─────────────────────────────────── */
   function topModal() {
@@ -63,6 +84,7 @@
   /* ── 뒤로가기 한 번에 할 일 정하기 ───────────────────────── */
   /* 'modal' | 'locked' | 'battle' | 'city' | 'sub' | 'exit' */
   function backAction() {
+    if (exitOpen) return 'exit-ask';     // 종료 확인 창 위에서는 아무 것도 하지 않는다
     const m = topModal();
     if (m) {
       /* 닫으면 안 되는 모달(돌발 사건·필수 선택 등)은 그대로 둔다 */
@@ -102,18 +124,60 @@
   }
 
   /* ── 실제로 나가기 ───────────────────────────────────────── */
+  /* v5.32 — 가드 항목이 여러 개 쌓여 있을 수 있어(계속하기·화면 이동마다 한 칸),
+     한 번만 back 하면 같은 문서의 가드 항목으로 돌아와 나가지 못한다.
+     나가는 동안에는 popstate 를 무시하고, 문서가 떠날 때까지(최대 12칸) 한 칸씩 물러난다. */
   function leave() {
     armedAt = 0;
     exiting = true;
-    /* 지금 위치는 가드 바로 앞(앱을 처음 연 항목)이므로, 한 칸 더 가면 이전 페이지로 나간다. */
-    try { history.back(); } catch (e) {}
-    setTimeout(function () {
-      exiting = false;
-      /* 갈 곳이 없어(첫 진입·홈 화면 앱) 그대로 남아 있으면 가드를 다시 세우고 알린다. */
+    let hops = 0;
+    function step() {
       if (navigatedAway || document.visibilityState === 'hidden') return;
+      if (hops >= 12) {
+        exiting = false;
+        pushGuard();
+        if (SK.toast) SK.toast('뒤로 갈 페이지가 없습니다. 브라우저를 닫아 주세요.');
+        return;
+      }
+      hops += 1;
+      try { history.back(); } catch (e) { /* ignore */ }
+      setTimeout(step, 320);
+    }
+    step();
+  }
+
+  /* ── v5.32 — 지도·타이틀에서 뒤로가기: 토스트 대신 확인 창 ───────────
+     · 이 시점에 히스토리는 이미 앱을 처음 연 항목으로 돌아와 있다(가드는 아직 안 얹음)
+     · 계속하기 → 가드를 다시 얹고 게임에 남는다
+     · 종료     → 한 칸 더 나가 이전 페이지로 (갈 곳이 없으면 안내) */
+  function askExit() {
+    if (exitOpen) return;
+    exitOpen = true;
+    if (typeof SK.modal !== 'function') {
+      /* 모달을 그릴 수 없는 아주 이른 시점: 예전처럼 한 번 더 누르면 나가게 둔다 */
+      exitOpen = false;
+      armedAt = Date.now();
+      if (SK.toast) SK.toast('한 번 더 누르면 종료됩니다');
       pushGuard();
-      if (SK.toast) SK.toast('뒤로 갈 페이지가 없습니다. 브라우저를 닫아 주세요.');
-    }, 800);
+      return;
+    }
+    SK.modal({
+      kicker: '뒤로가기',
+      title: '게임을 종료하시겠습니까?',
+      body: '<p class="modal-p">지금 나가면 마지막 저장 지점부터 다시 시작합니다.<br><span class="modal-sub">달이 바뀔 때 자동 저장되며, [메뉴 → 세이브 슬롯]에서 직접 저장할 수도 있습니다.</span></p>',
+      actions: [
+        { label: '계속하기', primary: true, onClick: function () {
+          exitOpen = false;
+          pushGuard();
+          if (SK.toast) SK.toast('게임을 계속합니다.');
+        } },
+        { label: '종료', onClick: function () {
+          exitOpen = false;
+          leave();
+        } },
+      ],
+      dismissible: false,
+    });
   }
 
   /* ── popstate ────────────────────────────────────────────── */
@@ -124,13 +188,14 @@
     const act = backAction();
 
     if (act === 'exit') {
-      const now = Date.now();
-      if (armedAt && now - armedAt <= GUARD_WINDOW) { leave(); return; }
-      armedAt = now;
-      if (SK.toast) SK.toast('한 번 더 누르면 종료됩니다');
-      pushGuard();
+      /* v5.32 — 지도·타이틀: 토스트 대신 확인 창. 여기서는 가드를 얹지 않고,
+         계속하기를 골랐을 때만 다시 얹어 히스토리를 깨끗하게 유지한다. */
+      armedAt = 0;
+      askExit();
       return;
     }
+
+    if (act === 'exit-ask') return;    // 종료 확인 창 위에서 또 누른 경우 — 창은 그대로 둔다
 
     armedAt = 0;                     // 모달·화면 이동이 있었으면 종료 대기는 취소
     pushGuard();                     // 가드를 다시 얹어 히스토리를 늘리지 않고 제자리로
@@ -164,13 +229,17 @@
         modal: m ? { dismissible: m.dismissible } : null,
         armed: armedAt ? Date.now() - armedAt : -1,
         exiting,
+        exitOpen,
         guardCount,
         stopped: guardStopped,
         historyLength: history.length,
         canGoBack: history.length > 1,
+        stateGuard: !!(history.state && history.state.skBackGuard),
       };
     },
     /* 테스트에서 대기 상태를 만들 때만 쓴다 */
     arm() { armedAt = Date.now(); return this.info(); },
+    /* 테스트에서 종료 확인 창을 직접 열 때 */
+    askExit() { askExit(); return this.info(); },
   };
 })();

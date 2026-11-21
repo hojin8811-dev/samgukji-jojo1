@@ -268,6 +268,27 @@
     placeSide(enemies, SK.enemySlots(type, rings, cols), 'enemy');
     /* v5.31 — 사기·상태이상 초기화 (보물의 사기 +N·상태이상 저항이 여기서 붙는다) */
     B.units.forEach(initStatus);
+    /* v5.32 — 행군 중도 야영(사기 +N)과 강행군 기습(적 사기 −8)을 전장으로 넘긴다 */
+    B.units.forEach((u, i) => {
+      if (u.side !== 'ally') return;
+      const sp = (opts.units || [])[i];
+      if (!sp || !sp.moraleBonus) return;
+      const b = Number(sp.moraleBonus) || 0;
+      /* 야영(+N)은 최대치도 함께 올려 100에서 잘려 사라지지 않게 한다 */
+      if (b > 0) {
+        u.moraleMax = (u.moraleMax || 100) + b;
+        u.morale = Math.min(u.moraleMax, (u.morale == null ? 100 : u.morale) + b);
+      } else {
+        u.morale = clamp((u.morale == null ? 100 : u.morale) + b, 25, u.moraleMax || 100);
+      }
+    });
+    B.surprise = !!opts.surprise;
+    if (B.surprise) {
+      B.units.forEach((u) => {
+        if (u.side !== 'enemy' || !u.alive) return;
+        u.morale = clamp((u.morale == null ? 100 : u.morale) - 8, 25, u.moraleMax || 100);
+      });
+    }
     /* v5.17 — 1×1 본진·마을. 수성전은 진영이 뒤집히므로 본진 자리도 바꿔 단다 */
     B.sites = [];
     if (meta) {
@@ -277,7 +298,7 @@
       if (enemyPos) B.sites.push({ type: 'enemyHQ', x: enemyPos.x, y: enemyPos.y, owner: 'enemy' });
       (meta.villages || []).forEach((v) => B.sites.push({ type: 'village', x: v.x, y: v.y, owner: null }));
     }
-    /* v5.17 — 총대장(적)과 아군 총대장. 격파되면 그 자리에서 승패가 갈린다 */
+    /* v5.17 — 총대장(적)·아군 총대장 표식. v5.32 — 격파해도 전투는 끝나지 않는다(금관 표시용) */
     const eLeader = B.units.filter((u) => u.side === 'enemy').sort((a, b) => ((b.boss ? 1 : 0) - (a.boss ? 1 : 0)) || (b.lv - a.lv))[0];
     if (eLeader) {
       eLeader.leader = true;
@@ -304,7 +325,7 @@
     /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
     if (SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
     B.objective = defense ? SK.BATTLE_TYPES.defense.objective : def.objective;
-    if (B.sites && B.sites.length) B.objective = '적 총대장 격파 · 적 본진 점령';
+    if (B.sites && B.sites.length) B.objective = '적 전멸 · 적 본진 점령';
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
     anims.length = 0;
@@ -340,6 +361,9 @@
     showIntro();
     if (supportNames.length) {
       wait(() => SK.toast(`적 지원군 합류 — ${supportNames.join(' · ')}`), 260);
+    }
+    if (B.surprise) {
+      wait(() => SK.toast('기습 — 강행군으로 진을 치기 전에 닿았습니다 (적 사기 −8)'), 320);
     }
   };
 
@@ -1105,25 +1129,34 @@
 
   /* ══════════ v5.17 — 우측 상단 미니맵 (조조전식) ══════════
      전체 전장 축소도 위에 아군(파랑)·적군(빨강)·총대장(금테)·본진(금)·마을(초록),
-     지금 화면이 보이는 범위를 흰 사각형으로 보여 준다. 누르면 그 자리로 즉시 이동. */
-  const MM_W = 104, MM_H = 104;
-  let mmStatic = null, mmBound = false, mmOpen = true, mmNote = null;
+     지금 화면이 보이는 범위를 흰 사각형으로 보여 준다. 누르면 그 자리로 즉시 이동.
+     v5.32 — [⤢ 확대]로 104px ↔ 화면 폭의 42%(최대 168px)를 전환한다.
+     큰 전장(28×28·32×32)에서 마을·본진·성문 위치를 한눈에 잡으라고 만든 토글이다. */
+  const MM_SMALL = 104;
+  let mmStatic = null, mmBound = false, mmOpen = true, mmNote = null, mmBig = false;
   function mmEl() { return document.getElementById('mm-canvas'); }
+  /* 확대 크기 — 390px 폰에서 160px 안팎, 넉넉한 화면에서는 168px 상한 */
+  function mmPx() {
+    if (!mmBig) return MM_SMALL;
+    const vw = window.innerWidth || 390;
+    return Math.round(Math.min(168, Math.max(136, vw * 0.42)));
+  }
   function buildMinimap() {
     const cv = mmEl();
     if (!cv || !B || !B.tiles) return;
+    const S = mmPx();
     const dpr2 = Math.min(2.5, window.devicePixelRatio || 1);
-    cv.width = Math.round(MM_W * dpr2); cv.height = Math.round(MM_H * dpr2);
-    cv.style.width = MM_W + 'px'; cv.style.height = MM_H + 'px';
+    cv.width = Math.round(S * dpr2); cv.height = Math.round(S * dpr2);
+    cv.style.width = S + 'px'; cv.style.height = S + 'px';
     const st = document.createElement('canvas');
     st.width = cv.width; st.height = cv.height;
     const sc = st.getContext('2d');
     sc.setTransform(dpr2, 0, 0, dpr2, 0, 0);
-    sc.fillStyle = '#2a2317'; sc.fillRect(0, 0, MM_W, MM_H);
+    sc.fillStyle = '#2a2317'; sc.fillRect(0, 0, S, S);
     const img = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
-    if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, MM_W, MM_H);
-    else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, MM_W, MM_H); }
-    const sx = MM_W / N, sy = MM_H / N;
+    if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, S, S);
+    else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, S, S); }
+    const sx = S / N, sy = S / N;
     for (let y = 0; y < N; y++) {
       for (let x = 0; x < N; x++) {
         const ch = B.tiles[y][x];
@@ -1137,7 +1170,8 @@
   function drawMinimap() {
     const cv = mmEl();
     if (!cv || !B || !B.tiles || !mmOpen) return;
-    if (!mmStatic || cv.width !== Math.round(MM_W * Math.min(2.5, window.devicePixelRatio || 1))) buildMinimap();
+    const S = mmPx();
+    if (!mmStatic || cv.width !== Math.round(S * Math.min(2.5, window.devicePixelRatio || 1))) buildMinimap();
     /* 배경 그림이 늦게 도착하면 한 번 다시 그린다 */
     if (mmStatic && !mmStatic.dataset.img) {
       const im0 = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
@@ -1148,9 +1182,9 @@
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, cv.width, cv.height);
     c.drawImage(mmStatic, 0, 0);
-    const dpr2 = cv.width / MM_W;
+    const dpr2 = cv.width / S;
     c.setTransform(dpr2, 0, 0, dpr2, 0, 0);
-    const sx = MM_W / N, sy = MM_H / N;
+    const sx = S / N, sy = S / N;
     /* 본진·마을 */
     (B.sites || []).forEach((s) => {
       c.fillStyle = s.type === 'village'
@@ -1169,7 +1203,8 @@
     });
     /* 부대 — v5.28 대형 전장 줌아웃에서도 점이 묻히지 않게 크게 + 어두운 테두리 */
     const tinyView = cam.s < 0.30;
-    const dotR = tinyView ? 2.9 : 2.0;
+    const mk = Math.min(1.4, S / MM_SMALL);          // 확대하면 점·테두리도 조금 키운다
+    const dotR = (tinyView ? 2.9 : 2.0) * (mmBig ? Math.max(1, mk * 0.86) : 1);
     B.units.forEach((u) => {
       if (!u.alive) return;
       const px = (u.x + 0.5) * sx, py = (u.y + 0.5) * sy;
@@ -1203,6 +1238,25 @@
     c.strokeRect(x0, y0, Math.max(2, x1 - x0), Math.max(2, y1 - y0));
     if (mmNote) mmNote(mmOpen);
   }
+  /* v5.32 — 미니맵 크게/작게. 폰을 세로로 들고 32×32 성을 칠 때 마을·본진이
+     한눈에 들어오게 한다. 고른 크기는 다음 전투에도 기억한다. */
+  function mmSetBig(on, silent) {
+    mmBig = !!on;
+    try { localStorage.setItem('jojo-mm-big', mmBig ? '1' : '0'); } catch (e) { /* ignore */ }
+    mmStatic = null;
+    const box = document.getElementById('mm-box');
+    const btn = document.getElementById('mm-size');
+    const stage = document.getElementById('battle-stage');
+    if (box) box.classList.toggle('big', mmBig);
+    if (stage) stage.classList.toggle('mm-big', mmBig);
+    if (btn) {
+      btn.textContent = mmBig ? '⤡ 축소' : '⤢ 확대';
+      btn.setAttribute('aria-label', mmBig ? '미니맵 원래 크기로' : '미니맵 확대');
+      btn.classList.toggle('on', mmBig);
+    }
+    if (!silent) { buildMinimap(); drawMinimap(); SK.sfx.play('ui'); }
+  }
+  SK.mmSetBig = mmSetBig;
   function bindMinimap() {
     if (mmBound) return;
     mmBound = true;
@@ -1213,9 +1267,11 @@
     const note = (on) => {
       if (!legend) return;
       const tiny = !!(B && cam && cam.s < 0.30);
-      legend.style.display = (on && tiny) ? 'flex' : 'none';
+      /* 확대 상태에서는 점이 크고 색이 많아지므로 범례를 늘 보여 준다 */
+      legend.style.display = (on && (tiny || mmBig)) ? 'flex' : 'none';
     };
     mmNote = note;
+    try { mmSetBig(localStorage.getItem('jojo-mm-big') === '1', true); } catch (e) { /* ignore */ }
     if (tog && box) {
       tog.onclick = (e) => {
         e.stopPropagation();
@@ -1225,6 +1281,10 @@
         tog.setAttribute('aria-label', mmOpen ? '미니맵 접기' : '미니맵 펼치기');
       };
     }
+    const size = document.getElementById('mm-size');
+    if (size) size.onclick = (e) => { e.stopPropagation(); mmSetBig(!mmBig); };
+    /* 화면 폭이 바뀌면 확대 크기를 다시 잡는다 */
+    window.addEventListener('resize', () => { if (!mmBig) return; mmStatic = null; buildMinimap(); drawMinimap(); });
     if (!cv) return;
     const jump = (ev) => {
       if (!B || !canvas) return;
@@ -1235,6 +1295,8 @@
       SK.sfx.play('ui');
     };
     cv.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); jump(ev); });
+    /* 두 번 톡톡 — 확대/축소 (한 번 탭은 그 자리로 이동) */
+    cv.addEventListener('dblclick', (ev) => { ev.preventDefault(); ev.stopPropagation(); mmSetBig(!mmBig); });
   }
 
   function draw() {
@@ -2079,7 +2141,9 @@
       if (n >= 1000) return (Math.round(n / 100) / 10).toFixed(1) + 'k';
       return String(n);
     };
-    const num = (dense || tinyView) ? shortNum(u.hp) : Math.round(u.hp).toLocaleString('ko-KR');
+    /* v5.32 — 전장 병력 배지는 줌·밀집도와 무관하게 항상 짧은 표기(2.7k/10k/729).
+       예전에는 확대하면 2,700, 멀어지면 2.7k로 오가 눈이 어지러웠다. 정확한 수치는 하단 부대 카드가 맡는다. */
+    const num = shortNum(u.hp);
     const bh = 6;
     const bw = Math.max(TILE * 0.66, 0);
     /* 밀집 시 한 칸씩 엇갈려 세로로도 덜 부딪히게 (v5.27 — 엇갈림 폭 4→6) */
@@ -2828,8 +2892,10 @@
      v5.31 — 사기(morale)와 상태이상(ailment)
      · 사기: 100이 기준. 높으면 공격이 세지고(최대 +16%), 낮으면 약해진다(최대 −18%).
        큰 타격을 받거나 아군 부대가 무너지면 떨어지고, 턴마다 조금씩 회복된다.
+       v5.32 — 사기 하한 25(항복하지 않는다) · 턴 회복 2(50 미만이면 3)
      · 상태이상: 기절(이번 턴 행동 불가) · 혼란(아군·적을 가리지 않고 가까운 부대 공격) ·
        위축(공격 −20%) · 중독·화상(턴마다 병력 감소) · 둔화(이동 −1)
+       v5.32 — 같은 상태이상이 반복되면 저항 누적 · 기절에서 깬 뒤 2턴 기절 면역
      · v5.31 보물 70절의 사기·상태이상 문구와 병과 책략(낙뢰·파천격·혼란·포효 등)이
        여기에 실제로 붙는다.
      ══════════════════════════════════════════════════════════════ */
@@ -2847,6 +2913,9 @@
     u.moraleMax = 100 + Math.max(0, Math.round(f.moraleMax || 0));
     u.morale = Math.min(u.moraleMax, 100 + Math.max(0, Math.round(f.morale || 0)));
     u.ail = {};
+    /* v5.32 — 같은 상태이상이 거듭 걸릴수록 저항이 붙는다(ailRes) · 기절에서 깬 직후 면역(stunCd) */
+    u.ailRes = {};
+    u.stunCd = 0;
     u.slow = 0;
     u.aboard = false;
   }
@@ -2858,7 +2927,10 @@
     if (!u || !u.alive || !d) return;
     const before = u.morale == null ? 100 : u.morale;
     const cut = d < 0 ? Math.max(0, Math.min(0.7, fxPct(u, 'moraleSave'))) : 0;
-    const next = clamp(before + (d < 0 ? d * (1 - cut) : d), 0, u.moraleMax || 100);
+    /* v5.32 — 사기 하한 25. 부대는 항복하지 않는다 — 몇 번의 큰 타격·연쇄 붕괴로
+       0까지 떨어져도 더 나빠지지 않으므로, 한 번 무너진 부대가 판 전체를 버티지 못하는 일은 없다. */
+    const floor = d < 0 ? 25 : 0;
+    const next = clamp(before + (d < 0 ? d * (1 - cut) : d), floor, u.moraleMax || 100);
     u.morale = Math.round(next * 10) / 10;
     const diff = u.morale - before;
     if (Math.abs(diff) >= 3) {
@@ -2874,7 +2946,17 @@
   }
   function ailApply(t, kind, chance, turns) {
     if (!t || !t.alive || !AIL[kind]) return false;
-    if (chance != null && Math.random() > chance) return false;
+    /* v5.32 — 기절에서 막 깨어난 부대는 두 턴 동안 다시 기절하지 않는다.
+       예전에는 낙뢰·파천격이 매 턴 들어오면 한 부대가 판 내내 한 번도 못 움직였다. */
+    if (kind === 'stun' && (t.stunCd || 0) > 0) {
+      addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '기절 내성', '#ffe6a8');
+      return false;
+    }
+    /* v5.32 — 같은 상태이상이 두 번째, 세 번째 걸릴수록 저항이 붙는다(1/(1+0.4n)).
+       기절·혼란·위축이 한 부대에 겹쳐 들어와도 장기전이 잠금놀이가 되지 않는다. */
+    const stack = (t.ailRes && t.ailRes[kind]) || 0;
+    const guard = 1 / (1 + stack * 0.4);
+    if (chance != null && Math.random() > chance * guard) return false;
     if (ailImmune(t, kind)) {
       addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '면역', '#ffe6a8');
       return false;
@@ -2886,7 +2968,11 @@
     }
     t.ail = t.ail || {};
     t.ail[kind] = Math.max(t.ail[kind] || 0, turns || AIL[kind].t);
+    t.ailRes = t.ailRes || {};
+    t.ailRes[kind] = stack + 1;
     if (kind === 'slow') t.slow = Math.max(t.slow || 0, 1);
+    /* 기절은 걸린 턴 + 깨어난 뒤 2턴의 면역을 남긴다 */
+    if (kind === 'stun') t.stunCd = 3;
     addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.2) * TILE, AIL[kind].n, `rgb(${AIL[kind].c})`);
     addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 520, color: AIL[kind].c });
     return true;
@@ -2973,6 +3059,7 @@
         if (u.hp <= 0) downUnit(u);
       });
       if (!u.alive) return;
+      if (u.stunCd > 0) u.stunCd -= 1;
       if (u.ail.stun) {
         u.acted = true;
         u.ail.stun -= 1;
@@ -2985,7 +3072,9 @@
         if (u.ail.slow <= 0) { delete u.ail.slow; u.slow = 0; }
       } else u.slow = 0;
       if (u.morale < u.moraleMax) {
-        const rg = 1 + Math.round(Math.max(0, fxPct(u, 'moraleRegen')) * 10);
+        /* v5.32 — 기본 회복을 1→2로, 사기가 50 아래면 3으로 올린다.
+           예전에는 사기 40에서 6턴을 버텨도 46밖에 안 올라, 한 번 꺾인 부대가 판 내내 회복하지 못했다. */
+        const rg = (u.morale < 50 ? 3 : 2) + Math.round(Math.max(0, fxPct(u, 'moraleRegen')) * 10);
         moraleShift(u, rg);
       }
       const cl = Math.max(0, fxPct(u, 'cleanse'));
@@ -3928,11 +4017,8 @@
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
     if (!enemies.length) { B.winReason = '적군 전멸'; return victory(); }
     if (!allies.length) { B.winReason = '아군 전멸'; return defeat(); }
-    /* v5.17 — 총대장 격파 · 본진 점령은 그 즉시 승패 */
-    const eL = B.enemyLeaderId ? B.units.find((u) => u.id === B.enemyLeaderId) : null;
-    if (eL && !eL.alive) { B.winReason = '적 총대장 격파'; return victory(); }
-    const aL = B.allyLeaderId ? B.units.find((u) => u.id === B.allyLeaderId) : null;
-    if (aL && !aL.alive) { B.winReason = '아군 총대장 격파'; return defeat(); }
+    /* v5.32 — 총대장(군주·선봉) 격파로 끝나는 규칙 제거. 승패는 오직 전멸 또는 본진 점령.
+       예전에는 선봉 장수 한 명이 퇴각해도 아군 13,935명이 남은 채로 즉시 패배했다. */
     const eHQ = (B.sites || []).find((s) => s.type === 'enemyHQ');
     const aHQ = (B.sites || []).find((s) => s.type === 'allyHQ');
     if (eHQ && allies.some((u) => u.x === eHQ.x && u.y === eHQ.y)) { B.winReason = '적 본진 점령'; return victory(); }
@@ -5055,6 +5141,115 @@
   /* ───────────── v5.3 — 행군 요격전의 승패 ───────────── */
   function marchOf(id) { return ((SK.state && SK.state.marches) || []).find((m) => m.id === id); }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.32 — 성 밖 요격 출진(침공 요격)의 승패 처리
+     · 승리: 성벽 피해 없이 침공을 꺾고, 적 잔여 병력은 출발 성으로 쫓아낸다.
+       살아 돌아온 아군은 성에 합류하고, 적장 포로·보물은 일반 승리와 같은 방식으로 정산한다.
+     · 패배: 살아남은 아군은 성으로 물러나고, 적 생존 병력만 줄어든 채 다시 성 앞에 선다
+       (openPendingInvasion 이 줄어든 병력으로 수성전을 다시 연다).
+     ══════════════════════════════════════════════════════════════ */
+  function invasionInterceptVictory() {
+    B.over = true;
+    clearBattleProgress();
+    SK.sfx.play('victory');
+    if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
+    const s = SK.state;
+    const inv = B.intercept.invasion || {};
+    const st = inv.target ? s.cities[inv.target] : null;
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    const troopsLeft = Math.round(survivors.reduce((sum, u) => sum + Math.max(0, u.hp), 0));
+    if (st) st.troops = Math.min(20000, Math.round((st.troops || 0) + troopsLeft));
+    B.units.filter((u) => u.side === 'ally' && u.uid).forEach((u) => {
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (!h) return;
+      h.marchId = null;
+      if (inv.target) h.city = inv.target;
+      h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? Math.max(0.35, u.hp / Math.max(1, u.maxHp)) : 0.2)));
+      if (u.alive) SK.gainExp(h, 70, 16);
+    });
+    /* 적 잔여 병력은 출발 성으로 쫓아낸다 (전멸하지 않은 부대 + 후방에 남아 있던 병력 일부) */
+    const foeLeft = Math.round(B.units.filter((u) => u.side === 'enemy' && u.alive).reduce((sum, u) => sum + Math.max(0, u.hp), 0));
+    const fled = foeLeft + Math.round((inv.troops || 0) * 0.12);
+    const from = inv.from ? s.cities[inv.from] : null;
+    if (from && from.owner !== SK.playerFaction()) from.troops = Math.min(20000, Math.round((from.troops || 0) + fled));
+    s.gold += B.rewards.gold;
+    s.food += B.rewards.food;
+    s.fame += 3;
+    if (st) s.purseCity = inv.target;
+    /* 침공 사건을 정리한다 — 뒤이은 침공(큐)은 chainPendingEvents 가 이어서 연다 */
+    if (s.pendingInvasion === inv || (s.pendingInvasion && s.pendingInvasion.target === inv.target && s.pendingInvasion.from === inv.from)) s.pendingInvasion = null;
+    s.invasionQueue = (s.invasionQueue || []).filter((q) => q !== inv);
+    const prisoners = rollPrisoners();
+    SK.save();
+    SKBattle.refreshUI();
+    const targetName = inv.target && SK.CITY[inv.target] ? SK.CITY[inv.target].name : '성';
+    SK.modal({
+      kicker: '요격전 승리',
+      title: `${targetName} 앞길을 지켰다`,
+      body: `<div class="result-modal win"><div class="rm-seal">승</div>
+        <p class="rm-line">성 밖 길목에서 적 침공군을 먼저 맞아 꺾었습니다. <b>성벽 피해 없이</b> 침공이 물러갔습니다.</p>
+        ${battleReportHTML()}
+        <div class="rm-rewards">
+          <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
+          <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
+          <div><span>성에 합류</span><b>${troopsLeft.toLocaleString('ko-KR')}</b></div>
+          <div><span>명성</span><b>+3</b></div>
+        </div>
+        ${fled > 0 ? `<p class="rm-note">적 잔여 병력 ${fled.toLocaleString('ko-KR')}은 출발 성으로 쫓겨났습니다.</p>` : ''}
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+      </div>`,
+      actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
+        closeBattle();
+        SK.showMap();
+        if (prisoners.length) wait(() => openPrisoners(prisoners), 340);
+        setTimeout(() => { if (SK.chainPendingEvents) SK.chainPendingEvents(); }, 700);
+      } }],
+      dismissible: false,
+    });
+  }
+
+  function invasionInterceptDefeat() {
+    B.over = true;
+    clearBattleProgress();
+    SK.sfx.play('defeat');
+    const s = SK.state;
+    const inv = B.intercept.invasion || {};
+    const st = inv.target ? s.cities[inv.target] : null;
+    const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
+    const troopsLeft = Math.round(survivors.reduce((sum, u) => sum + Math.max(0, u.hp), 0));
+    if (st) st.troops = Math.min(20000, Math.round((st.troops || 0) + troopsLeft));
+    B.units.filter((u) => u.side === 'ally' && u.uid).forEach((u) => {
+      const h = s.heroes.find((x) => x.uid === u.uid);
+      if (!h) return;
+      h.marchId = null;
+      if (inv.target) h.city = inv.target;
+      h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2)));
+    });
+    /* 적 생존 병력만 남겨 다시 성 앞에 세운다 — openPendingInvasion 이 이 수치로 수성전을 연다.
+       (요격전에서 죽인 만큼 줄어들 뿐, 원래 침공 병력보다 늘어나지는 않는다) */
+    const foeLeft = Math.round(B.units.filter((u) => u.side === 'enemy' && u.alive).reduce((sum, u) => sum + Math.max(0, u.hp), 0));
+    inv.troops = Math.max(600, Math.min(Math.round(inv.troops || 0), foeLeft));
+    if (st) s.purseCity = inv.target;
+    SK.save();
+    SKBattle.refreshUI();
+    const targetName = inv.target && SK.CITY[inv.target] ? SK.CITY[inv.target].name : '성';
+    SK.modal({
+      kicker: '요격전 패배',
+      title: '성을 지켜야 한다',
+      body: `<div class="result-modal lose"><div class="rm-seal">패</div>
+        <p class="rm-reason">패배 사유: ${B.winReason || '아군 전멸'}</p>
+        <p class="rm-line">길목을 지키지 못했습니다. 살아남은 병력은 <b>${targetName}</b>으로 물러났고, 적은 줄어든 병력으로 성 앞에 다다릅니다.</p>
+        ${battleReportHTML()}
+        <p class="rm-note">성으로 돌아온 병력 ${troopsLeft.toLocaleString('ko-KR')} · 적 남은 병력 ${inv.troops.toLocaleString('ko-KR')}</p>
+      </div>`,
+      actions: [{ label: '수성전으로', primary: true, onClick: () => {
+        closeBattle();
+        setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 380);
+      } }],
+      dismissible: false,
+    });
+  }
+
   function interceptVictory() {
     B.over = true;
     clearBattleProgress();
@@ -5378,7 +5573,7 @@
   /* ───────────── 승패 ───────────── */
   function victory() {
     if (B.over) return;
-    if (B.intercept) { interceptVictory(); return; }
+    if (B.intercept) { if (B.intercept.invasion) { invasionInterceptVictory(); return; } interceptVictory(); return; }
     if (B.defense) { defenseVictory(); return; }
     B.over = true;
     clearBattleProgress();
@@ -5505,7 +5700,7 @@
       title: `${c.name} 함락`,
       body: `<div class="result-modal win">
         <div class="rm-seal">승</div>
-        ${B.winReason ? `<p class="rm-reason">${B.winReason}${B.winReason.indexOf('전멸') >= 0 ? '' : ' — 적 진영이 무너졌습니다'}!</p>` : ''}
+        ${B.winReason ? `<p class="rm-reason">승리 사유: ${B.winReason}</p>` : ''}
         <p class="rm-line">${SK.josa(prevOwnerName, 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
         ${fallenFaction ? `<p class="rm-fall">${SK.josa(fallenFaction, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다.</p>` : ''}
         ${freedCaptives.length ? `<p class="rm-release">사로잡혀 있던 ${freedCaptives.join(' · ')} — 풀려나 ${c.name}으로 돌아왔습니다.</p>` : ''}
@@ -5540,7 +5735,7 @@
 
   function defeat() {
     if (B.over) return;
-    if (B.intercept) { interceptDefeat(); return; }
+    if (B.intercept) { if (B.intercept.invasion) { invasionInterceptDefeat(); return; } interceptDefeat(); return; }
     if (B.defense) { defenseDefeat(); return; }
     B.over = true;
     clearBattleProgress();
@@ -5588,7 +5783,7 @@
       kicker: '패배',
       title: '퇴각',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
-        ${B.winReason ? `<p class="rm-reason">${B.winReason}!</p>` : ''}
+        <p class="rm-reason">패배 사유: ${B.winReason || '아군 전멸'}</p>
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
         ${battleReportHTML()}
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
@@ -5714,7 +5909,8 @@
       if (army.length && SK.openLastStand) {
         SK.modal({
           kicker: '천하 패배 직전', title: '성을 모두 잃었습니다',
-          body: `<div class="result-modal lose"><div class="rm-seal">망</div>${battleReportHTML()}
+          body: `<div class="result-modal lose"><div class="rm-seal">망</div>
+            <p class="rm-reason">패배 사유: ${B.winReason || '성을 지키지 못함'}</p>${battleReportHTML()}
             <p class="rm-line">마지막 성이 함락되었습니다. 그러나 밖에 나가 있던 원정 주력 <b>${army.length}부대</b>가 아직 살아 있습니다.</p>
             <p class="rm-note">유랑군이 되어 성 하나를 되찾는 <b>배수진</b>에 한 번 도전할 수 있습니다. 지면 그대로 패망합니다.</p></div>`,
           actions: [{ label: '패망을 받아들인다', onClick: () => { closeBattle(); SK.gameOver('마지막 성을 잃었습니다.'); } },
@@ -5725,7 +5921,8 @@
       }
       SK.modal({
         kicker: '천하 패배', title: '거점을 모두 잃었습니다',
-        body: `<div class="result-modal lose"><div class="rm-seal">망</div>${battleReportHTML()}
+        body: `<div class="result-modal lose"><div class="rm-seal">망</div>
+          <p class="rm-reason">패배 사유: ${B.winReason || '마지막 성 함락'}</p>${battleReportHTML()}
           <p class="rm-line">마지막 성이 함락되어 천하를 잃었습니다.</p>
           <p class="rm-note">처음부터 다시 도전할 수 있습니다. 메뉴의 [처음부터 시작]을 쓰십시오.</p></div>`,
         actions: [{ label: '지도로', onClick: () => { if (SK.lockRun) SK.lockRun(); closeBattle(); SK.showMap(); } }],
@@ -5736,6 +5933,7 @@
     SK.modal({
       kicker: '수성전 패배', title: `${c.name} 함락`,
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
+        <p class="rm-reason">패배 사유: ${B.winReason || '성을 지키지 못함'}</p>
         <p class="rm-line">${SK.josa(SK.factionName(inv.faction), 'i')} 성을 차지했습니다.${res.refuge ? ` 남은 병력 ${Math.round(res.moved).toLocaleString('ko-KR')}과 장수는 <b>${SK.CITY[res.refuge].name}</b>으로 물러났습니다.` : ' 물러날 성이 없습니다.'}</p>
         <p class="rm-note">명성 −10 · 성벽·민심이 무너지고, 다음 달부터 이 성은 적의 것입니다.${rfgInfo && rfgInfo.home ? ` ${rfgInfo.home} 원군은 자기 성으로 돌아갔습니다.` : ''}</p></div>`,
       actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
@@ -6000,6 +6198,7 @@
         if (!u) return null;
         return { name: u.name, cls: u.cls, x: u.x, y: u.y, morale: Math.round(u.morale), moraleMax: u.moraleMax,
           ail: Object.assign({}, u.ail || {}), aboard: !!u.aboard, slow: u.slow || 0,
+          stunCd: u.stunCd || 0, ailRes: Object.assign({}, u.ailRes || {}),
           atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), mov: movOf(u), tfx: u.tfx || {} };
       },
       statuses() {

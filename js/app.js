@@ -758,7 +758,38 @@
     }
   }
 
-  /* 적성 수비 장수 — 그 성의 세력 인물로만 (지역·계열이 다른 인물은 세우지 않는다) */
+  /* ══════════════════════════════════════════════════════════════
+     v5.32 — 세상에 이미 소속이 있는 장수 id 모음.
+     주점(seedTalents·refillTalents)·탐색·선택지가 이 장수들을 '재야 인재'로 다시 풀지 않는다.
+     · 내 장수·포로·각 성 주둔(genIds)·주점에 이미 선 인재
+     · AI 세력 명부(f.generals)에 올라 있는 장수 — 성에 다 앉히지 못했더라도 소속이 있다
+     ══════════════════════════════════════════════════════════════ */
+  function garrisonedIds(st) {
+    const used = new Set();
+    if (!st) return used;
+    (st.heroes || []).forEach((h) => { if (h && h.genId != null) used.add(h.genId); });
+    (st.prisoners || []).forEach((r) => { if (r && r.gid != null) used.add(r.gid); });
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities && st.cities[c.id];
+      if (!cs) return;
+      (cs.genIds || []).forEach((id) => used.add(id));
+      (cs.talents || []).forEach((id) => used.add(id));
+    });
+    Object.keys(st.factions || {}).forEach((fid) => {
+      if (fid === 'neutral') return;
+      const f = st.factions[fid];
+      if (!f) return;
+      (f.generals || []).forEach((n) => { const g = SK.GEN_BY_NAME[n]; if (g) used.add(g.id); });
+    });
+    return used;
+  }
+  SK.garrisonedIds = garrisonedIds;
+
+  /* 적성 수비 장수 — 그 성의 세력 인물로만 (지역·계열이 다른 인물은 세우지 않는다)
+     v5.32 — 성마다 3~4명만 앉히고 남은 장수를 버리던 버그 수정:
+     · 1성 세력은 그 성에 전원 배치 (성도 유언군 6명·하비 도겸군 6명·거록 장각군 7명)
+     · 여러 성이면 성마다 고루 나눠 남는 장수 0명
+     · 남는 장수가 없으니 진등·요화 같은 타 세력 장수가 주점에 새어 나오지 않는다 */
   function assignGarrisons(st) {
     if (!SK.GENERALS.length) return;
     const year = eraYearOf(st);
@@ -769,34 +800,87 @@
     Object.keys(st.factions).forEach((k) => {
       const f = st.factions[k];
       const grp = f && f.pool ? f.pool : poolGroupOf(k);
+      /* v5.32 — 장부(f.generals)에 올라 있는 장수는 그 세력 소속이다. 예전에는 데이터상
+         계열(진등·요화 = 촉)이 세력 풀(군웅)과 다르면 배치에서 빠져 주점으로 새어 나갔다.
+         이제 계열 일치는 '수도 앞자리 우선순위'로만 쓰고, 등장 연도만 실제 조건으로 본다. */
       const pool = ((f && f.generals) || []).map((n) => SK.GEN_BY_NAME[n]).filter(Boolean)
-        .filter((g) => genPoolGroup(g) === grp && SK.debutOk(g, year));
-      pool.sort((a, b) => (rank[a.tier] - rank[b.tier]) || (b.war + b.intel) - (a.war + a.intel));
+        .filter((g) => SK.debutOk(g, year));
+      const inPool = (g) => (genPoolGroup(g) === grp ? 1 : 0);
+      pool.sort((a, b) => (inPool(b) - inPool(a)) || (rank[a.tier] - rank[b.tier]) || (b.war + b.intel) - (a.war + a.intel));
       byFaction[k] = pool;
     });
     // 수도를 먼저 채워 우두머리가 수도에 서게 한다
     const order = SK.CITY_LIST.slice().sort((a, b) => (a.type === 'capital' ? -1 : 0) - (b.type === 'capital' ? -1 : 0));
+    const citiesOf = {};
     order.forEach((c) => {
       const cs = st.cities[c.id];
-      if (cs.owner === st.playerFaction) return;
+      if (!cs) return;
       if (cs.owner === 'neutral') { cs.genIds = []; return; }
-      const pool = byFaction[cs.owner] || [];
-      const want = c.type === 'capital' ? 4 : 3;
-      const picks = [];
-      for (let i = 0; i < pool.length && picks.length < want; i++) {
-        const g = pool[i];
-        if (used.has(g.id)) continue;
-        picks.push(g.id); used.add(g.id);
+      if (cs.owner === st.playerFaction) return;
+      (citiesOf[cs.owner] = citiesOf[cs.owner] || []).push({ c, cs });
+    });
+    Object.keys(citiesOf).forEach((fid) => {
+      const cities = citiesOf[fid];
+      const pool = (byFaction[fid] || []).filter((g) => !used.has(g.id));
+      cities.forEach(({ cs }) => { cs.genIds = []; });
+      /* 도시 데이터의 태수는 자기 성에 먼저 앉힌다 */
+      const reserved = new Set();
+      cities.forEach(({ c, cs }) => {
+        const gov = SK.GEN_BY_NAME[SK.normName(c.governor)];
+        if (!gov || reserved.has(gov.id) || used.has(gov.id)) return;
+        if (!pool.some((g) => g.id === gov.id)) return;
+        cs.genIds.push(gov.id); reserved.add(gov.id); used.add(gov.id);
+      });
+      const rest = pool.filter((g) => !reserved.has(g.id));
+      let idx = 0;
+      /* 1차 — 성마다 기본 인원 (수도 4 · 그 밖 3) */
+      cities.forEach(({ c, cs }) => {
+        const want = c.type === 'capital' ? 4 : 3;
+        while (cs.genIds.length < want && idx < rest.length) {
+          const g = rest[idx++];
+          if (used.has(g.id)) continue;
+          cs.genIds.push(g.id); used.add(g.id);
+        }
+      });
+      /* 2차 — 남은 장수는 성을 돌아가며 전원 배치 (한 성뿐이면 그 성에 모두) */
+      let guard = 0;
+      while (idx < rest.length && guard++ < 4000) {
+        cities.forEach(({ cs }) => {
+          while (idx < rest.length) {
+            const g = rest[idx++];
+            if (used.has(g.id)) continue;
+            cs.genIds.push(g.id); used.add(g.id);
+            return;
+          }
+        });
       }
-      // 도시 데이터의 태수도 같은 세력·같은 지역이면 앞에 세운다
-      const gov = SK.GEN_BY_NAME[SK.normName(c.governor)];
-      const grp = pool.length ? SK.generalGroup(pool[0]) : null;
-      if (gov && grp && SK.generalGroup(gov) === grp && !picks.includes(gov.id) && !used.has(gov.id) && picks.length < want + 1) {
-        picks.unshift(gov.id); used.add(gov.id);
-      }
-      cs.genIds = picks.slice(0, want + 1);
     });
   }
+  SK.assignGarrisons = assignGarrisons;
+
+  /* v5.32 — QA: 다른 세력 소속 장수가 주점·주둔 명부에 섞였는지 전수 검사 */
+  SK.garrisonLeaks = function () {
+    const st = SK.state;
+    const out = [];
+    if (!st) return out;
+    const ownerOf = {};
+    Object.keys(st.factions || {}).forEach((fid) => {
+      if (fid === 'neutral') return;
+      ((st.factions[fid] || {}).generals || []).forEach((n) => { const g = SK.GEN_BY_NAME[n]; if (g) ownerOf[g.id] = fid; });
+    });
+    SK.CITY_LIST.forEach((c) => {
+      const cs = st.cities[c.id];
+      if (!cs) return;
+      (cs.talents || []).forEach((id) => {
+        if (ownerOf[id]) out.push({ city: c.name, kind: 'talent', gen: (SK.GEN_BY_ID[id] || {}).name, faction: ownerOf[id], owner: cs.owner });
+      });
+      (cs.genIds || []).forEach((id) => {
+        const fid = ownerOf[id];
+        if (fid && fid !== cs.owner) out.push({ city: c.name, kind: 'garrison', gen: (SK.GEN_BY_ID[id] || {}).name, faction: fid, owner: cs.owner });
+      });
+    });
+    return out;
+  };
 
   /* 재야 인재 — 성마다 고정된 지역 인재 풀 (전국 풀에서 텔레포트하지 않는다)
      v4.1: 보통(B·C급)이 주류, A급은 가끔, S급은 다섯 성에 하나꼴로만 숨어 있게 나눈다.
@@ -813,9 +897,9 @@
 
   function seedTalents(st) {
     const year = eraYearOf(st);
-    const used = new Set();
-    st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
-    SK.CITY_LIST.forEach((c) => (st.cities[c.id].genIds || []).forEach((id) => used.add(id)));
+    /* v5.32 — 각 성 주둔 장수뿐 아니라 AI 세력 명부(f.generals)의 장수까지 '소속 있음'으로 잡는다.
+       예전에는 배치에서 탈락한 진등(도겸군)·요화(장각군)가 그대로 재야 인재로 주점에 섰다. */
+    const used = garrisonedIds(st);
     const lordName = (st.factions[st.playerFaction] || {}).lord;
     /* v5.20 — 다른 세력의 군주·왕은 주점 인재 줄에 앉지 않는다 */
     const lordSet = SK.lordNameSet(st);
@@ -1996,8 +2080,8 @@
 
   /* v5.5 — 첩자로 보낼 수 있는 대기 장수 (이번 달 아직 행동하지 않은 사람) */
   function scoutActors(cityId) {
-    return dispatchPool(cityId)
-      .sort((a, b) => ((b.ji || 60) + (b.cha || 60)) - ((a.ji || 60) + (a.cha || 60)));
+    /* v5.32 — 첩자 후보도 대기 장수가 먼저 (건물 담당은 뒤로) */
+    return actorPoolBy(cityId, (g) => (g.ji || 60) + (g.cha || 60));
   }
   SK.scoutActors = scoutActors;
 
@@ -2287,8 +2371,14 @@
     if (gmc) {
       const left = Number(st.grandMerchant) || 0;
       gmc.hidden = left <= 0;
-      gmc.textContent = left > 0 ? `대상인 체류 ${left}개월` : '';
-      gmc.title = left > 0 ? '군량 특가 + 보물 판매 — [시설 관리 → 군량 상인]' : '';
+      /* v5.32 — 칩을 누르면 바로 군량 상인(대상인) 창이 열린다 (문구·커서도 버튼처럼) */
+      gmc.textContent = left > 0 ? `대상인 체류 ${left}개월 ▸` : '';
+      gmc.title = left > 0 ? '눌러서 군량 상인(대상인) 열기 — 군량 특가 · 보물 판매' : '';
+      gmc.setAttribute('aria-label', left > 0 ? `대상인 체류 ${left}개월 — 군량 상인 열기` : '군량 상인 열기');
+      gmc.onclick = left > 0 ? (e) => {
+        e.stopPropagation();
+        if (SK.openRiceTrader) SK.openRiceTrader(id);
+      } : null;
     }
     renderCityNav(id);
     renderCityDev(id);
@@ -3654,9 +3744,8 @@
     if (kind === 'talent') {
       const grp = tavernGroupOf(s, cityId);
       const lordSet = SK.lordNameSet(s);
-      const used = new Set();
-      s.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
-      SK.CITY_LIST.forEach((x) => (s.cities[x.id].talents || []).forEach((id) => used.add(id)));
+      /* v5.32 — 소속 있는 장수(내 장수·포로·전 성 주둔·AI 세력 명부)는 은거 인재로 다시 나오지 않는다 */
+      const used = garrisonedIds(s);
       const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, eraYearOf(s)) && !SK.isDead(g.id, g.name) && !SK.isLordOnly(g, lordSet));
       if (pool.length) {
         const g2 = pool[Math.floor(Math.random() * pool.length)];
@@ -3710,44 +3799,142 @@
   /* v5.8 — 탐색은 아무나 쓰지 않는다. 보낼 장수를 직접 고르고, 건물 담당 장수도 뽑아 쓸 수 있다 */
   function openExplore(cityId) {
     const s = SK.state;
-    const pool = dispatchPool(cityId).slice().sort((a, b) => ((b.cha || 60) + (b.ji || 60)) - ((a.cha || 60) + (a.ji || 60)));
+    /* v5.32 — 놀고 있는 '대기' 장수가 먼저 [추천], 건물 담당은 그 아래로.
+       예전에는 매력+지력 순으로만 정렬해 시장 담당 제갈량이 맨 위에 서고 대기 장수가 밀렸다. */
+    const pool = actorPoolBy(cityId, (g) => (g.cha || 60) + (g.ji || 60));
     if (!pool.length) {
       SK.sfx.play('deny');
       SK.toast('탐색에 보낼 장수가 없습니다. (모두 이번 달 일을 마쳤습니다)');
       return;
     }
-    const rows = pool.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
-        <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
-        <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
-          <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
-        <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b>${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
-        <span class="tc-go">▸</span></button>`).join('');
+    let mode = 'one';                 // 'one' 한 명씩 · 'many' 여러 명 한번에
+    const sel = new Set();            // 여러 명 모드에서 고른 장수 uid
+
+    const sendOne = (actor) => {
+      const freed = consumeDispatch(cityId, actor);
+      const res = explore(cityId, actor);
+      if (!res.ok) { SK.sfx.play('deny'); SK.toast(res.msg || '탐색할 곳이 없었습니다.'); return false; }
+      SK.gainExp(actor, res.fail ? 10 : 22);
+      cityActorUid = null;
+      SK.save(); SK.refreshHud();
+      SK.openCity(cityId);
+      SK.sfx.play('coin');
+      SK.modal({
+        kicker: `${CITY[cityId].name} 탐색 · ${actor.name}`, title: res.title,
+        body: `<div class="explore-card ${res.kind}"><p>${res.text}</p><b>${res.gain}</b>${freed ? `<em class="ex-duty">${freed} 배속을 풀고 내보냈습니다</em>` : ''}</div>`,
+        actions: [{ label: '확인', primary: true }],
+      });
+      return true;
+    };
+
+    /* 여러 명 한 번에 — 고른 장수마다 배속 해지 + 탐색 + 경험치, 결과는 한 창에 모은다 */
+    const sendMany = () => {
+      const picked = pool.filter((g) => sel.has(g.uid));
+      if (!picked.length) return;
+      const out = [];
+      let freedN = 0;
+      picked.forEach((actor) => {
+        const freed = consumeDispatch(cityId, actor);
+        if (freed) freedN += 1;
+        const res = explore(cityId, actor);
+        if (!res || !res.ok) {
+          out.push({ name: actor.name, kind: 'fail', title: '탐색 실패', gain: (res && res.msg) || '아무것도 찾지 못했습니다' });
+          return;
+        }
+        SK.gainExp(actor, res.fail ? 10 : 22);
+        out.push({ name: actor.name, kind: res.kind || 'misc', title: res.title, gain: res.gain || '', fail: !!res.fail });
+      });
+      cityActorUid = null;
+      SK.save(); SK.refreshHud();
+      SK.openCity(cityId);
+      SK.sfx.play('coin');
+      const good = out.filter((r) => !r.fail).length;
+      SK.modal({
+        kicker: `${CITY[cityId].name} 탐색 · ${out.length}명`, title: '탐색 결과',
+        body: `<p class="talent-note"><b>${out.length}명</b>을 한 번에 보냈습니다 — 성과 ${good}건${freedN ? ` · 건물 담당 ${freedN}명은 배속을 풀고 나갔습니다` : ''}. 보낸 장수는 이번 달 행동을 마쳤습니다.</p>
+          <div class="exr-list">${out.map((r) => `<div class="exr-row ${r.fail ? 'fail' : ''}">
+            <b>${r.name}</b>
+            <div><span>${r.title}</span><em>${r.gain}</em></div>
+          </div>`).join('')}</div>`,
+        actions: [{ label: '확인', primary: true }],
+      });
+    };
+
+    const render = (m) => {
+      const tabs = `<div class="ex-tabs">
+        <button data-ex="one" class="${mode === 'one' ? 'on' : ''}">한 명씩</button>
+        <button data-ex="many" class="${mode === 'many' ? 'on' : ''}">여러 명 한번에</button>
+      </div>`;
+      const note = mode === 'one'
+        ? `<p class="talent-note">탐색은 금이 들지 않고, 보낸 장수의 이번 달 행동을 씁니다. 매력·지력이 높을수록 보물·인재를 더 잘 찾습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>`
+        : `<p class="talent-note"><b>여러 명 한번에</b> — 보낼 장수를 체크해 한 번에 내보냅니다. 고른 장수마다 이번 달 행동을 쓰고, 결과는 한 창에 모아 보여 줍니다. 건물 담당 장수는 보내는 순간 배속이 풀립니다.</p>
+          <div class="ex-many-bar">
+            <button id="ex-all">대기 장수 전체 선택</button>
+            <button id="ex-none">선택 해제</button>
+            <b id="ex-count">${sel.size}명 선택</b>
+          </div>`;
+      const cards = pool.map((g, i) => {
+        if (mode === 'one') {
+          return `<button class="target-card" data-uid="${g.uid}">
+            <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+            <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
+              <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
+            <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b>${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
+            <span class="tc-go">▸</span></button>`;
+        }
+        const on = sel.has(g.uid);
+        return `<button class="target-card ex-pick ${on ? 'on' : ''}" data-pick="${g.uid}">
+          <span class="ex-check ${on ? 'on' : ''}">✓</span>
+          <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+          <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
+            <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
+          <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b>${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
+          <span class="tc-go">▸</span></button>`;
+      }).join('');
+      const go = mode === 'many'
+        ? `<button class="ex-go" id="ex-go" ${sel.size ? '' : 'disabled'}>${sel.size}명 탐색 보내기</button>`
+        : '';
+      const wrap = m.el.querySelector('#ex-wrap');
+      wrap.innerHTML = `${tabs}${note}<div class="target-list">${cards}</div>${go}`;
+      wrap.querySelectorAll('[data-ex]').forEach((b) => {
+        b.onclick = () => { mode = b.dataset.ex; SK.sfx.play('ui'); render(m); };
+      });
+      if (mode === 'one') {
+        wrap.querySelectorAll('.target-card[data-uid]').forEach((b) => {
+          b.onclick = () => {
+            const actor = pool.find((g) => g.uid === b.dataset.uid);
+            if (!actor) return;
+            m.close();
+            sendOne(actor);
+          };
+        });
+        return;
+      }
+      wrap.querySelectorAll('[data-pick]').forEach((b) => {
+        b.onclick = () => {
+          const uid = b.dataset.pick;
+          if (sel.has(uid)) sel.delete(uid); else sel.add(uid);
+          SK.sfx.play('ui');
+          render(m);
+        };
+      });
+      const all = wrap.querySelector('#ex-all');
+      if (all) all.onclick = () => {
+        pool.forEach((g) => { if (!dutyLabelOf(cityId, g)) sel.add(g.uid); });
+        SK.sfx.play('ui'); render(m);
+      };
+      const none = wrap.querySelector('#ex-none');
+      if (none) none.onclick = () => { sel.clear(); SK.sfx.play('ui'); render(m); };
+      const goBtn = wrap.querySelector('#ex-go');
+      if (goBtn) goBtn.onclick = () => { m.close(); sendMany(); };
+    };
+
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 탐색`, title: '누구를 보낼까',
-      body: `<p class="talent-note">탐색은 금이 들지 않고, 보낸 장수의 이번 달 행동을 씁니다. 매력·지력이 높을수록 보물·인재를 더 잘 찾습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>
-        <div class="target-list">${rows}</div>`,
+      body: `<div id="ex-wrap"></div>`,
       wide: true, actions: [{ label: '취소' }],
     });
-    m.el.querySelectorAll('.target-card[data-uid]').forEach((b) => {
-      b.onclick = () => {
-        const actor = pool.find((g) => g.uid === b.dataset.uid);
-        if (!actor) return;
-        m.close();
-        const freed = consumeDispatch(cityId, actor);
-        const res = explore(cityId, actor);
-        if (!res.ok) { SK.sfx.play('deny'); SK.toast(res.msg || '탐색할 곳이 없었습니다.'); return; }
-        SK.gainExp(actor, res.fail ? 10 : 22);
-        cityActorUid = null;
-        SK.save(); SK.refreshHud();
-        SK.openCity(cityId);
-        SK.sfx.play('coin');
-        SK.modal({
-          kicker: `${CITY[cityId].name} 탐색 · ${actor.name}`, title: res.title,
-          body: `<div class="explore-card ${res.kind}"><p>${res.text}</p><b>${res.gain}</b>${freed ? `<em class="ex-duty">${freed} 배속을 풀고 내보냈습니다</em>` : ''}</div>`,
-          actions: [{ label: '확인', primary: true }],
-        });
-      };
-    });
+    render(m);
   }
   SK.openExplore = openExplore;
 
@@ -3838,7 +4025,7 @@
     }).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 훈련`, title: '누구를 지휘관으로 세울까',
-      body: `<p class="talent-note">금 80이 들고, 고른 장수가 이번 달 행동을 씁니다. 훈련도 ${trainNow} — 통솔·무력이 높은 장수가 지휘하면 훈련도가 더 오르고, 주둔 장수 전원이 경험치를 얻습니다. (연병장 담당자도 이 훈련으로 성장합니다)</p>
+      body: `<p class="talent-note">금 80이 들고, 고른 장수가 이번 달 행동을 씁니다. 훈련도 ${trainNow} — 한 번에 병사 훈련도 +7~11이 오르고, 통솔·무력이 높은 장수가 지휘하면 더 오릅니다. 주둔 장수 전원이 경험치를 얻습니다. (연병장 담당자도 이 훈련으로 성장합니다)</p>
         <div class="target-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }],
     });
@@ -3957,7 +4144,7 @@
       items: [
         { key: 'sortie', label: '출진 — 이웃 적성 공략', desc: '부대를 편성해 전장으로 나갑니다' },
         { key: 'transport', label: '수송 — 병력·군량·장수 전출', desc: '후방 성에서 전방 성으로 병력·금·군량을 보내고 장수도 옮깁니다' },
-        { key: 'train', label: '훈련 — 지휘관을 골라 병법 훈련', desc: '금 80 · 통솔·무력 높은 장수를 세우면 훈련도와 경험치가 더 오릅니다' },
+        { key: 'train', label: '훈련 — 지휘관을 골라 병법 훈련', desc: '금 80 · 병사 훈련도(+7~11)와 장수 경험치가 함께 오릅니다' },
         { key: 'recruit', label: '징병 — 장수를 골라 병력 모으기', desc: '금 150 · 군량 120 · 통솔·매력이 높은 장수가 더 많이 뽑습니다' },
         { key: 'recall', label: '긴급 회군 — 원정 부대 불러들이기', desc: '행군 중인 주력 부대를 즉시 출발 성으로 돌려 수성전에 합류시킵니다' },
       ],
@@ -5533,8 +5720,7 @@
     const s = SK.state;
     const cs = s.cities[cityId];
     if (s.gold < 100) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 100)'); return; }
-    const ready = dispatchPool(cityId)
-      .sort((a, b) => ((dutyLabelOf(cityId, a) ? 1 : 0) - (dutyLabelOf(cityId, b) ? 1 : 0)) || (comfortGain(b) - comfortGain(a)));
+    const ready = actorPoolBy(cityId, comfortGain);
     if (!ready.length) {
       SK.sfx.play('deny');
       SK.toast('백성을 위로하러 보낼 장수가 없습니다. (모두 이번 달 일을 마쳤습니다)');
@@ -5628,7 +5814,9 @@
       /* v5.12 — 고른 지휘관의 통솔·무력으로 훈련 효율이 달라진다 */
       const avg = actor ? (((actor.tong || 60) + (actor.wu || 60)) / 2) : 60;
       const eff = clamp(0.8 + (avg - 50) * 0.008, 0.8, 1.35);
-      cs.train = clamp(beforeTrain + Math.max(1, Math.round(3 * eff)), 0, 100);
+      /* v5.32 — 병사 훈련도를 한 번에 +7~+11 올린다 (예전 +2~+4는 체감이 없었다) */
+      cs.train = clamp(beforeTrain + Math.max(5, Math.round(8 * eff)), 0, 100);
+      const trainGain = Math.round(cs.train) - Math.round(beforeTrain);
       const bonus = roll(0.2) ? 60 : 0;
       const rows = gens.map((h) => {
         const isActor = actor && h.uid === actor.uid;
@@ -5646,7 +5834,16 @@
       return {
         msg: `훈련 완료 — 훈련도 ${Math.round(beforeTrain)}→${Math.round(cs.train)}${actor ? ` · ${actor.name} 경험치 +${Math.round(180 * eff)} · 공훈 +${Math.max(1, Math.round(180 * eff / 12))}` : ''}`,
         hotKey: 'repair', hot: `훈련도 ${Math.round(cs.train)}`, exp: 0, train: cs.train,
-        after: () => SK.modal({ kicker: `${CITY[cityId].name} 훈련장`, title: '병법을 익혔다', body: `<div class="train-list">${rows}</div>`, actions: [{ label: '확인', primary: true }] }),
+        after: () => SK.modal({ kicker: `${CITY[cityId].name} 훈련장`, title: '병법을 익혔다',
+          body: `<div class="train-banner">
+              <div class="tb-top"><span>병사 훈련도</span>
+                <b>${Math.round(beforeTrain)} <em>→</em> ${Math.round(cs.train)}</b>
+                <em class="tb-gain">${trainGain > 0 ? `+${trainGain}` : '최고'}</em></div>
+              <i class="tb-bar"><s style="width:${clamp(Math.round(cs.train), 0, 100)}%"></s><u style="left:${clamp(Math.round(beforeTrain), 0, 100)}%"></u></i>
+              <p class="tb-note">${trainGain > 0 ? '이 성에서 출진하는 부대의 전장 훈련도가 함께 올라갑니다.' : '이미 최고 훈련도입니다 — 장수 경험치만 올랐습니다.'}</p>
+            </div>
+            <div class="train-list">${rows}</div>`,
+          actions: [{ label: '확인', primary: true }] }),
       };
     } },
     talent: { name: '인재', run(cityId, actor) {
@@ -5722,12 +5919,8 @@
     const s = SK.state;
     const cs = s && s.cities ? s.cities[cityId] : null;
     if (!cs || !SK.GENERALS.length) return;
-    const used = new Set();
-    s.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
-    SK.CITY_LIST.forEach((c) => {
-      (s.cities[c.id].genIds || []).forEach((id) => used.add(id));
-      if (c.id !== cityId) (s.cities[c.id].talents || []).forEach((id) => used.add(id));
-    });
+    /* v5.32 — AI 세력 소속 장수까지 막는다 (성에 다 앉히지 못한 장수가 주점에 새는 길 차단) */
+    const used = garrisonedIds(s);
     const grp = tavernGroupOf(s, cityId);
     const yr = eraYearOf(s);
     const lordSet = SK.lordNameSet(s);
@@ -5802,8 +5995,7 @@
     }).join('') || '<p class="tr-empty">주점이 조용합니다. 이 성과 옆 성에도 소문난 인재가 없습니다.</p>';
     /* v5.5 — 사신을 직접 고른다. 매력이 높을수록 등용 확률·값이 유리하다
        v5.7.1 — 건물 담당 장수도 사신으로 세울 수 있다 (보내면 그 건물 배속은 풀린다) */
-    const ready = dispatchPool(cityId)
-      .sort((a, b) => ((dutyLabelOf(cityId, a) ? 1 : 0) - (dutyLabelOf(cityId, b) ? 1 : 0)) || ((b.cha || 60) - (a.cha || 60)));
+    const ready = actorPoolBy(cityId, (g) => (g.cha || 60));
     const envoyRow = `<div class="envoy-row">
       <span class="ev-label">사신</span>
       ${ready.length ? ready.slice(0, 8).map((g) => `<button class="ev-chip ${actor && actor.uid === g.uid ? 'on' : ''}" data-envoy="${g.uid}" title="${dutyLabelOf(cityId, g) ? dutyLabelOf(cityId, g) + ' · 파견 시 자동 해제' : '대기'}${g.actedThisMonth ? ' · 이번 달 완료' : ''}">
@@ -5950,7 +6142,7 @@
       title: '군사를 일으킨다',
       body: `<div class="menu-list">
         <button data-b="recruit">징병 — 금 150 · 군량 120 · 병력 1,200+ (통솔·매력 보정)</button>
-        <button data-b="train">훈련 — 금 80 · 주둔 장수 경험치</button>
+        <button data-b="train">훈련 — 금 80 · 병사 훈련도 +7~11 · 장수 경험치</button>
         ${wound ? `<button data-b="heal">부상병 치료 — ${fmt(wound)}명 회복중 · 금 ${fmt(healCost)}</button>` : ''}
       </div>
       ${wound ? `<p class="talent-note">부상병은 달이 바뀌면 35%(최소 200명)씩 저절로 돌아옵니다. 지금 금을 내면 한 번에 치료합니다.</p>` : ''}`,
@@ -6740,9 +6932,12 @@
     const shown = list.slice(0, cdx.limit);
     const rows = shown.map((t) => {
       const got = !!store.t[String(t.id)];
-      return `<div class="cdx-row ${got ? 'got' : ''}" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">
+      /* v5.32 — 얻지 못한 보물도 획득 경로(dropHint)를 보여 준다. 예전에는 도감에
+         이름·효과만 있고 '어디서 나오는지'가 어디에도 적히지 않았다. */
+      const hint = t.dropHint ? `${got ? '획득' : '힌트'} — ${t.dropHint}` : '';
+      return `<div class="cdx-row ${got ? 'got' : ''}" data-tid="${t.id}" role="button" tabindex="0" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">
         <span class="cdx-gd">${t.grade}</span>
-        <div><b>${got ? t.name : '？？？'}</b><small>${t.type}${got ? ` · ${t.effect || ''}` : ' · 아직 얻지 못했습니다'}</small></div>
+        <div><b>${got ? t.name : '？？？'}</b><small>${t.type}${got ? ` · ${t.effect || ''}` : ' · 아직 얻지 못했습니다'}</small>${hint ? `<em class="cdx-hint">${hint}</em>` : ''}</div>
         <em class="cdx-check">${got ? '✓' : '—'}</em>
       </div>`;
     }).join('');
@@ -6787,6 +6982,10 @@
     body.querySelectorAll('[data-gid]').forEach((b) => {
       b.onclick = () => { if (!b.disabled) openCodexGen(Number(b.dataset.gid)); };
     });
+    /* v5.32 — 보물 줄을 누르면 효과·획득 경로를 크게 본다 */
+    body.querySelectorAll('[data-tid]').forEach((row) => {
+      row.onclick = () => openCodexTre(Number(row.dataset.tid));
+    });
   }
 
   function openCodexGen(gid) {
@@ -6795,9 +6994,18 @@
     const s = SK.state;
     const cls = SK.genClass(g);
     const cname = (SK.CLASSES[cls] && SK.CLASSES[cls].name) || g.job || '';
-    const mine = (s && s.heroes || []).some((h) => h.genId === gid);
+    const hero = (s && s.heroes || []).find((h) => h.genId === gid) || null;
+    const mine = !!hero;
     const jailed = (s && s.prisoners || []).some((r) => r.gid === gid);
     const stat = (k, v) => `<span class="cdx-stat"><i>${k}</i><b>${v == null ? '-' : v}</b></span>`;
+    /* v5.32 — 전원 열전: 이름 전용 대사가 없어도 병종·등급 대사로 697명 모두 한 줄이 남는다 */
+    const gag = SK.gagOf ? SK.gagOf(g.name, cls, g.tier) : '';
+    const year = (s && (s.eraYear || (195 + s.year))) || 190;
+    const age = SK.ageOf ? SK.ageOf(g, year) : 0;
+    const born = g.birthYear ? `${g.birthYear}년생${age ? ` · ${year}년 ${age}세` : ''}` : '';
+    const debut = g.debutYear ? `${g.debutYear}년 등장` : '';
+    const where = mine && hero.city && SK.CITY[hero.city] ? `${SK.CITY[hero.city].name} 주둔` : '';
+    const meta = [born, debut, where].filter(Boolean).join(' · ');
     SK.modal({
       kicker: `인물 도감 · ${g.tier}급 ${cname}`,
       title: g.name,
@@ -6807,7 +7015,36 @@
           <p class="cdx-detail-tag">${String(g.faction || '재야')} · ${cname}${mine ? ' · <b>내 장수</b>' : jailed ? ' · <b>억류 중</b>' : ' · 조우 기록'}</p>
           <div class="cdx-stats">${stat('통솔', g.leadership)}${stat('무력', g.war)}${stat('지력', g.intel)}${stat('정치', g.politics)}${stat('매력', g.charm)}</div>
           <p class="cdx-detail-skill">${g.skill ? `고유특기 — <b>${g.skill}</b>` : '고유특기 없음'}</p>
+          ${gag ? `<p class="cdx-detail-story">“${gag}”</p>` : ''}
+          ${meta ? `<p class="cdx-detail-meta">${meta}</p>` : ''}
         </div>
+      </div>`,
+      actions: [{ label: '닫기', primary: true }],
+    });
+  }
+
+  /* v5.32 — 보물 한 점 자세히: 효과 수치·장착 부위·획득 경로 */
+  function openCodexTre(tid) {
+    const t = SK.TREASURE_BY_ID[tid];
+    if (!t) return;
+    const s = SK.state;
+    const got = !!codexRead().t[String(tid)];
+    const slot = SK.SLOT_NAMES[SK.treasureSlot(t)] || '병법서';
+    const statMap = [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['charm', '매력'], ['politics', '정치'], ['move', '이동'], ['rng', '사거리']];
+    const st = SK.treasureStats(t);
+    const statTxt = statMap.filter(([k]) => st[k]).map(([k, n]) => `${n} ${st[k] > 0 ? '+' : ''}${st[k]}`).join(' · ');
+    const owners = ((s && s.heroes) || []).filter((h) => Object.values(h.equip || {}).includes(tid)).map((h) => h.name);
+    const inStore = ((s && s.treasures) || []).includes(tid);
+    const hold = owners.length ? `${owners.join(' · ')} 장착` : inStore ? '보물고에 보관 중' : (got ? '이전에 손에 넣었던 보물' : '아직 얻지 못했습니다');
+    SK.modal({
+      kicker: `보물 도감 · ${t.grade} ${slot}`,
+      title: got ? t.name : '？？？',
+      body: `<div class="cdx-tre">
+        <div class="cdx-tre-top"><span class="cdx-gd" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">${t.grade}</span>
+          <b>${t.type}</b><em>${hold}</em></div>
+        <p class="cdx-tre-effect">${got ? (t.effect || '효과 없음') : '아직 얻지 못해 효과를 알 수 없습니다.'}</p>
+        ${got && statTxt ? `<p class="cdx-tre-stat">능력치 ${statTxt}</p>` : ''}
+        <p class="cdx-tre-hint"><b>획득 경로</b> ${t.dropHint || '어디서 나오는지 알려지지 않았습니다.'}</p>
       </div>`,
       actions: [{ label: '닫기', primary: true }],
     });
@@ -7461,7 +7698,7 @@
         <div><b>${armyName(f)} ${fmt(ts.troops)}</b><span>성벽 ${ts.def} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, Object.keys(pick), s)}
-      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}일</b> · ${SK.CITY[origin].name} → ${tc.name}${marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ''}</p>
+      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}일</b> · ${SK.CITY[origin].name} → ${tc.name}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2일차에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : '')}</p>
       ${(ts.genIds && ts.genIds.length) ? `<p class="enemy-gens">적장 — ${ts.genIds.map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean).map((g) => `${g.name}(${g.tier})`).join(' · ')}</p>` : ''}
       ${aiSup.length ? `<p class="enemy-support">⚠ 인접 ${aiSup.map((x) => x.name).join(' · ')}에 원군 병력 — 수성전에 <b>적 지원군</b>이 합류할 수 있습니다</p>` : ''}
       <div class="troop-ledger">
@@ -7830,6 +8067,7 @@
     SK.modal({
       kicker: '천하 패배', title: '패망',
       body: `<div class="result-modal lose"><div class="rm-seal">망</div>
+        <p class="rm-reason">패배 사유: ${reason || '천하를 잃었습니다'}</p>
         <p class="rm-line">${reason || '천하를 잃었습니다.'}</p>
         <p class="rm-note">처음부터 다시 도전할 수 있습니다. 아래 <b>[새로 시작]</b>으로 새 판을 열어 보세요.</p></div>`,
       actions: [
@@ -8040,6 +8278,14 @@
         marchQueuePush(s, 'arrive', m.id);
         continue;
       }
+      /* v5.32 — 3일 원정의 2일차는 요격 주사위 대신 중도 야영/보급 선택을 연다.
+         먼 원정이 '2일차 요격 또 요격'으로만 흘러가지 않게, 군량을 써서 사기를 지키거나
+         병력을 깎아 하루를 당기는 판단을 넣는다. */
+      if (m.total >= 3 && m.left === 1 && !m.campSeen) {
+        m.campSeen = true;
+        marchQueuePush(s, 'camp', m.id);
+        continue;
+      }
       const ts = s.cities[m.target];
       const c = SK.CITY[m.target];
       if (!ts || !c) continue;
@@ -8069,6 +8315,76 @@
     return s.pendingMarch;
   }
   SK.stepMarches = stepMarches;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.32 — 3일 원정 2일차: 중도 야영 · 보급 / 강행군
+     · 야영 · 보급: 행군 성 창고의 군량을 내어 쉰다 — 병력 2% 보충, 전장 시작 사기 +12
+     · 강행군: 병력 4%를 잃고(탈진·낙오) 하루를 당겨 오늘 도착, 적이 진을 못 친다(적 사기 −8)
+     · 그대로 진군: 아무 일 없이 다음 날 도착
+     군량은 출발 성(함락됐으면 가장 가까운 우리 성) 창고에서 나간다.
+     ══════════════════════════════════════════════════════════════ */
+  /* 야영 군량 = 원정 병력 한 달치 유지비(1,000명당 20) — '군량 일부를 내고 쉰다'가 실제로 값이 되게 */
+  function marchCampCost(troops) { return Math.max(40, Math.ceil((Number(troops) || 0) / 1000 * 20)); }
+  function openMarchCamp(m, troops, originNote) {
+    const s = SK.state;
+    const tc = SK.CITY[m.target];
+    const homeId = fieldHome(m.origin);
+    const home = homeId ? s.cities[homeId] : null;
+    const cost = marchCampCost(troops);
+    const food = home ? Math.round(home.food || 0) : 0;
+    const canCamp = !!home && food >= cost;
+    const heal = Math.max(20, Math.round(troops * 0.02));
+    const loss = Math.max(30, Math.round(troops * 0.04));
+    const done = () => { s.pendingMarch = null; SK.save(); setTimeout(() => SK.chainPendingEvents && SK.chainPendingEvents(), 240); };
+    const mm = SK.modal({
+      kicker: `행군 2/${m.total}일 · ${SK.CITY[m.origin].name} → ${tc.name}`,
+      title: '중도 야영지',
+      body: `<div class="march-event">
+          <div class="me-flag" style="background:#7a6524">營</div>
+          <p>긴 원정의 둘째 날, 길가에 물가와 빈 군영이 보입니다. 하루를 어떻게 보낼지 정하십시오.</p>
+          <div class="me-nums"><span>원정 병력 <b>${fmt(troops)}</b></span><span>남은 행군 <b>1일</b></span>
+            <span>${home ? `${SK.CITY[homeId].name} 군량 <b>${fmt(food)}</b>` : '군량을 댈 성 <b>없음</b>'}</span></div>
+          ${originNote}
+          <p class="me-note"><b>야영 · 보급</b> — 군량 ${fmt(cost)}을 내고 쉰다. 병력 ${fmt(heal)} 보충, 내일 전장에 <b>사기 +12</b>로 들어갑니다.${canCamp ? '' : ' <b class="me-warn">군량이 모자랍니다.</b>'}<br>
+            <b>강행군</b> — 병력 ${fmt(loss)}(4%)를 잃는 대신 <b>오늘 바로 도착</b>합니다. 적이 미처 진을 못 쳐 <b>적 사기 −8</b>.<br>
+            <b>그대로 진군</b> — 손해도 이득도 없이 내일 도착합니다.</p>
+        </div>`,
+      actions: [
+        { label: '그대로 진군', keepOpen: true, onClick: () => { mm.close(); done(); SK.toast('야영을 건너뛰고 진군을 이어갑니다.'); } },
+        { label: '강행군', keepOpen: true, onClick: () => {
+          (m.units || []).forEach((u) => {
+            u.troops = Math.max(300, Math.round((u.troops || 0) * 0.96));
+            u.moraleBonus = (u.moraleBonus || 0) - 4;
+          });
+          m.surprise = 1;
+          m.camp = 'forced';
+          m.left = 0;
+          marchQueuePush(s, 'arrive', m.id);
+          mm.close();
+          done();
+          SK.toast(`강행군 — 병력 ${fmt(loss)}을 잃고 하루를 당겼습니다 (기습)`);
+        } },
+        { label: '야영 · 보급', primary: true, keepOpen: true, onClick: () => {
+          if (!canCamp) {
+            /* 창을 닫지 않고 그대로 두어 다른 선택을 고르게 한다 */
+            SK.sfx.play('deny');
+            SK.toast(home ? `군량이 부족합니다 — ${SK.CITY[homeId].name} 창고 ${fmt(food)} / 필요 ${fmt(cost)}` : '군량을 댈 성이 없어 야영할 수 없습니다.');
+            return;
+          }
+          home.food = Math.max(0, (home.food || 0) - cost);
+          (m.units || []).forEach((u) => {
+            u.troops = Math.round((u.troops || 0) * 1.02);
+            u.moraleBonus = (u.moraleBonus || 0) + 12;
+          });
+          m.camp = 'rest';
+          mm.close();
+          done();
+          SK.toast(`야영 · 보급 — 군량 ${fmt(cost)} 사용, 병력 보충 · 사기 +12`);
+        } },
+      ],
+      dismissible: false,
+    });
+  }
 
   function openPendingMarch() {
     const s = SK.state;
@@ -8107,6 +8423,10 @@
     const originNote = originLost
       ? `<p class="me-note me-warn">⚠ 출발 성 ${josa(SK.CITY[m.origin] ? SK.CITY[m.origin].name : '본성', 'i')} 이미 함락되었습니다 — 이 성을 차지하면 여기에 주둔하고, 지면 가장 가까운 아군 성으로 회군합니다.</p>`
       : '';
+    if (s.pendingMarch.kind === 'camp') {
+      openMarchCamp(m, troops, originNote);
+      return;
+    }
     if (s.pendingMarch.kind === 'intercept') {
       /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
       let itype = m.interceptType || 'plain';
@@ -8134,14 +8454,19 @@
       });
     } else {
       const supCands = SK.aiSupportCandidates ? SK.aiSupportCandidates(m.target) : [];
+      /* v5.32 — 중도 야영·강행군의 결과를 도착 창에 한 줄로 남긴다 */
+      const campNote = m.camp === 'rest'
+        ? `<p class="me-support">야영 · 보급 — 군량을 나눠 쉬었습니다. 아군 사기 +12로 전장에 들어갑니다</p>`
+        : (m.surprise ? `<p class="me-support">강행군 기습 — 적이 미처 진을 치지 못했습니다 (적 사기 −8)</p>` : '');
       SK.modal({
-        kicker: `행군 ${m.total}/${m.total}일${waitTag}`,
+        kicker: `행군 ${m.total}/${m.total}일${m.surprise ? ' · 강행군 하루 당김' : ''}${waitTag}`,
         title: `${tc.name} 성 앞 도착`,
         body: `<div class="march-event">
             <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
             <p>${m.total}일 행군 끝에 <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
             <div class="me-nums"><span>도착 병력 <b>${fmt(troops)}</b></span><span>수비병 <b>${fmt(ts.troops)}</b></span></div>
             <p class="me-note">${SK.BATTLE_TYPES[m.type].name} — ${SK.BATTLE_TYPES[m.type].desc}</p>
+            ${campNote}
             ${originNote}
             ${supCands.length ? `<p class="me-support">⚠ 인접 ${supCands.map((x) => x.name).join(' · ')}의 원군이 성으로 들어가고 있습니다 — 적 지원군이 합류할 수 있습니다</p>` : ''}
           </div>`,
@@ -8152,7 +8477,7 @@
           /* v5.10 — 인접 적 성 지원군 합류 판정 (병력은 원 성에서 빠진다) */
           const aiSupport = SK.rollAiSupport ? SK.rollAiSupport(m.target) : [];
           SK.save();
-          SK.startBattle({ origin: m.origin, targetId: m.target, type: m.type, units: m.units, marchId: m.id, aiSupport });
+          SK.startBattle({ origin: m.origin, targetId: m.target, type: m.type, units: m.units, marchId: m.id, aiSupport, surprise: !!m.surprise });
         } }],
         dismissible: false,
       });
@@ -8774,6 +9099,82 @@
   }
   SK.dispatchReinforce = dispatchReinforce;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.32 — 침공 [요격 출진]: 성문을 닫고 기다리는 대신, 성 밖 길목에서 먼저 맞는다.
+     · 이기면 성벽 피해 없이 침공이 꺾이고 적 잔여 병력은 출발 성으로 쫓겨난다
+     · 지면 살아남은 아군은 성으로 물러나고, 줄어든 적 병력으로 수성전이 이어진다
+     ══════════════════════════════════════════════════════════════ */
+  function openInterceptSortie(inv) {
+    const s = SK.state;
+    const cid = inv.target;
+    const c = SK.CITY[cid], ts = s.cities[cid];
+    if (!c || !ts) return;
+    const gens = cityGens(cid).slice().sort((a, b) => ((b.tong || 60) + (b.wu || 60)) - ((a.tong || 60) + (a.wu || 60)));
+    const avail = Math.floor(ts.troops || 0);
+    if (!gens.length || avail < 1200) {
+      SK.sfx.play('deny');
+      SK.toast('요격 나갈 장수와 병력이 부족합니다 (병력 1,200 이상 필요).');
+      return;
+    }
+    const itype = interceptTypeFor({ origin: inv.from, target: cid });
+    const idef = SK.BATTLE_TYPES[itype] || SK.BATTLE_TYPES.plain;
+    const keep = Math.max(600, Math.round(avail * 0.3));       // 성에 남길 병력
+    const budget = Math.max(0, avail - keep);
+    const picked = new Set(gens.slice(0, Math.min(5, gens.length)).map((g) => g.uid));
+    const perOf = (n) => Math.max(300, Math.min(3000, Math.floor(budget / Math.max(1, n) / 100) * 100));
+    const sumOf = () => { const n = picked.size; const per = perOf(n); return per * n; };
+
+    const render = (m) => {
+      const n = picked.size;
+      const per = perOf(n);
+      const send = sumOf();
+      const rows = gens.map((g, i) => {
+        const on = picked.has(g.uid);
+        return `<button class="target-card ex-pick ${on ? 'on' : ''}" data-pick="${g.uid}">
+          <span class="ex-check ${on ? 'on' : ''}">✓</span>
+          <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+          <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
+            <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cid, g)}</span></div>
+          <div class="tc-troops"><span>통 ${g.tong} · 무 ${g.wu}</span><b>${fmt(on ? per : 0)}</b></div>
+          <span class="tc-go">▸</span></button>`;
+      }).join('');
+      const wrap = m.el.querySelector('#is-wrap');
+      wrap.innerHTML = `<p class="talent-note">길목 지형 — <b>${idef.name}</b> · ${idef.desc}<br>${idef.skill || ''}</p>
+        <div class="is-sum"><span>출진 <b>${n}명</b></span><span>나갈 병력 <b>${fmt(send)}</b></span><span>성에 남는 병력 <b>${fmt(avail - send)}</b></span></div>
+        <div class="target-list">${rows}</div>
+        <button class="ex-go" id="is-go" ${n && send <= budget ? '' : 'disabled'}>요격 출진 — ${fmt(send)}으로 맞이한다</button>`;
+      wrap.querySelectorAll('[data-pick]').forEach((b) => {
+        b.onclick = () => {
+          const uid = b.dataset.pick;
+          if (picked.has(uid)) picked.delete(uid); else picked.add(uid);
+          SK.sfx.play('ui');
+          render(m);
+        };
+      });
+      const go = wrap.querySelector('#is-go');
+      if (go) go.onclick = () => {
+        if (!picked.size) { SK.toast('요격에 나갈 장수를 한 명 이상 고르세요.'); return; }
+        const units = gens.filter((g) => picked.has(g.uid)).map((g) => ({ kind: 'hero', uid: g.uid, troops: per }));
+        const total = units.reduce((a, u) => a + u.troops, 0);
+        if (total > budget) { SK.toast('나갈 병력이 너무 많습니다 — 장수를 줄이세요.'); return; }
+        ts.troops = Math.max(0, avail - total);
+        SK.save();
+        SK.startBattle({
+          origin: cid, targetId: cid, type: itype, units,
+          intercept: { name: `${SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적'} → ${c.name} 길목`, troops: inv.troops, invasion: inv },
+        });
+      };
+    };
+    const m = SK.modal({
+      kicker: `${c.name} 요격 출진 · ${SK.factionName(inv.faction)}의 침공`,
+      title: '누구를 길목에 세울까',
+      body: `<div id="is-wrap"></div>`,
+      wide: true, actions: [{ label: '취소' }],
+    });
+    render(m);
+  }
+  SK.openInterceptSortie = openInterceptSortie;
+
   function openPendingInvasion() {
     const s = SK.state;
     if (!s || !s.pendingInvasion) return;
@@ -8803,12 +9204,14 @@
         ${rfg ? `<div class="rfg-ready"><b>${CITY[rfg.from].name} 원군 대기</b><span>병력 ${fmt(rfgTroops)}${rfgGens ? ` · 장수 ${rfgGens}명` : ''} — 수성전에 함께 들어갑니다</span></div>`
           : (near.length ? `<div class="rfg-tip"><b>지원군을 보낼 수 있습니다</b><span>${near.map((o) => `${o.name}(${o.via}·${fmt(o.troops)})`).join(' · ')}</span></div>` : '')}
         <p class="talent-note">[수성전] — 격자 전장에서 성을 지킵니다. 출진 장수(최대 10명)와 자리(외성·망루·내성)를 먼저 고릅니다. 이기면 적을 물리치고, 지면 성을 잃고 남은 병력·장수는 가까운 내 성으로 물러납니다.</p>
+        <p class="talent-note">[요격 출진] — 성 밖 길목으로 나가 적을 먼저 맞아 싸웁니다. 이기면 <b>성벽 피해 없이</b> 침공을 꺾고 적 잔여 병력은 출발 성으로 쫓겨납니다. 지면 살아남은 병력이 성으로 돌아오고, 줄어든 적과 수성전을 치릅니다. 병력 1,200 이상이 필요합니다.</p>
         <p class="talent-note">[철수] — 싸우지 않고 병력 85%와 장수를 가까운 내 성으로 빼고 성을 내줍니다.</p>
       </div>`,
       actions: [
         { label: '철수', onClick: () => surrenderCity(inv) },
         (s.marches || []).length ? { label: '긴급 회군', onClick: () => { setTimeout(() => SK.openRecall(inv.target), 120); } } : null,
         near.length || rfg ? { label: rfg ? '지원군 다시' : '지원군 파견', onClick: () => { if (rfg) { cancelReinforce(); } setTimeout(() => openReinforce(inv.target), 140); } } : null,
+        (gens.length && (ts.troops || 0) >= 1200) ? { label: '요격 출진', onClick: () => { setTimeout(() => openInterceptSortie(inv), 160); } } : null,
         { label: rfg ? '수성전 (원군 합류)' : '수성전', primary: true, onClick: () => { setTimeout(() => openDefenseDeploy(inv), 140); } },
       ].filter(Boolean),
       dismissible: false,
@@ -9086,12 +9489,8 @@
   }
   function choiceTalentPool(s) {
     const grp = poolGroupOf(PF());
-    const used = new Set();
-    s.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
-    SK.CITY_LIST.forEach((c) => {
-      (s.cities[c.id].genIds || []).forEach((id) => used.add(id));
-      (s.cities[c.id].talents || []).forEach((id) => used.add(id));
-    });
+    /* v5.32 — 돌발 선택지의 인재 제안도 소속 있는 장수를 재야로 데려오지 않는다 */
+    const used = garrisonedIds(s);
     return SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp
       && SK.debutOk(g, eraYearOf(s)) && !SK.isDead(g.id, g.name));
   }
@@ -9696,7 +10095,8 @@
         <div class="help-item"><b>인구와 징병</b><p>징병은 그 성의 인구에서 병사를 빼옵니다. 주둔병은 인구의 30%를 넘을 수 없고, 징병하면 민심이 내려갑니다(매력이 높으면 덜 내려갑니다). 민심이 70 이상이면 세수와 인구가 더 늘고, 40 아래면 줄어듭니다.</p></div>
         <div class="help-item"><b>군사 조언</b><p>관아나 행동력 줄의 [군사] 버튼으로 군사를 임명하면, 그 성의 민심·병력·성벽·재정과 이웃 적성·주점 인재를 읽어 지금 필요한 일을 조언합니다. 조언은 행동력을 쓰지 않고, '조언대로 진행'을 눌러야 실행됩니다. 대기 장수에게 남은 내정을 통째로 맡기려면 관아의 [대기 장수 일괄 내정]을 쓰십시오.</p></div>
         <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
-        <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. 화면을 끌면 24~32칸 전장을 넓게 볼 수 있고, 우측 상단 미니맵을 누르면 그 자리로 바로 갑니다.</p></div>
+        <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. 화면을 끌면 24~32칸 전장을 넓게 볼 수 있고, 우측 상단 미니맵을 누르면 그 자리로 바로 갑니다. 미니맵 위 <b>⤢ 확대</b>를 누르면 미니맵이 두 배 가까이 커져 마을·본진·성문 위치를 한눈에 봅니다(다시 누르면 원래 크기).</p></div>
+        <div class="help-item"><b>뒤로가기·종료</b><p>폰의 뒤로가기는 창을 닫고, 성 화면에서는 지도로 돌아갑니다. 지도·타이틀에서 뒤로가면 <b>게임을 종료하시겠습니까?</b> 확인 창이 뜨고, <b>계속하기</b>를 누르면 그대로 남습니다.</p></div>
         <div class="help-item"><b>책략과 군량</b><p>[책략]으로 병과별 기술을 쓰고, [군량]으로 HP를 회복합니다. [대기] 후 다음 부대로 넘어갑니다.</p></div>
         <div class="help-item"><b>병과 상성</b><p>창병 → 기병·야수 <b>+35%</b> · 기병·야수 → 보병 <b>+18%</b> · 보병(검병·등갑병·무도가) → 궁병 <b>+20%</b> · 궁병 → 기병·책략계 <b>+18%</b>, 창병 <b>+20%</b>. 공격 전에 뜨는 [전투 예고]에 상성 배율과 반격 피해가 그대로 찍힙니다.</p></div>
         <div class="help-item"><b>반격</b><p>맞은 쪽이 사거리 안이면 반격합니다. 피해는 <b>75%</b>(검병만 방패 맞다이 <b>90%</b>). 궁수·연노·포차처럼 최소 사거리가 있는 병과는 붙으면 반격하지 못합니다.</p></div>

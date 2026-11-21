@@ -2265,12 +2265,12 @@ SK.battleSizeFor = function (type, rings) {
 /* 전장 유형 정보 */
 SK.BATTLE_TYPES = {
   siege: { name: '공성전', hanja: '', map: 'siege', img: 'siege', desc: '성벽과 성문을 뚫어라',
-    objective: '적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
+    objective: '적을 전멸시키거나 적 본진을 점령하라', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
   fortress: { name: '요새전', hanja: '', map: 'fortress', img: 'fortress', desc: '목책과 요새를 함락하라',
-    objective: '적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
+    objective: '적을 전멸시키거나 적 본진을 점령하라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
   /* v5.3 — 행군 요격전 8종 (v5.15에서 밀림·협곡·야영 3종 추가) */
   plain: { name: '평야전', hanja: '', map: 'plain', img: 'plain', desc: '넓은 들에서 적 요격대와 맞붙는다',
-    objective: '적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '기병·무도가는 평지에서 강합니다.' },
+    objective: '적을 전멸시키거나 적 본진을 점령하라', skill: '기병·무도가는 평지에서 강합니다.' },
   ford: { name: '도하전', hanja: '', map: 'ford', img: 'ford', desc: '강 건널목을 사이에 두고 맞선다',
     objective: '여울과 다리를 건너 적 본진을 점령하라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   mountain: { name: '산전', hanja: '', map: 'mountain', img: 'mountain', desc: '산길을 사이에 두고 맞선다',
@@ -2285,7 +2285,7 @@ SK.BATTLE_TYPES = {
     objective: '다리와 물길을 이용해 적 본진을 점령하라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   /* v5.7 — 수성전: 아군이 성 안에서 적 침공군을 맞는다 (지도는 공성전을 뒤집어 쓴다) */
   defense: { name: '수성전', hanja: '', map: 'siege', img: 'siege', desc: '성을 지켜 적을 물리쳐라',
-    objective: '성을 지켜라 — 적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
+    objective: '성을 지켜라 — 적을 전멸시키거나 적 본진을 점령하라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
 };
 
 /* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.
