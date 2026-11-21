@@ -10872,6 +10872,489 @@
     $('#btn-retreat').onclick = () => SK.confirmRetreat();
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.37 — 개발자 전용 AI 관전(오토 플레이) 모드   ?dev=hojin
+     · 주소에 dev=hojin 이 있을 때만 관전 바를 만든다.
+       일반 주소(?v=51)에서는 이 블록이 DOM 을 하나도 만들지 않는다.
+     · 관전을 켜면 플레이어 세력도 AI 처럼 매달 내정(건설·증축·배속·
+       징병·수송·출진)을 하고, 월정산·침공 경고·전직·포로·보물·
+       선택지·전투 결과 창을 스스로 넘긴다.
+     · 플레이어 전투는 자동전투 ×4 로 돌리고, 천하통일 엔딩이나
+       [⏸ 정지] 전까지 멈추지 않고 이어진다.
+     ══════════════════════════════════════════════════════════════ */
+  const DEV_OBS_CODE = 'hojin';
+  const DEV_OBS_ON = (function () {
+    try { return new URLSearchParams(window.location.search).get('dev') === DEV_OBS_CODE; } catch (e) { return false; }
+  })();
+  const OBS = {
+    on: false, speed: 1, timer: null, settleUntil: 0, turnDone: null,
+    months: 0, stopped: '', log: [], lastOwn: null, curB: null, bar: null,
+    seen: (typeof WeakMap === 'function' ? new WeakMap() : null),
+    stats: { battles: 0, captures: 0, modals: 0 },
+  };
+  /* 배속별 리듬 — tick: 판단 주기, hold: 창을 보여 주는 시간, click: 창을 넘긴 뒤 흐름 여유 */
+  function obsCfg() {
+    if (OBS.speed >= 10) return { tick: 160, hold: 520, click: 540 };
+    if (OBS.speed >= 3) return { tick: 380, hold: 800, click: 720 };
+    return { tick: 900, hold: 1600, click: 1000 };
+  }
+  function obsLog(text) {
+    if (!text) return;
+    OBS.log.push(text);
+    if (OBS.log.length > 8) OBS.log.shift();
+    obsPaint();
+  }
+  function obsBtn(l, re) {
+    const bs = Array.prototype.slice.call(l.querySelectorAll('.modal-actions button'))
+      .filter((b) => b.offsetParent !== null);
+    return bs.find((b) => re.test(String(b.textContent || ''))) || null;
+  }
+
+  /* ── 지도 위 관전 바 ───────────────────────────────────────── */
+  function devObsInit() {
+    if (OBS.bar || !DEV_OBS_ON) return;
+    const host = document.getElementById('screen-map');
+    if (!host) return;
+    const bar = document.createElement('div');
+    bar.id = 'dev-observer-bar';
+    bar.className = 'dev-obs';
+    bar.innerHTML = `<div class="do-row">
+        <button id="obs-toggle" class="do-btn do-play" type="button">▶ AI 관전</button>
+        <div class="do-speeds">
+          <button class="do-sp on" data-sp="1" type="button">×1</button>
+          <button class="do-sp" data-sp="3" type="button">×3</button>
+          <button class="do-sp" data-sp="10" type="button">×10</button>
+        </div>
+        <span class="do-tag">DEV</span>
+      </div>
+      <div class="do-info">
+        <span id="obs-month" class="do-date">—</span><i></i>
+        <span id="obs-factions">세력 —</span><i></i>
+        <span id="obs-top">1위 —</span>
+      </div>
+      <div id="obs-log" class="do-log">▶ 를 누르면 AI가 대신 플레이합니다</div>`;
+    const foot = host.querySelector('.map-bottom');
+    if (foot && foot.parentNode) foot.parentNode.insertBefore(bar, foot);
+    else host.appendChild(bar);
+    OBS.bar = bar;
+    bar.querySelector('#obs-toggle').onclick = () => {
+      if (OBS.on) devObsStop('정지 — 관전을 멈췄습니다');
+      else devObsStart();
+    };
+    bar.querySelectorAll('.do-sp').forEach((b) => {
+      b.onclick = () => {
+        OBS.speed = Number(b.dataset.sp) || 1;
+        obsLog('배속 ×' + OBS.speed);
+        obsPaint();
+        if (OBS.on) obsSchedule(60);
+      };
+    });
+    obsPaint();
+  }
+
+  function obsPaint() {
+    const bar = OBS.bar;
+    if (!bar) return;
+    const s = SK.state;
+    const monthEl = bar.querySelector('#obs-month');
+    const facEl = bar.querySelector('#obs-factions');
+    const topEl = bar.querySelector('#obs-top');
+    const logEl = bar.querySelector('#obs-log');
+    const btn = bar.querySelector('#obs-toggle');
+    if (btn) {
+      btn.textContent = OBS.on ? '⏸ 정지' : '▶ AI 관전';
+      btn.classList.toggle('on', OBS.on);
+    }
+    Array.prototype.forEach.call(bar.querySelectorAll('.do-sp'), (b) => {
+      b.classList.toggle('on', Number(b.dataset.sp) === OBS.speed);
+    });
+    if (!s) {
+      if (monthEl) monthEl.textContent = '판 없음';
+      if (facEl) facEl.textContent = '세력 —';
+      if (topEl) topEl.textContent = '1위 —';
+      if (logEl) logEl.textContent = '먼저 [새로 시작]으로 판을 여세요';
+      bar.dataset.on = '0';
+      return;
+    }
+    const date = SK.dateLabel(s.eraYear || (195 + s.year), s.month);
+    if (monthEl) monthEl.textContent = date + (OBS.on ? ' ▶' : '');
+    const tally = {};
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (cs && cs.owner && cs.owner !== 'neutral') tally[cs.owner] = (tally[cs.owner] || 0) + 1;
+    });
+    const fids = Object.keys(tally);
+    let top = null;
+    fids.forEach((f) => { if (!top || tally[f] > tally[top]) top = f; });
+    if (facEl) facEl.textContent = '세력 ' + fids.length;
+    if (topEl) topEl.textContent = '1위 ' + (top ? SK.factionName(top) : '—') + ' ' + (top ? tally[top] : 0) + '/' + SK.CITY_LIST.length;
+    if (logEl) logEl.textContent = OBS.log[OBS.log.length - 1] || (OBS.on ? '관전 중…' : '▶ 를 누르면 AI가 대신 플레이합니다');
+    bar.dataset.on = OBS.on ? '1' : '0';
+    bar.dataset.date = date;
+    bar.dataset.months = String(OBS.months);
+    bar.dataset.battles = String(OBS.stats.battles);
+    bar.dataset.captures = String(OBS.stats.captures);
+    bar.dataset.modals = String(OBS.stats.modals);
+  }
+
+  /* ── 시작·정지 ─────────────────────────────────────────────── */
+  function devObsStart() {
+    const s = SK.state;
+    if (!s) { obsLog('먼저 게임을 시작하세요'); SK.toast('먼저 [새로 시작]으로 판을 여세요.'); return; }
+    if (s.over) { obsLog('이미 끝난 판입니다 — 새 판을 여세요'); return; }
+    const cityScr = document.getElementById('screen-city');
+    if (cityScr && cityScr.classList.contains('active')) {
+      try { SK.closeCitySheet(); } catch (e) { /* ignore */ }
+      SK.showMap();
+    }
+    OBS.on = true;
+    OBS.stopped = '';
+    OBS.turnDone = null;
+    OBS.curB = null;
+    OBS.settleUntil = Date.now() + 400;
+    obsLog('관전 시작 — ' + SK.dateLabel(s.eraYear || (195 + s.year), s.month));
+    obsPaint();
+    obsSchedule(80);
+  }
+  function devObsStop(msg) {
+    OBS.on = false;
+    if (OBS.timer) { clearTimeout(OBS.timer); OBS.timer = null; }
+    /* 전투 중이면 자동전투도 멈춰 실제로 '정지'되게 한다 */
+    try {
+      const dbg = window.SKBattle && SKBattle.debug;
+      if (dbg && dbg.battle && dbg.auto) dbg.toggleAuto(false);
+    } catch (e) { /* ignore */ }
+    if (msg) obsLog(msg);
+    obsPaint();
+  }
+  function obsSchedule(ms) {
+    if (OBS.timer) clearTimeout(OBS.timer);
+    OBS.timer = setTimeout(devObsTick, ms);
+  }
+  function devObsTick() {
+    OBS.timer = null;
+    if (!OBS.on) return;
+    try {
+      devObsStep();
+    } catch (e) {
+      OBS.on = false;
+      OBS.stopped = 'error';
+      obsLog('⚠ 관전 오류: ' + (e && e.message ? e.message : e));
+      try { console.error('[AI 관전]', e); } catch (e2) { /* ignore */ }
+      obsPaint();
+      return;
+    }
+    obsPaint();
+    if (OBS.on) obsSchedule(obsCfg().tick);
+  }
+
+  /* ── 한 틱 ─────────────────────────────────────────────────── */
+  function devObsStep() {
+    const s = SK.state;
+    if (!s) return;
+    obsScan(s);
+    if (s.over) { devObsStop('패망 — 관전을 멈춥니다'); return; }
+    const B = (window.SKBattle && SKBattle.debug) ? SKBattle.debug.battle : null;
+    /* 끝난 전투(B.over)는 결과 창을 넘겨야 하므로 battle 처리에서 빼 준다 */
+    if (B && !B.over) { devObsBattle(B); return; }
+    if (devObsModal()) return;
+    if (Date.now() < OBS.settleUntil) return;
+    /* 달이 바뀐 뒤 남은 사건(행군 도착·요격·침공)을 먼저 처리한다 */
+    if (SK.promoteInvasionQueue && SK.promoteInvasionQueue(s)) {
+      setTimeout(() => { if (OBS.on && SK.openPendingInvasion) SK.openPendingInvasion(); }, 200);
+      return;
+    }
+    if (SK.promoteMarchQueue && SK.promoteMarchQueue(s)) {
+      setTimeout(() => { if (OBS.on && SK.openPendingMarch) SK.openPendingMarch(); }, 200);
+      return;
+    }
+    if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
+    if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
+    if (OBS.turnDone !== s.turn) { OBS.turnDone = s.turn; devObsPrepare(s); return; }
+    devObsAdvance(s);
+  }
+
+  function devObsAdvance(s) {
+    OBS.settleUntil = Date.now() + 1400;   /* 월정산 창이 뜨는 900ms 를 덮는다 */
+    OBS.turnDone = s.turn;
+    SK.advanceMonth();
+    OBS.months += 1;
+    const st = SK.state;
+    if (st) obsLog('📅 ' + SK.dateLabel(st.eraYear || (195 + st.year), st.month) + ' · ' + OBS.months + '개월째');
+  }
+
+  /* ── 플레이어 세력 자동 내정 ─────────────────────────────── */
+  function devObsPrepare(s) {
+    const owned = SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === PF());
+    if (!owned.length) return;
+    s.autoBestDuty = true;
+    try { enforceLordGovernor(s); } catch (e) { /* ignore */ }
+    owned.forEach((c) => {
+      const cs = s.cities[c.id];
+      SK.setPurse(c.id);
+      try { ensureSlots(cs, c); } catch (e) { /* ignore */ }
+      if (cs.auto === false) cs.auto = true;
+      try { devObsBuild(c, cs); } catch (e) { /* ignore */ }
+    });
+    owned.forEach((c) => {
+      const cs = s.cities[c.id];
+      SK.setPurse(c.id);
+      try { autoAssignDuty(c.id, { silent: true }); } catch (e) { /* ignore */ }
+      try { devObsDelegate(c.id); } catch (e) { /* ignore */ }
+      try { devObsUpgrade(c, cs); } catch (e) { /* ignore */ }
+    });
+    try { devObsTransport(s, owned); } catch (e) { /* ignore */ }
+    try { devObsSortie(s, owned); } catch (e) { /* ignore */ }
+    if (s.playerCapital && s.cities[s.playerCapital] && s.cities[s.playerCapital].owner === PF()) s.purseCity = s.playerCapital;
+    SK.save();
+    SK.refreshHud();
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+  }
+
+  const OBS_BUILD_ORDER = ['market', 'farm', 'barracks', 'patrol', 'training', 'wall', 'lab', 'tavern', 'workshop'];
+  function devObsBuild(c, cs) {
+    if (!Array.isArray(cs.slots)) return;
+    const empty = cs.slots.find((sl) => sl && !sl.key);
+    if (!empty) return;
+    if ((cs.gold || 0) < ECON.buildNew + 80) return;
+    const counts = {};
+    cs.slots.forEach((sl) => { if (sl && sl.key) counts[sl.key] = (counts[sl.key] || 0) + 1; });
+    let key = OBS_BUILD_ORDER.find((k) => !counts[k]);
+    if (!key) key = (counts.market || 0) <= (counts.farm || 0) ? 'market' : 'farm';
+    cs.gold = Math.round((cs.gold || 0) - ECON.buildNew);
+    empty.key = key; empty.lv = 1; empty.uid = null; empty.deputy = null; empty.exp = 0;
+    obsLog(CITY[c.id].name + ' ' + (SLOT_DEFS[key] || { name: '시설' }).name + ' 건설');
+  }
+
+  function devObsDelegate(cityId) {
+    const s = SK.state;
+    const cs = s.cities[cityId];
+    const gens = cityGens(cityId);
+    if (!gens.length) return;
+    if (!cs.advisor) {
+      const best = gens.slice().sort((a, b) => (b.ji * 1.4 + b.tong) - (a.ji * 1.4 + a.tong))[0];
+      if (best) cs.advisor = best.uid;
+    }
+    const done = {};
+    let guard = 0;
+    while (guard++ < 8) {
+      const actor = cityGens(cityId).find((g) => !g.actedThisMonth);
+      if (!actor) break;
+      const key = chooseDelegatedAction(cityId, done);
+      if (!key) break;
+      let res;
+      if (key === 'comfort') {
+        res = comfortCity(cityId, actor);
+        if (!res || !res.ok) break;
+        res.exp = 6;
+      } else {
+        res = CMDS[key].run(cityId, actor);
+      }
+      if (!res || res.pending) break;
+      done[key] = (done[key] || 0) + 1;
+      actor.actedThisMonth = true;
+      if (res.exp) SK.gainExp(actor, res.exp);
+    }
+    cityActorUid = null;
+  }
+
+  function devObsUpgrade(c, cs) {
+    const s = SK.state;
+    const up = pickAutoUpgrade(cs, s);
+    if (!up) return;
+    s.gold = Math.round((s.gold || 0) - up.cost);
+    up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(up.sl.lv));
+    up.sl.lv += 1;
+    obsLog(CITY[c.id].name + ' ' + up.name + ' Lv.' + up.sl.lv + ' 증축');
+  }
+
+  function devObsTransport(s, owned) {
+    owned.forEach((c) => {
+      const cs = s.cities[c.id];
+      const cap = cityCap(cs);
+      const spare = Math.floor((cs.troops || 0) - Math.floor(cap * 0.55));
+      if (spare < 1500) return;
+      let best = null;
+      SK.allNeighbors(c.id).forEach((nid) => {
+        const ns = s.cities[nid];
+        if (!ns || ns.owner !== PF() || nid === c.id) return;
+        const need = cityCap(ns) - (ns.troops || 0);
+        if (!best || need > best.need) best = { id: nid, need: need };
+      });
+      if (!best || best.need < 800) return;
+      const send = Math.min(spare, best.need);
+      cs.troops = Math.round((cs.troops || 0) - send);
+      s.cities[best.id].troops = Math.round((s.cities[best.id].troops || 0) + send);
+      obsLog(CITY[c.id].name + ' → ' + CITY[best.id].name + ' 수송 ' + fmt(send));
+    });
+  }
+
+  function devObsSortie(s, owned) {
+    const targeted = {};
+    (s.marches || []).forEach((m) => { if (m && m.target) targeted[m.target] = 1; });
+    /* 나가 있는 원정대가 있으면 새 출진은 미룬다 — 성이 비어 침공에 무너지지 않게 */
+    if ((s.marches || []).length && owned.length < 4) return;
+    let best = null;
+    owned.forEach((c) => {
+      const cs = s.cities[c.id];
+      const avail = Math.floor(cs.troops || 0);
+      if (avail < 6000) return;
+      if (Math.floor(cs.food || 0) < 500) return;
+      const gens = cityGens(c.id).filter((h) => !h.marchId && !h.rfgTo && !h.captured);
+      if (!gens.length) return;
+      SK.allNeighbors(c.id).forEach((nid) => {
+        if (nid === c.id || targeted[nid]) return;
+        const ns = s.cities[nid];
+        if (!ns || ns.owner === PF()) return;
+        if (ns.owner !== 'neutral' && s.truce && s.truce[ns.owner] > (s.turn || 1)) return;
+        const ratio = avail / Math.max(600, cityPower(ns));
+        if (ratio < 1.25) return;
+        const turns = marchTurns(c.id, nid);
+        const score = ratio / (1 + (turns - 2) * 0.35) + (ns.owner === 'neutral' ? 0.25 : 0);
+        if (!best || score > best.score) best = { origin: c.id, target: nid, score: score, avail: avail, gens: gens };
+      });
+    });
+    if (!best) return;
+    const cs = s.cities[best.origin];
+    const leaders = best.gens.slice()
+      .sort((a, b) => (b.tong * 0.6 + b.wu * 0.4) - (a.tong * 0.6 + a.wu * 0.4))
+      .slice(0, 6);
+    let budget = Math.min(Math.floor(best.avail * 0.55), Math.max(2000, best.avail - 2600));
+    const units = [];
+    leaders.forEach((h) => {
+      if (budget < 1000) return;
+      const cap = SK.troopCapOf(h) || 5000;
+      const give = Math.min(cap, Math.max(1000, Math.floor(budget / leaders.length / 100) * 100), budget);
+      if (give < 1000) return;
+      units.push({ kind: 'hero', uid: h.uid, troops: give });
+      budget -= give;
+    });
+    while (budget >= 2000 && units.length < 10) {
+      units.push({ kind: 'regiment', cls: 'changbyung', name: '창병대', troops: 2000 });
+      budget -= 2000;
+    }
+    const total = units.reduce((a, u) => a + u.troops, 0);
+    if (!units.length || total < 2000) return;
+    const supply = Math.ceil(total / 1000 * 5);
+    if ((cs.food || 0) < supply + 120) return;
+    cs.food = Math.max(0, Math.round((cs.food || 0) - supply));
+    cs.troops = Math.max(0, Math.round((cs.troops || 0) - total));
+    const type = SK.battleTypeFor(SK.CITY[best.target]);
+    startMarch({ origin: best.origin, targetId: best.target, type: type, units: units });
+    obsLog('⚔ ' + CITY[best.origin].name + ' → ' + CITY[best.target].name + ' 출진 ' + fmt(total) + '명');
+    SK.save();
+    SK.refreshHud();
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+  }
+
+  /* ── 전투: 자동 ×4 ─────────────────────────────────────────── */
+  function devObsBattle(B) {
+    const dbg = window.SKBattle && SKBattle.debug;
+    if (!dbg) return;
+    /* 인트로 카드는 터치로 넘어가므로 대신 눌러 준다 */
+    if (!B.introDone) {
+      const ov = document.getElementById('battle-overlay');
+      if (ov && !ov.hidden && ov.onclick) { try { ov.click(); } catch (e) { try { ov.onclick({}); } catch (e2) { /* ignore */ } } }
+      return;
+    }
+    if (OBS.curB !== B) {
+      OBS.curB = B;
+      OBS.stats.battles += 1;
+      obsLog('⚔ ' + (B.name || '전투') + ' — ' + (B.def ? B.def.name : '전투') + ' 시작');
+    }
+    if (!dbg.auto) dbg.toggleAuto(true);
+    if (dbg.speed < 4) dbg.toggleSpeed();
+    try { dbg.setTimeScale(4); } catch (e) { /* ignore */ }
+  }
+
+  /* ── 모달 자동 처리 ───────────────────────────────────────── */
+  function devObsModal() {
+    const layers = Array.prototype.slice.call(document.querySelectorAll('#modal-root .modal-layer'))
+      .filter((l) => !l.classList.contains('out'));
+    const l = layers[layers.length - 1];
+    if (!l) return false;
+    const h3 = l.querySelector('h3');
+    const title = h3 ? String(h3.textContent || '') : '';
+    const text = String(l.innerText || '').replace(/\s+/g, ' ');
+    /* 끝 — 관전 종료 */
+    if (title.indexOf('천하가 하나로 모였습니다') >= 0) { devObsStop('🏆 천하통일 — 관전을 마칩니다'); return true; }
+    if (title.indexOf('패망') >= 0) { devObsStop('패망 — 관전을 멈춥니다'); return true; }
+    /* 되돌릴 수 없는 창은 건드리지 않는다 */
+    if (/처음부터 시작|불러오기|덮어쓰기|세이브 슬롯/.test(title)) {
+      const b = obsBtn(l, /취소|닫기/);
+      if (b) b.click();
+      return true;
+    }
+    const cfg = obsCfg();
+    const now = Date.now();
+    let seenAt = OBS.seen ? OBS.seen.get(l) : l.__obsSeen;
+    if (!seenAt) {
+      seenAt = now;
+      if (OBS.seen) OBS.seen.set(l, now); else l.__obsSeen = now;
+    }
+    if (now - seenAt < cfg.hold) return true;   /* 잠깐 보여 준 뒤 넘긴다 */
+    let pick = null;
+    if (text.indexOf('요격') >= 0) pick = obsBtn(l, /싸운다/);
+    if (!pick && text.indexOf('성 앞 도착') >= 0) pick = obsBtn(l, /시작/);
+    if (!pick && text.indexOf('침공') >= 0) pick = obsBtn(l, /수성전/);
+    if (!pick && title.indexOf('후퇴할까요') >= 0) pick = obsBtn(l, /계속 싸운다/);
+    if (!pick) {
+      const acts = Array.prototype.slice.call(l.querySelectorAll('.modal-actions button'))
+        .filter((b) => b.offsetParent !== null);
+      pick = acts.find((b) => b.classList.contains('btn-primary')) || (acts.length ? acts[acts.length - 1] : null);
+    }
+    if (!pick) {
+      /* 선택지·포로처럼 본문 안 버튼으로 고르는 창 */
+      pick = l.querySelector('.cc-opt:not([disabled])')
+        || l.querySelector('.prison-opt[data-p="hire"]')
+        || l.querySelector('.prison-opt[data-p="free"]')
+        || l.querySelector('.prison-opt');
+    }
+    if (OBS.seen) OBS.seen.delete(l); else delete l.__obsSeen;
+    OBS.stats.modals += 1;
+    OBS.settleUntil = now + cfg.click;
+    if (pick) {
+      try { pick.click(); } catch (e) { /* ignore */ }
+      return true;
+    }
+    /* 버튼이 하나도 없는 안내창 — 닫고 흐름을 막지 않는다 */
+    if (SK.modalStack && SK.modalStack.length) { try { SK.modalStack[SK.modalStack.length - 1].close(); } catch (e) { /* ignore */ } }
+    else l.remove();
+    return true;
+  }
+
+  /* ── 성 주인이 바뀐 것을 로그로 ───────────────────────────── */
+  function obsScan(s) {
+    const own = {};
+    SK.CITY_LIST.forEach((c) => { const cs = s.cities[c.id]; own[c.id] = cs ? cs.owner : null; });
+    const prev = OBS.lastOwn;
+    OBS.lastOwn = own;
+    if (!prev) return;
+    SK.CITY_LIST.forEach((c) => {
+      const a = prev[c.id], b = own[c.id];
+      if (!a || !b || a === b) return;
+      const mine = b === PF();
+      if (mine) OBS.stats.captures += 1;
+      obsLog((mine ? '◈ 점령 ' : '◈ 함락 ') + c.name + ' — ' + SK.factionName(b));
+    });
+  }
+
+  if (DEV_OBS_ON) {
+    SK.devObs = {
+      get on() { return OBS.on; },
+      get months() { return OBS.months; },
+      get speed() { return OBS.speed; },
+      stats: OBS.stats,
+      log() { return OBS.log.slice(); },
+      start: devObsStart,
+      stop: devObsStop,
+      setSpeed(v) { OBS.speed = Number(v) || 1; obsPaint(); if (OBS.on) obsSchedule(60); },
+      tick: devObsTick,
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', devObsInit);
+    else setTimeout(devObsInit, 0);
+  }
+
   /* expose */
   SK.startGame = startGame;
   SK.advanceMonth = advanceMonth;

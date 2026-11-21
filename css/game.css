@@ -3926,3 +3926,54 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 }
 /* 전장 부대 카드의 사기·상태이상 알약 */
 #uc-buffs .bf { white-space: nowrap; }
+
+/* ═══════════ v5.37 — 개발자 전용 AI 관전 바 (?dev=hojin) ═══════════ */
+/* 일반 주소에서는 이 블록의 DOM 자체가 만들어지지 않는다.
+   지도 화면의 아래 띠(내 본성 / 다음 달) 위에 한 줄로 붙는다. */
+.dev-obs {
+  position: relative; z-index: 7; flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 9px 7px;
+  background: linear-gradient(180deg, rgba(16, 13, 8, 0.98), rgba(30, 25, 14, 0.98));
+  border-top: 1px solid #6b5a2c;
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.45);
+  font-family: var(--sans);
+}
+.dev-obs .do-row { display: flex; align-items: center; gap: 6px; }
+.dev-obs .do-btn {
+  flex: 0 0 auto; border: 1px solid #e3bd63; border-radius: 8px; padding: 6px 11px;
+  font-size: 12.5px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1;
+  color: #2c2310; background: linear-gradient(180deg, #f0d79b, #d7ae58);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.dev-obs .do-btn:active { transform: translateY(1px); }
+.dev-obs .do-btn.on {
+  color: #ffe2c8; border-color: #e08a6a;
+  background: linear-gradient(180deg, #7a2f24, #4d1a13);
+}
+.dev-obs .do-speeds { display: flex; gap: 3px; flex: 0 0 auto; }
+.dev-obs .do-sp {
+  border: 1px solid #6b5a2c; border-radius: 6px; padding: 5px 8px;
+  font-size: 11px; font-weight: 900; color: #d8c496; background: #241d10;
+}
+.dev-obs .do-sp.on {
+  border-color: #e3bd63; color: #2c2310;
+  background: linear-gradient(180deg, #f0d79b, #d7ae58);
+}
+.dev-obs .do-tag {
+  margin-left: auto; flex: 0 0 auto;
+  font-size: 9px; font-weight: 900; letter-spacing: 0.16em; color: #b7a262;
+  border: 1px solid #5a4a22; border-radius: 4px; padding: 2px 5px;
+}
+.dev-obs .do-info {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 10.5px; font-weight: 800; color: #e8d9b4; white-space: nowrap;
+}
+.dev-obs .do-info i { flex: 0 0 auto; width: 1px; height: 9px; background: #5a4a22; }
+.dev-obs .do-info #obs-month { flex: 0 0 auto; color: #ffe6ac; }
+.dev-obs .do-info #obs-factions { flex: 0 0 auto; }
+.dev-obs .do-info #obs-top { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dev-obs .do-log {
+  font-size: 10.5px; line-height: 1.35; color: #c8b483;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
