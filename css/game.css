@@ -3464,6 +3464,14 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .rm-dmg tfoot .rm-sum td { border-top: 1.5px solid #c9a86a; font-weight: 900; color: #6b4a12; background: #fbf1da; }
 /* v5.25 — 결산표가 길어도 합계줄은 항상 보이게 */
 .rm-dmg tfoot { position: sticky; bottom: 0; z-index: 1; }
+.rm-sum-bar { display: grid; grid-template-columns: 1fr repeat(4, minmax(0, auto)); gap: 6px; align-items: center;
+  padding: 4px 4px 5px; border-top: 1.5px solid #c9a86a; background: #fbf1da;
+  font-size: 9px; font-weight: 900; color: #6b4a12; border-radius: 0 0 8px 8px; }
+.rm-sum-bar span { text-align: left; }
+.rm-sum-bar b { text-align: right; font-size: 9px; }
+.rm-sum-bar b:nth-of-type(1) { min-width: 46px; }
+.rm-sum-bar b:nth-of-type(2) { min-width: 40px; }
+.rm-sum-bar b:nth-of-type(3) { min-width: 32px; }
 
 /* ══════════════════════════════════════════════════════════════
    v5.17 — 성곽 겹수(1중·2중·3중) 내정 화면 차별화 + 전직 연출 + 결산 표기

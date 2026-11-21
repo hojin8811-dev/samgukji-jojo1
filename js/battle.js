@@ -4076,8 +4076,8 @@
           <td><i style="width:${Math.max(2, Math.round((r.dealt / maxDealt) * 32))}px"></i>${fmtN(r.dealt)}</td>
           <td>${fmtN(r.taken)}</td><td>${r.heal ? '+' + fmtN(r.heal) : '0'}</td><td>${r.kills}</td>
         </tr>`).join('')}</tbody>
-        <tfoot><tr class="rm-sum"><td>합계</td><td>${fmtN(sum.dealt)}</td><td>${fmtN(sum.taken)}</td><td>${sum.heal ? '+' + fmtN(sum.heal) : '0'}</td><td>${sum.kills}</td></tr></tfoot>
       </table></div>
+      <div class="rm-sum-bar"><span>합계</span><b>${fmtN(sum.dealt)}</b><b>${fmtN(sum.taken)}</b><b>${sum.heal ? '+' + fmtN(sum.heal) : '0'}</b><b>${sum.kills}</b></div>
     </div>`;
   }
 
