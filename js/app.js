@@ -3167,6 +3167,15 @@
      v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다 */
   function slotExpNeed(lv) { return 40 + (Number(lv) || 1) * 35; }
   SK.slotExpNeed = slotExpNeed;
+  /* v5.35 — 한 달에 차는 시설 경험. 담당·부장 유무로 갈리고, 안내 문구도 이 값으로 계산한다
+     (예전에는 담당이 없어도 '2개월 뒤'라고 적어 실제와 어긋났다) */
+  function slotExpMonthly(cs, sl, g, dep) {
+    const lv = (sl && sl.lv) || 1;
+    if (g) return Math.round((26 + lv * 8) * slotMul(cs, sl, g));
+    if (dep) return 14 + lv * 4;
+    return 9;
+  }
+  SK.slotExpMonthly = slotExpMonthly;
   function slotExpRatio(sl) {
     if (!sl || !sl.key) return 0;
     const need = slotExpNeed(sl.lv);
@@ -3570,7 +3579,7 @@
         ${sl.lv < 5 ? `<div class="slot-expbox">
           <div class="se-head"><b>시설 경험</b><span>${ep} / ${needEp}</span></div>
           <div class="se-bar"><i style="width:${Math.round(Math.min(1, ep / needEp) * 100)}%"></i></div>
-          <p>${epOk ? '경험이 가득 찼습니다 — 증축할 수 있습니다.' : `담당 장수를 배속해 ${Math.max(1, Math.ceil((needEp - ep) / (30 + sl.lv * 8)))}개월 더 운영하면 증축할 수 있습니다.`}</p>
+          <p>${epOk ? '경험이 가득 찼습니다 — 증축할 수 있습니다.' : `지금은 달마다 약 +${slotExpMonthly(cs, sl, g, depG)}씩 찹니다 — <b>${Math.max(1, Math.ceil((needEp - ep) / Math.max(1, slotExpMonthly(cs, sl, g, depG))))}개월</b> 뒤 증축할 수 있습니다.${g ? '' : ' 담당 장수를 앉히면 두세 달이면 찹니다.'}`}</p>
         </div>` : ''}
         <div class="menu-list">
           ${sl.lv < 5 ? `<button data-a="up" ${(s.gold < cost || !epOk) ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})${epOk ? '' : ' · 경험 부족'}</button>` : ''}
@@ -3837,7 +3846,7 @@
         const lv = sl.lv;
         /* v5.2 — 시설 경험치. 담당 장수가 있으면 빨리, 없으면 천천히 쌓인다 */
         if (lv < 5) {
-          const gain = Math.round((g ? 26 + lv * 8 : (dep ? 14 + lv * 4 : 6)) * (g ? mul : 1));
+          const gain = Math.round((g ? 26 + lv * 8 : (dep ? 14 + lv * 4 : 9)) * (g ? mul : 1));
           sl.exp = (sl.exp || 0) + gain;
           grow.push({ city: c.name, key: sl.key, name: (SLOT_DEFS[sl.key] || {}).name || sl.key,
             lv: lv, gain: gain, exp: sl.exp, need: slotExpNeed(lv), duty: !!g });
