@@ -308,6 +308,19 @@
       try { JojoBGM.play(type === 'siege' || type === 'fortress' ? 'battle_siege' : 'battle_field'); } catch (e) { /* ignore */ }
     }
     if (window.SK && SK.bgm && !window.JojoBGM) SK.bgm(type === 'siege' || type === 'fortress' ? 'battle_siege' : 'battle_field');
+    /* v5.27 — 전투 중에 앱을 닫거나 새로고침해도 출진 병력이 허공으로 사라지지 않게
+       '전투 중' 표식을 저장해 둔다. 복귀하면 SK.load가 병력을 출발 성으로 돌려준다. */
+    try {
+      if (SK.state) {
+        SK.state.battleInProgress = {
+          origin: opts.origin || opts.targetId, targetId: opts.targetId, type,
+          troops: (opts.units || []).reduce((a, u) => a + (u.troops || 0), 0),
+          heroes: (opts.units || []).filter((u) => u.uid).map((u) => u.uid),
+          at: Date.now(),
+        };
+        SK.save();
+      }
+    } catch (e) { /* ignore */ }
     initCanvas();
     const feedEl = document.querySelector('#battle-feed');
     if (feedEl) feedEl.innerHTML = '';
@@ -1195,6 +1208,7 @@
     drawGrid();
     drawObjective();
     drawHighlights();
+    drawBackFloats();
     drawUnits();
     drawFx();
     ctx.restore();
@@ -1895,33 +1909,44 @@
       if (Math.max(Math.abs(o.x - u.x), Math.abs(o.y - u.y)) <= 1) crowd += 1;
     }
     const dense = crowd >= 2, veryDense = crowd >= 4;
+    /* v5.27 — 24~32칸 대형 전장을 한눈에 보는 배율(cam.s<0.30)에서는 부대마다 붙는 숫자 배지가
+       서로 덮여 읽을 수 없다. 그때는 지금 고른 부대·적 총대장만 숫자를 달고 나머지는 병력 바로만 보여 준다.
+       밀집할 때도 글자 상한을 낮춰 라벨 폭을 한 칸 이하로 줄인다. */
+    const tinyView = cam.s < 0.30;
+    const kNum = dense ? Math.min(k, 1.06) : k;
+    const showNum = !tinyView || u === B.sel || u.boss;
     const shortNum = (v) => {
       const n = Math.max(0, Math.round(v));
       if (n >= 10000) return Math.round(n / 1000) + 'k';
       if (n >= 1000) return (Math.round(n / 100) / 10).toFixed(1) + 'k';
       return String(n);
     };
-    const num = dense ? shortNum(u.hp) : Math.round(u.hp).toLocaleString('ko-KR');
+    const num = (dense || tinyView) ? shortNum(u.hp) : Math.round(u.hp).toLocaleString('ko-KR');
     const bh = 6;
     const bw = Math.max(TILE * 0.66, 0);
-    /* 밀집 시 반 칸씩 엇갈려 세로로도 덜 부딪히게 */
-    const stair = dense && (((u.x * 2 + u.y) % 3) === 1) ? Math.round(4 * k) : 0;
+    /* 밀집 시 한 칸씩 엇갈려 세로로도 덜 부딪히게 (v5.27 — 엇갈림 폭 4→6) */
+    const stair = dense && (((u.x * 2 + u.y) % 3) === 1) ? Math.round(6 * kNum) : 0;
     const barY = topY - 8 - bh - stair;
-    const fsz = Math.round(9 * k * (veryDense ? 0.84 : dense ? 0.93 : 1));
+    const fsz = Math.round(9 * kNum * (veryDense ? 0.84 : dense ? 0.93 : 1));
     ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
-    const numW = ctx.measureText(num).width;
-    const showChip = !veryDense;
-    const chipW = showChip ? Math.round(11 * k) : 0;
-    const pillW = chipW + numW + Math.round(9 * k);
-    const pillH = Math.round((dense ? 12 : 13) * k);
+    const numW = showNum ? ctx.measureText(num).width : 0;
+    /* v5.27 — 밀집하면 아/적 글자 칩을 색 점으로 줄여 라벨 폭을 한 칸 안으로 줄인다 */
+    const showChip = !dense && showNum && !tinyView;
+    const dotW = dense && showNum ? Math.round(5 * kNum) : 0;
+    const chipW = showChip ? Math.round(11 * kNum) : dotW;
+    const padW = Math.round((dense ? 7 : 9) * kNum);
+    const pillW = showNum ? chipW + numW + padW : 0;
+    const pillH = Math.round((dense ? 12 : 13) * kNum);
     const pillX = bx - pillW / 2;
-    const pillY = barY - pillH - Math.round(2 * k);
+    const pillY = barY - pillH - Math.round(2 * kNum);
     ctx.save();
-    ctx.fillStyle = dense ? 'rgba(24,19,11,0.8)' : 'rgba(24,19,11,0.86)';
-    ctx.strokeStyle = u.side === 'ally' ? 'rgba(130,180,255,0.75)' : 'rgba(255,150,130,0.7)';
-    ctx.lineWidth = 1;
-    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill(); ctx.stroke(); }
-    else { ctx.fillRect(pillX, pillY, pillW, pillH); ctx.strokeRect(pillX, pillY, pillW, pillH); }
+    if (showNum) {
+      ctx.fillStyle = dense ? 'rgba(24,19,11,0.8)' : 'rgba(24,19,11,0.86)';
+      ctx.strokeStyle = u.side === 'ally' ? 'rgba(130,180,255,0.75)' : 'rgba(255,150,130,0.7)';
+      ctx.lineWidth = 1;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill(); ctx.stroke(); }
+      else { ctx.fillRect(pillX, pillY, pillW, pillH); ctx.strokeRect(pillX, pillY, pillW, pillH); }
+    }
     if (showChip) {
       ctx.fillStyle = tint.chip;
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX + 1, pillY + 1, chipW, pillH - 2, (pillH - 2) / 2); ctx.fill(); }
@@ -1931,12 +1956,19 @@
       ctx.textBaseline = 'middle';
       ctx.font = `800 ${Math.round(fsz * 0.82)}px "Noto Sans CJK KR", sans-serif`;
       ctx.fillText(tint.label, pillX + 1 + chipW / 2, pillY + pillH / 2 + 0.5);
+    } else if (dotW) {
+      ctx.fillStyle = tint.chip;
+      ctx.beginPath();
+      ctx.arc(pillX + 1 + dotW / 2 + 0.5, pillY + pillH / 2, Math.max(2, dotW * 0.38), 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
-    ctx.textAlign = showChip ? 'left' : 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fffaf0';
-    ctx.fillText(num, showChip ? pillX + chipW + Math.round(4 * k) : pillX + pillW / 2, pillY + pillH / 2 + 0.5);
+    if (showNum) {
+      ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
+      ctx.textAlign = chipW ? 'left' : 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fffaf0';
+      ctx.fillText(num, chipW ? pillX + chipW + Math.round(3 * kNum) : pillX + pillW / 2, pillY + pillH / 2 + 0.5);
+    }
     ctx.restore();
     // 병과 배지 — [🐎 기병] 형태의 작은 칩을 HP 배지 왼쪽에 붙인다 (밀집하면 생략)
     const badge = CLASS_BADGE[u.cls] || ['', SK.CLASSES[u.cls] ? SK.CLASSES[u.cls].name.slice(0, 2) : ''];
@@ -1947,7 +1979,7 @@
     if (preferRight && occ(1) && !occ(-1)) badgeRight = false;
     else if (!preferRight && occ(-1) && !occ(1)) badgeRight = true;
     const badgeSkip = (badgeRight && occ(1)) || (!badgeRight && occ(-1));
-    if (badge[1] && !dense && !badgeSkip) {
+    if (badge[1] && !dense && !tinyView && !badgeSkip) {
       const bsz = Math.max(7, Math.round(7.4 * k));
       ctx.save();
       ctx.font = `800 ${bsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
@@ -2022,7 +2054,11 @@
 
   /* ───────────── 이펙트 ───────────── */
   function addFx(o) { fx.push(Object.assign({ t: 0, life: 420 }, o)); }
-  function addFloat(x, y, text, color) { floats.push({ x, y, text, color, life: 950, t: 0 }); }
+  /* v5.27 — opts.back: 유닛 뒤(스프라이트·병력 라벨 아래)에 깔리는 글자. 고유특기 이름처럼
+     길게 떠 있는 문구가 부대 병력 라벨을 덮지 않게 한다. */
+  function addFloat(x, y, text, color, opts) {
+    floats.push({ x, y, text, color, life: 950, t: 0, back: !!(opts && opts.back) });
+  }
 
   function updateFx(dt) {
     for (let i = fx.length - 1; i >= 0; i--) {
@@ -2194,8 +2230,31 @@
     });
   }
 
+  /* v5.27 — 고유특기 이름·오라 문구는 부대보다 먼저 그린다.
+     부대 병력 라벨과 스프라이트가 위에 올라와 문구가 라벨을 덮지 않는다. (월드 좌표) */
+  function drawBackFloats() {
+    const zs = Math.max(0.3, cam.s);
+    floats.forEach((f) => {
+      if (!f.back) return;
+      const p = f.t / f.life;
+      const x = f.x, y = f.y - TILE * 2.0 - (p * 20) / zs;
+      ctx.save();
+      ctx.globalAlpha = (1 - p * 0.7) * 0.9;
+      ctx.font = `bold ${Math.round(11 / zs)}px "Noto Serif CJK KR", serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4 / zs;
+      ctx.strokeStyle = 'rgba(24,18,8,0.85)';
+      ctx.strokeText(f.text, x, y);
+      ctx.fillStyle = f.color || '#fff2c8';
+      ctx.fillText(f.text, x, y);
+      ctx.restore();
+    });
+  }
+
   function drawFloats() {
     floats.forEach((f) => {
+      if (f.back) return;
       const p = f.t / f.life;
       const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38;
       ctx.save();
@@ -3028,7 +3087,7 @@
           o.buffs[buffDef ? 'def' : 'atk'] = { v: val, t: 1 };
         });
       }
-      addFloat(cx, cy - 10, `「${p.title}」`, '#9ef0b8');
+      addFloat(cx, cy - 10, `「${p.title}」`, '#9ef0b8', { back: true });
       feed(`${u.name}의 고유 특기 「${p.title}」 — 주변 아군 지원`, 'good');
       return;
     }
@@ -3039,7 +3098,7 @@
       o.buffs.atk = { v: Math.max(v, (o.buffs.atk && o.buffs.atk.v) || 0), t: 2 };
       addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 420, color: '255,210,120' });
     });
-    addFloat(cx, cy - 10, `「${p.title}」`, '#ffe08a');
+    addFloat(cx, cy - 10, `「${p.title}」`, '#ffe08a', { back: true });
     feed(`${u.name}의 고유 특기 「${p.title}」 — 아군 사기 상승`, 'good');
   }
 
@@ -3059,7 +3118,7 @@
         o.buffs.atk = { v: Math.max(0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
         addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (rxOf(o) + 0.5) * TILE, life: 360, color: '255,214,140' });
       });
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 MP+4 · 공+8%', '#ffe08a');
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 MP+4 · 공+8%', '#ffe08a', { back: true });
       feed(`${u.name}의 군악 — 주변 아군 MP +4 · 공격 +8%`, side === 'ally' ? 'good' : 'bad');
     });
     dancers.forEach((u) => {
@@ -3073,7 +3132,7 @@
       foes.forEach((o) => {
         o.buffs.atk = { v: Math.min(-0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
       });
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 회피·치명 +8%', '#f0b8e0');
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 회피·치명 +8%', '#f0b8e0', { back: true });
       feed(`${u.name}의 춤 — 아군 회피·치명 +8%, 적 공격 −8%`, side === 'ally' ? 'good' : 'bad');
     });
   }
@@ -3678,6 +3737,8 @@
     gungsu: 'wall', gunggi: 'wall', yeonnobyung: 'wall', pocha: 'wall', balseokcha: 'wall',
     chaeksa: 'keep', pungsusa: 'keep', dosa: 'keep', gunakdae: 'keep', muhui: 'keep',
   };
+  /* v5.27 — 보조 병과. 수성전 후방 판단에서 보조끼리 뭉치는 것을 지원 실적으로 치지 않는다 */
+  const SUPPORT_CLS_SET = { chaeksa: 1, pungsusa: 1, dosa: 1, gunakdae: 1, muhui: 1 };
   function defenseHome() {
     if (!B) return null;
     if (B._home) return B._home;
@@ -3723,13 +3784,51 @@
       return y <= home.insideY || row[x] === 'G';
     };
     if (role === 'keep') {
-      const hq = home.hq || { x: Math.floor(N / 2), y: Math.max(1, home.insideY - 2) };
-      return (x, y) => inside(x, y) && manh(x, y, hq.x, hq.y) <= 6;
+      /* v5.27 — 보조 부대(책사·풍수사·도사·군악대·무희)가 본진 6칸 안에 묶여
+         성문 앞 아군에게 회복·버프가 닿지 않던 문제. 이제 성 안쪽 어디든
+         적의 지금 사거리 밖(근접 +2·원거리 +1 여유)이면 전진해 지원한다. */
+      const ring = defenseSafeRing(home);
+      return (x, y) => inside(x, y) && B.tiles[y][x] !== 'G' && (ring.none || ring.safe(x, y));
     }
     if (role === 'wall') return (x, y) => inside(x, y) && y >= home.insideY - 5;
     /* 근접 — 문이 버티는 동안에는 성문 안쪽에서 막고, 문이 깨진 뒤에만 나가서 맞는다 */
     if (outerGateBroken()) return () => true;
     return inside;
+  }
+
+  /* v5.27 — 수성전 보조 부대가 서도 되는 '안전한 성 안 후방'.
+     적마다 (사거리 + 근접 2·원거리 1)을 위협 반경으로 보고, 그 밖의 성 안 칸을 안전으로 본다.
+     적이 성을 뚫고 들어와 안전한 칸이 하나도 없으면 조건을 풀어 마당 전체를 쓴다. */
+  function defenseSafeRing(home) {
+    if (!B || !home) return { safe: () => true, none: true };
+    const foes = B.units.filter((o) => o.alive && o.side !== 'ally');
+    const key = B.turn + '|' + home.insideY + '|' + foes.map((o) => `${o.x},${o.y},${o.cls}`).join(';');
+    if (B._safeRing && B._safeRing.key === key) return B._safeRing;
+    const bands = foes.map((f) => ({ x: f.x, y: f.y, r: effRng(f) + (attackKind(f) === 'melee' ? 2 : 1) }));
+    const safe = (x, y) => bands.every((b) => manh(x, y, b.x, b.y) > b.r);
+    let anySafe = false;
+    for (let y = 0; y <= home.insideY && !anySafe; y++) {
+      const row = B.tiles[y];
+      if (!row) continue;
+      for (let x = 0; x < N; x++) {
+        const ch = row[x];
+        if (!ch || ch === 'C' || ch === 'H' || ch === 'G') continue;
+        if (safe(x, y)) { anySafe = true; break; }
+      }
+    }
+    B._safeRing = { key, safe, none: !anySafe };
+    return B._safeRing;
+  }
+  /* 보조 부대의 지원 사거리 — 회복·버프 계열의 최대 사거리(기본 3). 거리 계산용 */
+  function supportReach(u) {
+    let r = 3;
+    try {
+      (skillListOf(u) || []).forEach((s) => {
+        if (s.kind !== 'heal' && s.kind !== 'healArea' && s.kind !== 'buffAlly' && s.kind !== 'buffAreaAllies') return;
+        r = Math.max(r, Math.min(5, s.range || r));
+      });
+    } catch (e) { /* ignore */ }
+    return r;
   }
 
   function defenseAllowFor(u) {
@@ -3750,6 +3849,7 @@
     /* v5.14 — 성문 공략은 문을 부수는 진영만 고른다. 수비측은 적 부대 요격·망루 수사에 집중 */
     const stormGate = isGateAttacker(u);
     const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+    const allies = B.units.filter((o) => o.alive && o.side === u.side);
     /* v5.22 — 수성전 수비 역할: 원거리·보조는 성 밖으로 나가지 않는다 */
     const defRole = defenseRoleOf(u);
     const home = defRole ? defenseHome() : null;
@@ -3814,9 +3914,23 @@
         if (ch === 'G') score -= 3;                                    // 문통에 서면 뚫린 뒤 그대로 맞는다
         if (t.y > home.insideY && ch !== 'G') score -= 20;
       } else if (defRole === 'keep' && home) {
+        /* v5.27 — 보조는 본진 곁에 붙어 있는 대신, 아군에게 지원이 닿는 자리로 전진한다.
+           (앞서는 본진과의 거리만 봐서 성문 앞 아군이 늘 사거리 밖이었다)
+           · 지원이 닿는 아군이 많을수록 · 다친 아군일수록 높은 점수
+           · 적과 가까울수록 · 본진에서 멀수록 조금씩 깎는다 */
+        const reach = supportReach(u);
+        let cover = 0, near = 99;
+        allies.forEach((a) => {
+          if (a === u || SUPPORT_CLS_SET[a.cls]) return;   // 보조끼리 뭉쳐도 지원 실적이 아니다
+          const dd = manh(t.x, t.y, a.x, a.y);
+          if (dd < near) near = dd;
+          if (dd > reach) return;
+          cover += 1 + (1 - a.hp / Math.max(1, a.maxHp)) * 1.6;
+        });
         const hq = home.hq || { x: Math.floor(N / 2), y: home.insideY };
-        score = -manh(t.x, t.y, hq.x, hq.y) * 2.2 - Math.min(d, 8) * 0.5;
-        if (B.tiles[t.y][t.x] === 'K') score += 4;
+        /* 지원이 닿으면 그 자리, 안 닿으면 아군 쪽으로 다가간다 (적 사거리 밖은 allow가 지킨다) */
+        score = cover * 9 - Math.max(0, near - reach) * 2.2 - Math.min(d, 14) * 0.7 - manh(t.x, t.y, hq.x, hq.y) * 0.1;
+        if (B.tiles[t.y][t.x] === 'K') score += 1.5;
       } else if (defRole === 'melee' && home && gateIntact()) {
         if (B.tiles[t.y][t.x] === 'G') score += 5;                     // 성문 안쪽에서 문을 막는다
         else if (t.y >= home.insideY - 2) score += 2;
@@ -4131,6 +4245,7 @@
 
   function interceptVictory() {
     B.over = true;
+    clearBattleProgress();
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
     const s = SK.state;
@@ -4181,6 +4296,7 @@
 
   function interceptDefeat() {
     B.over = true;
+    clearBattleProgress();
     SK.sfx.play('defeat');
     const s = SK.state;
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
@@ -4433,12 +4549,14 @@
     if (B.intercept) { interceptVictory(); return; }
     if (B.defense) { defenseVictory(); return; }
     B.over = true;
+    clearBattleProgress();
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
     const s = SK.state;
     const st = s.cities[B.targetId];
     const c = SK.CITY[B.targetId];
     const prevOwner = st.owner;
+    const prevOwnerName = SK.factionName(prevOwner);   // v5.27 — 멸망 처리로 명부에서 지우기 전에 이름을 잡아 둔다
     const defeatedNames = B.units.filter((u) => u.side === 'enemy').map((u) => u.name);
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
@@ -4485,6 +4603,18 @@
     st.bandit = false;
     if (st.train == null) st.train = 50;
     if (SK.refillTalents) { try { SK.refillTalents(B.targetId); } catch (e) { /* ignore */ } }
+    /* v5.27 — 마지막 성을 빼앗아 세력이 사라졌는데 명부에 남아 있던 문제 (항복 경로만 지우고 있었다).
+       성을 모두 잃은 세력은 명부에서 지우고, 결산 창에 멸망을 알린다. */
+    let fallenFaction = null;
+    if (prevOwner && prevOwner !== 'neutral' && prevOwner !== SK.playerFaction()) {
+      if (SK.syncFactionCities) { try { SK.syncFactionCities(s); } catch (e) { /* ignore */ } }
+      const leftCities = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === prevOwner).length;
+      if (!leftCities && s.factions && s.factions[prevOwner]) {
+        fallenFaction = s.factions[prevOwner].name || SK.factionName(prevOwner);
+        delete s.factions[prevOwner];
+        if (s.prisoners) s.prisoners.forEach((pr) => { if (pr.by === prevOwner && !pr.faction) pr.by = ''; });
+      }
+    }
     s.purseCity = B.targetId;      // v5.11 — 함락한 성의 금고·창고를 차지한다
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
@@ -4522,7 +4652,8 @@
       body: `<div class="result-modal win">
         <div class="rm-seal">승</div>
         ${B.winReason ? `<p class="rm-reason">${B.winReason}${B.winReason.indexOf('전멸') >= 0 ? '' : ' — 적 진영이 무너졌습니다'}!</p>` : ''}
-        <p class="rm-line">${SK.josa(SK.factionName(prevOwner), 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
+        <p class="rm-line">${SK.josa(prevOwnerName, 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
+        ${fallenFaction ? `<p class="rm-fall">${SK.josa(fallenFaction, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다.</p>` : ''}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -4557,6 +4688,7 @@
     if (B.intercept) { interceptDefeat(); return; }
     if (B.defense) { defenseDefeat(); return; }
     B.over = true;
+    clearBattleProgress();
     SK.sfx.play('defeat');
     const s = SK.state;
     const st = s.cities[B.origin];
@@ -4610,6 +4742,7 @@
   /* ───────────── v5.7 — 수성전의 승패 ───────────── */
   function defenseVictory() {
     B.over = true;
+    clearBattleProgress();
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
     const s = SK.state;
@@ -4689,6 +4822,7 @@
 
   function defenseDefeat() {
     B.over = true;
+    clearBattleProgress();
     SK.sfx.play('defeat');
     if (window.JojoBGM) { try { JojoBGM.play('defeat'); } catch (e) { /* ignore */ } }
     const s = SK.state;
@@ -4770,12 +4904,20 @@
       SK.save();
     }
     B.over = true;
+    clearBattleProgress();
     closeBattle();
     SK.showMap();
     SK.toast('전투에서 물러났습니다.');
   }
 
+  /* v5.27 — 전투 결과가 확정되면 복귀용 표식을 지운다 (앱을 닫았다 열어도 병력이 겹쳐 돌아오지 않게) */
+  function clearBattleProgress() {
+    try {
+      if (SK.state && SK.state.battleInProgress) { SK.state.battleInProgress = null; SK.save(); }
+    } catch (e) { /* ignore */ }
+  }
   function closeBattle() {
+    clearBattleProgress();
     B = null;
     mode = 'idle';
     pendingSkill = null;
@@ -4872,7 +5014,8 @@
         $('#uc-cls').textContent = SK.CLASSES[u.cls].name;
         const tr = SK.TERRAIN[B.tiles[u.y][u.x]];
         const holdTag = B.tiles[u.y][u.x] === 'T' ? '망루 방어↑·회복' : B.tiles[u.y][u.x] === 'K' ? '본성 방어↑·회복' : '';
-        $('#uc-terrain').textContent = tr.name + (tr.def ? ` 방어+${Math.round(tr.def * 100)}%` : '') + (holdTag ? ` · ${holdTag}` : '') + (SK.affinity(u.cls, B.tiles[u.y][u.x]).label ? ` · ${SK.affinity(u.cls, B.tiles[u.y][u.x]).label}` : '') + (typeBonus(u) ? ` · ${B.def.name} ${typeBonus(u) > 0 ? '+' : ''}${Math.round(typeBonus(u) * 100)}%` : '');
+        /* v5.27 — 음수 지형(도로 −5%)에 '+'가 붙어 '방어+-5%'로 찍히던 표기 오류 */
+        $('#uc-terrain').textContent = tr.name + (tr.def ? ` 방어${tr.def > 0 ? '+' : ''}${Math.round(tr.def * 100)}%` : '') + (holdTag ? ` · ${holdTag}` : '') + (SK.affinity(u.cls, B.tiles[u.y][u.x]).label ? ` · ${SK.affinity(u.cls, B.tiles[u.y][u.x]).label}` : '') + (typeBonus(u) ? ` · ${B.def.name} ${typeBonus(u) > 0 ? '+' : ''}${Math.round(typeBonus(u) * 100)}%` : '');
         $('#uc-hp').style.width = Math.round(u.hp / u.maxHp * 100) + '%';
         $('#uc-hp-txt').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-mp').style.width = Math.round(u.mp / u.maxMp * 100) + '%';
@@ -5014,6 +5157,24 @@
           const allow = defenseAllowed(u, role, home);
           return { n: u.name, cls: u.cls, role, x: u.x, y: u.y, allowed: allow ? !!allow(u.x, u.y) : null, insideY: home.insideY };
         });
+      },
+      /* v5.27 — 고유특기 문구가 병력 라벨을 덮지 않는지 눈으로 보기 위한 QA 훅 */
+      float(name, text) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.5) * TILE, text || `「${(u.passive && u.passive.title) || '고유특기'}」`, '#ffe08a', { back: true });
+        return floats.length;
+      },
+      floatY(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        return u ? { feet: (ryOf(u) + 1) * TILE, cam: cam.s } : null;
+      },
+      /* v5.27 — 보조 부대가 이번 턴 설 수 있는 성 안 칸 (안전 후방 판단 검증용) */
+      defTiles(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { from: [u.x, u.y], role: defenseRoleOf(u), reach: supportReach(u),
+          tiles: moveTiles(u).map((t) => [t.x, t.y]) };
       },
       isGateAttacker(name) { const u = B && B.units.find((o) => o.name === name); return u ? isGateAttacker(u) : null; },
       effRng(name) { const u = B && B.units.find((o) => o.name === name); return u ? effRng(u) : null; },

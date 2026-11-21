@@ -605,6 +605,12 @@
           cs.advisor = strat ? strat.uid : null;
           changed = true;
         }
+        /* v5.27 — 군주가 다스리는 성도 군사가 비어 있으면 앉혀 둔다 */
+        if (!cs.advisor) {
+          const strat = gens.filter((h) => h.uid !== lordHero.uid)
+            .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
+          if (strat) { cs.advisor = strat.uid; changed = true; }
+        }
         return;
       }
       if (lordHero && cs.governor === lordHero.uid) { cs.governor = null; changed = true; }
@@ -618,6 +624,13 @@
           .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
         cs.advisor = strat ? strat.uid : null;
         changed = true;
+      }
+      /* v5.27 — 새로 차지한 성에 군사가 빈 채로 남던 문제. 장수가 둘 이상이면
+         태수와 다른 사람 중 지력·매력이 가장 나은 장수를 군사로 앉힌다. */
+      if (gens.length > 1 && !cs.advisor) {
+        const strat = gens.filter((h) => h.uid !== cs.governor)
+          .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
+        if (strat) { cs.advisor = strat.uid; changed = true; }
       }
     });
     return changed;
@@ -1064,6 +1077,18 @@
         s.reinforce = null;
       }
       (s.heroes || []).forEach((h) => { delete h.rfgTo; });
+      /* v5.27 — 전투 중에 앱을 닫거나 새로고침했으면 그 전투는 저장되지 않는다.
+         출진해 둔 병력이 그대로 사라지지 않게 출발 성으로 돌려보내고 알린다. */
+      s.battleRecover = null;
+      if (s.battleInProgress) {
+        const bi = s.battleInProgress;
+        const home = s.cities && s.cities[bi.origin];
+        if (home && home.owner === s.playerFaction && bi.troops > 0) {
+          home.troops = Math.min(cityCap(home), Math.round((home.troops || 0) + bi.troops));
+          s.battleRecover = { city: bi.origin, troops: Math.round(bi.troops) };
+        }
+        s.battleInProgress = null;
+      }
       SK.state = s;
       // v4.2 인재 분포 — 한국/중국 인재를 갈라 다시 놓는다
       if (s.talentsVersion !== 3 && SK.GENERALS.length) {
@@ -1519,6 +1544,18 @@
         });
       } else {
         SK.toast('저장된 천하를 이어받았습니다.');
+      }
+      /* v5.27 — 전투 중에 나갔다 돌아왔으면 출진 병력이 성으로 돌아왔다는 것을 알린다 */
+      const rec = SK.state && SK.state.battleRecover;
+      if (rec && rec.troops) {
+        SK.state.battleRecover = null;
+        setTimeout(() => {
+          SK.modal({
+            kicker: '전투 중 이탈', title: '부대가 성으로 돌아왔습니다',
+            body: `<p class="modal-p">전투가 끝나기 전에 앱을 닫거나 새로고침해서 전장이 사라졌습니다. 출진했던 병력 <b>${fmt(rec.troops)}</b>이(가) ${CITY[rec.city] ? SK.josa(CITY[rec.city].name, 'euro') : '출발 성으로'} 돌아왔습니다. 장수들도 성에 그대로 있습니다.</p>`,
+            actions: [{ label: '알겠습니다', primary: true }],
+          });
+        }, 420);
       }
     }, 260);
   }
@@ -4207,29 +4244,107 @@
 
   function openPeace(cityId) {
     const s = SK.state;
+    const me = PF();
     const fids = {};
     SK.CITY_LIST.forEach((c) => {
       const st = s.cities[c.id];
-      if (st.owner && st.owner !== PF() && st.owner !== 'neutral') fids[st.owner] = true;
+      if (st.owner && st.owner !== me && st.owner !== 'neutral') fids[st.owner] = true;
     });
     const list = Object.keys(fids);
     if (!list.length) { SK.toast('화친을 청할 세력이 없습니다.'); return; }
+
+    /* v5.27 — 이웃이 아닌 27개 세력이 모두 '교전 중'으로 줄줄이 나와 어느 쪽이 급한지 알 수 없던
+       외교 화면을 상태 배지 + 관련도순 묶음으로 정리한다.
+       · 거리: 우리 성에서 도로·해로로 몇 칸 떨어졌나 (BFS 3칸까지)
+       · 1칸 = 국경을 맞댄 세력, 2칸 = 가까운 세력, 그 밖은 먼 세력 */
+    const myCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === me).map((c) => c.id);
+    const dist = {};
+    myCities.forEach((id) => { dist[id] = 0; });
+    let frontier = myCities.slice();
+    for (let hop = 1; hop <= 3; hop++) {
+      const next = [];
+      frontier.forEach((id) => {
+        (SK.neighbors(id) || []).concat(SK.seaNeighbors ? SK.seaNeighbors(id) : []).forEach((n) => {
+          if (dist[n] == null) { dist[n] = hop; next.push(n); }
+        });
+      });
+      frontier = next;
+    }
     const rows = list.map((fid) => {
       const f = SK.factionInfo(fid);
       const left = (s.truce && s.truce[fid]) ? Math.max(0, s.truce[fid] - s.turn) : 0;
       const kind = (s.pacts && s.pacts[fid]) ? s.pacts[fid].kind : null;
-      const lbl = left ? `${kind === 'pact' ? '동맹' : '휴전'} 중 (${left}개월 남음)` : '교전 중';
-      return `<button class="target-card" data-f="${fid}">
-        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
-        <div class="tc-main"><b>${f.name}</b><span>${lbl}</span></div>
+      const cities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
+      let near = 99, ring = 0;
+      cities.forEach((c) => {
+        const d = dist[c.id] == null ? 99 : dist[c.id];
+        if (d < near) near = d;
+        if (d <= 1) ring += 1;
+      });
+      const status = left > 0 ? (kind === 'pact' ? 'pact' : 'truce') : 'war';
+      return { fid, f, left, kind, status, near, ring, cities: cities.length };
+    });
+    const groups = [
+      { key: 'pact', label: '휴전·동맹 중', desc: '기간이 끝나면 다시 적이 됩니다', items: [] },
+      { key: 'near', label: '국경을 맞댄 세력', desc: '지금 바로 침공해 올 수 있습니다', items: [] },
+      { key: 'close', label: '두 칸 안쪽 세력', desc: '곧 닿습니다', items: [] },
+      { key: 'far', label: '먼 세력', desc: '당장은 국경이 닿지 않습니다', items: [] },
+    ];
+    rows.forEach((r) => {
+      if (r.status !== 'war') groups[0].items.push(r);
+      else if (r.near <= 1) groups[1].items.push(r);
+      else if (r.near <= 2) groups[2].items.push(r);
+      else groups[3].items.push(r);
+    });
+    groups.forEach((g) => {
+      g.items.sort((a, b) => (a.near - b.near) || (b.ring - a.ring) || (a.f.name < b.f.name ? -1 : 1));
+    });
+    const badgeOf = (r) => r.status === 'pact'
+      ? `<span class="dp-badge dp-pact">동맹 ${r.left}개월</span>`
+      : r.status === 'truce' ? `<span class="dp-badge dp-truce">휴전 ${r.left}개월</span>`
+      : `<span class="dp-badge dp-war">교전</span>`;
+    const subOf = (r) => {
+      if (r.status === 'war' && r.near > 2) return `${r.cities}성`;
+      const bits = [`${r.cities}성`];
+      if (r.ring) bits.push(`국경 ${r.ring}곳`);
+      else if (r.near <= 2) bits.push('두 칸');
+      return bits.join(' · ');
+    };
+    const cardOf = (r) => `<button class="target-card dp-card" data-f="${r.fid}">
+        <span class="tc-flag" style="background:${r.f.color}">${SK.markOf(r.f)}</span>
+        <div class="tc-main"><b>${r.f.name}</b><span>${subOf(r)}</span></div>
+        ${badgeOf(r)}
         <span class="tc-go">▸</span></button>`;
+    /* v5.27 — 먼 세력은 접어 둔다 (27개가 한 줄로 늘어서면 정작 급한 세력이 묻힌다) */
+    const body = groups.filter((g) => g.items.length).map((g) => {
+      const head = `<div class="dp-grp"><span>${g.label}</span><em>${g.items.length}</em><i>${g.desc}</i></div>`;
+      if (g.key === 'far' && g.items.length > 4) {
+        const first = g.items.slice(0, 3).map(cardOf).join('');
+        const rest = g.items.slice(3).map(cardOf).join('');
+        return `${head}${first}<div class="dp-far" hidden>${rest}</div>
+          <button class="dp-more" data-more="1">먼 세력 ${g.items.length - 3}곳 더 보기 ▾</button>`;
+      }
+      return head + g.items.map(cardOf).join('');
     }).join('');
+    const ringN = rows.filter((r) => r.status === 'war' && r.near <= 1).length;
+    const pactN = rows.filter((r) => r.status !== 'war').length;
     const m = SK.modal({ kicker: `${CITY[cityId].name} 외교`, title: '어떤 세력과 만날까',
-      body: `<p class="talent-note">사자를 보내 휴전(6개월 · 금 200)이나 동맹(12개월 · 금 600)을 맺습니다. 매력이 높은 장수가 나서면 성사가 쉽고, 기간 중에는 상대가 먼저 치지 않습니다.</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">사자를 보내 휴전(6개월 · 금 200)이나 동맹(12개월 · 금 600)을 맺습니다. 매력이 높은 장수가 나서면 성사가 쉽고, 기간 중에는 상대가 먼저 치지 않습니다.<br>국경을 맞댄 세력 <b>${ringN}</b> · 휴전·동맹 <b>${pactN}</b> · 나머지 <b>${rows.length - ringN - pactN}</b></p><div class="target-list">${body}</div>`,
       wide: true, actions: [{ label: '취소' }] });
     m.el.querySelectorAll('.target-card').forEach((b) => {
       b.onclick = () => { m.close(); setTimeout(() => openPeaceTerms(cityId, b.dataset.f), 30); };
     });
+    const moreBtn = m.el.querySelector('.dp-more');
+    if (moreBtn) {
+      moreBtn.onclick = () => {
+        const box = m.el.querySelector('.dp-far');
+        if (!box) return;
+        box.hidden = !box.hidden;
+        moreBtn.textContent = box.hidden ? moreBtn.dataset.closed : '먼 세력 접기 ▴';
+        SK.sfx.play('ui');
+      };
+      moreBtn.dataset.closed = moreBtn.textContent;
+    }
   }
 
   function openPeaceTerms(cityId, fid) {
@@ -8773,6 +8888,10 @@
     s.month += 1;
     if (s.month >= 12) { s.month = 0; s.year += 1; if (s.eraYear) s.eraYear += 1; }
     s.turn += 1;
+    /* v5.27 — 새로 차지한 성에 장수가 들어와도 태수·군사가 비어 있어
+       (성 화면을 열기 전까지) 자동 내정이 돌지 않았다. 달이 바뀌 때마다
+       군주 우선 규칙으로 빈 태수·군사를 다시 앉힌다. */
+    if (enforceLordGovernor(s)) SK.save();
     // 달이 바뀌기 전에 태수들이 남은 행동으로 내정을 마친다 (본성·태수 없는 성 제외)
     const autoLog = runAutoDomestic(s);
     let tax = 0, pop = 0, popGrowth = 0, popLoss = 0, unrest = 0, growCities = 0, shrinkCities = 0;
