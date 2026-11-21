@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=49" />
+<link rel="stylesheet" href="css/game.css?v=50" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -208,6 +208,13 @@
 
     <div id="city-sheet" class="city-sheet" hidden></div>
 
+    <!-- v5.36 — 지도 타겟 선택 안내 바 (출진·정찰·외교·전출·수송) -->
+    <div id="map-pick-bar" class="map-pick-bar" hidden aria-live="polite">
+      <div class="pk-top"><span class="pk-kicker">지도에서 고르기</span><b class="pk-title">어느 성을 고를까</b></div>
+      <p class="pk-hint"></p>
+      <div class="pk-foot"><span class="pk-count"></span><button class="pk-cancel" id="btn-pick-cancel" type="button">취소</button></div>
+    </div>
+
     <footer class="map-bottom">
       <div id="map-hint" class="map-hint">성을 눌러 내정하거나, 적성 인근에서 출진하세요.</div>
       <button id="btn-capital" class="btn-capital" aria-label="내 본성으로">내 본성 ▶</button>
@@ -398,15 +405,15 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=49"></script>
-<script src="js/mapmask.js?v=49"></script>
-<script src="js/city_geo.js?v=49"></script>
-<script src="js/data.js?v=49"></script>
-<script src="js/bgm.js?v=49"></script>
-<script src="js/sfx.js?v=49"></script>
-<script src="js/app.js?v=49"></script>
-<script src="js/map.js?v=49"></script>
-<script src="js/battle.js?v=49"></script>
-<script src="js/backguard.js?v=49"></script>
+<script src="js/mapgeo.js?v=50"></script>
+<script src="js/mapmask.js?v=50"></script>
+<script src="js/city_geo.js?v=50"></script>
+<script src="js/data.js?v=50"></script>
+<script src="js/bgm.js?v=50"></script>
+<script src="js/sfx.js?v=50"></script>
+<script src="js/app.js?v=50"></script>
+<script src="js/map.js?v=50"></script>
+<script src="js/battle.js?v=50"></script>
+<script src="js/backguard.js?v=50"></script>
 </body>
 </html>

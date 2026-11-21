@@ -3356,8 +3356,13 @@
     const t = clamp((d && d.maxHp ? d.maxHp : 1800) / 1800, 0.35, 8);
     return Math.pow(t, 0.65);
   }
+  /* v5.36 — 공격력은 최대 병력만 보지 않고 지금 남은 병력을 함께 본다
+     (0.55·최대 + 0.45·현재). 병력이 줄수록 한 방의 무게도 자연스럽게 줄어 장기전이 늘어진다. */
   function atkScale(a) {
-    const t = clamp((a && a.maxHp ? a.maxHp : 1800) / 1800, 0.35, 8);
+    const max = (a && a.maxHp) ? a.maxHp : 1800;
+    const hp = (a && a.hp > 0) ? a.hp : 0;
+    const eff = hp > 0 ? (0.55 * max + 0.45 * hp) : max;
+    const t = clamp(eff / 1800, 0.35, 8);
     return Math.pow(t, 0.4);
   }
   function calcDamage(a, d, opts) {
@@ -3368,7 +3373,7 @@
     /* v5.15 — 병과 삼각 상성 (보병↔궁병↔기병↔창병) */
     const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
     /* v5.15 — 등갑병 '4딜 벽' 완화: 방어 계수 0.62 → 0.52 */
-    let base = (atk * 0.92 - def * 0.52) * 16;
+    let base = (atk * 0.92 - def * 0.52) * 12;
     base *= tri.mul;
     base *= sizeScale(d) * atkScale(a);
     base *= rnd(0.92, 1.08);
@@ -4459,6 +4464,23 @@
     apply(hits);
   }
 
+  /* v5.36 — 전투 하단 [군량] 버튼에 선택한 부대의 남은 횟수를 적는다.
+     부대가 없으면 '군량', 0이면 '군량 (0)' + 잠금(disabled) — 예전에는 남은 횟수를 알 길이 없었다. */
+  function paintItemButton(u) {
+    const btn = document.querySelector('#battle-actions .act.item');
+    if (!btn) return;
+    const lab = btn.querySelector('b');
+    const n = u ? Math.max(0, Math.round(u.items || 0)) : null;
+    if (lab) lab.textContent = n == null ? '군량' : `군량 (${n})`;
+    const empty = n === 0;
+    const canUse = u ? (u.side === 'ally' && !u.acted && !empty) : false;
+    btn.classList.toggle('empty', empty);
+    btn.classList.toggle('off', !!u && !canUse);
+    btn.disabled = empty;
+    btn.title = n == null ? '부대를 고르면 남은 횟수가 보입니다'
+      : n === 0 ? '이 부대의 군량을 다 썼습니다' : `남은 군량 ${n}회 — 병력 32%를 회복합니다`;
+  }
+
   /* ───────────── 아이템/대기 ───────────── */
   function useItem() {
     const u = B.sel;
@@ -4602,7 +4624,7 @@
   function estBasicDmg(u, f) {
     const def = effDef(f);
     const tri = SK.triangleMul ? SK.triangleMul(u.cls, f.cls) : { mul: 1 };
-    let base = (effAtk(u) * 0.92 - def * 0.52) * 16 * sizeScale(f) * atkScale(u) * tri.mul;
+    let base = (effAtk(u) * 0.92 - def * 0.52) * 12 * sizeScale(f) * atkScale(u) * tri.mul;
     if (attackKind(u) === 'rock') base *= 0.55;
     return Math.max(4, Math.round(base));
   }
@@ -4612,7 +4634,7 @@
     if (sk.kind === 'power') {
       let mult = sk.power || 1.4;
       if (sk.vsMount && (f.cls === 'gibi' || (SK.CLASSES[f.cls] && SK.CLASSES[f.cls].mount))) mult += sk.vsMount;
-      let base = (effAtk(u) * mult * 0.92 - effDef(f) * 0.52) * 16 * sizeScale(f) * atkScale(u) * tri.mul;
+      let base = (effAtk(u) * mult * 0.92 - effDef(f) * 0.52) * 12 * sizeScale(f) * atkScale(u) * tri.mul;
       if (attackKind(u) === 'rock') base *= 0.55;
       return Math.max(4, Math.round(base)) * (sk.hits || 1);
     }
@@ -4981,6 +5003,24 @@
         tiles.push({ x, y });
       });
     }
+    /* v5.36 — 마지막 적 우선 (사용자 제보: 허창 공성전 11턴·적 368 포차를 남겨 두고 허저가 안쪽 성문을 침)
+       생존 적이 2부대 이하로 줄면, 이번 턴에 적을 때릴 수 있거나 적이 성문 안쪽이 아닌 쪽에 있으면
+       성문 후보를 아예 포기하고 적 부대 섬멸을 먼저 한다. */
+    const fewFoes = stormGate && gateIntact() && foes.length > 0 && foes.length <= 2;
+    let foeBehindGate = false;
+    let foeHitPossible = false;
+    if (fewFoes) {
+      const g0 = activeGate();
+      const gY = g0 ? g0.tiles.reduce((a, g) => a + g.y, 0) / g0.tiles.length : null;
+      foeBehindGate = gY != null && foes.some((e) => (e.y - gY) * (u.y - gY) < 0);
+      foeHitPossible = tiles.some((t) => foes.some((e) => {
+        const d = manh(t.x, t.y, e.x, e.y);
+        if (d < minR || d > rng) return false;
+        if (wallBlocked({ x: t.x, y: t.y }, e) && !canShootOut({ x: t.x, y: t.y, cls: u.cls, side: u.side })) return false;
+        return true;
+      }));
+    }
+    const skipGate = fewFoes && (foeHitPossible || !foeBehindGate);
     let best = null;
     const kind = attackKind(u);
     tiles.forEach((t) => {
@@ -4995,7 +5035,7 @@
         if (!SUPPORT_CLS_SET[u.cls] && allies.some((a) => a !== u && SUPPORT_CLS_SET[a.cls] && manh(e.x, e.y, a.x, a.y) <= 3)) score += 24;
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
       });
-      if (stormGate && gateIntact() && activeGate()) {
+      if (stormGate && gateIntact() && activeGate() && !skipGate) {
         activeGate().tiles.forEach((g) => {
           if (manh(t.x, t.y, g.x, g.y) > rng) return;
           const sc = (kind === 'rock' ? 90 : kind === 'melee' ? 55 : 25) + (home ? 4 : 0);
@@ -5008,7 +5048,7 @@
     let pick = null;
     tiles.forEach((t) => {
       const d = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
-      const gy = (stormGate && gateIntact() && activeGate())
+      const gy = (stormGate && gateIntact() && activeGate() && !skipGate)
         ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) - 1 : 99;
       let score = -Math.min(d, gy);
       /* v5.33 — 보조 병과(풍수사·군악대·무희·도사·책사)는 공성·요격·들판에서도 전방으로 돌진하지 않는다.
@@ -6421,6 +6461,8 @@
         $('#uc-rng').textContent = effRng(u);
         const canAct = u.side === 'ally' && !u.acted;
         document.querySelectorAll('.act').forEach((b) => b.classList.toggle('off', !canAct));
+        /* v5.36 — [군량] 버튼에 이 부대의 남은 횟수를 보여 준다: 군량 (2) / 군량 (0) 잠김 */
+        paintItemButton(u);
       } else {
         card.classList.remove('on');
         $('#uc-name').textContent = '부대를 선택하세요';
@@ -6437,6 +6479,7 @@
         if (ma0) ma0.textContent = '-';
         if (md0) md0.textContent = '-';
         $('#uc-mov').textContent = '-'; $('#uc-rng').textContent = '-';
+        paintItemButton(null);
       }
       document.querySelectorAll('.act').forEach((b) => {
         if (b.dataset.act === 'attack') b.classList.toggle('active', mode === 'attack');

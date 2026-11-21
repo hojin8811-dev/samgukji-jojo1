@@ -1145,6 +1145,7 @@
         <img class="m-icon" src="assets/icons/${ICON_SRC[c.type]}.webp" alt="" draggable="false" />
         <span class="m-roof" aria-hidden="true"><i class="r1"></i><i class="r2"></i><i class="r3"></i></span>
         <span class="m-flag"><b class="m-lv">1</b></span>
+        <span class="m-badge" hidden></span>
         <span class="m-label">${c.name}</span>`;
       b.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1158,7 +1159,8 @@
          (탭 = 거점 선택 / 드래그 = 지도 이동은 bindGestures가 판정한다) */
       markersEl.appendChild(b);
       return { id: c.id, el: b, city: c, anchor: 0, lw: 0, lh: 0, hidden: false,
-        flagEl: b.querySelector('.m-flag'), labelEl: b.querySelector('.m-label'), lvEl: b.querySelector('.m-lv') };
+        flagEl: b.querySelector('.m-flag'), labelEl: b.querySelector('.m-label'), lvEl: b.querySelector('.m-lv'),
+        badgeEl: b.querySelector('.m-badge') };
     });
     labelAnchorDirty = true;
     refresh();
@@ -1199,7 +1201,8 @@
     if (!vp) return [];
     const v = vp.getBoundingClientRect();
     const out = [];
-    ['.map-controls', '#map-legend'].forEach((sel) => {
+    /* v5.36 — 지도 타겟 선택 중에는 아래 안내 바도 장애물로 본다 (성 이름이 바 밑으로 숨지 않게) */
+    ['.map-controls', '#map-legend', '#map-pick-bar'].forEach((sel) => {
       const el = document.querySelector(sel);
       if (!el || el.hidden || !el.offsetParent) return;
       const b = el.getBoundingClientRect();
@@ -1248,7 +1251,8 @@
       for (let i = 0; i < placedIcons.length; i++) iconOverlap += overlap(iconRect, placedIcons[i]);
       const isSel = m.el.classList.contains('sel');
       const owned = st(m.id) && st(m.id).owner === pf;
-      const keep = isSel || owned;
+      const pickOn = !!pickCfg && pickCfg.ids.has(m.id);
+      const keep = isSel || owned || pickOn;
       /* 아주 멀리서는 소도시부터, 그다음 중도시를 숨겨 개요 지도를 깔끔하게 (대도시는 남긴다) */
       const farHide = !isSel && !owned && (
         (s < 0.26 && m.city.type === 'town')
@@ -1278,8 +1282,10 @@
         { a: 2, dx: 0, dy: -gap - lh * 2 - o.ih - 5, al: 'c' },
       ];
       let best = null, bestScore = 1e18;
-      for (let ci = 0; ci < c.length; ci++) {
-        const cand = c[ci];
+      /* v5.36 — 지도 타겟 선택 중 고를 수 있는 성은 아이콘 위 배지와 엇갈리지 않게 아래 자리만 쓴다 */
+      const cands = pickOn ? c.filter((x) => x.a === 3) : c;
+      for (let ci = 0; ci < cands.length; ci++) {
+        const cand = cands[ci];
         const bx = o.x + cand.dx + (cand.al === 'c' ? -lw / 2 : 0);
         const rect = [bx, o.y + cand.dy, lw, lh];
         let score = ci * 1.2;      /* 가까운 자리를 살짝 선호 */
@@ -1309,6 +1315,7 @@
       let labelOk = true;
       if (s < 0.30) labelOk = m.city.type === 'capital' || isSel || owned;
       else if (s < 0.52) labelOk = (m.city.type !== 'town' && m.city.type !== 'mid') || isSel || owned;
+      if (pickOn) labelOk = true;   // v5.36 — 고를 수 있는 성 이름은 늘 보인다
       const hide = !labelOk || bestScore > area * 0.34;
       m.anchor = best.a;
       m.al = best.al; m.dx = best.dx; m.dy = best.dy; m.lw = lw; m.lh = lh;
@@ -1327,7 +1334,84 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.36 — 지도에서 대상 거점 고르기 (내정 명령의 '어느 성을 고를까')
+     고를 수 있는 거점만 금빛 테넌로 두드리고, 아이콘 위에 배지(병력·거리·미정찰 등)를 붙인다.
+     탭은 onPick 으로 보내고, 가를 수 없는 성은 토스트로 돌려준다.
+     ══════════════════════════════════════════════════════════════ */
+  let pickCfg = null;   // { ids:Set, origin, chips:{}, block, onPick }
+
+  function setPick(cfg) {
+    pickCfg = cfg ? {
+      ids: new Set(cfg.ids || []), origin: cfg.origin || null,
+      chips: cfg.chips || {}, block: cfg.block || '지금은 고를 수 없는 거점입니다.',
+      onPick: cfg.onPick || null,
+    } : null;
+    const scr = document.getElementById('screen-map');
+    if (scr) scr.classList.toggle('picking', !!pickCfg);
+    if (pickCfg) {
+      marks.forEach((m) => m.el.classList.remove('sel'));
+      focusPicker(Array.from(pickCfg.ids), pickCfg.origin);
+    }
+    refreshPick();
+  }
+
+  function paintPick() {
+    if (!marks.length) return;
+    marks.forEach((m) => {
+      const on = !!pickCfg && pickCfg.ids.has(m.id);
+      const isOrigin = !!pickCfg && pickCfg.origin === m.id;
+      m.el.classList.toggle('pickable', on);
+      /* 출발 성은 흐리게 두지 않는다 — 어디서 보내는지 늘 보이게 */
+      m.el.classList.toggle('pick-off', !!pickCfg && !on && !isOrigin);
+      m.el.classList.toggle('pick-origin', isOrigin);
+      if (m.badgeEl) {
+        const txt = on ? (pickCfg.chips[m.id] || '') : (isOrigin ? '출발' : '');
+        if (m.badgeEl.textContent !== txt) m.badgeEl.textContent = txt;
+        m.badgeEl.hidden = !txt;
+      }
+    });
+  }
+
+  function refreshPick() {
+    if (!marks.length) return;
+    paintPick();
+    labelAnchorDirty = true;
+    placeMarks();
+  }
+
+  /* 고를 거점들이 한 화면에 들어오게 맞춘다 — 출발 성도 함께 본다 */
+  function focusPicker(ids, origin) {
+    if (!vp) return;
+    const list = (ids || []).map((id) => city(id)).filter(Boolean);
+    const o = origin ? city(origin) : null;
+    if (o) list.push(o);
+    if (!list.length) { fitAll(); return; }
+    let minU = 9, maxU = -9, minV = 9, maxV = -9;
+    list.forEach((c) => {
+      minU = Math.min(minU, c.u); maxU = Math.max(maxU, c.u);
+      minV = Math.min(minV, c.v); maxV = Math.max(maxV, c.v);
+    });
+    const { w, h } = viewSize();
+    if (!w || !h) return;
+    const spanU = Math.max(0.014, maxU - minU), spanV = Math.max(0.014, maxV - minV);
+    /* 아래 띠(안내 바)에 가리지 않게 화면 높이의 62%만 쓴다 */
+    const s = clamp(Math.min((w * 0.78) / (spanU * MAPW), (h * 0.62) / (spanV * MAPH)),
+      fitScale() * 0.99, 1.25);
+    labelAnchorDirty = true;
+    centerOn(((minU + maxU) / 2) * MAPW, ((minV + maxV) / 2) * MAPH, s);
+  }
+
   function onMarker(id) {
+    if (pickCfg) {
+      if (pickCfg.ids.has(id)) {
+        const cb = pickCfg.onPick;
+        if (cb) cb(id);
+        return;
+      }
+      if (SK.toast) SK.toast(pickCfg.block);
+      return;
+    }
     const t = st(id);
     const mine = t.owner === playerFaction();
     if (mine) SK.openCity(id);
@@ -1372,6 +1456,7 @@
         ? '천하통일! 모든 거점이 내 깃발 아래 있습니다.'
         : `${f.name || ''}의 거점 ${owned} / ${SK.CITY_LIST.length} · 성을 눌러 내정 · 붉은 테두리 적성에서 출진`;
     }
+    paintPick();
     labelAnchorDirty = true;
     placeMarks();
     syncMarchMarks();
@@ -1597,6 +1682,18 @@
     fitAll,
     zoomIn() { animatedZoom(cam.s * 1.4); },
     zoomOut() { animatedZoom(cam.s / 1.4); },
+    /* v5.36 — 지도 타겟 선택 모드 */
+    setPick(cfg) { setPick(cfg); },
+    pickInfo() {
+      return pickCfg ? { ids: Array.from(pickCfg.ids), origin: pickCfg.origin, chips: pickCfg.chips } : null;
+    },
+    pickables() { return marks.filter((m) => m.el.classList.contains('pickable')).map((m) => m.id); },
+    pickState() {
+      return marks.filter((m) => m.el.classList.contains('pickable')).map((m) => ({
+        id: m.id, badge: (m.badgeEl && !m.badgeEl.hidden) ? m.badgeEl.textContent : '',
+        labelOff: !!(m.labelEl && m.labelEl.classList.contains('off')),
+      }));
+    },
     get scale() { return cam.s; },
     setScale(s) { setScaleTo(s); },
     relayout() { if (!built) return; if (!vp.getBoundingClientRect().width) return; clampCam(); apply(); },

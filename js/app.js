@@ -163,7 +163,7 @@
 
   /* ══════════════════════════════════════════════════════════════
      v5.4 — 내정 경제 밸런스
-     · 매달 금: 도시 세수 + 시장 Lv.1~5 + 관작 봉급 − 휘하 장수 봉급
+     · 매달 금: 도시 세수 + 시장 Lv.1~5 + 군주 녹봉 − 휘하 장수 봉급
      · 매달 군량: 도시 기본 쌀 수확은 없앴다. 병력 1,000명당 유지비만 나간다
      · 10월: 농업도·민심·농원 Lv·기술을 합산한 🌾 가을 대수확 한 번
      ══════════════════════════════════════════════════════════════ */
@@ -751,6 +751,24 @@
     '원소': ['사검'], '마초': ['서량철창'], '황충': ['백발궁'], '태사자': ['백우선'],
     '하후돈': ['철척'], '허저': ['팔모금강봉'], '감녕': ['비도단검'],
   };
+  /* v5.36 — 고증 전용 보물(주인 장수의 전용 무기·명마)은 일반 탐색·상단·대상인에서 나오지 않는다.
+     이름 → 주인 장수 역인덱스를 만들어, 그 주인을 전장에서 격파했을 때만 후보에 올린다. */
+  const SIG_TREASURE_OWNER = {};
+  Object.keys(SIGNATURE_TREASURES).forEach((owner) => {
+    (SIGNATURE_TREASURES[owner] || []).forEach((nm) => { SIG_TREASURE_OWNER[nm] = owner; });
+  });
+  function sigOwnerOf(t) { return t ? SIG_TREASURE_OWNER[t.name] || null : null; }
+  /* 일반 경로(탐색·상단·대상인·몸값)에서 고를 수 있는 보물인가 */
+  function treasureOpen(t) { return !sigOwnerOf(t); }
+  /* 전장 경로 — 격파한 장수 목록에 그 보물의 주인이 있으면 열린다 */
+  function sigOwnerDown(t, names) {
+    const owner = sigOwnerOf(t);
+    if (!owner) return true;
+    return (names || []).some((n) => n && String(n).indexOf(owner) >= 0);
+  }
+  SK.sigOwnerOf = sigOwnerOf;
+  SK.treasureOpen = treasureOpen;
+
   function giveStarters(st) {
     if (!SK.TREASURES.length) return;
     st.treasures = [];
@@ -1551,6 +1569,90 @@
     if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 620);
   };
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.36 — 지도에서 대상 거점 고르기 (출진·정찰·외교·계략·전출·수송)
+     목록 창 대신 지도를 열고, 고를 수 있는 성만 금빛으로 두드려 보이게 한다.
+     고른 성은 그대로 onPick(id)으로 넘기고, 취소는 onCancel()로 돌려보낸다.
+     안드로이드 뒤로가기도 취소로 받는다 (backguard.js).
+     ══════════════════════════════════════════════════════════════ */
+  let mapPickCfg = null;
+
+  /* 배지에 들어가는 짧은 수 (3,400 → 3.4천 / 12,000 → 1.2만) */
+  function shortNum(n) {
+    const v = Math.round(Number(n) || 0);
+    if (v >= 10000) return `${(v / 10000).toFixed(v % 10000 === 0 ? 0 : 1).replace(/\.0$/, '')}만`;
+    if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1).replace(/\.0$/, '')}천`;
+    return String(v);
+  }
+
+  function pickBarEls() {
+    const bar = document.getElementById('map-pick-bar');
+    if (!bar) return null;
+    return {
+      bar, kicker: bar.querySelector('.pk-kicker'), title: bar.querySelector('.pk-title'),
+      hint: bar.querySelector('.pk-hint'), count: bar.querySelector('.pk-count'),
+      cancel: bar.querySelector('.pk-cancel'),
+    };
+  }
+
+  function endMapPick() {
+    const cfg = mapPickCfg;
+    mapPickCfg = null;
+    const els = pickBarEls();
+    if (els) els.bar.hidden = true;
+    const scr = document.getElementById('screen-map');
+    if (scr) scr.classList.remove('picking');
+    if (window.SKMap && SKMap.setPick) { try { SKMap.setPick(null); } catch (e) { /* ignore */ } }
+    return cfg;
+  }
+
+  function cancelMapPick() {
+    const cfg = endMapPick();
+    if (!cfg) return;
+    if (SK.sfx) SK.sfx.play('ui');
+    if (cfg.onCancel) { cfg.onCancel(); return; }
+    if (cfg.fromScreen === 'screen-city' && cfg.origin && CITY[cfg.origin]) { SK.openCity(cfg.origin); return; }
+    SK.showMap();
+  }
+  SK.cancelMapPick = cancelMapPick;
+  SK.mapPickActive = () => !!mapPickCfg;
+  SK.mapPickInfo = () => (mapPickCfg ? { ids: mapPickCfg.ids, origin: mapPickCfg.origin, title: mapPickCfg.title } : null);
+
+  /* cfg: { kicker, title, hint, origin, ids, chips, block, onPick, onCancel } */
+  function pickCityOnMap(cfg) {
+    if (!window.SKMap || !SKMap.setPick) { SK.toast('지도를 열 수 없습니다.'); return false; }
+    const s = SK.state;
+    const ids = (cfg.ids || []).filter((id) => id && CITY[id] && s.cities[id]);
+    if (!ids.length) return false;
+    endMapPick();
+    mapPickCfg = Object.assign({}, cfg, { ids, origin: cfg.origin || null });
+    mapPickCfg.fromScreen = (document.querySelector('.screen.active') || {}).id || '';
+    const els = pickBarEls();
+    /* 지도를 먼저 띄운 뒤 선택 모드를 건다 (지도가 그려진 다음에야 배율·중심을 맞출 수 있다) */
+    SK.showMap();
+    if (els) {
+      els.kicker.textContent = cfg.kicker || '지도에서 고르기';
+      els.title.textContent = cfg.title || '지도를 눌러 고르세요';
+      els.hint.innerHTML = cfg.hint || '';
+      els.count.textContent = `고를 수 있는 성 ${ids.length}곳`;
+      els.bar.hidden = false;
+      els.cancel.onclick = (e) => { e.stopPropagation(); cancelMapPick(); };
+    }
+    const scr = document.getElementById('screen-map');
+    if (scr) scr.classList.add('picking');
+    SKMap.setPick({
+      ids, origin: mapPickCfg.origin, chips: cfg.chips || {},
+      block: cfg.block || '지금은 고를 수 없는 거점입니다.',
+      onPick: (id) => {
+        const c = mapPickCfg;
+        endMapPick();
+        if (c && c.onPick) c.onPick(id);
+      },
+    });
+    return true;
+  }
+  SK.pickCityOnMap = pickCityOnMap;
+
   /* ───────────── 499 장수 로드 ───────────── */
   async function loadTreasures() {
     if (SK.TREASURES.length) return true;
@@ -2011,7 +2113,7 @@
         <div class="ec-head"><span>금</span><em>금고 <b>${fmt(totalG)}</b> <small>(전체 성 합계)</small></em></div>
         <div class="ec-line"><span>도시 세수</span><b class="plus">+${fmt(eco.tax)}</b></div>
         <div class="ec-line"><span>시장 · 공방</span><b class="plus">+${fmt(eco.market)}</b></div>
-        <div class="ec-line"><span>관작 봉급 · ${SK.rankFor(s.fame).title}</span><b class="plus">+${fmt(eco.rank)}</b></div>
+        <div class="ec-line"><span>군주 녹봉 · ${SK.rankFor(s.fame).title}</span><b class="plus">+${fmt(eco.rank)}</b></div>
         <div class="ec-line"><span>장수 봉급 ${eco.heroes}명</span><b class="minus">−${fmt(eco.payroll)}</b></div>
         <div class="ec-line sum"><span>이번 달 세수 − 봉급</span><b class="${eco.goldNet >= 0 ? 'plus' : 'minus'}">${sign(eco.goldNet)}</b></div>
         <p class="ec-note" style="margin:-2px 0 2px">축제·상단·구제 같은 그 달의 지출은 빠지지 않은 예상치입니다. 실제 금고 증감은 달이 바뀔 때 월정산에 표시됩니다.</p>
@@ -2102,7 +2204,7 @@
     const eg = $('#eco-gold'), ef = $('#eco-food'), eh = $('#eco-harvest');
     if (eg && eco) {
       eg.textContent = `월 세수−봉급 ${eco.goldNet >= 0 ? '+' : '−'}${fmt(Math.abs(eco.goldNet))}`;
-      eg.title = `도시 세수 ${fmt(eco.tax)} + 시장·공방 ${fmt(eco.market)} + 관작 ${fmt(eco.rank)} − 장수 봉급 ${fmt(eco.payroll)} (그 달 지출 제외)`;
+      eg.title = `도시 세수 ${fmt(eco.tax)} + 시장·공방 ${fmt(eco.market)} + 군주 녹봉 ${fmt(eco.rank)} − 장수 봉급 ${fmt(eco.payroll)} (그 달 지출 제외)`;
       eg.classList.toggle('down', eco.goldNet < 0);
       ef.textContent = `월 군량 ${eco.foodNet >= 0 ? '+' : '−'}${fmt(Math.abs(eco.foodNet))}`;
       ef.classList.toggle('down', eco.foodNet < 0);
@@ -2392,6 +2494,8 @@
   SK.openCityPicker = openCityPicker;
 
   SK.openCity = function (id) {
+    /* v5.36 — 지도에서 고르던 중에 다른 화면(성·전장 등)으로 넘어가면 선택 모드를 끈다 */
+    if (mapPickCfg) endMapPick();
     const s = SK.state;
     const c = CITY[id];
     const st = s.cities[id];
@@ -2636,8 +2740,8 @@
         <div class="tr-inv-head"><span>보유 ${SK.SLOT_NAMES[slot]}</span>${cur}</div>
         <div class="tr-list">${list}</div>
         <p class="tr-note">보물은 무기·방어구·명마·병법서 한 자리씩 장착됩니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>
-        <p class="tr-note tr-fxnote"><b>전장 적용</b>은 공격·피해·방어·책략·치명·회피·반격·회복 계산에 실제로 들어가는 값입니다. 게임에 그 판정이 없는 문구는 같은 눈금으로 옮겼습니다 — 명중률→주는 피해, 책략 명중률→책략 위력, 적 방어력 −N%→주는 피해, 받는 치명타 피해 −N%→치명타 저항, 반사→반격 피해. <b>v5.30</b>부터 전투 규칙도 실제로 붙습니다 — 연격·연속 사격 확률, 한 턴 2회 공격, 주변·관통 추가 피해, 수전·산악·야간 지형 보정, 반사·돌격·측면 추가 피해. 숫자가 없는 문구는 <b>기본값</b>으로 옮겼고 카드에 그 절 수를 적었습니다.</p>
-        <p class="tr-note tr-fxnote"><b>v5.31 — 사기·상태이상·내정·외교</b>도 실제 판정에 붙습니다. · <b>사기</b>: 100이 기준이고 높으면 공격 +16%까지, 낮으면 −18%까지. 큰 타격·아군 부대 붕괴로 떨어지고 턴마다 회복합니다. 보물의 '사기 +N'은 시작 사기, '사기 저하 −N%'는 떨어지는 폭을 줄입니다. · <b>상태이상</b>: 기절(이번 턴 행동 불가) · 혼란(아군·적을 가리지 않고 인접 부대 공격) · 위축(공격 −20%) · 중독·화상(턴마다 병력 감소) · 둔화(이동 −1). '기절 부여 확률'·'위축 부여'·'방어 약화'·'면역'·'상태이상 저항'·'해제 확률'이 이 판정에 그대로 쓰입니다. · <b>내정·외교</b>: '내정 수입'은 그 장수가 있는 성의 세수·시장, '군량 유지비'는 그 성 병력의 군량, '외교·등용 성공률'은 사자를 보낸 장수의 협상 확률, '일기토 승리 확률'은 [탐색] 일기토, '정찰 범위'는 첩자 정찰 기간에 붙습니다.</p>`;
+        <p class="tr-note tr-fxnote">카드의 <b>전장 적용</b> 수치는 공격·방어·책략·치명·회피·반격·회복과 사기·상태이상(기절·혼란·위축·중독·화상·둔화) 판정에 실제로 들어갑니다. 게임에 그 판정이 없는 문구는 가장 가까운 판정으로 옮겨 적었습니다.</p>
+        <p class="tr-note">숫자가 없는 문구는 기본값으로 적용되고 카드에 그 절 수를 적었습니다. <b>내정 수입</b>은 그 장수가 있는 성의 세수, <b>외교 성공률</b>은 사자를 보낸 장수의 협상 확률에 붙습니다.</p>`;
       m.el.querySelectorAll('.tr-slot').forEach((b) => { b.onclick = () => { slot = b.dataset.slot; render(); }; });
       m.el.querySelectorAll('.tr-item').forEach((b) => {
         b.onclick = () => {
@@ -2669,10 +2773,12 @@
     if (Math.random() > 0.62) return null;
     const owned = new Set(s.treasures || []);
     s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => owned.add(id)));
-    const pool = SK.TREASURES.filter((t) => !owned.has(t.id));
+    /* v5.36 — 고증 전용 보물은 주인 장수를 격파했을 때만 후보에 오른다 */
+    const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && sigOwnerDown(t, names));
     if (!pool.length) return null;
     const weights = pool.map((t) => {
-      let b = t.grade === '전설' ? 1 : t.grade === '영웅' ? 2.2 : 3.5;
+      /* v5.36 — 전설을 크게 희귀하게: 전설 0.2 · 영웅 2 · 희귀 5 */
+      let b = t.grade === '전설' ? 0.2 : t.grade === '영웅' ? 2 : 5;
       if ((names || []).some((n) => n && t.dropHint.includes(n)) || (cityName && t.dropHint.includes(cityName))) b *= 12;
       /* v5.33 — 장수 이름이 없어도 그 지역 성에서 싸우면 힌트대로 조금 더 잘 나온다 */
       else if (SK.treasureWhere && cityName) {
@@ -2991,33 +3097,36 @@
     if (!list.length) { SK.toast('옮길 장수를 고르세요.'); return; }
     const towns = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF() && c.id !== fromId);
     if (!towns.length) { SK.toast('옮겨 갈 다른 성이 없습니다.'); return; }
-    const rows = towns.map((c) => {
+    /* v5.36 — 목적지도 지도에서 고른다 (정원 99명이 찬 성은 흐리게) */
+    const ids = [], chips = {};
+    towns.forEach((c) => {
       const n = s.heroes.filter((h) => h.city === c.id).length;
-      const full = n >= 99;
-      return `<button class="target-card" data-c="${c.id}" ${full ? 'disabled' : ''}>
-      <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
-      <div class="tc-main"><b>${c.name}</b><span>${typeName(c.type)} · 주둔 ${n}명${full ? ' · 가득 참' : ` → ${Math.min(99, n + list.length)}명`}</span></div>
-      <span class="tc-troops"><span>수비병</span><b>${fmt(s.cities[c.id].troops)}</b></span>
-      <span class="tc-go">▸</span></button>`;
-    }).join('');
-    const names = list.map((g) => g.name).join(' · ');
-    const m = SK.modal({ kicker: `${CITY[fromId].name} 인사`, title: `${list.length}명을 어느 성으로 보낼까`,
-      body: `<p class="talent-note">${names}</p><div class="target-list">${rows}</div>`,
-      chest: true, actions: [{ label: '취소' }], wide: true });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => {
-        if (b.disabled) return;
-        const dest = b.dataset.c;
-        const res = doTransferMany(fromId, dest, list);
-        m.close();
-        if (res.moved.length) {
-          SK.sfx.play('drum');
-          SK.toast(`${res.moved.length === 1 ? res.moved[0] : res.moved.join('·') + ' ' + res.moved.length + '명'} → ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
-        }
-        if (res.stayed.length) SK.toast(`${res.stayed.join(' · ')}은(는) 이번에 옮기지 못했습니다(행군 중이거나 정원 초과).`);
-        if (document.querySelector('#screen-city.active')) SK.openCity(s.lastCity);
-      };
+      if (n >= 99) return;
+      ids.push(c.id);
+      chips[c.id] = `주둔 ${n}`;
     });
+    if (!ids.length) { SK.toast('옮겨 갈 성이 모두 정원(99명)입니다.'); return; }
+    const names = list.map((g) => g.name).join(' · ');
+    const ok = pickCityOnMap({
+      kicker: `${CITY[fromId].name} 인사`,
+      title: `${list.length}명을 어느 성으로 보낼까`,
+      hint: `${names}<br>금빛 성을 누르세요. 배지는 지금 그 성에 주둔한 장수 수입니다.`,
+      origin: fromId, ids, chips,
+      block: '지금은 이 성으로 옮길 수 없습니다.',
+      onPick: (id) => transferTo(fromId, id, list),
+    });
+    if (!ok) SK.toast('옮겨 갈 성이 없습니다.');
+  }
+  /* 고른 성으로 실제 전출하고, 안내를 띄운 뒤 출발 성 화면으로 돌아온다 */
+  function transferTo(fromId, dest, list) {
+    const res = doTransferMany(fromId, dest, list);
+    if (res.moved.length) {
+      SK.sfx.play('drum');
+      SK.toast(`${res.moved.length === 1 ? res.moved[0] : res.moved.join('·') + ' ' + res.moved.length + '명'} → ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
+    }
+    if (res.stayed.length) SK.toast(`${res.stayed.join(' · ')}은(는) 이번에 옮기지 못했습니다(행군 중이거나 정원 초과).`);
+    if (SK.state.cities[fromId] && SK.state.cities[fromId].owner === PF()) SK.openCity(fromId);
+    else SK.showMap();
   }
   SK.openTransferDest = openTransferDest;
 
@@ -3164,8 +3273,14 @@
   };
   function slotCount(type) { return SLOT_MAX[type] || 4; }
   /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다
-     v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다 */
-  function slotExpNeed(lv) { return 40 + (Number(lv) || 1) * 35; }
+     v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다
+     v5.36 — 요구량 상향: Lv.1→2 120 · Lv.2→3 200 · Lv.3→4 300 · Lv.4→5 420
+     (담당 배속 시 대략 3·5·7·9개월) */
+  const SLOT_EXP_NEED = [0, 120, 200, 300, 420];
+  function slotExpNeed(lv) {
+    const L = clamp(Math.round(Number(lv) || 1), 1, 4);
+    return SLOT_EXP_NEED[L];
+  }
   SK.slotExpNeed = slotExpNeed;
   /* v5.35 — 한 달에 차는 시설 경험. 담당·부장 유무로 갈리고, 안내 문구도 이 값으로 계산한다
      (예전에는 담당이 없어도 '2개월 뒤'라고 적어 실제와 어긋났다) */
@@ -3344,6 +3459,8 @@
     const dutyN = gens.filter((g) => cs.slots.some((x) => x.uid === g.uid)).length;
     const doneN = gens.filter((g) => g.actedThisMonth && !cs.slots.some((x) => x.uid === g.uid)).length;
     const readyN = gens.length - dutyN - doneN;
+    /* v5.36 — 담당 없는 건물이 있으면 카드에 '배속' 표를 달고 위에 한 줄 안내를 둔다 */
+    const noOwnerN = cs.slots.filter((sl) => sl.key && !slotOwner(cityId, sl)).length;
     box.innerHTML = `<div class="slot-head">
         <b>내성 시설</b><span>${built}/${cs.slots.length}칸 · 공터 ${free}</span>
         ${upList.length ? `<button class="slot-upall" id="btn-up-all">모두 증축<em>${upList.length}곳 · 금 ${fmt(upCost)}</em></button>` : ''}
@@ -3353,6 +3470,7 @@
         <button class="st-btn best ${bestOn ? 'on' : ''}" id="btn-auto-best" type="button"><i></i>매달 최선 ${bestOn ? 'ON' : 'OFF'}</button>
         <span class="st-note">담당 ${dutyN} · 대기 ${readyN} · 완료 ${doneN}</span>
       </div>
+      ${(noOwnerN && readyN) ? `<p class="slot-hint">담당이 빈 건물 <b>${noOwnerN}</b>곳 · 대기 장수 <b>${readyN}</b>명 — <b>[＋ 자동 배속]</b>을 누르면 알맞은 사람이 앉습니다.</p>` : ''}
       <div class="slot-grid">${cs.slots.map((sl, i) => {
         if (!sl.key) {
           return `<button class="slot-card empty" data-slot="${i}">
@@ -3369,7 +3487,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b><em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : '<em class="sc-dep-empty">부장 없음</em>'}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : '<em class="sc-dep-empty">부장 없음</em>'}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -3579,7 +3697,7 @@
         ${sl.lv < 5 ? `<div class="slot-expbox">
           <div class="se-head"><b>시설 경험</b><span>${ep} / ${needEp}</span></div>
           <div class="se-bar"><i style="width:${Math.round(Math.min(1, ep / needEp) * 100)}%"></i></div>
-          <p>${epOk ? '경험이 가득 찼습니다 — 증축할 수 있습니다.' : `지금은 달마다 약 +${slotExpMonthly(cs, sl, g, depG)}씩 찹니다 — <b>${Math.max(1, Math.ceil((needEp - ep) / Math.max(1, slotExpMonthly(cs, sl, g, depG))))}개월</b> 뒤 증축할 수 있습니다.${g ? '' : ' 담당 장수를 앉히면 두세 달이면 찹니다.'}`}</p>
+          <p>${epOk ? '경험이 가득 찼습니다 — 증축할 수 있습니다.' : `지금은 달마다 약 +${slotExpMonthly(cs, sl, g, depG)}씩 찹니다 — <b>${Math.max(1, Math.ceil((needEp - ep) / Math.max(1, slotExpMonthly(cs, sl, g, depG))))}개월</b> 뒤 증축할 수 있습니다.${g ? '' : ' 담당 장수를 앉히면 훨씬 빨리 찹니다.'}`}</p>
         </div>` : ''}
         <div class="menu-list">
           ${sl.lv < 5 ? `<button data-a="up" ${(s.gold < cost || !epOk) ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})${epOk ? '' : ' · 경험 부족'}</button>` : ''}
@@ -3947,12 +4065,14 @@
     if (kind === 'treasure') {
       const owned = new Set(s.treasures || []);
       s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => owned.add(id)));
-      const pool = SK.TREASURES.filter((t) => !owned.has(t.id));
+      /* v5.36 — 고증 전용 보물(장팔사모·청룡언월도·적토마 등)은 탐색에서 나오지 않는다 */
+      const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && treasureOpen(t));
       if (pool.length) {
         /* v5.33 — 도감 힌트의 지역이 실제로 통하게: 이 성·이 지역에서 나오는 보물은 잘 나온다 */
       const hereName = String(c.name).replace(' 요새', '').replace(' 관문', '');
       const weights = pool.map((t) => {
-        let b = (t.grade === '전설' ? 1 : t.grade === '영웅' ? 2.4 : 4);
+        /* v5.36 — 전설 0.2 · 영웅 2 · 희귀 5 */
+        let b = (t.grade === '전설' ? 0.2 : t.grade === '영웅' ? 2 : 5);
         const w = SK.treasureWhere ? SK.treasureWhere(t) : null;
         if (w) {
           if (w.cities.indexOf(cityId) >= 0) b *= 8;
@@ -4440,21 +4560,19 @@
     const s = SK.state;
     const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF());
     if (!targets.length) { SK.toast('정찰할 이웃 적성이 없습니다.'); return; }
-    const rows = targets.map((id) => {
-      const st = s.cities[id];
-      const f = SK.factionInfo(st.owner);
-      const sc = isScouted(st);
-      return `<button class="target-card" data-c="${id}">
-        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
-        <div class="tc-main"><b>${CITY[id].name}</b><span>${f.name} · ${typeName(CITY[id].type)} · ${sc ? `정찰 중 (${st.scoutedUntil - s.turn}개월 남음)` : '미정찰'}</span></div>
-        <span class="tc-go">▸</span></button>`;
-    }).join('');
-    const m = SK.modal({ kicker: `${CITY[cityId].name} 첩보`, title: '어느 성을 살필까',
-      body: `<p class="talent-note">정찰하면 3~5개월 동안 그 성의 수비병·성벽·민심·장수를 볼 수 있습니다. 금 ${scoutCost()} + 첩자로 보낼 장수 한 명의 이번 달 행동을 씁니다.</p><div class="target-list">${rows}</div>`,
-      wide: true, actions: [{ label: '취소' }] });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => { m.close(); setTimeout(() => openScoutEnvoy(cityId, b.dataset.c), 30); };
+    /* v5.36 — 살필 성은 지도에서 고른다 (배지: 정찰중 / 미정찰) */
+    const chips = {};
+    targets.forEach((id) => { chips[id] = isScouted(s.cities[id]) ? '정찰중' : '미정찰'; });
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 첩보`,
+      title: '어느 성을 살필까',
+      hint: `금빛 적성을 누르세요. 정찰하면 3~5개월 동안 병력·성벽·민심·장수를 봅니다. 금 ${scoutCost()} + 첩자 한 명의 이번 달 행동.`,
+      origin: cityId, ids: targets, chips,
+      block: '이웃한 적성에만 첩자를 보낼 수 있습니다.',
+      onPick: (id) => openScoutEnvoy(cityId, id),
+      onCancel: () => SK.openCity(cityId),
     });
+    if (!ok) SK.toast('정찰할 이웃 적성이 없습니다.');
   }
 
   function scoutMonths(actor) {
@@ -4539,41 +4657,46 @@
     const cost = kind === 'spy' ? 100 : 80;
     const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF() && s.cities[n].owner !== 'neutral');
     if (!targets.length) { SK.toast('계략을 펼칠 이웃 적성이 없습니다.'); return; }
-    const rows = targets.map((id) => {
+    /* v5.36 — 계략을 펼 성은 지도에서 고른다 (배지: 성벽·민심) */
+    const chips = {};
+    targets.forEach((id) => {
       const st = s.cities[id];
-      const f = SK.factionInfo(st.owner);
-      return `<button class="target-card" data-c="${id}">
-        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
-        <div class="tc-main"><b>${CITY[id].name}</b><span>${f.name} · 수비병 ${isScouted(st) ? fmt(st.troops) : '?'}</span></div>
-        <span class="tc-go">▸</span></button>`;
-    }).join('');
-    const m = SK.modal({
-      kicker: `${CITY[cityId].name} 계략`, title: kind === 'spy' ? '이간계를 펼 성' : '유언비어를 풀 성',
-      body: `<p class="talent-note">${kind === 'spy' ? '적 장수 사이를 갈라 수비병과 성벽을 약화시킵니다.' : '거짓 소문을 풀어 적성 민심을 흔듭니다.'} 실패하면 금만 나갑니다. (금 ${cost})</p>
-        <div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }],
+      if (!isScouted(st)) { chips[id] = '?'; return; }
+      chips[id] = kind === 'spy' ? `벽 ${Math.round(st.def)}` : `민심 ${Math.round(st.loyalty)}`;
     });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => {
-        if (s.gold < cost) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${cost})`); return; }
-        s.gold -= cost;
-        const st = s.cities[b.dataset.c];
-        const actor = pickActor(cityId);
-        const base = kind === 'spy' ? 0.55 : 0.65;
-        const bonus = actor ? Math.min(0.25, Math.max(0, ((actor.ji || 60) - 60) * 0.005)) : 0;
-        const ok = Math.random() < base + bonus;
-        if (actor) { consumeDispatch(cityId, actor); SK.gainExp(actor, 14); }
-        if (ok) {
-          if (kind === 'spy') { st.troops = Math.max(200, Math.round(st.troops * 0.88)); st.def = Math.max(20, st.def - 4); }
-          else { st.loyalty = Math.max(10, st.loyalty - 8); st.troops = Math.max(200, Math.round(st.troops * 0.94)); }
-        }
-        SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
-        SK.sfx.play(ok ? 'ui' : 'deny');
-        SK.modal({
-          kicker: `${CITY[cityId].name} 계략`, title: ok ? '계략이 통했습니다' : '계략이 들통났습니다',
-          body: `<p class="modal-p">${ok ? (kind === 'spy' ? `${CITY[b.dataset.c].name}의 장수들이 서로를 의심해 수비병과 성벽이 흔들렸습니다.` : `${CITY[b.dataset.c].name}에 거짓 소문이 퍼져 민심이 흔들렸습니다.`) : '상대가 첩자를 붙잡았습니다. 이번 일은 수포로 돌아갔습니다.'}</p>`,
-          actions: [{ label: '확인', primary: true }],
-        });
-      };
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 계략`,
+      title: kind === 'spy' ? '이간계를 펼 성' : '유언비어를 풀 성',
+      hint: `${kind === 'spy' ? '적 장수 사이를 갈라 수비병과 성벽을 약화시킵니다.' : '거짓 소문을 풀어 적성 민심을 흔듭니다.'} 금 ${cost} — 실패해도 금은 나갑니다.`,
+      origin: cityId, ids: targets, chips,
+      block: '이웃한 적성에만 계략을 펼칠 수 있습니다.',
+      onPick: (id) => spyStrike(cityId, kind, id),
+      onCancel: () => SK.openCity(cityId),
+    });
+    if (!ok) SK.toast('계략을 펼 이웃 적성이 없습니다.');
+  }
+
+  function spyStrike(cityId, kind, targetId) {
+    const s = SK.state;
+    const cost = kind === 'spy' ? 100 : 80;
+    if (s.gold < cost) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${cost})`); SK.openCity(cityId); return; }
+    s.gold -= cost;
+    const st = s.cities[targetId];
+    const actor = pickActor(cityId);
+    const base = kind === 'spy' ? 0.55 : 0.65;
+    const bonus = actor ? Math.min(0.25, Math.max(0, ((actor.ji || 60) - 60) * 0.005)) : 0;
+    const ok = Math.random() < base + bonus;
+    if (actor) { consumeDispatch(cityId, actor); SK.gainExp(actor, 14); }
+    if (ok) {
+      if (kind === 'spy') { st.troops = Math.max(200, Math.round(st.troops * 0.88)); st.def = Math.max(20, st.def - 4); }
+      else { st.loyalty = Math.max(10, st.loyalty - 8); st.troops = Math.max(200, Math.round(st.troops * 0.94)); }
+    }
+    SK.save(); SK.refreshHud(); SK.openCity(cityId);
+    SK.sfx.play(ok ? 'ui' : 'deny');
+    SK.modal({
+      kicker: `${CITY[cityId].name} 계략`, title: ok ? '계략이 통했습니다' : '계략이 들통났습니다',
+      body: `<p class="modal-p">${ok ? (kind === 'spy' ? `${CITY[targetId].name}의 장수들이 서로를 의심해 수비병과 성벽이 흔들렸습니다.` : `${CITY[targetId].name}에 거짓 소문이 퍼져 민심이 흔들렸습니다.`) : '상대가 첩자를 붙잡았습니다. 이번 일은 수포로 돌아갔습니다.'}</p>`,
+      actions: [{ label: '확인', primary: true }],
     });
   }
 
@@ -4608,22 +4731,19 @@
     const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF()
       && s.cities[n].owner !== 'neutral' && (s.cities[n].genIds || []).length);
     if (!targets.length) { SK.toast('이간계를 펼 이웃 적성이 없습니다. (장수가 있는 성이 없습니다)'); return; }
-    const rows = targets.map((id) => {
-      const st = s.cities[id];
-      const f = SK.factionInfo(st.owner);
-      return `<button class="target-card" data-c="${id}">
-        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
-        <div class="tc-main"><b>${CITY[id].name}</b><span>${f.name} · 장수 ${(st.genIds || []).length}명</span></div>
-        <span class="tc-go">▸</span></button>`;
-    }).join('');
-    const m = SK.modal({
-      kicker: `${CITY[cityId].name} 이간계`, title: '어느 성을 흔들까',
-      body: `<p class="talent-note">금 120과 장수 한 명의 이번 달 행동을 씹니다. 지력이 높으면 성공률이 오르고, 성공하면 지목한 장수의 충성이 뚝 떨어져 회유할 틈이 생깁니다.</p>
-        <div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }],
+    /* v5.36 — 흔들 성은 지도에서 고른다 (배지: 장수 수) */
+    const chips = {};
+    targets.forEach((id) => { chips[id] = `장수 ${(s.cities[id].genIds || []).length}`; });
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 이간계`,
+      title: '어느 성을 흔들까',
+      hint: '금빛 적성을 누르세요. 금 120과 장수 한 명의 이번 달 행동을 씹니다. 지력이 높으면 성사가 쉽습니다.',
+      origin: cityId, ids: targets, chips,
+      block: '이웃한 적성에만 이간계를 펼칠 수 있습니다.',
+      onPick: (id) => openEstrangeGen(cityId, id),
+      onCancel: () => SK.openCity(cityId),
     });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => { m.close(); setTimeout(() => openEstrangeGen(cityId, b.dataset.c), 30); };
-    });
+    if (!ok) SK.toast('이간계를 펼 이웃 적성이 없습니다.');
   }
   function openEstrangeGen(cityId, targetId) {
     SK.setPurse(cityId);
@@ -4717,7 +4837,7 @@
   function openSurrenderAdvice(cityId) {
     const s = SK.state;
     const mine = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
-    const rows = [];
+    const cand = [];
     SK.allNeighbors(cityId).forEach((id) => {
       const st = s.cities[id];
       if (!st || st.owner === PF() || st.owner === 'neutral') return;
@@ -4726,88 +4846,89 @@
       const fTroops = fCities.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
       const ratio = mine / Math.max(1, fTroops);
       if (fCities.length > 2 && ratio < 2) return;
-      const f = SK.factionInfo(fid);
-      rows.push(`<button class="target-card" data-c="${id}">
-        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
-        <div class="tc-main"><b>${CITY[id].name}</b><span>${f.name} · 보유 ${fCities.length}성 · 병력 ${fmt(fTroops)}</span></div>
-        <div class="tc-troops"><span>우리 병력 ${fmt(mine)}</span><b>${ratio.toFixed(1)}배</b></div>
-        <span class="tc-go">▸</span></button>`);
+      cand.push({ id, fid, ratio, cities: fCities.length });
     });
-    if (!rows.length) {
+    if (!cand.length) {
       SK.toast('항복을 권할 만한 약소 세력이 이웃에 없습니다. (보유 3성 이하이거나 병력 2배 우위일 때)')
       return;
     }
-    const m = SK.modal({
-      kicker: `${CITY[cityId].name} 외교`, title: '어느 세력에 항복을 권할까',
-      body: `<p class="talent-note">금 300과 사자를 보냅니다. 상대가 작을수록·병력 차이가 클수록 성사가 쉽습니다. 성사되면 그 성과 성안의 장수가 우리 것이 됩니다.</p>
-        <div class="target-list">${rows.join('')}</div>`, wide: true, actions: [{ label: '취소' }],
+    /* v5.36 — 항복을 권할 성은 지도에서 고른다 (배지: 우리 병력 대비 배수) */
+    const chips = {};
+    cand.forEach((c) => { chips[c.id] = `${c.ratio.toFixed(1)}배`; });
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 외교`,
+      title: '어느 세력에 항복을 권할까',
+      hint: `금 300과 사자를 보냅니다. 배지는 우리 병력 대비 그 세력 전체 병력의 배수입니다. 클수록 성사가 쉽습니다.`,
+      origin: cityId, ids: cand.map((c) => c.id), chips,
+      block: '지금은 항복을 권할 수 없는 거점입니다.',
+      onPick: (id) => surrenderStrike(cityId, id, mine),
+      onCancel: () => SK.openCity(cityId),
     });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => {
-        if (s.gold < 300) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 300)'); return; }
-        const tid = b.dataset.c;
-        const ts = s.cities[tid];
-        const fid = ts.owner;
-        const fCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
-        const fTroops = fCities.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
-        const ratio = mine / Math.max(1, fTroops);
-        const actor = pickActor(cityId);
-        if (!actor) return;
-        s.gold -= 300;
-        consumeDispatch(cityId, actor);
-        const p = clamp(0.1 + ((actor.cha || 60) - 60) * 0.008 + Math.max(0, ratio - 1.4) * 0.14 + Math.max(0, 3 - fCities.length) * 0.07, 0.05, 0.85);
-        const ok = Math.random() < p;
-        m.close();
-        if (ok) {
-          const join = [];
-          (ts.genIds || []).forEach((gid) => {
-            if (Math.random() < 0.45) { join.push(gid); return; }
-          });
-          ts.owner = PF();
-          ts.troops = Math.max(800, Math.round((ts.troops || 800) * 0.7));
-          ts.loyalty = 50;
-          ts.def = Math.max(28, Math.round((ts.def || 50) * 0.85));
-          ts.bandit = false;
-          ts.governor = null;
-          ts.advisor = null;
-          ts.auto = true;
-          ts.genIds = [];
-          join.forEach((gid) => {
-            const g = SK.GEN_BY_ID[gid];
-            if (!g) return;
-            const hero = makeHero(g.name, tid, SK.genLv(g));
-            if (hero) { hero.loyal = 60; s.heroes.push(hero); }
-          });
-          s.fame = (s.fame || 0) + 8;
-          syncFactionCities(s);
-          /* v5.8 — 세력을 모두 잃으면 명부에서 지우므로, 이름은 지우기 전에 적어 둔다 */
-          const fname = SK.factionName(fid);
-          const leftF = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid).length;
-          if (!leftF) delete s.factions[fid];
-          SK.save(); SK.refreshHud();
-          if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
-          SK.sfx.play('ui');
-          SK.openCity(cityId);
-          if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 700);
-          SK.modal({
-            kicker: '항복 권고 성사', title: `${SK.josa(CITY[tid].name, 'i')} 문을 열었다`, wide: true,
-            body: `<div class="surr-card"><span class="surr-seal">降</span>
-              <div><b>${fname}</b>
-              <p>${josa(actor.name, 'i')} 설득한 끝에 상대가 싸우지 않고 성을 넘겼습니다. 명성 +8 · 병력 ${fmt(ts.troops)}을 그대로 받았습니다.</p>
-              ${join.length ? `<em>성안 장수 ${join.map((id) => (SK.GEN_BY_ID[id] || {}).name).filter(Boolean).join(' · ')} 항복</em>` : '<em>성안 장수는 성을 떠났습니다</em>'}</div></div>`,
-            actions: [{ label: '성으로', primary: true }],
-          });
-        } else {
-          SK.save(); SK.refreshHud();
-          SK.sfx.play('deny');
-          SK.modal({
-            kicker: '항복 권고', title: '상대가 거절했습니다',
-            body: `<p class="modal-p">${josa(SK.factionName(fid), 'i')} 사자의 말을 받아들이지 않았습니다. 금 300만 나갔습니다.</p>`,
-            actions: [{ label: '확인', primary: true }],
-          });
-        }
-      };
-    });
+    if (!ok) SK.toast('항복을 권할 만한 약소 세력이 이웃에 없습니다.');
+  }
+
+  function surrenderStrike(cityId, tid, mine) {
+    const s = SK.state;
+    if (s.gold < 300) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 300)'); SK.openCity(cityId); return; }
+    const ts = s.cities[tid];
+    const fid = ts.owner;
+    const fCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
+    const fTroops = fCities.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
+    const ratio = mine / Math.max(1, fTroops);
+    const actor = pickActor(cityId);
+    if (!actor) { SK.openCity(cityId); return; }
+    s.gold -= 300;
+    consumeDispatch(cityId, actor);
+    const p = clamp(0.1 + ((actor.cha || 60) - 60) * 0.008 + Math.max(0, ratio - 1.4) * 0.14 + Math.max(0, 3 - fCities.length) * 0.07, 0.05, 0.85);
+    const ok = Math.random() < p;
+    if (ok) {
+      const join = [];
+      (ts.genIds || []).forEach((gid) => {
+        if (Math.random() < 0.45) { join.push(gid); return; }
+      });
+      ts.owner = PF();
+      ts.troops = Math.max(800, Math.round((ts.troops || 800) * 0.7));
+      ts.loyalty = 50;
+      ts.def = Math.max(28, Math.round((ts.def || 50) * 0.85));
+      ts.bandit = false;
+      ts.governor = null;
+      ts.advisor = null;
+      ts.auto = true;
+      ts.genIds = [];
+      join.forEach((gid) => {
+        const g = SK.GEN_BY_ID[gid];
+        if (!g) return;
+        const hero = makeHero(g.name, tid, SK.genLv(g));
+        if (hero) { hero.loyal = 60; s.heroes.push(hero); }
+      });
+      s.fame = (s.fame || 0) + 8;
+      syncFactionCities(s);
+      /* v5.8 — 세력을 모두 잃으면 명부에서 지우므로, 이름은 지우기 전에 적어 둔다 */
+      const fname = SK.factionName(fid);
+      const leftF = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid).length;
+      if (!leftF) delete s.factions[fid];
+      SK.save(); SK.refreshHud();
+      if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+      SK.sfx.play('ui');
+      SK.openCity(cityId);
+      if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 700);
+      SK.modal({
+        kicker: '항복 권고 성사', title: `${SK.josa(CITY[tid].name, 'i')} 문을 열었다`, wide: true,
+        body: `<div class="surr-card"><span class="surr-seal">降</span>
+          <div><b>${fname}</b>
+          <p>${josa(actor.name, 'i')} 설득한 끝에 상대가 싸우지 않고 성을 넘겼습니다. 명성 +8 · 병력 ${fmt(ts.troops)}을 그대로 받았습니다.</p>
+          ${join.length ? `<em>성안 장수 ${join.map((id) => (SK.GEN_BY_ID[id] || {}).name).filter(Boolean).join(' · ')} 항복</em>` : '<em>성안 장수는 성을 떠났습니다</em>'}</div></div>`,
+        actions: [{ label: '성으로', primary: true }],
+      });
+    } else {
+      SK.save(); SK.refreshHud();
+      SK.sfx.play('deny');
+      SK.modal({
+        kicker: '항복 권고', title: '상대가 거절했습니다',
+        body: `<p class="modal-p">${josa(SK.factionName(fid), 'i')} 사자의 말을 받아들이지 않았습니다. 금 300만 나갔습니다.</p>`,
+        actions: [{ label: '확인', primary: true }],
+      });
+    }
   }
 
   function openPeace(cityId) {
@@ -4963,33 +5084,26 @@
   function openTransport(cityId) {
     SK.setPurse(cityId);
     const s = SK.state;
-    const land = new Set(SK.neighbors(cityId) || []);
-    const sea = new Set(SK.seaNeighbors(cityId) || []);
-    const dests = SK.CITY_LIST.filter((c) => c.id !== cityId && s.cities[c.id].owner === PF())
-      /* v5.29 — 성이 20곳을 넘으면 목록이 길다. 바로 이어진 성을 먼저 보여 준다. */
-      .sort((a, b) => {
-        const va = land.has(a.id) ? 0 : sea.has(a.id) ? 1 : 2;
-        const vb = land.has(b.id) ? 0 : sea.has(b.id) ? 1 : 2;
-        if (va !== vb) return va - vb;
-        return (a.id === s.playerCapital ? -1 : b.id === s.playerCapital ? 1 : 0);
-      });
+    const dests = SK.CITY_LIST.filter((c) => c.id !== cityId && s.cities[c.id].owner === PF());
     if (!dests.length) { SK.toast('수송할 다른 아군 성이 없습니다.'); return; }
-    const rows = dests.map((c) => {
-      const st = s.cities[c.id];
-      const via = land.has(c.id) ? '육로' : sea.has(c.id) ? '해로' : '멀리';
-      const fill = cityCap(st) ? Math.round((st.troops || 0) / cityCap(st) * 100) : 0;
-      return `<button class="target-card" data-c="${c.id}">
-        <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
-        <div class="tc-main"><b>${c.name}${c.id === s.playerCapital ? ' · 본성' : ''} <i class="tp-via">${via}</i></b><span>${typeName(c.type)} · 병력 ${fmt(st.troops)} / ${fmt(cityCap(st))} (${fill}%) · 장수 ${s.heroes.filter((h) => h.city === c.id).length}명</span></div>
-        <span class="tc-go">▸</span></button>`;
-    }).join('');
+    /* v5.36 — 보낼 성도 지도에서 고른다 (배지: 받을 수 있는 병력 자리) */
     const src = s.cities[cityId];
-    const m = SK.modal({ kicker: `${CITY[cityId].name} 수송`, title: '어디로 보낼까',
-      body: `<p class="talent-note">이 성의 병력 ${fmt(src.troops)} / ${fmt(cityCap(src))} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 병력·금·군량을 보내고, 장수도 함께 전출시킬 수 있습니다.</p><p class="talent-note">보유 ${dests.length}성 — 가까운(육로·해로로 이어진) 성이 위에 옵니다.</p><div class="target-list">${rows}</div>`,
-      wide: true, actions: [{ label: '취소' }] });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => { m.close(); openTransportAmount(cityId, b.dataset.c); };
+    const ids = [], chips = {};
+    dests.forEach((c) => {
+      const st = s.cities[c.id];
+      const room = Math.max(0, cityCap(st) - (st.troops || 0));
+      ids.push(c.id);
+      chips[c.id] = `빈자리 ${shortNum(room)}`;
     });
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 수송`,
+      title: '어디로 보낼까',
+      hint: `이 성의 병력 ${fmt(src.troops)} / ${fmt(cityCap(src))} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 내 성 중 하나를 누르면 병력·금·군량과 전출 장수를 정합니다.`,
+      origin: cityId, ids, chips,
+      block: '내 성으로만 수송할 수 있습니다.',
+      onPick: (id) => openTransportAmount(cityId, id),
+    });
+    if (!ok) SK.toast('수송할 다른 아군 성이 없습니다.');
   }
   SK.openTransport = openTransport;
   function openTransportAmount(from, to) {
@@ -5115,7 +5229,7 @@
       body: `<div class="rank-wrap">
         <div class="rank-progress"><i style="width:${pct}%"></i></div>
         <p class="rank-note">현재 명성 <b>${fmt(s.fame)}</b>${nx ? ` · ${nx.title}까지 <b>${fmt(Math.max(0, nx.minRenown - s.fame))}</b> 남았습니다` : ' · 최고 관작입니다'}</p>
-        <p class="talent-note">명성은 달이 바뀔 때, 성을 함락할 때, 큰 인물을 등용할 때 오릅니다. 관작이 오르면 매달 봉급과 거느릴 수 있는 병력이 늘어납니다.</p>
+        <p class="talent-note">명성은 달이 바뀔 때, 성을 함락할 때, 큰 인물을 등용할 때 오릅니다. 관작이 오르면 매달 받는 <b>군주 녹봉</b>과 거느릴 수 있는 병력이 늘어납니다.</p>
         <div class="rank-list">${list}</div>
       </div>`,
       wide: true, actions: [{ label: '닫기', primary: true }],
@@ -6833,29 +6947,28 @@
     const s = SK.state;
     const list = ownedCityList().filter((c) => c.id !== cityId);
     if (!list.length) { SK.toast('보낼 다른 성이 없습니다.'); return; }
-    const rows = list.map((c) => {
+    /* v5.36 — 수송 중시 목적지도 지도에서 고른다 */
+    const ids = list.map((c) => c.id), chips = {};
+    list.forEach((c) => {
       const cs = s.cities[c.id];
-      return `<button class="city-pick-row ${s.cities[cityId].supplyTo === c.id ? 'on' : ''}" data-c="${c.id}">
-        <span class="cp-lv" style="background:${SK.factionColor(PF())}">${cityLevel(cs)}</span>
-        <span class="cp-main"><b>${c.name}${c.id === s.playerCapital ? ' <em style="font-style:normal;font-size:8.5px;color:#8a5f2a">본성</em>' : ''}</b>
-          <span>병력 ${fmt(cs.troops)} / ${fmt(cityCap(cs))} · 성벽 ${Math.round(cs.def)}</span></span>
-        <span class="tc-go">▸</span>
-      </button>`;
-    }).join('');
-    const m = SK.modal({
-      kicker: `${CITY[cityId].name} 수송`, title: '병력을 보낼 성',
-      body: `<p class="talent-note">달이 바뀔 때 이 성의 병력이 상한의 45% 아래로는 가지 않게 남기고, 남는 병력을 고른 성으로 보냅니다.</p><div class="city-pick">${rows}</div>`,
-      wide: true, actions: [{ label: '취소' }],
+      chips[c.id] = `병력 ${shortNum(cs.troops)}`;
     });
-    m.el.querySelectorAll('.city-pick-row').forEach((b) => {
-      b.onclick = () => {
-        s.cities[cityId].supplyTo = b.dataset.c;
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 수송`,
+      title: '병력을 보낼 성',
+      hint: '달이 바뀔 때 이 성의 병력을 상한의 45%까지 남기고, 남는 병력을 고른 성으로 보냅니다.',
+      origin: cityId, ids, chips,
+      block: '내 성으로만 병력을 보낼 수 있습니다.',
+      onPick: (id) => {
+        s.cities[cityId].supplyTo = id;
         SK.save();
-        m.close();
+        SK.toast(`수송 목적지 — ${CITY[id].name}`);
+        SK.openCity(cityId);
         openOffice(cityId);
-        SK.toast(`수송 목적지 — ${CITY[b.dataset.c].name}`);
-      };
+      },
+      onCancel: () => { SK.openCity(cityId); openOffice(cityId); },
     });
+    if (!ok) SK.toast('보낼 다른 성이 없습니다.');
   }
 
   /* ── 포상 — 금·보물로 장수 충성(loyal)을 올린다 ── */
@@ -7100,8 +7213,10 @@
         const vm = 0.8 + Math.random() * 0.5;
         const offer = { gold: Math.round(base * vm), food: Math.round(base * vm * 0.8), expires: 2, treasure: null, type: 'ransom' };
         if ((rec.tier === 'S' || rec.tier === 'A') && Math.random() < 0.22 && SK.TREASURES && SK.TREASURES.length) {
-          const t = SK.TREASURES[Math.floor(Math.random() * SK.TREASURES.length)];
-          offer.treasure = { id: t.id, name: t.name };
+          /* v5.36 — 고증 전용 보물은 몸값으로 나오지 않는다 */
+          const tPool = SK.TREASURES.filter((x) => treasureOpen(x));
+          const t = tPool[Math.floor(Math.random() * tPool.length)];
+          if (t) offer.treasure = { id: t.id, name: t.name };
         }
         /* 적이 사로잡은 아군이 있으면 '포로 교환'을 제안해 온다
            v5.29 — 제안자는 포로의 원 소속 세력(rec.by)이므로, 그 세력이 사로잡고 있는
@@ -8149,28 +8264,25 @@
       SK.modal({ title: '출진할 적성 없음', body: `<p class="modal-p">${CITY[origin].name} 인근의 적 거점을 모두 평정했습니다. 다른 성에서 출진하세요.</p>`, actions: [{ label: '지도로', primary: true, onClick: () => SK.showMap() }] });
       return;
     }
-    const rows = targets.map(({ t, from }) => {
-      const c = CITY[t], st = s.cities[t], f = SK.factionInfo(st.owner);
-      const bt = SK.battleTypeFor(c);
-      return `<button class="target-card" data-t="${t}">
-        <span class="tc-flag" style="background:${f.color}">${SK.markOf(f)}</span>
-        <div class="tc-main"><b>${c.name}</b>
-          <span>${f.name} · ${typeName(c.type)} · ${SK.BATTLE_TYPES[bt].name}${from !== origin ? ` · ${CITY[from].name}에서` : ''}</span></div>
-        <div class="tc-troops"><span>수비병</span><b>${fmt(st.troops)}</b></div>
-        <span class="tc-go">▸</span>
-      </button>`;
-    }).join('');
-    const m = SK.modal({
+    /* v5.36 — 어느 적성을 칠지는 목록 대신 지도에서 고른다 (이웃하지 않은 성은 흐리게) */
+    const fromOf = {};
+    targets.forEach((x) => { if (!fromOf[x.t]) fromOf[x.t] = x.from; });
+    const ids = Object.keys(fromOf);
+    const chips = {};
+    ids.forEach((id) => {
+      const ts = s.cities[id];
+      chips[id] = isScouted(ts) ? shortNum(ts.troops) : '?';
+    });
+    const ok = pickCityOnMap({
       kicker: `${CITY[origin].name} 출진`,
       title: '어느 적성을 칠까',
-      body: `<div class="target-list">${rows}</div>`,
-      actions: [{ label: '돌아가기' }],
-      wide: true,
+      hint: `금빛으로 표시된 <b>${ids.length}</b>개 적성 중 하나를 누르세요. 배지는 수비병 수(미정찰은 ?)입니다.`,
+      origin, ids, chips,
+      block: '이웃한 적성에만 바로 출진할 수 있습니다.',
+      onPick: (id) => openDeploy(fromOf[id] || origin, id),
+      onCancel: () => SK.openCity(origin),
     });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      const pick = targets.find((x) => x.t === b.dataset.t);
-      b.onclick = () => { m.close(); openDeploy(pick ? pick.from : origin, b.dataset.t); };
-    });
+    if (!ok) SK.toast('지도에서 고를 수 있는 적성이 없습니다.');
   };
 
   function openDeploy(origin, targetId) {
@@ -8244,7 +8356,8 @@
       body,
       wide: true,
       actions: [
-        { label: '돌아가기' },
+        /* v5.36 — 지도에서 넘어왔으므로 '돌아가기'는 출발 성 화면으로 (예전에는 지도에 남았다) */
+        { label: '돌아가기', onClick: () => { if (s.cities[origin] && s.cities[origin].owner === PF()) SK.openCity(origin); else SK.showMap(); } },
         { label: '출진!', primary: true, onClick: () => {
           if (!unitCount()) { SK.toast('부대를 한 개 이상 편성하세요.'); return; }
           if (totalCost() > avail) { SK.toast(`보유 병력이 ${fmt(totalCost() - avail)} 부족합니다. 부대를 줄이세요.`); return; }
@@ -10044,7 +10157,7 @@
   function pickChoiceTreasure(s) {
     const owned = new Set(s.treasures || []);
     s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => owned.add(id)));
-    const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && (t.grade === '희귀' || t.grade === '영웅'));
+    const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && treasureOpen(t) && (t.grade === '희귀' || t.grade === '영웅'));
     return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
   }
   function ownedCitySample(s, n) {
@@ -10365,7 +10478,7 @@
         csG.grandMerchant = 2;
         const ownedT = new Set(s.treasures || []);
         s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => ownedT.add(id)));
-        const pool = SK.TREASURES.filter((t) => !ownedT.has(t.id));
+        const pool = SK.TREASURES.filter((t) => !ownedT.has(t.id) && treasureOpen(t));
         csG.gmStock = pool.slice().sort(() => Math.random() - 0.5).slice(0, 1 + (Math.random() < 0.4 ? 1 : 0)).map((t) => t.id);
         gmVisit = { city: chosen.name, id: chosen.id };
       }
@@ -10418,7 +10531,7 @@
     const marketGold = slotLog.reduce((a, x) => a + (x.gold || 0), 0);
     const farmGain = slotLog.reduce((a, x) => a + (x.food || 0), 0);
     /* ── v5.11 성별 금 결산: 세수·시장은 이미 각 성 금고에 들어갔다.
-       장수 봉급은 그 장수가 있는 성에서, 관작 봉급은 수도에서 낸다. ── */
+       장수 봉급은 그 장수가 있는 성에서, 군주 녹봉은 수도에서 낸다. ── */
     const payroll = payrollOf(s);
     const goldNet = tax + marketGold + rankGold - payroll;
     const payByCity = {};
@@ -10537,10 +10650,10 @@
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
-        <div class="mr-sec"><span>금</span><em>세수 · 봉급</em></div>
+        <div class="mr-sec"><span>금</span><em>세수 · 녹봉 − 봉급</em></div>
         <div class="mr-row"><span>도시 세수</span><b class="plus">금 +${fmt(tax)}</b></div>
         ${marketGold ? `<div class="mr-row"><span>시장 · 공방</span><b class="plus">금 +${fmt(marketGold)}</b></div>` : ''}
-        <div class="mr-row"><span>관작 봉급 · ${rank.title}</span><b class="plus">금 +${fmt(rankGold)}</b></div>
+        <div class="mr-row"><span>군주 녹봉 <em>관작 ${rank.title} · 명성이 오를수록 늘어남</em></span><b class="plus">금 +${fmt(rankGold)}</b></div>
         <div class="mr-row"><span>장수 봉급 <em>${(s.heroes || []).length}명 · 등급·레벨</em></span><b class="minus">금 −${fmt(payroll)}</b></div>
         <div class="mr-row total"><span>세수 − 봉급</span><b class="${goldNet >= 0 ? 'plus' : 'minus'}">${goldNet >= 0 ? '+' : '−'}${fmt(Math.abs(goldNet))}<em>전체 금고 ${fmt(SK.totalGold(s))}</em></b></div>
         ${(SK.totalGold(s) - goldStart) !== goldNet ? `<div class="mr-row"><span>이 달 실제 금고 <em>사건·거래 포함</em></span><b class="${SK.totalGold(s) - goldStart >= 0 ? 'plus' : 'minus'}">${SK.totalGold(s) - goldStart >= 0 ? '+' : '−'}${fmt(Math.abs(SK.totalGold(s) - goldStart))}<em>${fmt(goldStart)} → ${fmt(SK.totalGold(s))}</em></b></div>` : ''}
@@ -10659,7 +10772,7 @@
         <div class="help-item"><b>인사·탐색</b><p>주점에서 재야 인재를 등용하고, [탐색]은 <b>금이 들지 않고</b> 장수의 그달 행동만 씁니다. 탐색에서는 보물·은거 인재·금·군량·의용병 합류·산적 퇴치·맹수 사냥·일기토가 고루 나옵니다. 태수·군사는 관아에서 언제든 바꿉니다.</p></div>
         <div class="help-item"><b>외교·계략</b><p>정찰(금 45)로 3~4개월 적성 내부를 보고, 이간계(금 100)·유언비어(금 80)로 적의 병력·성벽·민심을 깎고, 화친(금 200)으로 6개월 휴전을 청합니다.</p></div>
         <div class="help-item"><b>기술 연구</b><p>군사·치안·경제·개발·정무·계략 6계열 24종입니다. 앞 단계를 먼저 연구하면 다음이 열리고, 공격·방어·세수·군량·징병·성벽 효과가 실제 전투와 내정에 반영됩니다.</p></div>
-        <div class="help-item"><b>명성과 관작</b><p>지도 위 관작 표식(현령·태수·자사…)을 누르면 승진 진행도가 열립니다. 명성은 달이 바뀔 때, 성을 함락할 때, 인물을 등용할 때 오르고, 관작이 오르면 매달 봉급과 거느릴 수 있는 병력이 늘어납니다.</p></div>
+        <div class="help-item"><b>명성과 관작</b><p>지도 위 관작 표식(현령·태수·자사…)을 누르면 승진 진행도가 열립니다. 명성은 달이 바뀔 때, 성을 함락할 때, 인물을 등용할 때 오르고, 관작이 오르면 매달 받는 군주 녹봉과 거느릴 수 있는 병력이 늘어납니다.</p></div>
         <div class="help-item"><b>미정찰 적성</b><p>첩자가 닿지 않은 성은 병력·성벽·민심·장수가 <b>? (미정찰)</b>로 보입니다. 도시 팝업의 [정찰 보내기]나 외교·계략의 [정찰]로 3~4개월 동안 성안을 살필 수 있습니다.</p></div>
         <div class="help-item"><b>인구와 징병</b><p>징병은 그 성의 인구에서 병사를 빼옵니다. 주둔병은 인구의 30%를 넘을 수 없고, 징병하면 민심이 내려갑니다(매력이 높으면 덜 내려갑니다). 민심이 70 이상이면 세수와 인구가 더 늘고, 40 아래면 줄어듭니다.</p></div>
         <div class="help-item"><b>군사 조언</b><p>관아나 행동력 줄의 [군사] 버튼으로 군사를 임명하면, 그 성의 민심·병력·성벽·재정과 이웃 적성·주점 인재를 읽어 지금 필요한 일을 조언합니다. 조언은 행동력을 쓰지 않고, '조언대로 진행'을 눌러야 실행됩니다. 대기 장수에게 남은 내정을 통째로 맡기려면 관아의 [대기 장수 일괄 내정]을 쓰십시오.</p></div>

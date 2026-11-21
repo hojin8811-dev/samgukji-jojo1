@@ -98,6 +98,11 @@
       return 'modal';
     }
     const scr = activeScreen();
+    /* v5.36 — 지도에서 대상을 고르던 중이면 뒤로가기는 '취소'다 (출진·정찰·전출·수송·외교) */
+    if (scr === 'screen-map' && typeof SK.mapPickActive === 'function' && SK.mapPickActive()) {
+      if (SK.cancelMapPick) SK.cancelMapPick();
+      return 'sub';
+    }
     if (scr === 'screen-battle') {
       if (typeof SK.confirmRetreat === 'function') SK.confirmRetreat();
       else press('#btn-retreat');
