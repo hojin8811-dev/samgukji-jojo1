@@ -6834,7 +6834,10 @@
       const key = chooseDelegatedAction(cityId, done);
       if (!key) break;
       const res = key === 'comfort' ? comfortCity(cityId, actor) : CMDS[key].run(cityId, actor);
-      if (key === 'comfort' && res && res.ok) { res.msg = `민심 +${res.gain}`; res.exp = 6; }
+      if (key === 'comfort') {
+        if (!res || !res.ok) break;               // 금이 모자라면 행동을 쓰지 않는다
+        res.msg = `민심 +${res.gain}`; res.exp = 6;
+      }
       if (!res || res.pending) break;
       done[key] = (done[key] || 0) + 1;
       actor.actedThisMonth = true;
