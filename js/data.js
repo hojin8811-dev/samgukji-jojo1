@@ -283,6 +283,9 @@ SK.FACTIONS = {
   goguryeo: { name: '고구려', mark: '고', color: '#3a5f9a', light: '#d6e0f0', lord: '고국천왕' },
   lvbu: { name: '여포군', mark: '여', color: '#7E22CE', light: '#e6d5f5', lord: '여포' },
   zhangjiao: { name: '장각군', mark: '황', color: '#7C6A0A', light: '#ece5c0', lord: '장각' },
+  /* v5.19 — 190년 1막 형남·남만 세력. 22 → 24세력 */
+  hanxuan: { name: '한현군', mark: '현', color: '#A21CAF', light: '#f2d6f6', lord: '한현' },
+  meng_huo: { name: '맹획군', mark: '맹', color: '#C2410C', light: '#f8dccb', lord: '맹획' },
 };
 
 /* 세력 id → 한 글자 한국어 표식 (깃발·배지에 쓴다, 없으면 이름 첫 글자) */
@@ -294,6 +297,8 @@ SK.FACTION_MARK = {
   shi_xie: '사', meng_huo: '맹', neutral: '야',
   kongrong: '융', liuyao: '유', yanbaihu: '엄', wanglang: '왕', zhanglu: '로',
   lvbu: '여', zhangjiao: '황',
+  /* v5.19 — 한현군 '현'(한수군 '한'과 겹치지 않게) · 남만 맹획군 '맹' · 4막 남중 호족 '중' */
+  hanxuan: '현', nanjung: '중',
 };
 
 /* 세력 표식 — 한 글자 한국어 (data에 mark가 없으면 이름 첫 글자) */
@@ -320,9 +325,13 @@ SK.FACTION_COLOR = {
   yuanshu: '#DB2777', liubiao: '#0E7490', liuzong: '#9333EA', liuyan: '#7E22CE',
   liuzhang: '#92400E', mateng: '#B45309', hansui: '#3F6212', gongsunzan: '#9F1239',
   taoqian: '#7C2D12', zhanglu: '#BE185D', gongsunkang: '#78350F', shi_xie: '#A16207',
-  meng_huo: '#4D7C0F', neutral: '#8B8777',
-  kongrong: '#475569', liuyao: '#0891B2', yanbaihu: '#1E40AF', wanglang: '#4D7C0F',
+  neutral: '#8B8777',
   zhangjiao: '#7C6A0A',
+  /* v5.19 — 한현군(장사)은 이웃한 손견군 빨강·유표군 청록·유요군 하늘·왕랑군 올리브와
+     색이 갈리도록 자주(#A21CAF), 맹획군(운남)은 남만 흙빛 주황(#C2410C).
+     4막 남중 호족(meng_huo → nanjung)은 기존 올리브를 그대로 쓴다. */
+  hanxuan: '#A21CAF', meng_huo: '#C2410C', nanjung: '#4D7C0F',
+  kongrong: '#475569', liuyao: '#0891B2', yanbaihu: '#1E40AF', wanglang: '#4D7C0F',
 };
 
 SK.factionInfo = function (key) {
@@ -434,6 +443,22 @@ SK.EXTRA_GENERALS = {
   '염포': { job: '검병', tier: 'B', war: 57, intel: 54, lead: 55 },
   '고람': { job: '기병', tier: 'B', war: 62, intel: 50, lead: 56 },
   '고정': { job: '창병', tier: 'B', war: 60, intel: 52, lead: 54 },
+  /* v5.19 — 1막 주 세력 드림팀·한현군·맹획군 보강 인물 (generals.json에 없는 이름만 여기 둔다) */
+  '서서': { job: '책사', tier: 'A', war: 52, intel: 92, lead: 81, pol: 84, charm: 89, birth: 170, debut: 192 },
+  '우보': { job: '기병', tier: 'B', war: 72, intel: 38, lead: 60, birth: 155, debut: 175 },
+  '한현': { job: '군주', tier: 'C', war: 62, intel: 50, lead: 57, birth: 155, debut: 180 },
+  '양령': { job: '창병', tier: 'B', war: 74, intel: 42, lead: 63, birth: 160, debut: 180 },
+  '형도영': { job: '창병', tier: 'B', war: 80, intel: 35, lead: 62, birth: 160, debut: 190 },
+  '진응': { job: '궁수', tier: 'C', war: 66, intel: 38, lead: 56, birth: 165, debut: 190 },
+  '포륭': { job: '창병', tier: 'C', war: 64, intel: 34, lead: 54, birth: 165, debut: 190 },
+  '설례': { job: '검병', tier: 'B', war: 66, intel: 52, lead: 60, birth: 160, debut: 180 },
+  '관정': { job: '책사', tier: 'B', war: 30, intel: 76, lead: 60, birth: 155, debut: 180 },
+  '아회남': { job: '야수병', tier: 'B', war: 76, intel: 34, lead: 58, birth: 170, debut: 195 },
+  '대래동주': { job: '야수병', tier: 'B', war: 74, intel: 40, lead: 60, birth: 165, debut: 195 },
+  '맹우': { job: '창병', tier: 'B', war: 72, intel: 46, lead: 57, birth: 178, debut: 195 },
+  '동도나': { job: '창병', tier: 'B', war: 73, intel: 40, lead: 55, birth: 170, debut: 195 },
+  '금환삼결': { job: '창병', tier: 'B', war: 78, intel: 30, lead: 56, birth: 170, debut: 195 },
+  '망아장': { job: '야수병', tier: 'C', war: 70, intel: 28, lead: 52, birth: 172, debut: 195 },
 };
 
 /* 한자 인명 → 한국어 표기 */
@@ -447,20 +472,21 @@ SK.BOSS_PORTRAITS = {};   // 세력 우두머리 초상화는 factionInfo().lord
 /* v5.0.1 — 세력별 초기 식구. enrichFactions가 이 목록 밖의 장수를 끌어오지 않는다.
    (190년 유비 평원에 황충·이엄·엄안·곽준이 따라오던 문제) */
 SK.EARLY_RETAINERS = {
-  dongzhuo: ['동탁', '이유', '화웅', '번조', '이각', '곽사', '장제', '서영', '가후'],
+  /* v5.19 — 190년 1막 주 세력 드림팀(유비·동탁·여포·손견·마등·조조). f.generals와 같이 맞춘다. */
+  dongzhuo: ['동탁', '이유', '이각', '곽사', '장제', '장수', '우보', '서영', '번조', '화웅', '가후', '단외'],
   yuanshao: ['원소', '저수', '전풍', '안량', '문추', '국의', '심배', '봉기', '곽도', '장합', '원담', '원희', '원상'],
-  caocao: ['조조', '하후돈', '하후연', '조인', '조홍', '악진', '이전', '순욱', '순유', '전위', '정욱', '유엽', '하후상', '조순'],
-  liubei: ['유비', '관우', '장비', '간옹', '손건', '미축', '미방', '유염', '진도'],
-  sunjian: ['손견', '손책', '정보', '황개', '한당', '조무', '주치', '주유', '손권'],
+  caocao: ['조조', '하후돈', '하후연', '곽가', '순욱', '순유', '전위', '허저', '조인', '조홍', '악진', '우금', '서황', '정욱'],
+  liubei: ['유비', '관우', '장비', '조운', '제갈량', '방통', '서서', '강유', '간옹', '손건', '미축', '미방'],
+  sunjian: ['손견', '손책', '손권', '주유', '여몽', '황개', '정보', '한당', '주태', '태사자', '감녕', '노숙'],
   yuanshu: ['원술', '기령', '양홍', '장훈', '뇌박', '진란', '교유'],
-  liubiao: ['유표', '괴량', '괴월', '채모', '황조', '문빙', '유종', '황충', '장윤'],
-  liuyan: ['유언', '장수', '번민', '장임', '엄안', '황권', '법정', '이엄', '곽준', '맹달', '오의', '오란'],
-  mateng: ['마등', '마초', '방덕', '마휴', '마철', '성의', '마대'],
-  gongsunzan: ['공손찬', '조운', '엄강', '선우보', '전해', '공손속'],
+  liubiao: ['유표', '괴량', '괴월', '괴도', '변희', '채모', '황조', '문빙', '장윤', '유벽', '유훈', '유종'],
+  liuyan: ['유언', '번민', '장임', '엄안', '황권', '법정', '이엄', '곽준', '맹달', '오의', '오란'],
+  mateng: ['마등', '마초', '마대', '방덕', '마휴', '마철', '성의'],
+  gongsunzan: ['공손찬', '엄강', '선우보', '전해', '공손속', '관정'],
   taoqian: ['도겸', '미축', '미방', '진규', '조표'],
   hansui: ['한수', '염행', '양추', '이감'],
   kongrong: ['공융', '왕수', '무안국'],
-  liuyao: ['유요', '태사자', '우번'],
+  liuyao: ['유요', '우번', '착융', '번능', '장영', '설례'],
   yanbaihu: ['엄백호', '엄여'],
   wanglang: ['왕랑', '우번'],
   zhanglu: ['장로', '양송', '염포', '양백', '양임', '장위'],
@@ -480,7 +506,11 @@ SK.EARLY_RETAINERS = {
   liuzhang: ['유장', '장임', '엄안', '황권', '법정', '맹달', '오의', '오란', '이엄'],
   gongsunkang: ['공손강', '공손도', '공손공'],
   shi_xie: ['사섭', '사흠', '사휘', '사일'],
-  meng_huo: ['남중 호족', '옹개', '고정', '주포'],
+  /* v5.19 — 4막 남중 호족은 id를 nanjung으로 옮겼다(1막 남만 맹획군과 이름이 겹치지 않게) */
+  nanjung: ['남중 호족', '옹개', '고정', '주포'],
+  /* v5.19 — 190년 1막 형남 한현군(장사) · 남만 맹획군(운남) */
+  hanxuan: ['한현', '황충', '위연', '양령', '형도영', '진응', '포륭'],
+  meng_huo: ['맹획', '축융', '올돌골', '목록대왕', '타사대왕', '아회남', '대래동주', '맹우', '동도나', '금환삼결', '망아장'],
 };
 
 /* ───────────── 시나리오 (data/historical_scenarios.json) ───────────── */
@@ -861,9 +891,11 @@ SK.genPoolGroupOf = function (g) {
    · 6명에 못 미치는 소세력은 같은 인물 풀에서 채워 초반 내정 5칸을 굴릴 수 있게 한다
    · 결과는 f.startGenerals 에 남겨 두고, 시나리오 카드·인게임이 같은 수를 쓴다 */
 SK.START_ROSTER_MIN = 6;
-/* v5.15 — 1막(190) 시작 인원. 동탁·원소·조조·손견·유표는 12명,
+/* v5.15 — 1막(190) 시작 인원. 동탁·원소·손견·유표는 12명,
    유비는 유비·관우·장비·손건·미축·간옹·미방 7명 그대로, 나머지 세력은 최소 6명. */
-SK.ACT1_ROSTER_TARGET = { dongzhuo: 12, yuanshao: 12, caocao: 12, sunjian: 12, liubiao: 12, liubei: 7 };
+/* v5.19 — 1막 드림팀: 유비 12명(제갈량·조운·강유·방통·서서 포함), 조조 14명(곽가·허저·우금·서황 포함),
+   손견 12명(손책·손권·주유·여몽 포함), 동탁 12명, 유표 12명. */
+SK.ACT1_ROSTER_TARGET = { dongzhuo: 12, yuanshao: 12, caocao: 14, sunjian: 12, liubiao: 12, liubei: 12 };
 SK.padStartRosters = function (facs, year) {
   if (!facs || !SK.GENERALS.length) return facs;
   const MIN = SK.START_ROSTER_MIN;
@@ -875,17 +907,19 @@ SK.padStartRosters = function (facs, year) {
     const f = facs[fid];
     const names = [];
     const cap = TARGET[fid] || 14;
-    const add = (n, first) => {
+    const add = (n, first, locked) => {
       const nm = SK.normName(n);
       const g = nm ? SK.GEN_BY_NAME[nm] : null;
       if (!g) return;
       if (!first && used.has(g.id)) return;
-      if (!SK.debutOk(g, year)) return;
+      /* v5.19 — 시나리오가 f.generals에 이름을 적어 둔 장수는 '그 세력의 주인공'으로 본다.
+         등장 연도(debutYear) 때문에 190년 드림팀(제갈량·강유 등)이 빠지지 않게 연도 검사를 건너뛴다. */
+      if (!locked && !SK.debutOk(g, year)) return;
       if (names.indexOf(nm) >= 0) return;
       names.push(nm); used.add(g.id);
     };
-    if (f.lord) add(f.lord, true);
-    (f.generals || []).forEach((n) => { if (names.length < cap) add(n); });
+    if (f.lord) add(f.lord, true, true);
+    (f.generals || []).forEach((n) => { if (names.length < cap) add(n, false, true); });
     ((SK.EARLY_RETAINERS || {})[fid] || []).forEach((n) => { if (names.length < cap) add(n); });
     f._start = names;
     f._want = TARGET[fid] || MIN;
@@ -1164,8 +1198,11 @@ SK.registerExtras = function () {
     const g = {
       id: base + i, name, faction: '재야', tier: e.tier || 'B', job: e.job || '검병',
       leadership: e.lead, war: e.war, intel: e.intel,
-      politics: Math.round((e.war + e.intel + e.lead) / 3), charm: 62, skill: e.skill || '',
+      /* v5.19 — 정치·매력·등장 연도를 지정할 수 있게 한다 (서서처럼 정치·매력이 중요한 인물) */
+      politics: e.pol != null ? e.pol : Math.round((e.war + e.intel + e.lead) / 3),
+      charm: e.charm != null ? e.charm : 62, skill: e.skill || '',
       birthYear: e.birth || null,
+      debutYear: e.debut || null,
       region: SK.KOREAN_EXTRA.indexOf(name) >= 0 ? '한국' : '중국',
     };
     SK.GENERALS.push(g);

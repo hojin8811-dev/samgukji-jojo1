@@ -521,17 +521,19 @@
     fids.forEach((k) => {
       const f = st.factions[k];
       const names = [];
-      const add = (n) => {
+      const add = (n, locked) => {
         const nm = SK.normName(n);
         const g = nm ? SK.GEN_BY_NAME[nm] : null;
         if (!g || used.has(g.id)) return;
-        if (!SK.debutOk(g, year)) return;          // 아직 세상에 나오지 않은 인물
+        /* v5.19 — 시나리오가 명시한 startGenerals는 등장 연도와 상관없이 그 세력 장수다.
+           (190년 1막 드림팀: 제갈량·강유·주유·여몽 등) */
+        if (!locked && !SK.debutOk(g, year)) return;          // 아직 세상에 나오지 않은 인물
         names.push(nm); used.add(g.id);
       };
       /* v5.2 — 시나리오 단계에서 확정한 시작 명부(startGenerals)를 그대로 쓴다.
          카드에 보이는 장수 수와 인게임 시작 장수 수가 어긋나지 않는다. */
       if (f.startGenerals && f.startGenerals.length) {
-        f.startGenerals.forEach(add);
+        f.startGenerals.forEach((n) => add(n, true));
         f.generals = names;
         f.group = SK.factionGroup(f.id);
         f.pool = poolGroupOf(f.id);
