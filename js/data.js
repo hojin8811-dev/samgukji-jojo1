@@ -1419,7 +1419,13 @@ SK.TREASURE_FX_KEYS = ['atk', 'def', 'defWall', 'dmg', 'taken', 'magic', 'magicT
   'crit', 'critDmg', 'critRes', 'evade', 'counter', 'heal', 'first', 'mp', 'mpCost', 'exp',
   /* v5.30 — 전투 규칙 계열: 연격·연속 사격·한 턴 2회·광역·관통·지형·야간·반사·돌격·측면 */
   'combo', 'volley', 'doubleAct', 'pierce', 'splash', 'line',
-  'water', 'mountain', 'night', 'nightTaken', 'reflect', 'charge', 'flank'];
+  'water', 'mountain', 'night', 'nightTaken', 'reflect', 'charge', 'flank',
+  /* v5.31 — 사기·상태이상·내정·외교 계열 */
+  'morale', 'moraleMax', 'moraleSave', 'moraleRegen', 'moraleHit',
+  'stunHit', 'fearHit', 'slowHit', 'disarm', 'statusRes', 'cleanse',
+  'immuneFC', 'immunePoison', 'immuneDisarm',
+  'pursuit', 'meleeTaken', 'gateDmg', 'rngPlus', 'lossCut', 'passive', 'radius', 'moveShot',
+  'income', 'supply', 'diplo', 'duel', 'detect'];
 SK.TREASURE_FX_LABEL = {
   atk: '공격력', def: '방어력', defWall: '성벽 위 방어력', dmg: '주는 피해', taken: '받는 피해',
   magic: '책략 위력', magicTaken: '받는 책략 피해', crit: '치명타 확률', critDmg: '치명타 피해',
@@ -1429,16 +1435,70 @@ SK.TREASURE_FX_LABEL = {
   combo: '연격 확률', volley: '연속 사격 확률', doubleAct: '한 턴 2회 공격', pierce: '연격 시 방어 무시',
   splash: '주변 추가 피해', line: '관통 추가 피해', water: '수전 지형 공·방', mountain: '산악 지형 공·방',
   night: '야간 공·방', nightTaken: '야간 받는 피해', reflect: '반사 피해', charge: '돌격 추가 피해', flank: '측면·후면 추가 피해',
+  /* v5.31 */
+  morale: '사기', moraleMax: '사기 최대치', moraleSave: '사기 저하 저항', moraleRegen: '턴당 사기 회복',
+  moraleHit: '적 사기 저하', stunHit: '기절 부여 확률', fearHit: '위축 부여 확률', slowHit: '둔화 부여',
+  disarm: '방어 약화 확률', statusRes: '상태이상 저항', cleanse: '상태이상 해제 확률',
+  immuneFC: '공포·혼란 면역', immunePoison: '역병 면역', immuneDisarm: '무기 해제 면역',
+  pursuit: '추격 발동 확률', meleeTaken: '근접 받는 피해', gateDmg: '성문·장애물 피해',
+  rngPlus: '사거리 +1', lossCut: '패전 병력 손실', passive: '고유특기 발동 확률',
+  radius: '책략 범위', moveShot: '이동 후 사격 페널티 무효',
+  income: '성 내정 수입', supply: '성 군량 유지비', diplo: '외교·등용 성공률', duel: '일기토 승리 확률', detect: '정찰 범위',
 };
 /* v5.30 — 문구에 숫자가 없는 전투 규칙은 지어내지 않고, 이 기본값으로 옮긴 값을 UI에 '기본값'으로 밝힌다. */
 SK.TREASURE_FX_DEFAULT = {
   combo: 15, volley: 15, doubleAct: 1, pierce: 1, splash: 12, line: 12,
   water: 10, mountain: 10, terrainAny: 10, night: 10, nightTaken: 15, reflect: 15, charge: 8, flank: 12,
+  /* v5.31 — 숫자 없이 적힌 사기·상태이상·내정 문구의 기본값 */
+  morale: 12, moraleMax: 10, moraleSave: 25, moraleRegen: 6, moraleHit: 6,
+  stunHit: 12, fearHit: 20, slowHit: 1, disarm: 14, statusRes: 15, cleanse: 20,
+  immuneFC: 1, immunePoison: 1, immuneDisarm: 1,
+  pursuit: 20, meleeTaken: 12, gateDmg: 20, rngPlus: 1, lossCut: 15, passive: 12, radius: 1,
+  moveShot: 1, income: 12, supply: 12, diplo: 10, duel: 15, detect: 1,
+  counter: 20, first: 20, magicMorale: 12,
 };
-SK.TREASURE_FX_FLAGS = { doubleAct: 1, pierce: 1 };   // 수치가 아니라 '가능/무시' 여부만 보는 효과
+SK.TREASURE_FX_FLAGS = { doubleAct: 1, pierce: 1, immuneFC: 1, immunePoison: 1, immuneDisarm: 1, rngPlus: 1, moveShot: 1 };   // 수치가 아니라 '가능/무시' 여부만 보는 효과
 SK.TREASURE_FX_RULES = [
   /* v5.30 — 전투 규칙 계열을 일반 수치 규칙보다 먼저 잡는다 ("연속 사격"이 사격 피해로, "야간 피해"가
      상시 피해 감소로 새지 않게). */
+  /* v5.31 — 사기·상태이상·내정·외교 계열 (일반 수치 규칙보다 먼저 잡는다) */
+  [/공포[·,]?\s*혼란[^,]*면역|혼란[·,]?\s*공포[^,]*면역/, 'immuneFC'],
+  [/역병\s*면역/, 'immunePoison'],
+  [/무기\s*흘림\s*방지|무기\s*내구\s*손실\s*무효/, 'immuneDisarm'],
+  [/무기\s*해제[·,]?\s*방어력\s*약화/, 'disarm'],
+  [/아군\s*상태이상\s*해제\s*확률|아군\s*혼란\s*회복/, 'cleanse'],
+  [/상태이상\s*저항/, 'statusRes'],
+  [/기절[·,]?\s*위축[^,]*부여/, 'stunHit'],
+  [/위압\s*효과\s*부여/, 'fearHit'],
+  [/둔타[^,]*이동력\s*-\s*1/, 'slowHit'],
+  [/추격\s*(?:공격)?\s*발동\s*확률|추격률/, 'pursuit'],
+  [/적\s*사기\s*저하\s*효과\s*부여|적\s*기세\s*꺾기|^사기\s*저하\s*효과$|적\s*사기\s*[-−]\s*\d+/, 'moraleHit'],
+  [/전군\s*사기\s*최대치|사기\s*최대치/, 'moraleMax'],
+  [/사기\s*저하\s*저항|사기\s*안정|사기\s*유지|아군\s*사기\s*감소|선봉\s*지휘\s*시\s*아군\s*사기|행군\s*시\s*사기|사기\s*저하\s*[-−]\s*\d+/, 'moraleSave'],
+  [/사기\s*회복/, 'moraleRegen'],
+  [/사기\s*\+\s*\d+|전군\s*사기/, 'morale'],
+  [/내정\s*수입|도시\s*내정\s*효율|상업\s*수입|농업[·,]?\s*수리\s*내정\s*효율|치안\s*유지[·,]?\s*세수\s*징수\s*효율|민심\s*상승[^,]*반란\s*억제/, 'income'],
+  [/군량\s*소모|보급\s*소모\s*감소|보급\s*이동\s*효율/, 'supply'],
+  [/외교[^,]*?(?:성공률|효율|호감도)/, 'diplo'],
+  [/일기토\s*제안\s*성공률/, 'duel'],
+  [/일기토[·,]?\s*근접전\s*내성/, 'meleeTaken'],
+  [/근접\s*자위력/, 'counter'],
+  [/목책[·,]?\s*장애물\s*파괴\s*효율/, 'gateDmg'],
+  [/포차[^,]*사거리|중거리\s*투척\s*공격\s*사용/, 'rngPlus'],
+  [/은신[·,]?\s*매복\s*적\s*탐지\s*범위|야간\s*매복\s*발각\s*확률/, 'detect'],
+  [/패전\s*피해\s*감소|부상\s*발생률\s*감소/, 'lossCut'],
+  [/진형\s*효율|부대\s*집결[·,]?\s*명령\s*전달\s*효율/, 'moraleRegen'],
+  [/전술\s*운용\s*효율|역사적\s*전술\s*발동\s*확률/, 'passive'],
+  [/고대\s*설화[·,]?\s*신비\s*책략\s*위력[^,]*사기\s*보정/, 'magicMorale'],
+  [/고대\s*설화[·,]?\s*신비\s*책략\s*위력/, 'magic'],
+  [/설원[·,]?\s*초원\s*이동\s*시\s*사기\s*유지/, 'moraleSave'],
+  [/야전\s*기동력|야간\s*행군\s*속도|구릉[·,]?\s*초원|강남\s*구릉|정찰\s*이동력|강하[·,]?\s*도하\s*이동력|설원[·,]?\s*고원\s*이동\s*페널티/, 'rough'],
+  [/기마\s*부대\s*기동력|선제\s*타격\s*보정/, 'first'],
+  [/다중\s*화살[^,]*2번째\s*대상\s*피해/, 'splash'],
+  [/암습[·,]?\s*근접\s*위기\s*탈출\s*확률/, 'evade'],
+  [/이동\s*후\s*사격\s*피해\s*감소\s*없음/, 'moveShot'],
+  [/범위\s*효과\s*확대/, 'radius'],
+  [/군주\s*통솔\s*보정/, 'stat'],
   [/연격\s*시\s*대상\s*방어력\s*무시/, 'pierce'],
   [/연격\s*확률|단일\s*대상\s*연격|연격\s*발동/, 'combo'],
   [/연속\s*사격|연사\s*확률|연속\s*투사체/, 'volley'],
@@ -1455,7 +1515,6 @@ SK.TREASURE_FX_RULES = [
   [/측면\s*공격|후면\s*공격|배후\s*공격/, 'flank'],
   [/^(무력|지력|통솔|매력|정치|이동력|사거리|사정거리)\s*\+\s*\d+/, 'stat'],
   [/험지\s*이동\s*페널티\s*무효|지형\s*제약\s*경감|이동\s*페널티\s*경감|지형\s*이동\s*페널티/, 'rough'],
-  [/사기\s*회복/, 'heal'],
   [/기력\s*회복/, 'mp'],
   [/기력\s*소모|책략\s*소비/, 'mpCostAbs'],
   [/경험치\s*획득|부대\s*경험치/, 'exp'],
@@ -1513,6 +1572,12 @@ SK.parseTreasureFx = function (effect) {
         used.push({ cl, hook: 'water', v: dflt, d: true }, { cl, hook: 'mountain', v: dflt, d: true });
         return;
       }
+      /* v5.31 — '고대 설화·신비 책략 위력 및 사기 보정'은 책략 위력과 사기를 함께 준다 */
+      if (hook === 'magicMorale') {
+        fx.magic += dflt; fx.morale += Math.round(dflt / 2);
+        used.push({ cl, hook: 'magic', v: dflt, d: true }, { cl, hook: 'morale', v: Math.round(dflt / 2), d: true });
+        return;
+      }
       fx[hook] = SK.TREASURE_FX_FLAGS[hook] ? 1 : clampV0(fx[hook] + dflt);
       used.push({ cl, hook, v: dflt, d: true });
       return;
@@ -1529,7 +1594,9 @@ SK.parseTreasureFx = function (effect) {
     if (hook === 'atkHalf') { fx.atk += Math.round(v / 2); used.push({ cl, hook: 'atk', v: Math.round(v / 2) }); return; }
     if (hook === 'mpCostAbs') { fx.mpCost = Math.max(-60, Math.min(60, fx.mpCost + Math.abs(v))); used.push({ cl, hook: 'mpCost', v: Math.abs(v) }); return; }
     const clampV = (x) => Math.max(-60, Math.min(60, x));
-    if (hook === 'taken' || hook === 'magicTaken' || hook === 'critRes' || hook === 'nightTaken') {
+    if (hook === 'taken' || hook === 'magicTaken' || hook === 'critRes' || hook === 'nightTaken' ||
+        hook === 'moraleHit' || hook === 'slowHit' || hook === 'moraleSave' || hook === 'supply') {
+      /* v5.31 — '적 사기 -10'·'사기 저하 -10%'·'군량 소모 -25%'는 크기가 효과다 (부호는 항상 +) */
       fx[hook] = clampV(fx[hook] + Math.abs(v));
     } else if (hook === 'dmgAbs') {
       fx.dmg = clampV(fx.dmg + Math.abs(v));
@@ -1563,6 +1630,14 @@ SK.heroTreasureFx = function (h) {
   return out;
 };
 /* 한 보물의 전장 적용 문구 — 보물 화면·장수 정보가 같은 함수를 쓴다 */
+/* v5.31 — 표기 단위를 값의 성격별로 나눈다 (퍼센트 / 퍼센트p / 합산 수치 / 플래그) */
+SK.TREASURE_FX_PCT = { atk: 1, def: 1, defWall: 1, dmg: 1, magic: 1, evade: 1, counter: 1, heal: 1, first: 1, exp: 1,
+  combo: 1, volley: 1, splash: 1, line: 1, water: 1, mountain: 1, night: 1, reflect: 1, charge: 1, flank: 1,
+  moraleSave: 1, moraleRegen: 1, stunHit: 1, fearHit: 1, disarm: 1, statusRes: 1, cleanse: 1,
+  pursuit: 1, meleeTaken: 1, gateDmg: 1, lossCut: 1, passive: 1, income: 1, supply: 1, diplo: 1, duel: 1 };
+SK.TREASURE_FX_NEG = { taken: 1, magicTaken: 1, mpCost: 1, nightTaken: 1, moraleHit: 1, supply: 1 };
+/* v5.31 — '−N'으로 읽어야 자연스러운 문구 (군량 유지비 −N%, 적 사기 −N) */
+SK.TREASURE_FX_NEG_LABEL = { supply: '성 군량 유지비', moraleHit: '적 사기' };   // 이름만 바꾸고 −단위는 같다   // 값이 클수록 '−'(상대를 깎거나 덜 받는다)
 SK.fxSumLine = function (fx, asArray) {
   const parts = [];
   if (fx) {
@@ -1570,12 +1645,18 @@ SK.fxSumLine = function (fx, asArray) {
       const v = fx[k] || 0;
       if (!v) return;
       const lab = SK.TREASURE_FX_LABEL[k];
-      if (k === 'doubleAct') { parts.push(lab); return; }
-      if (k === 'pierce') { parts.push(lab); return; }
-      if (k === 'taken' || k === 'magicTaken' || k === 'mpCost' || k === 'nightTaken') parts.push(v > 0 ? `${lab} −${v}%` : `${lab} +${-v}%`);
-      else if (k === 'crit' || k === 'critDmg') parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%p`);
-      else if (k === 'mp') parts.push(`${lab} +${v}`);
-      else parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%`);
+      if (k === 'doubleAct' || k === 'pierce' || k === 'immuneFC' || k === 'immunePoison' ||
+          k === 'immuneDisarm' || k === 'rngPlus' || k === 'moveShot') { parts.push(lab); return; }
+      if (SK.TREASURE_FX_NEG[k]) {
+        const nl = SK.TREASURE_FX_NEG_LABEL[k] || lab;
+        parts.push(v > 0 ? `${nl} −${v}${k === 'moraleHit' ? '' : '%'}` : `${nl} +${-v}%`);
+        return;
+      }
+      if (k === 'crit' || k === 'critDmg' || k === 'critRes') { parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%p`); return; }
+      if (k === 'mp' || k === 'morale' || k === 'moraleMax') { parts.push(`${lab} +${v}`); return; }
+      if (k === 'slowHit') { parts.push(`${lab} ${v}턴`); return; }
+      if (k === 'radius' || k === 'detect') { parts.push(`${lab} +${v}${k === 'radius' ? '칸' : ''}`); return; }
+      parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%`);
     });
     if (fx.rough) parts.push('험지 이동 페널티 무효');
   }

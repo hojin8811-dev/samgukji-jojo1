@@ -1,6 +1,18 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=44`
+기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=45`
+
+## ✅ v5.31 — 7라운드: 보물 사기·상태이상·내정·외교 연결, 수전 조각배, 원정 3턴·회군 (2026-11-22 · `?v=45`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 보물 사기·상태이상 | **사기**(0~110, 100 기준, 공격 ±16/18%)와 **상태이상 6종**(기절·혼란·위축·중독·화상·둔화)을 새 시스템으로 넣고 보물의 부여·면역·저항·해제 확률을 연결. 병과 책략의 `기절 확률 N%`·`혼란`·`위축`·`사기 +N`도 같은 판정. **253절 적용 199 · 미적용 70→0** | `js/data.js` `TREASURE_FX_*`, `js/battle.js` `AIL`·`initStatus`·`moraleShift`·`ailPhase`·`onHitAil`·`skillAil*` |
+| 사기·상태 UI | 병력 바 아래 사기 바(초록/노랑/빨강), 부대 위 상태 배지(기·혼·위·독·화·둔), 카드에 `사기 N`·`혼란 2`·`조각배` 알약 | `js/battle.js` `drawUnit`·`refreshUI` |
+| 수전 조각배 | 수전·도하에서 수적이 아닌 부대도 물에 들면 조각배(물 1칸 2). 승선/하선 물보라·글자·소식, 물결 흔들림·V자 물길, 잔물결 애니메이션. 물 위 공 −18%·방 −12%(수적 제외). 해자는 막힘 | `js/battle.js` `syncBoat`·`unitImgFor`·`moveCostBase`·`drawWaterWaves`·`drawUnit` |
+| 추격·전장 유틸 | 추격(근접 처치 뒤 65% 추가 타격), 근접 받는 피해, 성문·장애물 피해, 사거리·책략 범위 +1, 고유특기 재발동, 패전 병력 손실 감소, 이동 후 사격 −12%(백발궁 무효) | `js/battle.js` `pursuitStrike`·`calcDamage`·`calcGateDamage`·`triggerPassive`·`maxLossCut` |
+| 내정·외교 | 성 단위 `내정 수입`·`군량 유지비`, 장수 단위 `외교·등용 성공률`·`일기토`·`정찰 범위`. 상한 수입 +60%·유지비 −40% | `js/app.js` `heroTfx`·`cityTfx`·`econForecast`·`upkeepOf`·`advanceMonth`·`recruitChance`·`openPeaceTerms`·`explore`·`scoutMonths` |
+| 원정·회군 | 기준 거리 2.6배 이상은 3턴 행군. 행군 중 출발 성 함락 시 회군·요격 패배·전투 이탈 병력이 적 성에 합쳐지던 버그 수정 → 최근접 아군 성 복귀, 도착·요격 창에 함락 경고 | `js/app.js` `marchTurns`·`fieldHome`·`recallMarch`·`SK.load`·`openPendingMarch`, `js/battle.js` `homeOf`·`interceptDefeat`·`defeat` |
+| 검증 | 사기 323/248/345(100/40/회복), 기절 12%·적 사기 −10, 승선 공 52→37, 3턴·2턴 동시 출정 → 요격 2 → 공성 2승 → 수성전 2곳 연쇄, 12성 24개월 콘솔 0 | `preview/v531/` |
 
 ## ✅ v5.30 — 6라운드: 보물 전투 규칙·일기토 컷인·야간 전장·영토 캐시 (2026-11-22 · `?v=44`)
 

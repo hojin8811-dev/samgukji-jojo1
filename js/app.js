@@ -184,6 +184,38 @@
   };
   SK.ECON = ECON;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.31 — 보물의 내정·외교 효과를 성/장수 단위로 읽는다
+     · 옥환대(내정 수입 +10%)·금관옥보(도시 내정 효율 +18%)·측우기(농업·수리 +14%) 같은
+       문구가 '그 장수가 있는 성'의 세수·시장·군량 유지비에 실제로 붙는다.
+     · 외교 성공률·호감도는 사자를 보내는 장수(actor)가 지닌 보물로 본다.
+     ══════════════════════════════════════════════════════════════ */
+  const heroTfxCache = new Map();
+  function heroTfx(h) {
+    if (!h || !SK.heroTreasureFx) return null;
+    const key = h.uid + '|' + Object.values(h.equip || {}).join(',');
+    const hit = heroTfxCache.get(key);
+    if (hit) return hit;
+    const fx = SK.heroTreasureFx(h);
+    heroTfxCache.set(key, fx);
+    if (heroTfxCache.size > 400) heroTfxCache.clear();
+    return fx;
+  }
+  /* 성에 있는 장수들의 보물 효과 합 (상한을 둬서 보물 몇 개로 경제가 뒤집히지 않게) */
+  function cityTfx(cityId, key, cap) {
+    const s = SK.state;
+    if (!s || !s.heroes) return 0;
+    let v = 0;
+    s.heroes.forEach((h) => {
+      if (h.city !== cityId || h.captured) return;
+      const fx = heroTfx(h);
+      if (fx && fx[key]) v += fx[key];
+    });
+    return Math.min(cap == null ? 40 : cap, v);
+  }
+  SK.cityTfx = cityTfx;
+  SK.heroTfx = heroTfx;
+
   /* 행군 중인 병력 — 성에서 빠져나갔지만 군량은 먹는다 */
   function marchTroopsOf(s) {
     return (s.marches || []).reduce((a, m) => a + (m.units || []).reduce((b, u) => b + (u.troops || 0), 0), 0);
@@ -192,10 +224,16 @@
   function upkeepOf(s) {
     s = s || SK.state;
     if (!s) return 0;
-    let t = 0;
-    SK.CITY_LIST.forEach((c) => { const cs = s.cities[c.id]; if (cs && cs.owner === PF()) t += cs.troops || 0; });
-    t += marchTroopsOf(s);
-    return Math.ceil(t / 1000 * ECON.upkeepPer1000);
+    let up = 0;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      /* v5.31 — 목우유마설계도(군량 소모 −25%) 같은 보물은 그 성 병력의 유지비를 깎는다 */
+      const cut = Math.min(0.4, cityTfx(c.id, 'supply', 40) / 100);
+      up += Math.ceil((cs.troops || 0) / 1000 * ECON.upkeepPer1000 * (1 - cut));
+    });
+    up += Math.ceil(marchTroopsOf(s) / 1000 * ECON.upkeepPer1000);
+    return up;
   }
   SK.upkeepOf = upkeepOf;
 
@@ -260,10 +298,12 @@
       const base = econMul(c);
       const morale = st.loyalty;
       const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
-      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxMul);
+      /* v5.31 — 보물 내정 수입 (+N%) */
+      const incMul = 1 + cityTfx(c.id, 'income', 60) / 100;
+      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxMul * incMul);
       (st.slots || []).forEach((sl) => {
         if (!sl.key) return;
-        const mul = slotMul(st, sl, slotOwner(c.id, sl));
+        const mul = slotMul(st, sl, slotOwner(c.id, sl)) * incMul;
         if (sl.key === 'market') market += Math.round(ECON.marketGold[clamp(sl.lv, 1, 5)] * mul);
         else if (sl.key === 'workshop') market += Math.round((40 + sl.lv * 40) * mul);
         else if (sl.key === 'farm') farm += Math.round(ECON.farmTrickle * sl.lv * mul * econMul(c));
@@ -1096,10 +1136,12 @@
       s.battleRecover = null;
       if (s.battleInProgress) {
         const bi = s.battleInProgress;
-        const home = s.cities && s.cities[bi.origin];
+        /* v5.31 — 출발 성이 이미 함락됐으면 가장 가까운 아군 성으로 복귀한다 */
+        const hid = fieldHome(bi.origin);
+        const home = hid && s.cities ? s.cities[hid] : null;
         if (home && home.owner === s.playerFaction && bi.troops > 0) {
           home.troops = Math.min(cityCap(home), Math.round((home.troops || 0) + bi.troops));
-          s.battleRecover = { city: bi.origin, troops: Math.round(bi.troops) };
+          s.battleRecover = { city: hid, troops: Math.round(bi.troops), from: bi.origin };
         }
         s.battleInProgress = null;
       }
@@ -2443,7 +2485,8 @@
         <div class="tr-inv-head"><span>보유 ${SK.SLOT_NAMES[slot]}</span>${cur}</div>
         <div class="tr-list">${list}</div>
         <p class="tr-note">보물은 무기·방어구·명마·병법서 한 자리씩 장착됩니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>
-        <p class="tr-note tr-fxnote"><b>전장 적용</b>은 공격·피해·방어·책략·치명·회피·반격·회복 계산에 실제로 들어가는 값입니다. 게임에 그 판정이 없는 문구는 같은 눈금으로 옮겼습니다 — 명중률→주는 피해, 책략 명중률→책략 위력, 적 방어력 −N%→주는 피해, 받는 치명타 피해 −N%→치명타 저항, 아군 사기 +N→공격력 +(N/2)%, 반사→반격 피해. <b>v5.30</b>부터는 전투 규칙도 실제로 붙습니다 — 연격·연속 사격 확률(한 번 더 때림), 한 턴 2회 공격(3턴 쿨타임), 주변·관통 추가 피해, 수전·산악·야간 지형 보정, 반사 피해, 돌격·측면 추가 피해. 숫자가 없는 문구는 <b>기본값</b>으로 옮겼고 카드에 그 절 수를 적었습니다. <b>미적용</b>으로 표시된 문구는 아직 수치화하지 않아 전투에 영향을 주지 않습니다.</p>`;
+        <p class="tr-note tr-fxnote"><b>전장 적용</b>은 공격·피해·방어·책략·치명·회피·반격·회복 계산에 실제로 들어가는 값입니다. 게임에 그 판정이 없는 문구는 같은 눈금으로 옮겼습니다 — 명중률→주는 피해, 책략 명중률→책략 위력, 적 방어력 −N%→주는 피해, 받는 치명타 피해 −N%→치명타 저항, 반사→반격 피해. <b>v5.30</b>부터 전투 규칙도 실제로 붙습니다 — 연격·연속 사격 확률, 한 턴 2회 공격, 주변·관통 추가 피해, 수전·산악·야간 지형 보정, 반사·돌격·측면 추가 피해. 숫자가 없는 문구는 <b>기본값</b>으로 옮겼고 카드에 그 절 수를 적었습니다.</p>
+        <p class="tr-note tr-fxnote"><b>v5.31 — 사기·상태이상·내정·외교</b>도 실제 판정에 붙습니다. · <b>사기</b>: 100이 기준이고 높으면 공격 +16%까지, 낮으면 −18%까지. 큰 타격·아군 부대 붕괴로 떨어지고 턴마다 회복합니다. 보물의 '사기 +N'은 시작 사기, '사기 저하 −N%'는 떨어지는 폭을 줄입니다. · <b>상태이상</b>: 기절(이번 턴 행동 불가) · 혼란(아군·적을 가리지 않고 인접 부대 공격) · 위축(공격 −20%) · 중독·화상(턴마다 병력 감소) · 둔화(이동 −1). '기절 부여 확률'·'위축 부여'·'방어 약화'·'면역'·'상태이상 저항'·'해제 확률'이 이 판정에 그대로 쓰입니다. · <b>내정·외교</b>: '내정 수입'은 그 장수가 있는 성의 세수·시장, '군량 유지비'는 그 성 병력의 군량, '외교·등용 성공률'은 사자를 보낸 장수의 협상 확률, '일기토 승리 확률'은 [탐색] 일기토, '정찰 범위'는 첩자 정찰 기간에 붙습니다.</p>`;
       m.el.querySelectorAll('.tr-slot').forEach((b) => { b.onclick = () => { slot = b.dataset.slot; render(); }; });
       m.el.querySelectorAll('.tr-item').forEach((b) => {
         b.onclick = () => {
@@ -3645,7 +3688,9 @@
       return { ok: true, kind: 'hunt', title: '맹수 사냥', text: `산중에서 호랑이가 나타났습니다. ${actor ? josa(actor.name, 'i') : '사냥꾼이'} 활을 쏘아 잡았고, 고기와 가죽이 성으로 들어왔습니다.`, gain: `군량 +${fmt(food)} · 금 +${fmt(gold)}` };
     }
     if (kind === 'duel') {
-      const win = Math.random() < 0.45 + Math.min(0.25, ((actor ? (actor.wu || 60) : 60) - 60) * 0.006);
+      /* v5.31 — 고릉보검 '일기토 제안 성공률 상승' → 일기토 승리 확률 +N%p */
+      const duelBonus = actor ? Math.min(0.25, (heroTfx(actor).duel || 0) / 100) : 0;
+      const win = Math.random() < 0.45 + Math.min(0.25, ((actor ? (actor.wu || 60) : 60) - 60) * 0.006) + duelBonus;
       if (win) {
         const fame = 3 + Math.floor(Math.random() * 3);
         const gold = 60 + Math.floor(Math.random() * 100);
@@ -3993,7 +4038,9 @@
 
   function scoutMonths(actor) {
     const eye = ((actor.ji || 60) * 0.6 + (actor.cha || 60) * 0.4) - 60;
-    return 3 + (eye >= 20 ? 2 : eye >= 6 ? 1 : 0);
+    /* v5.31 — 청동거울·화류마: '매복·은신 탐지 범위'는 첩자 정찰 기간을 한 달 줄인다 */
+    const detect = actor ? Math.min(1, Math.round((heroTfx(actor).detect || 0) > 0 ? 1 : 0)) : 0;
+    return Math.max(2, 3 + (eye >= 20 ? 2 : eye >= 6 ? 1 : 0) - detect);
   }
 
   /* 첩자로 보낼 장수 고르기 — 지력·매력이 높을수록 오래 살핀다 */
@@ -4470,7 +4517,9 @@
         if (!actor) return;
         s.gold -= term.gold;
         consumeDispatch(cityId, actor);
-        const p = clamp(term.base + Math.min(0.3, ((actor.cha || 60) - 60) * 0.006) + Math.min(0.1, (s.fame || 0) * 0.00002), 0.08, 0.9);
+        /* v5.31 — 사자를 보낸 장수의 '외교 성공률·호감도' 보물이 그대로 확률에 붙는다 */
+        const diploB = Math.min(0.25, (heroTfx(actor).diplo || 0) / 100);
+        const p = clamp(term.base + Math.min(0.3, ((actor.cha || 60) - 60) * 0.006) + Math.min(0.1, (s.fame || 0) * 0.00002) + diploB, 0.08, 0.95);
         const ok = Math.random() < p;
         s.truce = s.truce || {};
         s.pacts = s.pacts || {};
@@ -5701,6 +5750,8 @@
     const s = SK.state;
     let p = RECRUIT_BASE[g.tier] || 48;
     if (actor) p += (effStat(actor, 'cha') - 60) * 0.55 + (effStat(actor, 'ji') - 60) * 0.18;
+    /* v5.31 — 옥선·비단전포·옥대: '외교·등용 효율'은 등용 성공률 +N%p */
+    if (actor) p += Math.min(20, (heroTfx(actor).diplo || 0) * 0.6);
     p += Math.min(14, (s.fame || 0) * 0.05);
     const bond = actor ? SK.bondBetween(actor.name, g.name) : null;
     if (bond && bond.relation === '친밀') p += 15;
@@ -7606,7 +7657,9 @@
   /* ───────────── v5.6 — 행군 · 도중 요격전 ─────────────
      v5.15 — 모든 성 공격은 무조건 2일(2턴) 행군. 첫날 길에서 요격전/대비를 거친다.
      2일이 되는 순간 매 공격에 1일차 요격 기회가 생긴다. */
-  const MARCH_MIN = 2, MARCH_MAX = 2;
+  /* v5.31 — 아주 먼 원정(기준 거리의 2.6배 이상)은 3턴 행군.
+     중도 요격을 더 자주 만나고, [긴급 회군]으로 전선을 바꿀 판단이 생긴다. */
+  const MARCH_MIN = 2, MARCH_MAX = 2, MARCH_LONG = 3;
   const MARCH_REF = ['xiapi', 'langya'];
   function marchRefDist() {
     const A = CITY[MARCH_REF[0]], B = CITY[MARCH_REF[1]];
@@ -7618,7 +7671,10 @@
     const a = CITY[origin], b = CITY[targetId];
     if (!a || !b) return MARCH_MIN;
     const d = Math.hypot((a.u - b.u) * 2000, (a.v - b.v) * 1333);
-    return d <= marchRefDist() * 1.05 ? MARCH_MIN : MARCH_MAX;
+    const ref = marchRefDist();
+    if (d <= ref * 1.05) return MARCH_MIN;
+    if (d >= ref * 2.6) return MARCH_LONG;
+    return MARCH_MAX;
   }
   SK.marchTurns = marchTurns;
 
@@ -7645,24 +7701,52 @@
      (행군 중이던 병력·장수는 출발 성으로 돌아온다)
      ══════════════════════════════════════════════════════════════ */
   function marchUnitsTroops(m) { return (m.units || []).reduce((a, u) => a + (u.troops || 0), 0); }
+  /* ══════════════════════════════════════════════════════════════
+     v5.31 — 행군 도중 출발 성을 잃었을 때 부대가 돌아갈 곳
+     예전에는 회군·요격 패배·전투 중 이탈 병력이 '이제 적의 성이 된 출발지'에
+     그대로 합쳐졌다(병력·장수가 적 성으로 사라졌다). 이제 같은 세력의 가장 가까운 성으로
+     돌아가고, 남은 성이 하나도 없으면 null(=유랑군)을 돌려준다.
+     ══════════════════════════════════════════════════════════════ */
+  function fieldHome(originId) {
+    const s = SK.state;
+    if (!s || !s.cities) return null;
+    const home = s.cities[originId];
+    if (home && home.owner === PF()) return originId;
+    const from = SK.CITY[originId];
+    let best = null;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      const d = from ? Math.hypot((from.u - c.u) * 2000, (from.v - c.v) * 1333) : 0;
+      if (!best || d < best.d) best = { id: c.id, d };
+    });
+    return best ? best.id : null;
+  }
+  SK.fieldHome = fieldHome;
   SK.recallMarch = function (id) {
     const s = SK.state;
     const m = (s.marches || []).find((x) => x.id === id);
     if (!m) return false;
-    const home = s.cities[m.origin || m.from];
+    const homeId = fieldHome(m.origin || m.from);
+    const home = homeId ? s.cities[homeId] : null;
     const troops = marchUnitsTroops(m);
     if (home) home.troops = Math.min(cityCap(home) + 6000, Math.round((home.troops || 0) + troops));
     (m.units || []).forEach((u) => {
       if (!u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) { h.marchId = null; if (home) h.city = (m.origin || m.from); }
+      if (h) { h.marchId = null; if (homeId) h.city = homeId; }
     });
     s.marches = (s.marches || []).filter((x) => x.id !== id);
     s.pendingMarch = null;
     marchQueueDrop(s, id);
     SK.save(); SK.refreshHud();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
-    SK.toast(`긴급 회군 — ${CITY[m.origin || m.from] ? CITY[m.origin || m.from].name : '본성'}으로 병력 ${fmt(troops)} 복귀`);
+    const movedNote = homeId && homeId !== (m.origin || m.from)
+      ? `${CITY[homeId].name}(으)로 — 출발 성 ${CITY[m.origin || m.from] ? CITY[m.origin || m.from].name : ''}이(가) 이미 함락되어 가장 가까운 아군 성으로 돌아갑니다`
+      : `${homeId ? CITY[homeId].name : '본성'}으로`;
+    SK.toast(home
+      ? `긴급 회군 — ${movedNote} 병력 ${fmt(troops)} 복귀`
+      : `긴급 회군 — 돌아갈 성이 없어 병력 ${fmt(troops)}이(가) 흩어졌습니다`);
     return true;
   };
   /* ══════════════════════════════════════════════════════════════
@@ -8017,6 +8101,12 @@
       setTimeout(() => SK.chainPendingEvents && SK.chainPendingEvents(), 360);
       return;
     }
+    /* v5.31 — 행군 중 출발 성이 함락됐는지 (모달에 그대로 알린다) */
+    const originSt = s.cities[m.origin];
+    const originLost = !!(originSt && originSt.owner !== PF());
+    const originNote = originLost
+      ? `<p class="me-note me-warn">⚠ 출발 성 ${SK.CITY[m.origin] ? SK.CITY[m.origin].name : ''}이(가) 이미 함락되었습니다 — 이 성을 차지하면 여기에 주둔하고, 지면 가장 가까운 아군 성으로 회군합니다.</p>`
+      : '';
     if (s.pendingMarch.kind === 'intercept') {
       /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
       let itype = m.interceptType || 'plain';
@@ -8031,6 +8121,7 @@
             <p>${f.name}의 요격대가 길을 막았습니다. <b>${idef.desc}</b></p>
             <div class="me-nums"><span>우리 병력 <b>${fmt(troops)}</b></span><span>적 요격대 <b>${fmt(raiders)}</b></span></div>
             <p class="me-note">${idef.skill || ''} 승리하면 행군을 이어가고, 패하면 남은 병력으로 본성으로 돌아갑니다.</p>
+            ${originNote}
           </div>`,
         actions: [{ label: '싸운다', primary: true, onClick: () => {
           s.pendingMarch = null;
@@ -8051,6 +8142,7 @@
             <p>${m.total}일 행군 끝에 <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
             <div class="me-nums"><span>도착 병력 <b>${fmt(troops)}</b></span><span>수비병 <b>${fmt(ts.troops)}</b></span></div>
             <p class="me-note">${SK.BATTLE_TYPES[m.type].name} — ${SK.BATTLE_TYPES[m.type].desc}</p>
+            ${originNote}
             ${supCands.length ? `<p class="me-support">⚠ 인접 ${supCands.map((x) => x.name).join(' · ')}의 원군이 성으로 들어가고 있습니다 — 적 지원군이 합류할 수 있습니다</p>` : ''}
           </div>`,
         actions: [{ label: `${SK.BATTLE_TYPES[m.type].name} 시작`, primary: true, onClick: () => {
@@ -9259,7 +9351,8 @@
       const morale = st.loyalty;
       // 민심이 좋으면 세수와 인구가 오르고, 나쁘면 줄고 소란이 난다
       const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
-      const cityTax = Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxRate.mul);
+      const incMul = 1 + cityTfx(c.id, 'income', 60) / 100;   // v5.31 — 보물 내정 수입
+      const cityTax = Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxRate.mul * incMul);
       tax += cityTax;
       st.gold = (st.gold || 0) + cityTax;   // v5.11 — 세수는 그 성 금고로
       // v5.5 — 인구는 민심·치안·농업·상업·시설 Lv 합을 함께 본다 (popMonthly)
@@ -9393,7 +9486,9 @@
     SK.CITY_LIST.forEach((c) => {
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
-      const up = Math.ceil(((cs.troops || 0) + (marchUpBy[c.id] || 0)) / 1000 * ECON.upkeepPer1000);
+      /* v5.31 — 보물 군량 소모 −N% (성 단위) */
+      const foodCut = Math.min(0.4, cityTfx(c.id, 'supply', 40) / 100);
+      const up = Math.ceil(((cs.troops || 0) + (marchUpBy[c.id] || 0)) / 1000 * ECON.upkeepPer1000 * (1 - foodCut));
       upkeep += up;
       const harv = harvestBy[c.id] || 0;
       foodNet += harv - up;

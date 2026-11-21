@@ -68,8 +68,10 @@
     return im;
   }
   function unitImgFor(u) {
-    /* v5.2 — 수전에서 물 타일 위로 나간 부대는 조각배(Skiff)로 표시 */
-    if (B && B.type === 'naval' && B.tiles && B.tiles[u.y] && B.tiles[u.y][u.x] === 'W') {
+    /* v5.2 — 물 타일 위로 나간 부대는 조각배(Skiff)로 표시
+       v5.31 — 수전·도하 전장에서는 어떤 부대든 물에 들면 승선하고, 수적은 물 위를 걷는다 */
+    if (u && u.aboard && u.cls !== 'sujeok') return loadImg('assets/units/skiff.webp');
+    if (B && B.type === 'naval' && B.tiles && B.tiles[u.y] && B.tiles[u.y][u.x] === 'W' && u.cls !== 'sujeok') {
       return loadImg('assets/units/skiff.webp');
     }
     const key = u.unit || CLASS_UNIT[u.cls] || 'bobyung';
@@ -236,6 +238,8 @@
       /* v5.30 — 야간 전장: 야영 기습전은 밤에 습격하는 전투로 친다.
          흑갑·혼천의모형 같은 '야간' 보물이 여기서만 실제로 붙는다. */
       night: (type === 'camp'),
+      /* v5.31 — 물 타일(강·호수)에 조각배로 오갈 수 있는 전장 (수전·도하) */
+      boatable: (type === 'naval' || type === 'ford'),
       duels: { n: 0, last: 0, seen: {} },
       reinforce: opts.reinforce || null, supportNames: supportNames,
       /* v5.21 — 수성전에서 고르지 않아 성에 남긴 예비 병력 */
@@ -262,6 +266,8 @@
     }
     placeSide(allies, SK.allySlots(type, rings, cols), 'ally', type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null);
     placeSide(enemies, SK.enemySlots(type, rings, cols), 'enemy');
+    /* v5.31 — 사기·상태이상 초기화 (보물의 사기 +N·상태이상 저항이 여기서 붙는다) */
+    B.units.forEach(initStatus);
     /* v5.17 — 1×1 본진·마을. 수성전은 진영이 뒤집히므로 본진 자리도 바꿔 단다 */
     B.sites = [];
     if (meta) {
@@ -1253,6 +1259,7 @@
     else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
 
     drawTerrainTint();
+    drawWaterWaves();
     drawBattleProps();
     drawBrokenGates();
     drawKeyProps();
@@ -1413,6 +1420,40 @@
     ctx.restore();
   }
 
+  /* v5.31 — 수전 물결: 물 칸 위에 천천히 흐르는 잔물결 두 줄 (수전·도하에서만, 화면 안 칸만) */
+  function drawWaterWaves() {
+    if (!B || !B.boatable || !ctx) return;
+    const tnow = performance.now();
+    const cw = canvas.width / dpr, chh = canvas.height / dpr;
+    const x0 = Math.max(0, Math.floor((-cam.x / cam.s) / TILE) - 1);
+    const y0 = Math.max(0, Math.floor((-cam.y / cam.s) / TILE) - 1);
+    const x1 = Math.min(N - 1, Math.ceil((cw - cam.x) / cam.s / TILE) + 1);
+    const y1 = Math.min(N - 1, Math.ceil((chh - cam.y) / cam.s / TILE) + 1);
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (let y = y0; y <= y1; y++) {
+      const row = B.tiles[y];
+      if (!row) continue;
+      for (let x = x0; x <= x1; x++) {
+        if (row[x] !== 'W') continue;
+        const ph = tnow / 900 + x * 0.7 + y * 1.3;
+        const alpha = 0.16 + 0.12 * (0.5 + 0.5 * Math.sin(ph * 2.2));
+        ctx.strokeStyle = `rgba(198,234,248,${alpha.toFixed(3)})`;
+        ctx.lineWidth = 1.5;
+        const bx = x * TILE, by = y * TILE;
+        for (let k = 0; k < 2; k++) {
+          const ox = ((ph * 9 + k * 26) % TILE);
+          const yy = by + TILE * (0.3 + k * 0.34);
+          ctx.beginPath();
+          ctx.moveTo(bx + ox - 9, yy);
+          ctx.quadraticCurveTo(bx + ox, yy - 3.4, bx + ox + 9, yy);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
   function drawTerrainTint() {
     /* v5.17 — 겹성벽은 그림 위에 성벽·성문 칸을 옅게 덧칠해 "어디가 막힌 칸인지"를 보여 준다 */
     if (B.type === 'siege' || B.type === 'defense') {
@@ -1450,7 +1491,9 @@
           ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(x * TILE + 6, y * TILE + TILE - 6); ctx.lineTo(x * TILE + TILE - 6, y * TILE + 6); ctx.stroke();
         } else if (ch === 'W') {
-          ctx.fillStyle = 'rgba(41,96,128,0.14)';
+          /* v5.31 — 물 칸이 목록 모양의 네모로 보이지 않게 칸마다 농도를 살짝 다르게 칠한다 */
+          const wv = 0.11 + 0.055 * (0.5 + 0.5 * Math.sin(x * 1.7 + y * 2.3));
+          ctx.fillStyle = `rgba(41,96,128,${wv.toFixed(3)})`;
           ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
         } else if (ch === 'D') {
           ctx.fillStyle = 'rgba(206,180,130,0.10)';
@@ -1606,6 +1649,8 @@
   function movOf(u) {
     if (!u) return 0;
     let m = Number(u.mov) || 0;
+    /* v5.31 — 둔화(이동 −1) */
+    if (u.slow) m -= 1;
     if (u.cls === 'yasubyung') {
       const ch = B && B.tiles && B.tiles[u.y] ? B.tiles[u.y][u.x] : 'P';
       if (ch === 'F' || ch === 'M' || (B && BEAST_TERRAIN_TYPES[B.type])) m += 1;
@@ -1627,7 +1672,9 @@
       if (B && B.defense && side === 'ally') return 1;
       return 99;
     }
-    if (ch === 'W') return cls === 'sujeok' ? 1 : 99;
+    /* v5.31 — 수전·도하 전장에서는 누구나 조각배를 타고 물을 건넌다 (한 칸 2).
+       수적은 배 없이 걷는다(1). 해자(W)뿐인 공성전은 그대로 막힌다. */
+    if (ch === 'W') return cls === 'sujeok' ? 1 : ((B && B.boatable) ? 2 : 99);
     if (ch === 'C' || ch === 'H') return 99;
     if (ch === 'M') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 99 : 2);
     if (ch === 'F') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 3 : 2);
@@ -1926,8 +1973,10 @@
     if (ar > 0.82) sc *= Math.max(0.76, 0.82 / ar);
     const dh = box.h * sc, dw = box.w * sc;
     const dx = bx - dw / 2;
-    const dy = by - dh;
-    const topY = by - dh;
+    /* v5.31 — 조각배는 물결 위에 떠서 천천히 흔들린다 */
+    const bob = u.aboard ? Math.sin(performance.now() / 430 + (u.x + u.y) * 1.7) * 2.4 : 0;
+    const dy = by - dh + bob;
+    const topY = by - dh;   // 라벨은 흔들리지 않게 원래 높이 기준
     ctx.save();
     if (u.shake > 0) ctx.translate(rnd(-3, 3) * Math.min(1, u.shake / 240), rnd(-2, 2) * Math.min(1, u.shake / 240));
     // 발밑 그림자 + 진영 발판 (아군 파랑 · 적군 빨강)
@@ -1969,6 +2018,19 @@
     }
     if (ready) {
       ctx.save();
+      /* v5.31 — 조각배 뒤로 남는 물길(V자 물결) */
+      if (u.aboard) {
+        const wt = performance.now() / 240;
+        ctx.strokeStyle = 'rgba(206,240,252,0.55)';
+        ctx.lineWidth = 2.2;
+        for (let wi = 0; wi < 2; wi++) {
+          const spread = TILE * (0.22 + wi * 0.12) + Math.sin(wt + wi) * 1.5;
+          ctx.beginPath();
+          ctx.moveTo(bx - spread, by + 1 - wi * 2);
+          ctx.quadraticCurveTo(bx, by + 6 - wi * 3, bx + spread, by + 1 - wi * 2);
+          ctx.stroke();
+        }
+      }
       if (u.side === 'enemy') ctx.filter = 'saturate(0.9) brightness(0.99)';
       /* v5.17 — 전직 단계가 높을수록 SD에 은은한 빛테를 두른다 */
       if (tier > 0) {
@@ -2108,6 +2170,36 @@
     ctx.strokeStyle = tint.ring;
     ctx.lineWidth = 1;
     ctx.strokeRect(bx - bw / 2 - 1.5, barY - 1.5, bw + 3, bh + 3);
+    /* v5.31 — 사기 바(병력 바 아래 얇게) + 상태이상 배지 */
+    if (!tinyView) {
+      const mw = bw * 0.88;
+      const mmax = Math.max(1, u.moraleMax || 100);
+      const mv = clamp((u.morale == null ? 100 : u.morale) / mmax, 0, 1);
+      const mby = barY + bh + 1.4;
+      ctx.fillStyle = 'rgba(18,14,8,0.72)';
+      ctx.fillRect(bx - mw / 2, mby, mw, 2.8);
+      ctx.fillStyle = mv > 0.85 ? '#8ad38a' : (mv > 0.62 ? '#e2c85a' : '#d9694f');
+      ctx.fillRect(bx - mw / 2, mby, mw * mv, 2.8);
+    }
+    const ailKeys = u.ail ? Object.keys(u.ail).filter((k) => u.ail[k] > 0) : [];
+    if (ailKeys.length && !tinyView) {
+      const asz = Math.max(8, Math.round(9 * k));
+      ctx.save();
+      ctx.font = `900 ${asz}px "Noto Sans CJK KR", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ailKeys.slice(0, 3).forEach((ak, i) => {
+        const ax = bx - bw / 2 - 4 * k - i * (asz + 2.4);
+        const ay = pillY + pillH / 2;
+        ctx.fillStyle = `rgba(${AIL[ak].c},0.92)`;
+        ctx.beginPath();
+        ctx.arc(ax, ay, asz * 0.62, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#231a0c';
+        ctx.fillText(AIL[ak].n.charAt(0), ax, ay + 0.5);
+      });
+      ctx.restore();
+    }
     // 적장 표시
     if (u.boss) {
       ctx.fillStyle = '#ffd766';
@@ -2232,6 +2324,24 @@
       } else if (f.kind === 'step') {
         ctx.fillStyle = `rgba(240,226,180,${0.4 * (1 - p)})`;
         ctx.beginPath(); ctx.ellipse(f.x, f.y, TILE * 0.22, TILE * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (f.kind === 'splash') {
+        /* v5.31 — 조각배 승선·하선 물보라: 퍼지는 물고리 + 튀는 물방울 */
+        for (let i = 0; i < 3; i++) {
+          const rr = TILE * (0.14 + p * 0.5 + i * 0.1);
+          ctx.strokeStyle = `rgba(196,236,250,${(0.8 - i * 0.2) * (1 - p)})`;
+          ctx.lineWidth = 2.4 * (1 - p) + 0.6;
+          ctx.beginPath();
+          ctx.ellipse(f.x, f.y, rr, rr * 0.42, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        for (let i = 0; i < 8; i++) {
+          const a2 = i * 0.8 + f.x * 0.01;
+          const d = TILE * (0.1 + p * 0.5);
+          ctx.fillStyle = `rgba(214,244,255,${(1 - p) * 0.85})`;
+          ctx.beginPath();
+          ctx.arc(f.x + Math.cos(a2) * d, f.y + Math.sin(a2) * d * 0.5 - Math.sin(p * Math.PI) * TILE * 0.22, 2.4 * (1 - p) + 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (f.kind === 'dust') {
         for (let i = 0; i < 6; i++) {
           const a = i * 1.05;
@@ -2430,6 +2540,24 @@
     return path;
   }
 
+  /* v5.31 — 조각배 승선/하선. 물에 들어서면 물보라와 함께 배로 바뀌고, 뭍에 닿으면 내린다. */
+  function waterTileAt(x, y) {
+    const row = B && B.tiles ? B.tiles[y] : null;
+    return !!(row && row[x] === 'W');
+  }
+  function syncBoat(u) {
+    if (!B || !u || !u.alive) return;
+    const wet = !!B.boatable && waterTileAt(u.x, u.y) && u.cls !== 'sujeok';
+    if (wet === !!u.aboard) return;
+    u.aboard = wet;
+    const cx = (u.x + 0.5) * TILE, cy = (u.y + 0.92) * TILE;
+    addFx({ kind: 'splash', x: cx, y: cy, life: 520 });
+    addFloat(cx, cy - TILE * 1.1, wet ? '승선' : '하선', wet ? '#bfe8ff' : '#dfe9b0');
+    feed(`${u.name} ${wet ? '조각배에 올랐습니다' : '뭍에 올랐습니다'}`, 'info');
+    SK.sfx.play('step');
+  }
+  SK.boatSync = function () { if (B) B.units.forEach(syncBoat); };
+
   function animatePath(u, path, opts) {
     opts = opts || {};
     const done = opts.onDone || function () { };
@@ -2455,6 +2583,7 @@
         if (p >= 1) {
           a.u.x = seg[0]; a.u.y = seg[1];
           a.u.rx = a.u.x; a.u.ry = a.u.y;
+          syncBoat(a.u);
           a.i += 1; a.t = 0;
           addFx({ kind: 'step', x: (a.u.x + 0.5) * TILE, y: (a.u.y + 0.95) * TILE, life: 300 });
           SK.sfx.play('step');
@@ -2687,6 +2816,184 @@
   function terr(u) { return SK.TERRAIN[B.tiles[u.y][u.x]] || SK.TERRAIN.P; }
   function buffVal(u, k) { const b = u.buffs[k]; return b && b.t > 0 ? b.v : 0; }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.31 — 사기(morale)와 상태이상(ailment)
+     · 사기: 100이 기준. 높으면 공격이 세지고(최대 +16%), 낮으면 약해진다(최대 −18%).
+       큰 타격을 받거나 아군 부대가 무너지면 떨어지고, 턴마다 조금씩 회복된다.
+     · 상태이상: 기절(이번 턴 행동 불가) · 혼란(아군·적을 가리지 않고 가까운 부대 공격) ·
+       위축(공격 −20%) · 중독·화상(턴마다 병력 감소) · 둔화(이동 −1)
+     · v5.31 보물 70절의 사기·상태이상 문구와 병과 책략(낙뢰·파천격·혼란·포효 등)이
+       여기에 실제로 붙는다.
+     ══════════════════════════════════════════════════════════════ */
+  const AIL = {
+    stun:    { n: '기절', c: '255,224,102', t: 1 },
+    confuse: { n: '혼란', c: '201,166,255', t: 2 },
+    fear:    { n: '위축', c: '255,176,216', t: 2 },
+    poison:  { n: '중독', c: '143,220,122', t: 3 },
+    burn:    { n: '화상', c: '255,154,92', t: 2 },
+    slow:    { n: '둔화', c: '159,216,255', t: 2 },
+  };
+  SK.BATTLE_AIL = AIL;
+  function initStatus(u) {
+    const f = u.tfx || {};
+    u.moraleMax = 100 + Math.max(0, Math.round(f.moraleMax || 0));
+    u.morale = Math.min(u.moraleMax, 100 + Math.max(0, Math.round(f.morale || 0)));
+    u.ail = {};
+    u.slow = 0;
+    u.aboard = false;
+  }
+  function moraleMul(u) {
+    const m = (u && u.morale != null) ? u.morale : 100;
+    return clamp(1 + (m - 100) * 0.004, 0.82, 1.16);
+  }
+  function moraleShift(u, d) {
+    if (!u || !u.alive || !d) return;
+    const before = u.morale == null ? 100 : u.morale;
+    const cut = d < 0 ? Math.max(0, Math.min(0.7, fxPct(u, 'moraleSave'))) : 0;
+    const next = clamp(before + (d < 0 ? d * (1 - cut) : d), 0, u.moraleMax || 100);
+    u.morale = Math.round(next * 10) / 10;
+    const diff = u.morale - before;
+    if (Math.abs(diff) >= 3) {
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE,
+        `${diff > 0 ? '사기↑' : '사기↓'} ${Math.round(Math.abs(diff))}`, diff > 0 ? '#a8f0b8' : '#ff9a86');
+    }
+  }
+  function ailImmune(u, kind) {
+    const f = u.tfx || {};
+    if ((kind === 'fear' || kind === 'confuse') && f.immuneFC) return true;
+    if (kind === 'poison' && f.immunePoison) return true;
+    return false;
+  }
+  function ailApply(t, kind, chance, turns) {
+    if (!t || !t.alive || !AIL[kind]) return false;
+    if (chance != null && Math.random() > chance) return false;
+    if (ailImmune(t, kind)) {
+      addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '면역', '#ffe6a8');
+      return false;
+    }
+    const res = Math.max(0, Math.min(0.75, fxPct(t, 'statusRes')));
+    if (res > 0 && Math.random() < res) {
+      addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '저항!', '#ffd9a0');
+      return false;
+    }
+    t.ail = t.ail || {};
+    t.ail[kind] = Math.max(t.ail[kind] || 0, turns || AIL[kind].t);
+    if (kind === 'slow') t.slow = Math.max(t.slow || 0, 1);
+    addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.2) * TILE, AIL[kind].n, `rgb(${AIL[kind].c})`);
+    addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 520, color: AIL[kind].c });
+    return true;
+  }
+  /* 상태이상 해제 — 아군 상태이상 해제 확률(금척검·옥선)·천상의 가무 */
+  function ailClear(u, n) {
+    if (!u || !u.ail) return 0;
+    let cleared = 0;
+    Object.keys(AIL).forEach((k) => {
+      if (cleared >= n) return;
+      if (!u.ail[k]) return;
+      delete u.ail[k];
+      if (k === 'slow') u.slow = 0;
+      cleared += 1;
+    });
+    return cleared;
+  }
+  function ailNearClear(u, radius, n, color) {
+    let c = 0;
+    B.units.forEach((o) => {
+      if (!o.alive || o.side !== u.side) return;
+      if (manh(u.x, u.y, o.x, o.y) > radius) return;
+      const k = ailClear(o, n);
+      if (k) {
+        c += k;
+        addFloat((rxOf(o) + 0.5) * TILE, (ryOf(o) + 0.2) * TILE, '해제', color || '#bfe8ff');
+      }
+    });
+    return c;
+  }
+  /* 상태이상 부여 — 공격 적중 시(보물)·책략 시(병과 기술) 공용 */
+  function onHitAil(a, d, kind, opts) {
+    if (!a || !d || !d.alive) return;
+    if (opts && opts.counterHit) return;      // 반격·추격에는 상태이상이 붙지 않는다
+    const f = a.tfx || {};
+    if (f.moraleHit) moraleShift(d, -Math.max(2, Math.min(20, Math.round(f.moraleHit))));
+    if (f.stunHit && Math.random() < Math.min(0.35, f.stunHit / 100)) ailApply(d, 'stun', null);
+    if (f.fearHit && kind === 'melee' && Math.random() < Math.min(0.5, f.fearHit / 100)) ailApply(d, 'fear', null);
+    if (f.disarm && Math.random() < Math.min(0.5, f.disarm / 100)) {
+      d.buffs.def = { v: -0.2, t: 2 };
+      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.16) * TILE, '방어↓', '#c9a6ff');
+    }
+    if (f.slowHit && kind === 'melee') {
+      const C = SK.CLASSES[a.cls] || {};
+      if (C.weapon === 'axe' || C.weapon === 'mace' || a.cls === 'sanjeok') ailApply(d, 'slow', 0.5);
+    }
+  }
+  /* 책략이 적힌 대로 상태이상을 건다 — 낙뢰(기절 25%)·파천격(35%)·방패돌진(20%)·혼란·포효 */
+  function skillAilOf(sk) {
+    const desc = (sk && sk.desc) || '';
+    const out = [];
+    const stun = desc.match(/기절\s*확률\s*(\d+)\s*%/);
+    if (stun) out.push({ k: 'stun', p: Math.min(0.6, Number(stun[1]) / 100) });
+    if (/혼란\s*상태\s*부여|혼란\s*유발|혼란\s*피해/.test(desc)) out.push({ k: 'confuse', p: 0.7 });
+    if (/위축|공포\s*유발|공포\s*상태/.test(desc)) out.push({ k: 'fear', p: 0.75 });
+    return out;
+  }
+  function skillAilApply(u, t, sk) {
+    if (!u || !t || !sk) return;
+    skillAilOf(sk).forEach((x) => { if (t.alive) ailApply(t, x.k, x.p); });
+  }
+  /* 병과 책략의 '사기 +N / 사기 -N' 문구 */
+  function skillMoraleOf(sk, gain) {
+    const desc = (sk && sk.desc) || '';
+    const m = desc.match(/사기\s*([+\-])\s*(\d+)/);
+    if (!m) return 0;
+    const v = Number(m[2]) * (m[1] === '+' ? 1 : -1);
+    return gain ? Math.max(0, v) : Math.min(0, v);
+  }
+  /* 턴 시작 — 중독·화상 피해, 기절/둔화/위축/혼란 지속 턴, 사기 회복, 상태이상 해제 */
+  function ailPhase(side) {
+    if (!B) return;
+    B.units.forEach((u) => {
+      if (!u.alive || u.side !== side) return;
+      u.ail = u.ail || {};
+      [['poison', 0.03], ['burn', 0.04]].forEach(([k, p]) => {
+        if (!u.ail[k] || !u.alive) return;
+        const d = Math.max(4, Math.round(u.maxHp * p));
+        u.hp = Math.max(0, u.hp - d);
+        statOf(u).taken += d;
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.4) * TILE, `${AIL[k].n} -${d}`, `rgb(${AIL[k].c})`);
+        addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.45) * TILE, life: 460, color: AIL[k].c });
+        u.flash = 0.6;
+        if (u.hp <= 0) downUnit(u);
+      });
+      if (!u.alive) return;
+      if (u.ail.stun) {
+        u.acted = true;
+        u.ail.stun -= 1;
+        if (u.ail.stun <= 0) delete u.ail.stun;
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '기절 — 행동 불가', `rgb(${AIL.stun.c})`);
+      }
+      if (u.ail.slow) {
+        u.slow = 1;
+        u.ail.slow -= 1;
+        if (u.ail.slow <= 0) { delete u.ail.slow; u.slow = 0; }
+      } else u.slow = 0;
+      if (u.morale < u.moraleMax) {
+        const rg = 1 + Math.round(Math.max(0, fxPct(u, 'moraleRegen')) * 10);
+        moraleShift(u, rg);
+      }
+      const cl = Math.max(0, fxPct(u, 'cleanse'));
+      if (cl > 0 && Math.random() < cl) {
+        /* v5.31 — 금척검·옥선: 자기 상태이상이 없으면 인접 아군 것을 풀어 준다 */
+        if (ailClear(u, 1)) addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.24) * TILE, '상태이상 해제', '#bfe8ff');
+        else ailNearClear(u, 1, 1);
+      }
+      ['fear', 'confuse', 'poison', 'burn'].forEach((k) => {
+        if (!u.ail[k]) return;
+        u.ail[k] -= 1;
+        if (u.ail[k] <= 0) delete u.ail[k];
+      });
+    });
+  }
+
   function typeBonus(u) { return (SK.terrainBonus(u.cls, B.type) || 0) / 100; }
 
   /* ── v5.2 성문 규칙 · v5.11 겹성벽 ── */
@@ -2744,7 +3051,10 @@
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
     const tb = fxPct(u, 'atk');
-    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb + terrFxPct(u)) * bondAllyMul(u);
+    /* v5.31 — 사기·위축·조각배(수전) 보정 */
+    const fear = (u.ail && u.ail.fear) ? 0.8 : 1;
+    const boat = (u.aboard && u.cls !== 'sujeok') ? 0.82 : 1;
+    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb + terrFxPct(u)) * bondAllyMul(u) * moraleMul(u) * fear * boat;
   }
   function effDef(u) {
     const ch = B.tiles[u.y][u.x];
@@ -2759,7 +3069,9 @@
     /* v5.29 — 보물 방어력, 성벽·망루·본진 위에서는 '성벽 위 방어력'까지 */
     const wall = (ch === 'C' || ch === 'T' || ch === 'K' || ch === 'G') ? fxPct(u, 'defWall') : 0;
     const tdef = fxPct(u, 'def') + wall + terrFxPct(u);
-    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef) * mul * hold * sit;
+    /* v5.31 — 조각배 위에서는 방어도 조금 떨어진다 (수적 제외) */
+    const boat = (u.aboard && u.cls !== 'sujeok') ? 0.88 : 1;
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef) * mul * hold * sit * boat;
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -2854,6 +3166,13 @@
     }
     const cutTaken = Math.max(-0.5, Math.min(0.55, fxPct(d, 'taken')));
     if (cutTaken) base *= 1 - cutTaken;
+    /* v5.31 — 근접 받는 피해 감소(용린갑·호피망토) */
+    if (attackKind(a, opts) === 'melee') {
+      const mt = Math.max(0, Math.min(0.5, fxPct(d, 'meleeTaken')));
+      if (mt) base *= 1 - mt;
+    }
+    /* v5.31 — 원거리 부대가 이번 턴 움직인 뒤 쏘면 위력 −12% (백발궁은 무효) */
+    if (attackKind(a, opts) !== 'melee' && (a.movedTiles || 0) >= 1 && !(a.tfx && a.tfx.moveShot)) base *= 0.88;
     /* v5.30 — 흑갑 같은 '야간 전투 시 피해 −N%'는 밤 전장에서만 */
     if (B && B.night) {
       const ncut = Math.max(0, Math.min(0.5, fxPct(d, 'nightTaken')));
@@ -2941,6 +3260,15 @@
   function applyDamage(a, d, dmg, crit, bond) {
     const wasAlive = d.hp > 0;
     d.hp = Math.max(0, d.hp - dmg);
+    /* v5.31 — 사기: 최대 병력의 15% 이상을 한 번에 잃으면 흔들린다 */
+    if (d.maxHp && dmg >= d.maxHp * 0.15) moraleShift(d, -4);
+    if (wasAlive && d.hp <= 0) {
+      moraleShift(a, 5);
+      B.units.forEach((o) => {
+        if (!o.alive || o === d || o.side !== d.side) return;
+        if (manh(o.x, o.y, d.x, d.y) <= 3) moraleShift(o, -4);
+      });
+    }
     if (a) statOf(a).dealt += dmg;
     statOf(d).taken += dmg;
     /* v5.30 — 검증용 마지막 타격 기록 (연격·광역·반사가 실제로 들어갔는지 확인) */
@@ -2991,6 +3319,8 @@
         return;
       }
       applyDamage(a, d, res.dmg, res.crit, bond);
+      /* v5.31 — 보물의 적중 시 상태이상·사기 저하 */
+      if (d.alive) onHitAil(a, d, kind, opts);
       impactAt(d, bond ? '255,140,110' : '255,214,120');
       if (kind !== 'melee') addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.55) * TILE, life: 350 });
       if (opts && opts.onDamage) opts.onDamage(res.dmg, res.crit);
@@ -3230,6 +3560,9 @@
     else if (a.cls === 'balseokcha') base *= 1.8;
     else if (kind === 'arrow' || kind === 'bolt') base *= 0.6;
     base *= rnd(0.94, 1.06);
+    /* v5.31 — 성문·장애물 파괴 효율 (흑철도끼·거북선포) */
+    const gb = Math.max(0, Math.min(1.2, fxPct(a, 'gateDmg')));
+    if (gb) base *= 1 + gb;
     const cc = 0.05 + (a.wu - 60) * 0.0011;
     let crit = false;
     if (Math.random() < cc) { crit = true; base *= 1.4; }
@@ -3360,7 +3693,12 @@
     if (!p || !u.alive || B.over) return;
     const trig = p.trigger || 'on_attack';
     if (when === 'turn_start' ? trig !== 'turn_start' : trig === 'turn_start') return;
-    if (when !== 'turn_start' && u.pUsed && u.pUsed[trig]) return;
+    if (when !== 'turn_start' && u.pUsed && u.pUsed[trig]) {
+      /* v5.31 — 사기병법서·육도비록: '전술 발동 확률 +N%'는 한 번 쓴 고유특기가 다시 터질 확률 */
+      const again = Math.max(0, Math.min(0.5, fxPct(u, 'passive')));
+      if (!again || Math.random() >= again) return;
+      feed(`${u.name}의 특기 「${p.title || ''}」 재발동`, 'good');
+    }
     const v = clamp((Number(p.valuePct) || 10) / 100, 0.03, 0.2);
     const cx = (rxOf(u) + 0.5) * TILE, cy = (ryOf(u) + 0.5) * TILE;
     if (trig === 'turn_start') {
@@ -3510,6 +3848,8 @@
         if (!B || B.over) { busy = false; return; }
         const after = () => {
           areaStrike(a, d, dealt);
+          /* v5.31 — 추격: 근접으로 적을 쓰러뜨리면 곁의 적을 한 번 더 친다 */
+          if (wasAlive && !d.alive) pursuitStrike(a, d);
           if (wasAlive && d.alive && !B.over) counter(d, a);
           busy = false;
           finishCheck();
@@ -3530,6 +3870,46 @@
       }, 320);
     });
     SKBattle.refreshUI();
+  }
+
+  /* v5.31 — 추격 공격 (비전마·적토모조마). 근접 처치 뒤 확률로 사거리 안 적 하나를 65% 위력으로 */
+  function pursuitStrike(a, d) {
+    if (!B || B.over || !a || !a.alive) return;
+    const pr = Math.max(0, Math.min(0.6, fxPct(a, 'pursuit')));
+    if (!pr || Math.random() >= pr) return;
+    const nxt = B.units.filter((o) => o.alive && o !== a && o.side !== a.side && canHit(a, o))
+      .sort((p, q) => p.hp - q.hp)[0];
+    if (!nxt) return;
+    addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.1) * TILE, '추격!', '#ffe08a');
+    feed(`${a.name} — 추격 공격`, 'good');
+    wait(() => {
+      if (!B || B.over || !a.alive || !nxt.alive) return;
+      attackUnit(a, nxt, { mult: 0.65, counterHit: true, noStrike: true }, () => {
+        if (B && !B.over) finishCheck();
+      });
+    }, 240);
+  }
+
+  /* v5.31 — 혼란: 아군·적을 가리지 않고 사거리 안 부대를 친다 */
+  function confusedStrike(u, done) {
+    if (!u || !u.alive) { if (done) done(); return; }
+    const cand = B.units.filter((o) => o.alive && o !== u && canHit(u, o));
+    addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '혼란!', `rgb(${AIL.confuse.c})`);
+    if (!cand.length) {
+      u.acted = true;
+      SKBattle.refreshUI();
+      if (done) done();
+      return;
+    }
+    const t = cand[Math.floor(Math.random() * cand.length)];
+    u.acted = true;
+    const foe = t.side !== u.side;
+    feed(`${u.name}의 혼란 — ${foe ? '적' : '아군'} ${t.name}을 공격`, 'bad');
+    attackUnit(u, t, { mult: 0.8, noDodge: false }, () => {
+      if (!B || B.over) { if (done) done(); return; }
+      finishCheck();
+      if (done) done();
+    });
   }
 
   function finishCheck() {
@@ -3554,6 +3934,17 @@
 
   function nextUnitOrWait() {
     const next = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
+    if (next && next.ail && next.ail.confuse) {
+      /* v5.31 — 혼란에 빠진 부대는 내가 조종하지 못한다 */
+      selectUnit(next);
+      busy = true;
+      wait(() => {
+        busy = false;
+        if (!B || B.over) return;
+        confusedStrike(next, () => wait(() => { if (B && !B.over) nextUnitOrWait(); }, 300));
+      }, 260);
+      return;
+    }
     if (next) selectUnit(next);
     else { B.sel = null; mode = 'idle'; B.reachCache = null; SKBattle.refreshUI(); $('#battle-tip').textContent = '모든 부대가 행동했습니다. [턴 종료]를 누르세요.'; }
   }
@@ -3601,13 +3992,16 @@
     castCircle(u, sk.kind === 'buffSelf' ? '150,210,255' : '255,215,120');
     SK.sfx.play(sk.kind === 'healArea' ? 'heal' : 'spell');
     if (sk.kind === 'healArea') {
+      const rad = sk.radius + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
       B.units.forEach((t) => {
-        if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= sk.radius) {
+        if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= rad) {
           const heal = healAmount(sk, t, u);
           t.hp = Math.min(t.maxHp, t.hp + heal);
           addHeal(t, heal, u);
           addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, '+' + heal, '#a8f0b8');
           addFx({ kind: 'heal', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 620 });
+          /* v5.31 — '상태이상 해제'가 적힌 회복 책략(천상의 가무) */
+          if (/상태이상\s*해제|공포\s*상태\s*해제/.test(sk.desc || '')) ailClear(t, 2);
         }
       });
     } else if (sk.kind === 'buffSelf') {
@@ -3615,9 +4009,13 @@
       addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '방어↑', '#9fd8ff');
       addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 600, color: '150,210,255' });
     } else if (sk.kind === 'buffAreaAllies') {
+      const rad = sk.radius + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
+      const mo = skillMoraleOf(sk, true);
       B.units.forEach((t) => {
-        if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= sk.radius) {
+        if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= rad) {
           t.buffs.atk = { v: sk.atk, t: sk.turns };
+          if (mo) moraleShift(t, mo);
+          if (/상태이상\s*해제|공포\s*상태\s*해제/.test(sk.desc || '')) ailClear(t, 2);
           addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 600 });
         }
       });
@@ -3668,8 +4066,11 @@
         addHeal(target, heal, u);
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + heal, '#a8f0b8');
         addFx({ kind: 'heal', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 700 });
+        if (/상태이상|혼란/.test(sk.desc || '')) ailClear(target, 2);   // v5.31
       } else {
         target.buffs.atk = { v: sk.atk, t: sk.turns };
+        const mo1 = skillMoraleOf(sk, true);
+        if (mo1) moraleShift(target, mo1);                            // v5.31 — 아군 1부대 사기 +N
         addFloat((x + 0.5) * TILE, (y + 0.3) * TILE, '공격↑', '#ffe08a');
         addFx({ kind: 'buff', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 650, color: '255,215,120' });
       }
@@ -3682,10 +4083,14 @@
       u.mp -= mpCostOf(u, sk);
       castCircle(u, sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215');
       SK.sfx.play('spell');
-      const rad = sk.radius || 1;
+      const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
       const color = sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215';
+      const moNeg = skillMoraleOf(sk, false);
       B.units.forEach((t) => {
         if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
+          /* v5.31 — 혼란·위축·적 사기 -N이 적힌 약화 책략 */
+          skillAilApply(u, t, sk);
+          if (moNeg) moraleShift(t, moNeg);
           /* 책략이 강할수록 약화가 깊어진다 (0.75 ~ 1.35배) */
           const potency = Math.max(0.75, Math.min(1.35, 1 + (magicAtk(u) - magicDef(t)) / 500));
           const amt = sk.amount * potency;
@@ -3707,7 +4112,7 @@
       u.mp -= mpCostOf(u, sk);
       castCircle(u, u.cls === 'balseokcha' ? '230,200,150' : '255,170,120');
       SK.sfx.play(u.cls === 'balseokcha' ? 'rock' : 'spell');
-      const rad = sk.radius || 1;
+      const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
       wait(() => {
         if (!B || B.over) { finish(0); return; }
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 620, color: '255,150,80' });
@@ -3721,6 +4126,8 @@
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
             if (t.hp <= 0) downUnit(t);
+            else skillAilApply(u, t, sk);   // v5.31 — 낙뢰·천벌강림의 기절·혼란
+            if (t.alive && skillMoraleOf(sk, false)) moraleShift(t, skillMoraleOf(sk, false));
           }
         });
         SK.sfx.play('hit');
@@ -3770,6 +4177,8 @@
     const hits = sk.hits || 1;
     const apply = (n) => {
       attackUnit(u, target, { mult, ignoreTerrain: sk.ignoreTerrain, forceKind }, () => {
+        /* v5.31 — 파천격(기절 35%)·방패돌진(기절 20%) */
+        if (target.alive && B && !B.over) skillAilApply(u, target, sk);
         if (n > 1 && target.alive && B && !B.over) {
           wait(() => { if (B && !B.over && target.alive) apply(n - 1); else finish(300); }, 160);
         } else {
@@ -4375,6 +4784,10 @@
     if (B.over) return;
     sitePhase(true);          // v5.17 — 적 턴 시작: 본진·점령 마을 위 부대 회복
     if (B.over) return;
+    ailPhase('enemy');        // v5.31 — 적의 중독·화상·사기 회복
+    if (!B || B.over) return;
+    finishCheck();
+    if (!B || B.over) return;
     classAuraPhase('enemy');
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
     let i = 0;
@@ -4408,6 +4821,10 @@
         B.phase = 'ally';
         sitePhase(true);       // v5.17 — 아군 턴 시작: 본진·점령 마을 위 부대 회복
         if (B.over) return;
+        ailPhase('ally');      // v5.31 — 아군 중독·화상·기절·사기 회복
+        if (!B || B.over) return;
+        finishCheck();
+        if (!B || B.over) return;
         B.units.forEach((u) => { if (u.side === 'ally' && u.alive) triggerPassive(u, 'turn_start'); });
         classAuraPhase('ally');
         banner('아군 페이즈', 'ally');
@@ -4439,6 +4856,11 @@
 
   function enemyAct(e, done) {
     if (!e.alive) { done(); return; }
+    if (e.acted) { done(); return; }          // v5.31 — 기절한 적은 이번 턴 쉰다
+    if (e.ail && e.ail.confuse) {             // v5.31 — 혼란에 빠진 적은 동료도 친다
+      confusedStrike(e, done);
+      return;
+    }
     if (e.x != null) trackTurn(e, true);
     const targets = B.units.filter((u) => u.side === 'ally' && u.alive);
     if (!targets.length) { done(); return; }
@@ -4676,6 +5098,20 @@
     });
   }
 
+  /* v5.31 — 패전 병력 손실 감소(금루갑·징비록초고) */
+  function maxLossCut(units) {
+    let v = 0;
+    (units || []).forEach((u) => { if (u.side === 'ally') v = Math.max(v, fxPct(u, 'lossCut')); });
+    return Math.max(0, Math.min(0.5, v));
+  }
+  /* v5.31 — 행군 중 출발 성을 잃었을 때 돌아갈 성 (app.js SK.fieldHome) */
+  function homeOf(originId) {
+    if (SK.fieldHome) return SK.fieldHome(originId);
+    const s = SK.state;
+    const st = s && s.cities ? s.cities[originId] : null;
+    return (st && st.owner === SK.playerFaction()) ? originId : null;
+  }
+
   function interceptDefeat() {
     B.over = true;
     clearBattleProgress();
@@ -4683,26 +5119,31 @@
     const s = SK.state;
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + Math.max(0, u.hp), 0);
-    const st = s.cities[B.origin];
-    if (st) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
+    /* v5.31 — 출발 성이 그새 함락됐으면 가장 가까운 아군 성으로 복귀 (적 성에 병력이 합쳐지던 버그) */
+    const hid = homeOf(B.origin);
+    const st = hid ? s.cities[hid] : null;
+    const cut = maxLossCut(B.units);
+    const back = Math.round(troopsLeft * (1 + cut * 0.5));
+    if (st) st.troops = Math.min(20000, Math.round(st.troops || 0) + back);
     const mid = B.intercept && B.intercept.marchId;
     s.marches = (s.marches || []).filter((m) => m.id !== mid);
     B.units.forEach((u) => {
       if (u.side !== 'ally' || !u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) { h.marchId = null; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2))); }
+      if (h) { h.marchId = null; if (hid) h.city = hid; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2))); }
     });
-    if (s.cities[B.origin] && s.cities[B.origin].owner === SK.playerFaction()) s.purseCity = B.origin;
+    if (st) s.purseCity = hid;
     s.gold = Math.max(0, s.gold - 100);
     s.pendingMarch = null;
     SK.save();
+    const homeName = hid && SK.CITY[hid] ? SK.CITY[hid].name : null;
     SK.modal({
       kicker: '행군 실패',
-      title: '본성으로 회군',
+      title: homeName ? '회군' : '유랑군',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
-        <p class="rm-line">요격대에 길이 막혔습니다. 남은 병력은 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}으로 돌아갑니다.</p>
+        <p class="rm-line">요격대에 길이 막혔습니다. ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : ''}이(가) 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
         ${battleReportHTML()}
-        <p class="rm-note">복귀 병력 ${Math.round(troopsLeft).toLocaleString('ko-KR')} · 금 -100</p></div>`,
+        <p class="rm-note">복귀 병력 ${Math.round(back).toLocaleString('ko-KR')}${cut ? ` (패전 피해 감소 +${Math.round(back - troopsLeft)})` : ''} · 금 -100</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });
@@ -5097,20 +5538,24 @@
     clearBattleProgress();
     SK.sfx.play('defeat');
     const s = SK.state;
-    const st = s.cities[B.origin];
+    /* v5.31 — 출발 성이 이미 함락됐으면 가장 가까운 아군 성으로 퇴각한다 */
+    const hid = homeOf(B.origin);
+    const st = hid ? s.cities[hid] : null;
     const defeatedNames = B.units.filter((u) => u.side === 'enemy').map((u) => u.name);
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
     const originMine = !!(st && st.owner === SK.playerFaction());
-    if (originMine) st.troops = Math.min(20000, st.troops + Math.round(troopsLeft));
+    const cut = maxLossCut(B.units);
+    const salv = Math.round(lostOf('ally') * cut * 0.6);
+    if (originMine) st.troops = Math.min(20000, Math.round(st.troops || 0) + Math.round(troopsLeft) + salv);
     /* v5.9 — 퇴각해도 잃은 병력의 일부는 부상병으로 본성에 돌아온다 */
-    const woundedAdd = (originMine && lostOf('ally') && SK.addWounded) ? SK.addWounded(B.origin, lostOf('ally'), { ratio: SK.woundedRatio(B.origin) }) : 0;
-    if (s.cities[B.origin] && s.cities[B.origin].owner === SK.playerFaction()) s.purseCity = B.origin;
+    const woundedAdd = (originMine && lostOf('ally') && SK.addWounded) ? SK.addWounded(hid, lostOf('ally'), { ratio: SK.woundedRatio(hid) }) : 0;
+    if (st) s.purseCity = hid;
     s.gold = Math.max(0, s.gold - 200);
     B.units.forEach((u) => {
       if (u.side === 'ally' && u.uid) {
         const h = s.heroes.find((x) => x.uid === u.uid);
-        if (h) { h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4)); h.marchId = null; }
+        if (h) { h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4)); h.marchId = null; if (hid) h.city = hid; }
       }
     });
     /* v5.11 — 패배하면 낮은 확률로 장수 한 명이 적에게 사로잡힌다 → 포로 교환 협상 재료 */
@@ -5139,7 +5584,7 @@
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
         ${battleReportHTML()}
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
-        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}에서 회복 중입니다` : '없음'}${captured ? ` · 사로잡힌 장수 <b>${captured}</b>` : ''}</p></div>`,
+        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[hid] ? SK.CITY[hid].name : '본성'}에서 회복 중입니다` : '없음'}${salv ? ` · 패전 피해 감소 +${Math.round(salv).toLocaleString('ko-KR')}` : ''}${captured ? ` · 사로잡힌 장수 <b>${captured}</b>` : ''}</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });
@@ -5449,6 +5894,18 @@
             const pct = Math.round(b.v * 100);
             pills.push(`<span class="bf ${pct >= 0 ? 'good' : 'bad'}">${k === 'atk' ? '공' : '방'}${pct >= 0 ? '+' : ''}${pct}% (${b.t}턴)</span>`);
           });
+          /* v5.31 — 사기·상태이상·조각배 상태 */
+          const mv = Math.round(u.morale == null ? 100 : u.morale);
+          pills.push(`<span class="bf ${mv >= u.moraleMax ? 'good' : (mv >= 80 ? '' : 'bad')}">사기 ${mv}</span>`);
+          if (u.ail) {
+            Object.keys(AIL).forEach((k) => {
+              const t = u.ail[k];
+              if (!t || t <= 0) return;
+              pills.push(`<span class="bf bad">${AIL[k].n} ${t}</span>`);
+            });
+          }
+          if (u.aboard) pills.push('<span class="bf good">조각배</span>');
+          if (u.slow) pills.push('<span class="bf bad">둔화(이동−1)</span>');
           bfBox.innerHTML = pills.join('');
         }
         $('#uc-mov').textContent = movOf(u);
@@ -5528,7 +5985,37 @@
         return list.map((g) => g.name);
       },
       forceVictory() { victory(); },
+      forceDefeat() { defeat(); },
       gate() { return B && B.gate ? { hp: Math.round(B.gate.hp), max: Math.round(B.gate.maxHp), tiles: B.gate.tiles } : null; },
+      /* v5.31 — 사기·상태이상·조각배 점검 */
+      status(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { name: u.name, cls: u.cls, x: u.x, y: u.y, morale: Math.round(u.morale), moraleMax: u.moraleMax,
+          ail: Object.assign({}, u.ail || {}), aboard: !!u.aboard, slow: u.slow || 0,
+          atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), mov: movOf(u), tfx: u.tfx || {} };
+      },
+      statuses() {
+        if (!B) return [];
+        return B.units.filter((u) => u.alive).map((u) => ({ n: u.name, side: u.side, morale: Math.round(u.morale || 100),
+          ail: Object.keys(u.ail || {}), aboard: !!u.aboard }));
+      },
+      giveAil(name, kind, turns) { const u = B && B.units.find((o) => o.name === name); return u ? ailApply(u, kind, null, turns) : null; },
+      giveMorale(name, d) { const u = B && B.units.find((o) => o.name === name); if (!u) return null; moraleShift(u, d); return Math.round(u.morale); },
+      place(name, x, y) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        u.x = x; u.y = y; u.rx = x; u.ry = y; syncBoat(u);
+        return { tile: B.tiles[y] ? B.tiles[y][x] : null, aboard: !!u.aboard };
+      },
+      boatable() { return !!(B && B.boatable); },
+      ailPhase(side) { ailPhase(side || 'ally'); return this.statuses(); },
+      onHit(aName, dName) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        onHitAil(a, d, 'melee', {});
+        return { ail: Object.assign({}, d.ail || {}), morale: Math.round(d.morale) };
+      },
       /* v5.14 — 지금 고른 책략(중복 getter pending은 autoPending이라 따로 둔다) */
       get pendingSkill() { return pendingSkill ? { key: pendingSkill.key, kind: pendingSkill.kind, range: pendingSkill.range, minRange: pendingSkill.minRange, radius: pendingSkill.radius } : null; },
       get uiMode() { return mode; },
@@ -5669,8 +6156,17 @@
         counter(a, d);
         return { counter: a.name, attacker: d.name };
       },
-      place(unitName, x, y) { const u = B.units.find((o) => o.name === unitName); if (u) { u.x = x; u.y = y; u.rx = x; u.ry = y; } return u ? { x: u.x, y: u.y } : null; },
+      place(unitName, x, y) { const u = B.units.find((o) => o.name === unitName); if (u) { u.x = x; u.y = y; u.rx = x; u.ry = y; syncBoat(u); } return u ? { x: u.x, y: u.y, aboard: !!u.aboard } : null; },
       attack(targetId) { const u = B.sel; const t = B.units.find((o) => o.id === targetId); if (u && t) doAttack(u, t); },
+      /* v5.31 — 보물 적중 효과·추격 검증용: 지정한 두 부대로 즉시 공격 */
+      attackNow(aName, dName) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        B.lastHits = [];
+        doAttack(a, d);
+        return { ok: true };
+      },
+      hits() { return B && B.lastHits ? B.lastHits.slice() : []; },
       findPath(x, y) { const u = B.sel; return u ? findPath(u, x, y) : []; },
       bonds() {
         const list = [];
