@@ -1380,10 +1380,11 @@ SK.setTreasures = function (list) {
 SK.treasureSlot = function (t) { return SK.TREASURE_SLOTS[t.type] || 'manual'; };
 SK.treasureStats = function (t) {
   return { war: t.statBonus.war || 0, intel: t.statBonus.intel || 0, leadership: t.statBonus.leadership || 0,
-    charm: t.statBonus.charm || 0, politics: t.statBonus.politics || 0, move: t.statBonus.move || 0 };
+    charm: t.statBonus.charm || 0, politics: t.statBonus.politics || 0, move: t.statBonus.move || 0,
+    rng: t.statBonus.rng || 0 };
 };
 SK.equipBonus = function (h) {
-  const out = { war: 0, intel: 0, leadership: 0, charm: 0, politics: 0, move: 0 };
+  const out = { war: 0, intel: 0, leadership: 0, charm: 0, politics: 0, move: 0, rng: 0 };
   if (!h || !h.equip) return out;
   Object.values(h.equip).forEach((id) => {
     const t = SK.TREASURE_BY_ID[id];

@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.27** 3라운드 실플레이 점검 — 외교 정리·수성 보조 AI·전장 밀도·다중 성 관리 · 2026-11-21 · 라이브 `?v=41`
+> 기준: **v5.28** 4라운드 실플레이 점검 — 연쇄 도착·수성 후방 지원·줌아웃 미니맵·전직·보물 · 2026-11-21 · 라이브 `?v=42`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,29 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=41`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=42`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | 내정·전장 기반(v5.5~v5.10) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 3라운드 실플레이(대규모 전쟁·세이브 복원·모바일 제스처)와 전장 임팩트·엔딩 연출 |
+| 다음 목표 | 4라운드까지 실플레이로 다듬음. 다음 후보는 5라운드 실플레이(대규모 전쟁·다중 전선·후반 경제)와 전장 임팩트·일기토·수전 연출 |
 
 ---
+
+## 0.0 v5.28 — 4라운드 실플레이에서 잡은 수정 (2026-11-21 · `?v=42`)
+
+390×844 실제 브라우저로 진류(조조군)에서 두 부대를 동시에 출진시키고, 1·2·3중성 수성전·전직 Lv.10/20/30·보물 장착·100개월 세계 진행을 돌린 결과입니다.
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 연쇄 도착 | 같은 달 두 부대가 도착하면 `pendingMarch` 하나때문에 두 번째가 다음 달로 밀리던 문제. `marchQueue`에 도착·요격을 쌓고 결산 뒤 같은 달 안에서 다음 창을 연다. 같은 성이면 앞 부대가 차지한 뒤 두 번째는 합류(병력 합산) | `js/app.js` `stepMarches`·`promoteMarchQueue`·`chainPendingEvents`·`openPendingMarch`, `js/battle.js` `closeBattle`·`clearMarchFlags` |
+| 수성 후방 지원 | 32×32 3중성에서 보조(책사·풍수사·도사·군악대·무희)가 본진(y≈9)에 서 성문(y≈24)까지 2~3턴을 걷던 문제 → '내성' 선택 시 **바깥 성벽 안쪽 4~6칸 후방 지원선**(`rear`)에 배치. 1·2·3중성 모두 첫 턴 거리 2~3 | `js/battle.js` `defenseZoneSlots`·`placeSide`, `js/app.js` `DEF_ZONES` |
+| 줌아웃 정보 | cam.s<0.30에서 미니맵 점 1.9→2.9px·어두운 테두리·선택 흰 링·총대장 금테, 미니맵 아래 `● 아군 ● 적군 ○ 위태` 범례, 병력 35% 이하 부대는 숫자 유지 | `js/battle.js` `drawMinimap`·`bindMinimap`·`drawUnit`, `index.html`·`css/game.css` `.mm-legend` |
+| 선택 모달 보호 | 돌발 사건 결과창·천하 소식 카드를 `dismissible:false`로 잠그고, 필수 선택에서 뒤로가기를 누르면 `선택을 마쳐야 넘어갈 수 있습니다` 안내 | `js/app.js` `showChoiceEvent`·`showTimelineCard`, `js/backguard.js` |
+| 유령 세력 | AI 전쟁으로 0성이 된 세력이 명부·몸값 제안에 남던 문제 → `pruneLandlessFactions`로 달마다 정리, 월정산 소식·몸값 취소·사로잡힌 아군 석방. `offerFactionAlive`도 성 0개면 거짓 | `js/app.js` `pruneLandlessFactions`·`advanceMonth`·`offerFactionAlive`·`openPrison`, `js/battle.js` `victory` |
+| 보물 사거리 | 무력·통솔·지력·이동은 적용 중이었고 사거리만 빠져 있던 백마궁에 `rng +1(원거리 병과 한정)` 추가. 장수 정보·보물 화면에 `사거리+1` 표시 | `data/treasures.json` #26, `js/data.js` `treasureStats`·`equipBonus`, `js/battle.js` `makeAlly`, `js/app.js` |
+| 전직 | Lv.10/20/30 칭호·기술 해금·스탯 +1 확인. 군주 `왕후`(여성 왕비 오해) → **군왕 → 패왕 → 대왕**. 전투 중에는 전직 팝업을 띄우지 않음 | `data/classes.json`, `js/app.js` `flushPromotions` |
+| 표기·UI | 명부 머리글 정렬 화살표 인라인(`통솔▲`), 출진 인용문 단어 중간 줄바꿈, `4,500이(가)` → `4,500명이`, 조언 `보다 많습니다`/`에 맞먹습니다` 구분 | `js/app.js`, `css/game.css` |
+
+**검증 메모** — `SK.stepMarches`·`SK.promoteMarchQueue`로 큐를 직접 확인하고, 두 부대를 같은 달에 도착시켜 첫 승리 후 두 번째 창이 같은 턴에 뜨는지, 같은 성이면 합류하는지 보았다. 수성전은 `SK.defenseZoneSlots`의 `rear` 길이와 보조~성벽 최단 거리(맨해튼 2~3)를 측정. 100개월은 `#btn-next-month` 반복 + `SKBattle.debug.forceVictory()`로 수성전을 즉시 정리하며 영토 변동·세력 수·저장 크기·힙·갱신 시간을 기록.
 
 ## 0.0 v5.27 — 3라운드 실플레이에서 잡은 수정 (2026-11-21 · `?v=41`)
 

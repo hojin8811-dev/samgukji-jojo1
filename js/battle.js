@@ -360,7 +360,7 @@
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
       atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techAtk * pMul * loyMul * (1 + offB.atk),
       def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techDef * pMul * loyMul * (1 + offB.def),
-      mov: Math.min(9, C.mov + eq.move), rng: C.rng, minRng: C.minRng || 1,
+      mov: Math.min(9, C.mov + eq.move), rng: C.rng + (C.rng > 1 ? (eq.rng || 0) : 0), minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
       passive, pUsed: {}, x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
@@ -457,19 +457,22 @@
   function placeSide(list, slots, side, opts) {
     const zmap = (opts && opts.zones) || null;
     const taken = new Set();
-    const zused = { wall: 0, tower: 0, keep: 0 };
+    const zused = { wall: 0, tower: 0, keep: 0, rear: 0 };
     list.forEach((u, i) => {
       let x, y;
       /* v5.21 — 수성전은 장수가 고른 자리(외성·망루·내성)부터 채운다 */
       const zone = zmap && u.zone && zmap[u.zone] ? u.zone : null;
-      if (zone) {
-        const zs = zmap[zone];
-        for (let k = zused[zone]; k < zs.length; k++) {
+      /* v5.28 — '내성'에 세운 보조 병과는 본진 앞이 아니라 성벽 바로 뒤 후방 지원선에 둔다.
+         (32×32 3중성은 본진 y≈9 · 성문 y≈24라 첫 2~3턴을 걷기만 했다) */
+      const place = (zone === 'keep' && SUPPORT_CLS_SET[u.cls] && zmap.rear && zmap.rear.length) ? 'rear' : zone;
+      if (place) {
+        const zs = zmap[place];
+        for (let k = zused[place]; k < zs.length; k++) {
           const [zx, zy] = zs[k];
           if (taken.has(zx + ',' + zy)) continue;
           if (!B.tiles[zy] || !passable(B.tiles[zy][zx])) continue;
           if (B.units.some((o) => o.x === zx && o.y === zy)) continue;
-          x = zx; y = zy; zused[zone] = k + 1;
+          x = zx; y = zy; zused[place] = k + 1;
           break;
         }
       }
@@ -522,7 +525,26 @@
     });
     const base = meta && meta.enemyBase ? meta.enemyBase : { x: cx, y: Math.max(1, outer - 4) };
     const keep = slotsAround(base, cols, 14).filter(([x, y]) => free(x, y));
-    return { wall, tower, keep };
+    /* v5.28 — 후방 지원선: 바깥 성벽 안쪽 4~6칸. 보조 병과가 1턴부터 성벽·망루의
+       아군에게 회복·버프를 넣을 수 있는 자리 (외성 슬롯과 겹치지 않게 뒤로 잡는다). */
+    const rear = [];
+    if (outer >= 0) {
+      for (let dy = 4; dy <= 6; dy++) {
+        const y = outer - dy;
+        if (y < 0) continue;
+        for (let dx = 0; dx <= 4; dx++) {
+          const xs = dx === 0 ? [cx - 1, cx] : [cx - dx, cx + dx - 1];
+          xs.forEach((x) => {
+            if (!free(x, y)) return;
+            if (wall.some(([wx, wy]) => wx === x && wy === y)) return;
+            if (tower.some(([tx, ty]) => tx === x && ty === y)) return;
+            if (rear.some(([rx, ry]) => rx === x && ry === y)) return;
+            rear.push([x, y]);
+          });
+        }
+      }
+    }
+    return { wall, tower, keep, rear };
   }
   SK.defenseZoneSlots = defenseZoneSlots;
   function findFree(tiles, cx, cy) {
@@ -1070,7 +1092,7 @@
      전체 전장 축소도 위에 아군(파랑)·적군(빨강)·총대장(금테)·본진(금)·마을(초록),
      지금 화면이 보이는 범위를 흰 사각형으로 보여 준다. 누르면 그 자리로 즉시 이동. */
   const MM_W = 104, MM_H = 104;
-  let mmStatic = null, mmBound = false, mmOpen = true;
+  let mmStatic = null, mmBound = false, mmOpen = true, mmNote = null;
   function mmEl() { return document.getElementById('mm-canvas'); }
   function buildMinimap() {
     const cv = mmEl();
@@ -1130,16 +1152,29 @@
         c.fillRect(t.x * sx, t.y * sy, sx + 0.4, sy + 0.4);
       });
     });
-    /* 부대 */
+    /* 부대 — v5.28 대형 전장 줌아웃에서도 점이 묻히지 않게 크게 + 어두운 테두리 */
+    const tinyView = cam.s < 0.30;
+    const dotR = tinyView ? 2.9 : 2.0;
     B.units.forEach((u) => {
       if (!u.alive) return;
+      const px = (u.x + 0.5) * sx, py = (u.y + 0.5) * sy;
+      if (tinyView) {
+        c.fillStyle = 'rgba(18,13,6,0.8)';
+        c.beginPath(); c.arc(px, py, dotR + 1.2, 0, Math.PI * 2); c.fill();
+      }
       c.fillStyle = u.side === 'ally' ? '#5aa0ff' : '#ff5a3c';
       c.beginPath();
-      c.arc((u.x + 0.5) * sx, (u.y + 0.5) * sy, 1.9, 0, Math.PI * 2);
+      c.arc(px, py, dotR, 0, Math.PI * 2);
       c.fill();
+      /* v5.28 — 지금 고른 부대와 처지가 위태로운(35% 이하) 부대를 덧그린다 */
+      if (u === B.sel || (u.hp / Math.max(1, u.maxHp)) <= 0.35) {
+        c.strokeStyle = u === B.sel ? '#ffffff' : 'rgba(255,226,140,0.95)';
+        c.lineWidth = u === B.sel ? 1.6 : 1.2;
+        c.beginPath(); c.arc(px, py, dotR + 1.8, 0, Math.PI * 2); c.stroke();
+      }
       if (u.leader) {
-        c.strokeStyle = '#ffd35c'; c.lineWidth = 1.2;
-        c.beginPath(); c.arc((u.x + 0.5) * sx, (u.y + 0.5) * sy, 3.1, 0, Math.PI * 2); c.stroke();
+        c.strokeStyle = '#ffd35c'; c.lineWidth = 1.3;
+        c.beginPath(); c.arc(px, py, dotR + 3.2, 0, Math.PI * 2); c.stroke();
       }
     });
     /* 지금 보이는 화면 */
@@ -1151,6 +1186,7 @@
     const x0 = clamp(vx, 0, N) * sx, y0 = clamp(vy, 0, N) * sy;
     const x1 = clamp(vx + vw, 0, N) * sx, y1 = clamp(vy + vh, 0, N) * sy;
     c.strokeRect(x0, y0, Math.max(2, x1 - x0), Math.max(2, y1 - y0));
+    if (mmNote) mmNote(mmOpen);
   }
   function bindMinimap() {
     if (mmBound) return;
@@ -1158,6 +1194,13 @@
     const cv = mmEl();
     const tog = document.getElementById('mm-toggle');
     const box = document.getElementById('mm-box');
+    const legend = document.getElementById('mm-legend');
+    const note = (on) => {
+      if (!legend) return;
+      const tiny = !!(B && cam && cam.s < 0.30);
+      legend.style.display = (on && tiny) ? 'flex' : 'none';
+    };
+    mmNote = note;
     if (tog && box) {
       tog.onclick = (e) => {
         e.stopPropagation();
@@ -1914,7 +1957,8 @@
        밀집할 때도 글자 상한을 낮춰 라벨 폭을 한 칸 이하로 줄인다. */
     const tinyView = cam.s < 0.30;
     const kNum = dense ? Math.min(k, 1.06) : k;
-    const showNum = !tinyView || u === B.sel || u.boss;
+    /* v5.28 — 아주 멀리 축소해도 체력이 위태로운(35% 이하) 부대는 숫자를 보여 준다 */
+    const showNum = !tinyView || u === B.sel || u.boss || (u.hp / Math.max(1, u.maxHp)) <= 0.35;
     const shortNum = (v) => {
       const n = Math.max(0, Math.round(v));
       if (n >= 10000) return Math.round(n / 1000) + 'k';
@@ -4335,7 +4379,8 @@
     });
     const mid = B.marchId || (B.intercept && B.intercept.marchId);
     if (mid) s.marches = (s.marches || []).filter((m) => m.id !== mid);
-    s.pendingMarch = null;
+    /* v5.28 — 이 전투의 행군만 지우고, 대기열에 있던 다른 부대의 도착 사건은 살려 둔다 */
+    if (mid && s.pendingMarch && s.pendingMarch.marchId === mid) s.pendingMarch = null;
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -4606,13 +4651,35 @@
     /* v5.27 — 마지막 성을 빼앗아 세력이 사라졌는데 명부에 남아 있던 문제 (항복 경로만 지우고 있었다).
        성을 모두 잃은 세력은 명부에서 지우고, 결산 창에 멸망을 알린다. */
     let fallenFaction = null;
+    let freedCaptives = [];
     if (prevOwner && prevOwner !== 'neutral' && prevOwner !== SK.playerFaction()) {
       if (SK.syncFactionCities) { try { SK.syncFactionCities(s); } catch (e) { /* ignore */ } }
       const leftCities = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === prevOwner).length;
       if (!leftCities && s.factions && s.factions[prevOwner]) {
         fallenFaction = s.factions[prevOwner].name || SK.factionName(prevOwner);
         delete s.factions[prevOwner];
-        if (s.prisoners) s.prisoners.forEach((pr) => { if (pr.by === prevOwner && !pr.faction) pr.by = ''; });
+        /* v5.28 — 멸망한 세력의 몸값 제안이 유령 이름으로 남지 않게 즉시 정리한다 */
+        if (s.prisoners) s.prisoners.forEach((pr) => {
+          if (pr.by !== prevOwner) return;
+          pr.by = '';
+          pr.orphan = true;
+          pr.offer = null;
+        });
+        /* v5.28 — 그 세력이 사로잡고 있던 아군 장수도 풀려나 함락한 성으로 돌아온다 */
+        if (s.captured && s.captured.length) {
+          s.captured = s.captured.filter((cap) => {
+            if (cap.by !== prevOwner) return true;
+            const h = s.heroes.find((x) => x.uid === cap.uid);
+            if (h) {
+              h.captured = false;
+              h.city = B.targetId;
+              h.marchId = null;
+              h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4));
+              freedCaptives.push(h.name);
+            }
+            return false;
+          });
+        }
       }
     }
     s.purseCity = B.targetId;      // v5.11 — 함락한 성의 금고·창고를 차지한다
@@ -4654,6 +4721,7 @@
         ${B.winReason ? `<p class="rm-reason">${B.winReason}${B.winReason.indexOf('전멸') >= 0 ? '' : ' — 적 진영이 무너졌습니다'}!</p>` : ''}
         <p class="rm-line">${SK.josa(prevOwnerName, 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
         ${fallenFaction ? `<p class="rm-fall">${SK.josa(fallenFaction, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다.</p>` : ''}
+        ${freedCaptives.length ? `<p class="rm-release">사로잡혀 있던 ${freedCaptives.join(' · ')} — 풀려나 ${c.name}으로 돌아왔습니다.</p>` : ''}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -4924,7 +4992,9 @@
     cancelAnimationFrame(raf); raf = 0;
     $('#battle-overlay').hidden = true;
     /* v5.25 — 전투가 끝난 뒤에도 남은 행군 도착·적 침공 사건을 이어서 띄운다 */
-    if (SK.armPendingWatch) setTimeout(() => SK.armPendingWatch(), 500);
+    /* v5.28 — 같은 달에 도착한 다른 부대가 대기열에 있으면 곷바로 다음 사건으로 이어진다 */
+    if (SK.chainPendingEvents) setTimeout(() => SK.chainPendingEvents(), 420);
+    if (SK.armPendingWatch) setTimeout(() => SK.armPendingWatch(), 900);
   }
 
   /* ───────────── 전장 UI ───────────── */

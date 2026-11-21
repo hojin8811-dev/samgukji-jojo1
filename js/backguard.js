@@ -21,6 +21,7 @@
   let navigatedAway = false;   // 페이지가 떠나는 중 (pagehide)
   let guardStopped = false;    // pushState 가 막힌 환경
   let guardCount = 0;          // 지금까지 얹은 가드 항목 수 (점검용)
+  let lockedAt = 0;            // 필수 선택 모달에서 뒤로가기를 누른 시각
 
   /* ── 가드 항목 ───────────────────────────────────────────── */
   function pushGuard() {
@@ -65,7 +66,12 @@
     const m = topModal();
     if (m) {
       /* 닫으면 안 되는 모달(돌발 사건·필수 선택 등)은 그대로 둔다 */
-      if (m.dismissible === false) return 'locked';
+      if (m.dismissible === false) {
+        /* v5.28 — 아무 반응 없는 것처럼 보이지 않게 이유를 알려 준다 (2초에 한 번) */
+        const now = Date.now();
+        if (now - lockedAt > 2000 && SK.toast) { SK.toast('선택을 마쳐야 넘어갈 수 있습니다'); lockedAt = now; }
+        return 'locked';
+      }
       m.close();
       return 'modal';
     }

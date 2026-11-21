@@ -967,6 +967,9 @@
     promoFlushTimer = null;
     if (!SK.promoQueue || !SK.promoQueue.length) return;
     if (document.querySelector('#modal-root .modal-layer')) { promoFlushTimer = setTimeout(SK.flushPromotions, 1400); return; }
+    /* v5.28 — 전장이 열려 있는 동안에는 전직 팝업을 띄우지 않는다 (전투 중 조작 방해) */
+    const battleOpen = !!(document.querySelector('#screen-battle.active') && document.getElementById('battle-overlay') && !document.getElementById('battle-overlay').hidden);
+    if (battleOpen) { promoFlushTimer = setTimeout(SK.flushPromotions, 1600); return; }
     const p = SK.promoQueue.shift();
     const h = (SK.state && SK.state.heroes || []).find((x) => x.uid === p.uid);
     const cls = SK.CLASSES[p.cls] || {};
@@ -1067,6 +1070,8 @@
       s.codex = s.codex || { g: {}, t: {} };   // v5.16 — 도감
       s.captured = s.captured || [];     // v5.11 — 적에게 사로잡힌 아군
       if (s.pendingMarch == null) s.pendingMarch = null;
+      /* v5.28 — 같은 달 도착 대기열: 없는 저장은 빈 배열, 사라진 행군은 걸러 낸다 */
+      s.marchQueue = (s.marchQueue || []).filter((q) => q && q.marchId && (s.marches || []).some((m) => m.id === q.marchId));
       (s.heroes || []).forEach((h) => { if (!s.marches.some((m) => m.id === h.marchId)) h.marchId = null; });
       /* v5.9 — 저장을 다시 열면 전투가 없으므로, 지원군은 원래 성으로 돌려보낸다 */
       if (s.reinforce) {
@@ -1090,6 +1095,10 @@
         s.battleInProgress = null;
       }
       SK.state = s;
+      /* v5.28 — 옛 저장에 남은 0성 유령 세력을 정리 */
+      try { pruneLandlessFactions(s); } catch (e) { /* ignore */ }
+      /* v5.28 — 저장을 열었을 때 도착 대기열만 남아 있으면 첫 사건을 올린다 */
+      if (!s.pendingMarch && s.marchQueue && s.marchQueue.length) promoteMarchQueue(s);
       // v4.2 인재 분포 — 한국/중국 인재를 갈라 다시 놓는다
       if (s.talentsVersion !== 3 && SK.GENERALS.length) {
         s.talentsVersion = 3;
@@ -1259,6 +1268,12 @@
       if (i >= 0) SK.modalStack.splice(i, 1);
       wrap.classList.add('out');
       setTimeout(() => wrap.remove(), 220);
+      /* v5.28 — 창을 닫은 뒤에도 기다리던 도착·침공 사건이 있으면 이어서 연다
+         (포로 처리처럼 시간이 걸리는 창을 오래 열어 두어도 사건이 굳지 않게) */
+      setTimeout(() => {
+        if (document.querySelector('#modal-root .modal-layer')) return;
+        if (SK.chainPendingEvents) SK.chainPendingEvents();
+      }, 380);
     }
     const layer = { el: wrap, dismissible: opts.dismissible !== false, close };
     SK.modalStack.push(layer);
@@ -1302,12 +1317,18 @@
       pendingWatch = null;
       const s = SK.state;
       if (!s || s.over) return;
+      /* v5.28 — 전투 중에는 다음 사건을 열지 않는다 (전투가 끝나면 closeBattle이 다시 무장한다) */
+      const btl = document.getElementById('battle-overlay');
+      if ((window.SKBattle && SKBattle.debug && SKBattle.debug.battle)
+        || (document.querySelector('#screen-battle.active') && btl && !btl.hidden)) return;
       if (document.querySelector('#modal-root .modal-layer')) {
         if (left-- > 0) pendingWatch = setTimeout(tick, 700);
         return;
       }
       if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
       if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
+      /* v5.28 — 같은 달 도착 대기열이 남아 있으면 다음 사건을 올린다 */
+      if (SK.promoteMarchQueue && SK.promoteMarchQueue(s)) { if (left-- > 0) pendingWatch = setTimeout(tick, 220); return; }
       if (left-- > 0) pendingWatch = setTimeout(tick, 700);
     };
     pendingWatch = setTimeout(tick, 900);
@@ -1552,7 +1573,7 @@
         setTimeout(() => {
           SK.modal({
             kicker: '전투 중 이탈', title: '부대가 성으로 돌아왔습니다',
-            body: `<p class="modal-p">전투가 끝나기 전에 앱을 닫거나 새로고침해서 전장이 사라졌습니다. 출진했던 병력 <b>${fmt(rec.troops)}</b>이(가) ${CITY[rec.city] ? SK.josa(CITY[rec.city].name, 'euro') : '출발 성으로'} 돌아왔습니다. 장수들도 성에 그대로 있습니다.</p>`,
+            body: `<p class="modal-p">전투가 끝나기 전에 앱을 닫거나 새로고침해서 전장이 사라졌습니다. 출진했던 병력 <b>${fmt(rec.troops)}</b>명이 ${CITY[rec.city] ? SK.josa(CITY[rec.city].name, 'euro') : '출발 성으로'} 돌아왔습니다. 장수들도 성에 그대로 있습니다.</p>`,
             actions: [{ label: '알겠습니다', primary: true }],
           });
         }, 420);
@@ -1761,6 +1782,7 @@
       </div>`,
       actions: [{ label: '가보자고!', primary: true, onClick: () => { if (after) setTimeout(after, 240); } }],
       wide: true,
+      dismissible: false,   // v5.28 — 뒤로가기·바탕 터치로 닫혀 다음 사건(도착·침공)이 끊기지 않게
     });
   }
 
@@ -2291,6 +2313,7 @@
     if (eq.politics) bonus.push(`정치+${eq.politics}`);
     if (eq.charm) bonus.push(`매력+${eq.charm}`);
     if (eq.move) bonus.push(`이동+${eq.move}`);
+    if (eq.rng) bonus.push(`사거리+${eq.rng}`);
     return `<div class="hi-equip">${rows}</div>${bonus.length ? `<p class="hi-bonus">보물 보정 — ${bonus.join(' · ')}</p>` : '<p class="hi-bonus">보물 보정 — 없음</p>'}`;
   }
 
@@ -2319,6 +2342,7 @@
         if (st.politics) b.push(`정치+${st.politics}`);
         if (st.charm) b.push(`매력+${st.charm}`);
         if (st.move) b.push(`이동+${st.move}`);
+        if (st.rng) b.push(`사거리+${st.rng}`);
         return b.join(' · ');
       };
       const slots = Object.keys(SK.SLOT_NAMES).map((sl) => {
@@ -2466,7 +2490,7 @@
 
     function renderGen() {
       const list = rows();
-      const head = ROSTER_COLS.map((c) => `<button class="rs-th ${c.num ? 'num' : ''} ${sortKey === c.key ? 'on' : ''}" data-k="${c.key}">${c.label}${sortKey === c.key ? (dir < 0 ? ' ▼' : ' ▲') : ''}</button>`).join('');
+      const head = ROSTER_COLS.map((c) => `<button class="rs-th ${c.num ? 'num' : ''} ${sortKey === c.key ? 'on' : ''}" data-k="${c.key}">${c.label}${sortKey === c.key ? `<i class="rs-arrow">${dir < 0 ? '▲' : '▼'}</i>` : ''}</button>`).join('');
       const body = list.map((h) => `<button class="rs-row" data-uid="${h.uid}">
           <span class="rs-name"><img style="--fa:${genAura(h.genId, h.name)}" src="${SK.ptSrc(h.portrait)}" alt="">
             <span class="rs-nm"><span class="rs-nm-top"><b>${h.name}</b></span>
@@ -6244,7 +6268,8 @@
     const f = (s.factions || {})[id];
     if (!f) return false;
     const owns = SK.CITY_LIST.some((c) => s.cities && s.cities[c.id] && s.cities[c.id].owner === id);
-    if (!owns && !f.lord) return false;
+    /* v5.28 — 성이 하나도 없는 세력은 이미 멸망한 것으로 본다 */
+    if (!owns) return false;
     return true;
   }
   function offerFromOf(rec, g) {
@@ -6330,7 +6355,9 @@
       const cs = s.cities[rec.city];
       const chance = prisonEscapeChance(rec, cs);
       const hireP = clamp(0.35 + (cha - 60) * 0.006 - (rec.loyal || 70) * 0.003, 0.05, 0.8);
-      const offer = rec.offer;
+      /* v5.28 — 제안한 세력이 이미 멸망했으면 그 자리에서 취소한다 (유령 세력 이름 방지) */
+      let offer = rec.offer;
+      if (offer && !offerFactionAlive(rec, g)) { offer = null; rec.offer = null; SK.save(); }
       return `<div class="prison-row">
         <img class="pr-pt" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="pr-main">
@@ -6386,6 +6413,13 @@
         const rec = s.prisoners[Number(b.dataset.accept)];
         if (!rec || !rec.offer) return;
         const offer = rec.offer;
+        /* v5.28 — 제안한 세력이 그사이 멸망했으면 수락하지 않는다 */
+        if (!offerFactionAlive(rec, SK.GEN_BY_ID[rec.gid])) {
+          rec.offer = null; rec.orphan = true; SK.save();
+          SK.toast('제안한 세력이 이미 사라졌습니다 — 몸값 협상이 취소되었습니다.');
+          refresh();
+          return;
+        }
         if (offer.type === 'exchange') {
           const h = s.heroes.find((x) => x.uid === offer.exchangeUid);
           /* v5.26 — 교환할 아군이 이미 돌아오거나 사라졌으면 포로만 놓아주지 않는다 */
@@ -7025,9 +7059,11 @@
     }
 
     if (threat) {
+      const stronger = topFoe.troops > cs.troops;
+      const threatWord = stronger ? '보다 많습니다' : '에 맞먹습니다';
       if (canRecruit) {
         push({ key: 'recruit', tone: 'urgent',
-          title: `이웃 ${topFoe.name}의 병력 ${fmt(topFoe.troops)}이 우리 ${fmt(cs.troops)}보다 많습니다`,
+          title: `이웃 ${topFoe.name}의 병력 ${fmt(topFoe.troops)}이 우리 ${fmt(cs.troops)}${threatWord}`,
           body: `성벽 ${Math.round(cs.def)}도 넉넉하지 않습니다. 병영에서 징병해 병력을 채우고(금 150 · 군량 120), 다음 달에 성벽을 보수하십시오.`,
           label: '병영 · 징병 (금 150 · 군량 120)', short: '징병' });
       } else if (s.gold >= 120 && cs.def < 95) {
@@ -7522,6 +7558,7 @@
     });
     s.marches = (s.marches || []).filter((x) => x.id !== id);
     s.pendingMarch = null;
+    marchQueueDrop(s, id);
     SK.save(); SK.refreshHud();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
     SK.toast(`긴급 회군 — ${CITY[m.origin || m.from] ? CITY[m.origin || m.from].name : '본성'}으로 병력 ${fmt(troops)} 복귀`);
@@ -7717,15 +7754,66 @@
   }
   SK.interceptTypeFor = interceptTypeFor;
 
-  /* 한 달에 한 사건만 — 도착이 먼저, 없으면 요격. 나머지 행군대는 다음 달로 넘긴다 */
+  /* ══════════════════════════════════════════════════════════════
+     v5.28 — 같은 달에 여러 부대가 도착·요격을 맞아도 한 사건씩 차례로 처리한다.
+     · 도착·요격은 marchQueue 에 쌓아 두고, 앞 사건(전투 결산)이 끝나면 다음 사건을 연다
+     · 예전에는 pendingMarch 하나뿐이라 두 번째 부대가 다음 달로 밀렸다
+     ══════════════════════════════════════════════════════════════ */
+  function marchQueuePush(s, kind, marchId) {
+    s.marchQueue = s.marchQueue || [];
+    if (s.marchQueue.some((q) => q.marchId === marchId)) return;
+    s.marchQueue.push({ kind, marchId });
+  }
+  function marchQueueDrop(s, marchId) {
+    if (!s || !s.marchQueue) return;
+    s.marchQueue = s.marchQueue.filter((q) => q.marchId !== marchId);
+  }
+  SK.marchQueueDrop = marchQueueDrop;
+  function queuedIds(s) {
+    return new Set(((s && s.marchQueue) || []).map((q) => q.marchId));
+  }
+  /* 대기 중인 도착·요격 하나를 꺼내 pendingMarch 로 올린다 */
+  function promoteMarchQueue(s) {
+    s = s || SK.state;
+    if (!s || s.over || s.pendingMarch || s.pendingInvasion) return false;
+    /* 전투 중에는 다음 도착 사건을 꺼내지 않는다 */
+    if (window.SKBattle && SKBattle.debug && SKBattle.debug.battle) return false;
+    const alive = new Set((s.marches || []).map((m) => m.id));
+    s.marchQueue = (s.marchQueue || []).filter((q) => alive.has(q.marchId));
+    if (!s.marchQueue.length) return false;
+    const q = s.marchQueue.shift();
+    s.pendingMarch = { kind: q.kind, marchId: q.marchId };
+    SK.save();
+    return true;
+  }
+  SK.promoteMarchQueue = promoteMarchQueue;
+  /* 전투·결산이 끝난 뒤 다음 도착 사건으로 자연스럽게 이어 준다 */
+  function chainPendingEvents() {
+    const s = SK.state;
+    if (!s || s.over) return;
+    if (document.querySelector('#modal-root .modal-layer')) return;
+    /* 전장이 열려 있는 동안에는 다음 사건을 띄우지 않는다.
+       화면 전환이늦어 overlay 가 아직 안 보일 때도 있으므로 전투 객체까지 본다. */
+    const btl = document.getElementById('battle-overlay');
+    const battleLive = !!(window.SKBattle && SKBattle.debug && SKBattle.debug.battle);
+    if (battleLive || (document.querySelector('#screen-battle.active') && btl && !btl.hidden)) return;
+    if (promoteMarchQueue(s)) { setTimeout(() => { if (SK.openPendingMarch) SK.openPendingMarch(); }, 320); return; }
+    if (s.pendingInvasion && SK.openPendingInvasion) setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320);
+  }
+  SK.chainPendingEvents = chainPendingEvents;
+
+  /* 한 달에 한 사건만 — 도착이 먼저, 없으면 요격. 같은 달 사건은 큐에 쌓아 차례로 연다 */
   function stepMarches(s) {
-    if (!s.marches || !s.marches.length || s.pendingMarch) return s.pendingMarch;
+    if (!s.marches || !s.marches.length) return s.pendingMarch;
+    if (s.pendingMarch) return s.pendingMarch;
+    const queued = queuedIds(s);
     for (let i = 0; i < s.marches.length; i++) {
       const m = s.marches[i];
+      if (queued.has(m.id)) continue;      // v5.28 — 이미 도착 대기 중인 부대는 더 세지 않는다
       if (m.left > 0) m.left -= 1;
       if (m.left <= 0) {
-        s.pendingMarch = { kind: 'arrive', marchId: m.id };
-        break;
+        marchQueuePush(s, 'arrive', m.id);
+        continue;
       }
       const ts = s.cities[m.target];
       const c = SK.CITY[m.target];
@@ -7748,10 +7836,11 @@
         const per = Math.max(120, Math.round((total / cnt) / 50) * 50);
         m.raiders = per * cnt;
         m.interceptType = interceptTypeFor(m);
-        s.pendingMarch = { kind: 'intercept', marchId: m.id };
-        break;
+        marchQueuePush(s, 'intercept', m.id);
       }
     }
+    /* 큐에 쌓인 사건 중 첫 번째를 이번 사건으로 올린다 */
+    promoteMarchQueue(s);
     return s.pendingMarch;
   }
   SK.stepMarches = stepMarches;
@@ -7761,10 +7850,32 @@
     if (!s || !s.pendingMarch) return;
     if (document.querySelector('#modal-root .modal-layer')) return;
     const m = (s.marches || []).find((x) => x.id === s.pendingMarch.marchId);
-    if (!m) { s.pendingMarch = null; SK.save(); return; }
+    if (!m) { s.pendingMarch = null; SK.save(); setTimeout(() => SK.chainPendingEvents && SK.chainPendingEvents(), 260); return; }
     const tc = SK.CITY[m.target], ts = s.cities[m.target];
     const f = SK.factionInfo(ts.owner);
     const troops = marchUnitTroops(m.units);
+    const waitN = (s.marchQueue || []).length;
+    const waitTag = waitN ? ` · 뒤이어 도착 ${waitN}부대` : '';
+    /* v5.28 — 앞선 부대가 먼저 그 성을 차지했으면(같은 성으로 두 부대) 싸우지 않고 성에 들어간다 */
+    if (ts.owner === PF()) {
+      const add = Math.round(troops);
+      const room = Math.max(0, cityCap(ts) + 6000 - Math.round(ts.troops || 0));
+      const moved = Math.min(add, room);
+      ts.troops = Math.round(ts.troops || 0) + moved;
+      (m.units || []).forEach((u) => {
+        if (!u.uid) return;
+        const h = s.heroes.find((x) => x.uid === u.uid);
+        if (h) { h.marchId = null; h.city = m.target; }
+      });
+      s.marches = (s.marches || []).filter((x) => x.id !== m.id);
+      marchQueueDrop(s, m.id);
+      s.pendingMarch = null;
+      SK.save(); SK.refreshHud();
+      if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+      SK.toast(`${tc.name}은 이미 아군 성입니다 — 도착한 부대가 성으로 들어갔습니다 (병력 +${fmt(moved)})`);
+      setTimeout(() => SK.chainPendingEvents && SK.chainPendingEvents(), 360);
+      return;
+    }
     if (s.pendingMarch.kind === 'intercept') {
       /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
       let itype = m.interceptType || 'plain';
@@ -7772,7 +7883,7 @@
       const idef = SK.BATTLE_TYPES[itype] || SK.BATTLE_TYPES.plain;
       const raiders = m.raiders || 2400;
       SK.modal({
-        kicker: `행군 ${m.total - m.left}/${m.total}일 · ${SK.CITY[m.origin].name} → ${tc.name}`,
+        kicker: `행군 ${m.total - m.left}/${m.total}일 · ${SK.CITY[m.origin].name} → ${tc.name}${waitTag}`,
         title: `도중 요격 — ${idef.name}`,
         body: `<div class="march-event">
             <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
@@ -7782,6 +7893,7 @@
           </div>`,
         actions: [{ label: '싸운다', primary: true, onClick: () => {
           s.pendingMarch = null;
+          marchQueueDrop(s, m.id);
           SK.save();
           SK.startBattle({ origin: m.origin, targetId: m.target, type: itype, units: m.units,
             intercept: { marchId: m.id, name: `${tc.name} 가는 길`, troops: raiders } });
@@ -7791,7 +7903,7 @@
     } else {
       const supCands = SK.aiSupportCandidates ? SK.aiSupportCandidates(m.target) : [];
       SK.modal({
-        kicker: `행군 ${m.total}/${m.total}일`,
+        kicker: `행군 ${m.total}/${m.total}일${waitTag}`,
         title: `${tc.name} 성 앞 도착`,
         body: `<div class="march-event">
             <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
@@ -7803,6 +7915,7 @@
         actions: [{ label: `${SK.BATTLE_TYPES[m.type].name} 시작`, primary: true, onClick: () => {
           s.pendingMarch = null;
           s.marches = (s.marches || []).filter((x) => x.id !== m.id);
+          marchQueueDrop(s, m.id);
           /* v5.10 — 인접 적 성 지원군 합류 판정 (병력은 원 성에서 빠진다) */
           const aiSupport = SK.rollAiSupport ? SK.rollAiSupport(m.target) : [];
           SK.save();
@@ -7860,6 +7973,54 @@
     });
   }
   SK.syncFactionCities = syncFactionCities;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.28 — 성을 모두 잃은 세력을 명부에서 지운다.
+     예전에는 플레이어가 마지막 성을 함락했을 때만 멸망 처리가 되어,
+     AI끼리 성을 빼앗아 0성이 된 세력이 외교 명부·몸값 제안에 유령으로 남았다.
+     ══════════════════════════════════════════════════════════════ */
+  function pruneLandlessFactions(s) {
+    s = s || SK.state;
+    const gone = [];
+    if (!s || !s.factions) return gone;
+    Object.keys(s.factions).forEach((fid) => {
+      if (fid === 'neutral' || fid === s.playerFaction) return;
+      const owns = SK.CITY_LIST.some((c) => s.cities[c.id] && s.cities[c.id].owner === fid);
+      if (owns) return;
+      const f = s.factions[fid] || {};
+      gone.push(f.name || SK.factionName(fid));
+      delete s.factions[fid];
+      if (s.truce) delete s.truce[fid];
+      if (s.pacts) delete s.pacts[fid];
+      /* 몸값·교환 제안이 유령 세력 이름으로 남지 않게 */
+      if (s.prisoners) s.prisoners.forEach((pr) => {
+        if (pr.by !== fid) return;
+        pr.by = '';
+        pr.orphan = true;
+        pr.offer = null;
+      });
+      /* 그 세력이 사로잡고 있던 아군 장수는 풀려나 내 성으로 돌아온다 */
+      if (s.captured && s.captured.length) {
+        const home = (s.playerCapital && s.cities[s.playerCapital] && s.cities[s.playerCapital].owner === s.playerFaction)
+          ? s.playerCapital
+          : (SK.CITY_LIST.find((c) => s.cities[c.id] && s.cities[c.id].owner === s.playerFaction) || {}).id || null;
+        s.captured = s.captured.filter((cap) => {
+          if (cap.by !== fid) return true;
+          const h = (s.heroes || []).find((x) => x.uid === cap.uid);
+          if (h && home) {
+            h.captured = false;
+            h.marchId = null;
+            h.city = home;
+            h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.4));
+          }
+          return false;
+        });
+      }
+    });
+    if (gone.length) syncFactionCities(s);
+    return gone;
+  }
+  SK.pruneLandlessFactions = pruneLandlessFactions;
 
   function nearestOwnedCity(s, id) {
     const a = CITY[id];
@@ -8404,7 +8565,7 @@
   const DEF_ZONES = [
     { key: 'wall', name: '외성', mark: '성', desc: '1중 성벽 안쪽 마당 — 성문 앞을 막는다' },
     { key: 'tower', name: '망루', mark: '루', desc: '좌·우 망루 — 궁수·연노병이 성 밖을 쏜다' },
-    { key: 'keep', name: '내성', mark: '내', desc: '2중 성벽·본진 앞 — 마지막 방어선' },
+    { key: 'keep', name: '내성', mark: '내', desc: '성 안쪽 마지막 방어선 — 보조 병과는 성벽 바로 뒤 후방에서 지원' },
   ];
   function defZoneDefault(h) {
     const c = h && h.cls;
@@ -8491,7 +8652,7 @@
       body: `<div class="def-prep">
         <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(st.troops)}</b></span><span>성벽 <b>${Math.round(st.def)}</b></span>${st.wounded ? `<span>부상병 <b>${fmt(Math.round(st.wounded))}</b></span>` : ''}</div>
         ${rfg ? `<div class="rfg-ready"><b>${CITY[rfg.from].name} 원군</b><span>병력 ${fmt(rfgTroops)}${rfgGens ? ` · 장수 ${rfgGens}명` : ''} — 함께 들어갑니다</span></div>` : ''}
-        <p class="deploy-tip">출진할 장수를 고르고, 각자 설 자리를 정하세요. <b>외성</b>은 성문 안쪽 마당을 막고, <b>망루</b>는 좌·우 망루에서 성 밖 적을 쏘며, <b>내성</b>은 본진 앞 마지막 방어선입니다. 고르지 않은 장수의 병력은 성에 남아 예비대가 됩니다.</p>
+        <p class="deploy-tip">출진할 장수를 고르고, 각자 설 자리를 정하세요. <b>외성</b>은 성문 안쪽 마당을 막고, <b>망루</b>는 좌우 망루에서 성 밖 적을 쏘며, <b>내성</b>은 마지막 방어선입니다 — 책사·풍수사·군악대 같은 보조 병과는 여기 서면 성벽 바로 뒤 후방에 자리해 1턴부터 성벽의 아군을 회복·지원합니다. 고르지 않은 장수의 병력은 성에 남아 예비대가 됩니다.</p>
         <div class="def-list" id="def-list">${rowsHTML()}</div>
         <div id="def-sum">${summaryHTML()}</div>
       </div>`,
@@ -8742,6 +8903,7 @@
             kicker: ev.title, title: '결과',
             body: `<p class="modal-p">${line}</p>`,
             actions: [{ label: '계속', primary: true, onClick: () => { if (after) after(); } }],
+            dismissible: false,   // v5.28 — 결과창을 뒤로가기로 닫아도 다음 흐름이 증발하지 않게
           });
         }, 220);
       };
@@ -8978,6 +9140,12 @@
     const crewLog = runTrainCrew(s);
     /* v5.7 — AI 세력의 확장·공세 (플레이어 침공은 한 달 전 경고 뒤에 온다) */
     const aiNews = runAiCampaigns(s).concat(aiGrowNews || []);
+    /* v5.28 — AI끼리 성을 빼앗아 0성이 된 세력 정리 + 소식 */
+    try {
+      (SK.pruneLandlessFactions ? SK.pruneLandlessFactions(s) : []).forEach((nm) => {
+        aiNews.push({ kind: 'warn', text: `${SK.josa(nm, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다` });
+      });
+    } catch (e) { /* ignore */ }
     // v5 — 건물 담당 장수는 이번 달 건물 일을 한 것으로 치고, 건물이 결산을 내놓는다
     /* v5.5 — [매달 최선]이 켜져 있으면 달이 바뀔 때 성마다 건물 배속을 다시 잡는다 */
     if (s.autoBestDuty) {
@@ -9172,7 +9340,10 @@
       </div>`,
       actions: [{ label: '계속', primary: true, onClick: () => {
         const inv = () => { if (s.pendingInvasion) setTimeout(openPendingInvasion, 280); };
-        const go = () => { if (s.pendingMarch) setTimeout(openPendingMarch, 280); else inv(); };
+        const go = () => {
+          if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
+          if (s.pendingMarch) setTimeout(openPendingMarch, 280); else inv();
+        };
         const flow = () => {
           if (s.pendingInvasion) { inv(); return; }
           if (tlEv) setTimeout(() => showTimelineCard(tlEv, false, go), 220);

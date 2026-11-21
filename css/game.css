@@ -754,6 +754,7 @@ b { font-weight: 700; }
 .result-modal.lose .rm-seal { background: #4a4a4a; }
 .rm-line { font-size: 13px; line-height: 1.5; color: #3a2f1a; margin: 0 0 10px; }
 .rm-fall { margin: -4px 0 10px; font-size: 11px; font-weight: 800; color: #8e2a1c; background: #fbe6df; border: 1px solid #e2ac9d; border-radius: 8px; padding: 5px 8px; }
+.rm-release { margin: -6px 0 10px; font-size: 11px; font-weight: 800; color: #2f6b45; background: #e6f4ea; border: 1px solid #b7d9c4; border-radius: 8px; padding: 5px 8px; }
 .rm-rewards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .rm-rewards div { background: rgba(255, 251, 240, 0.74); border: 1px solid #dcc9a0; border-radius: 8px; padding: 6px; }
 .rm-rewards span { display: block; font-size: 9px; color: #8a7448; }
@@ -1032,8 +1033,9 @@ b { font-weight: 700; }
 .rank-chip.sm { font-size: 8.5px; padding: 0 6px; align-self: center; }
 .date-ribbon .rank-chip { color: #6b3f10; }
 .deploy-quote { margin: 0; font-family: var(--serif); font-size: 10.5px; line-height: 1.45; color: #7a4a12;
-  background: #fdf3dc; border-left: 2px solid #b8862f; border-radius: 4px; padding: 4px 8px; }
-.rm-quote { margin: 8px 0 0; font-family: var(--serif); font-size: 11.5px; line-height: 1.5; color: #7a4a12; }
+  background: #fdf3dc; border-left: 2px solid #b8862f; border-radius: 4px; padding: 4px 8px;
+  word-break: keep-all; overflow-wrap: anywhere; }   /* v5.28 — '조조'가 '조/조'로 쪼개지지 않게 */
+.rm-quote { margin: 8px 0 0; font-family: var(--serif); font-size: 11.5px; line-height: 1.5; color: #7a4a12; word-break: keep-all; overflow-wrap: anywhere; }
 
 /* ═══════════ v3 · 조조전식 전투 예고 · 계절 ═══════════ */
 .season-chip { font-family: var(--serif); font-size: 10px; font-weight: 900; color: #2f4728;
@@ -1197,7 +1199,9 @@ b { font-weight: 700; }
 .rs-th {
   border: 0; background: none; color: #f0dcae; font-size: 8.5px; font-weight: 800;
   padding: 6px 1px; text-align: center; letter-spacing: -0.02em;
+  white-space: nowrap;            /* v5.28 — 정렬 화살표가 아래 줄로 떨어져 머리글이 깨지지 않게 */
 }
+.rs-arrow { font-size: 6px; font-style: normal; margin-left: 1px; vertical-align: 1px; opacity: 0.95; }
 .rs-th:first-child { text-align: left; padding-left: 6px; }
 .rs-th.on { color: #ffe9a8; }
 .rs-rows { max-height: 46vh; overflow-y: auto; }
@@ -3560,6 +3564,12 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .battle-minimap { position: absolute; right: 8px; top: 8px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .mm-box { padding: 3px; border-radius: 7px; background: rgba(20, 15, 8, 0.78); border: 1.5px solid rgba(226, 186, 92, 0.8); box-shadow: 0 2px 8px rgba(10, 8, 4, 0.55), inset 0 0 0 1px rgba(90, 66, 24, 0.5); }
 #mm-canvas { display: block; border-radius: 4px; }
+/* v5.28 — 극단 줌아웃에서 미니맵 점 읽는 법 */
+.mm-legend { display: none; align-items: center; justify-content: center; gap: 3px; padding: 2px 0 1px; font-size: 8px; font-weight: 800; color: #f4e6c4; letter-spacing: 0.01em; }
+.mm-legend i { width: 5px; height: 5px; border-radius: 50%; display: inline-block; margin-left: 3px; }
+.mm-legend i.ml-a { background: #5aa0ff; }
+.mm-legend i.ml-e { background: #ff5a3c; margin-left: 6px; }
+.mm-legend i.ml-w { background: none; border: 1.2px solid #ffe28c; margin-left: 6px; }
 .mm-toggle {
   width: 22px; height: 22px; padding: 0; border-radius: 6px; line-height: 1;
   font-size: 11px; font-weight: 900; color: #ffe9b8; cursor: pointer;
