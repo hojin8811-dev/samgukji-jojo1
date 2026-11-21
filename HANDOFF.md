@@ -27,7 +27,7 @@
 
 | 갈래 | 내용 | 코드 |
 | --- | --- | --- |
-| 보물 전투 규칙 | 새 훅 13가지(`combo` 연격·`volley` 연속 사격·`doubleAct` 한 턴 2회·`pierce` 연격 방어 무시·`splash` 주변·`line` 관통·`water`/`mountain`/`night` 지형·`nightTaken` 야간 감소·`reflect` 반사·`charge` 돌격·`flank` 측면). 전장 적용 97→**108종**, 미적용 81→69절. 숫자 없는 문구는 `SK.TREASURE_FX_DEFAULT`로 옮기고 카드에 `(숫자 없는 N절은 기본값)` 표시 | `js/data.js` `TREASURE_FX_KEYS`·`TREASURE_FX_RULES`·`parseTreasureFx`·`fxSumLine`·`treasureFxDefaults`, `js/battle.js` `terrFxPct`·`calcDamage`·`extraKindOf`·`extraStrike`·`areaStrike`·`counter`·`doAttack` |
+| 보물 전투 규칙 | 새 훅 13가지(`combo` 연격·`volley` 연속 사격·`doubleAct` 한 턴 2회·`pierce` 연격 방어 무시·`splash` 주변·`line` 관통·`water`/`mountain`/`night` 지형·`nightTaken` 야간 감소·`reflect` 반사·`charge` 돌격·`flank` 측면). 전장 적용 97→**107종**, 미적용 81→70절. 숫자 없는 문구는 `SK.TREASURE_FX_DEFAULT`로 옮기고 카드에 `(숫자 없는 N절은 기본값)` 표시 | `js/data.js` `TREASURE_FX_KEYS`·`TREASURE_FX_RULES`·`parseTreasureFx`·`fxSumLine`·`treasureFxDefaults`, `js/battle.js` `terrFxPct`·`calcDamage`·`extraKindOf`·`extraStrike`·`areaStrike`·`counter`·`doAttack` |
 | 일기토 컷인 | 이름 있는 장수 근접 교전에서 좌우 초상이 들어오고 `일기토`가 찍히는 컷인. 숙적이면 붉은 표시. 한 판 3회·상대별 1회, ×4에서 180ms 안쪽. 컷인 중 목표 알약·미니맵 숨김. 무명 수비대장 제외 | `js/battle.js` `duelCutin`·`attackUnit`(`opts.duel`)·`doAttack`, `index.html` `.duel-cutin`, `css/game.css` `.dc-*`·`.battle-stage.dueling` |
 | 타격감 | `spark` 불티 이펙트, 베기 두 갈래, 타격마다 짧은 진동, 크리티컬 금빛 화면 번쩍임(`#crit-flash`)과 큰 진동, 전투 예고에 연격·광역·관통·한 턴 2회·야간 감소 표시 | `js/battle.js` `impactAt`·`applyDamage`·`critFlash`·`drawFx`·`openAttackPreview`, `index.html` `#crit-flash`, `css/game.css` `.crit-flash` |
 | 야간 전장 | 야영 기습전을 `B.night`로 정의. 화면 전체 밤색 multiply + 횃불 빛, 제목에 `야간 ·`. 흑갑(야간 피해 −15%)·해동병법(수전·산악 +10%)이 실제로 붙음 | `js/battle.js` `drawNight`·`terrFxPct`·`calcDamage`, `B.night` |

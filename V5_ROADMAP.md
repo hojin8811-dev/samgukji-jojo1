@@ -6,7 +6,7 @@
 
 | 갈래 | 내용 | 코드 |
 | --- | --- | --- |
-| 보물 전투 규칙 | 연격 확률·연속 사격·한 턴 2회(3턴 쿨타임)·주변/관통 추가 피해·수전·산악·야간 지형 보정·반사 피해·돌격·측면 추가 피해를 실제 전투 판정에 연결. 전장 적용 97→**108종**, 미적용 81→69절. 숫자 없는 문구는 기본값으로 옮기고 UI에 밝힘 | `js/data.js` `TREASURE_FX_*`·`parseTreasureFx`, `js/battle.js` `extraKindOf`·`extraStrike`·`areaStrike`·`counter`·`doAttack`·`calcDamage` |
+| 보물 전투 규칙 | 연격 확률·연속 사격·한 턴 2회(3턴 쿨타임)·주변/관통 추가 피해·수전·산악·야간 지형 보정·반사 피해·돌격·측면 추가 피해를 실제 전투 판정에 연결. 전장 적용 97→**107종**, 미적용 81→70절. 숫자 없는 문구는 기본값으로 옮기고 UI에 밝힘 | `js/data.js` `TREASURE_FX_*`·`parseTreasureFx`, `js/battle.js` `extraKindOf`·`extraStrike`·`areaStrike`·`counter`·`doAttack`·`calcDamage` |
 | 일기토 | 이름 있는 장수 근접 교전에 좌우 초상 컷인, 숙적 붉은 표시, 한 판 3회·상대별 1회, ×4에서 180ms 안쪽 | `js/battle.js` `duelCutin`, `css/game.css` `.duel-cutin` |
 | 타격감 | 불티 이펙트·베기 두 갈래·짧은 진동, 크리티컬 화면 번쩍임, 예고 창에 연격·광역·관통·한 턴 2회 표시 | `js/battle.js` `impactAt`·`critFlash`·`drawFx`·`openAttackPreview` |
 | 야간 전장 | 야영 기습전 = 밤 전투. 화면 밤색 multiply + 횃불 빛, 제목 `야간 ·`. 흑갑·해동병법이 실제로 붙음 | `js/battle.js` `drawNight`·`terrFxPct` |
