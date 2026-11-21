@@ -11381,6 +11381,11 @@
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', devObsInit);
     else setTimeout(devObsInit, 0);
+    /* 관전을 켜기 전에도 연월·세력·1위가 낡지 않게 지도 화면에서만 가볍게 다시 칠한다 */
+    setInterval(() => {
+      const mapScr = document.getElementById('screen-map');
+      if (!OBS.on && OBS.bar && mapScr && mapScr.classList.contains('active')) obsPaint();
+    }, 1500);
   }
 
   /* expose */
