@@ -177,8 +177,8 @@
     marketGold: [0, 110, 180, 280, 400, 560],   // 시장 Lv.1~5 매달 금 (담당 배율 전)
     salary: { S: 28, A: 19, B: 14, C: 10 },     // 장수 등급별 매달 금 봉급
     lordExtra: 4,                 // 군주는 봉급이 조금 더 든다
-    buildNew: 300,                // 공터 건설
-    buildUp: [0, 550, 1200, 2600, 5200],        // Lv.1→2 … Lv.4→5 증축 (금이 쌓일 곳)
+    buildNew: 220,                // 공터 건설 (v5.35 300→220: 첫 성에서도 첫 달에 한 칸은 지을 수 있게)
+    buildUp: [0, 350, 700, 1300, 2200],         // Lv.1→2 … Lv.4→5 증축 (v5.35 현실화 — 수입 대비 두세 달이면 회수)
     famineLoyalty: 3,             // 군량이 바닥나면 성마다 민심 −3
     famineDesert: 0.03,           // 병력 3%가 굶어 대열을 떠난다
   };
@@ -1418,7 +1418,9 @@
   SK.toast = function (msg) {
     const t = $('#toast');
     t.textContent = msg;
-    t.classList.toggle('top', !!document.querySelector('#modal-root .modal-layer'));
+    /* v5.35 — 닫히는 중(.out)인 창은 '열린 창'으로 치지 않는다.
+       예전에는 창을 닫고 바로 띄운 알림이 하단 명령줄을 덮었다. */
+    t.classList.toggle('top', [...document.querySelectorAll('#modal-root .modal-layer')].some((l) => !l.classList.contains('out')));
     t.hidden = false;
     t.classList.add('show');
     clearTimeout(toastTimer);
@@ -1440,7 +1442,7 @@
       <div class="modal ${opts.wide ? 'wide' : ''}">
         ${opts.kicker ? `<p class="modal-kicker">${opts.kicker}</p>` : ''}
         <h3>${opts.title || ''}</h3>
-        ${opts.body || ''}
+        <div class="modal-body">${opts.body || ''}</div>
         <div class="modal-actions"></div>
       </div>`;
     const actions = wrap.querySelector('.modal-actions');
@@ -2910,9 +2912,9 @@
       </div>`,
       actions: [
         { label: '← 뒤로', onClick: () => setTimeout(() => openRoster('gen'), 40) },
-        { label: '보물 관리', onClick: () => openTreasures(g) },
+        { label: '보물', onClick: () => openTreasures(g) },
         ...(SK.state.cities[g.city] && SK.state.cities[g.city].owner === PF()
-          ? [{ label: '다른 성으로 이동', onClick: () => openTransfer(g) }] : []),
+          ? [{ label: '전출', onClick: () => openTransfer(g) }] : []),
         { label: '닫기', primary: true },
       ],
     });
@@ -3144,6 +3146,12 @@
     lab: { name: '연구소', icon: 'lab', stat: 'pol', res: 'research', desc: '기술 연구를 돕습니다' },
     workshop: { name: '공방', icon: 'workshop', stat: 'pol', res: 'gold', desc: '수송과 병기를 준비합니다' },
   };
+  /* v5.35 — 시설 카드에 '담당 없음 · 수입 50%'가 병영·연병장·성벽에도 붙어 오해를 샀다.
+     건물마다 실제로 반값이 되는 효과를 적어 준다. */
+  const SLOT_HALF = {
+    market: '수입 50%', farm: '수확 50%', barracks: '모집 50%', training: '훈련 50%',
+    patrol: '민심·치안 50%', tavern: '소문 50%', wall: '보수 50%', lab: '연구 50%', workshop: '준비 50%',
+  };
   SK.SLOT_DEFS = SLOT_DEFS;
   /* v5.17 — 도시 규모별 공터·시설 칸: 소도시 6 · 중도시 8 · 대도시 10 */
   const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 2, fortress: 3 };
@@ -3305,7 +3313,7 @@
   }
   SK.dutyTail = dutyTail;
 
-  /* v5.4 — 증축 비용. Lv.1→2 550금부터 Lv.4→5 2,600금까지 오르고 수입은 배로 는다 */
+  /* v5.4 — 증축 비용. v5.35 — Lv.1→2 350금부터 Lv.4→5 2,200금까지 (시장 Lv.2 +70금/달 → 5달이면 회수) */
   function buildCost(sl) { return sl.key ? ECON.buildUp[clamp(sl.lv, 1, 4)] : ECON.buildNew; }
 
   function renderCitySlots(cityId) {
@@ -3352,7 +3360,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b><em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : '<em>담당 없음 · 수입 50%</em>'}${dep ? `<span class="sc-dep"><img class="sc-face" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : '<em class="sc-dep-empty">부장 없음</em>'}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : '<em class="sc-dep-empty">부장 없음</em>'}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -3566,13 +3574,13 @@
         </div>` : ''}
         <div class="menu-list">
           ${sl.lv < 5 ? `<button data-a="up" ${(s.gold < cost || !epOk) ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})${epOk ? '' : ' · 경험 부족'}</button>` : ''}
-          <button data-a="assign">주담당 ${g ? '교체' : '임명'}</button>
-          <button data-a="assignDep">부장 ${depG ? '교체' : '임명'} — 효과 +45%</button>
+          ${!targetRole ? `<button data-a="assign">주담당 ${g ? '교체' : '임명'}</button>` : ''}
+          ${(g && !targetRole) ? `<button data-a="assignDep">부장 교체 — 효과 +45%</button>` : ''}
           ${depG ? '<button data-a="freeDep">부장 해제</button>' : ''}
           ${g ? '<button data-a="free">주담당 해제 — 이번 달 자유 행동</button>' : ''}
           ${sl.key === 'training' ? `<button data-a="crew">수련 명단 — 함께 수련할 대기 장수 (${trainCrewOf(cs).length}명)</button>` : ''}
         </div>
-        ${targetRole && free.length ? `<p class="talent-note">${targetRole === 'deputy' ? '부장으로 앉힐' : '앉힐 수 있는'} 대기 장수 ${free.length}명 — 주담당 1명 + 부장 1명까지 함께 맡을 수 있습니다</p><div class="target-list">${opts}</div>` : ''}`,
+        ${targetRole && free.length ? `<p class="duty-pick-head">${targetRole === 'deputy' ? '부장' : '주담당'}으로 앉힐 장수 <em>카드를 누르면 바로 배속됩니다</em></p><div class="target-list">${opts}</div>` : ''}`,
       wide: true, actions: [{ label: '닫기' }],
     });
     m.el.querySelectorAll('[data-a]').forEach((b) => {
@@ -4088,7 +4096,7 @@
             <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
             <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
               <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
-            <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b>${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
+            <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b class="tc-state${g.actedThisMonth ? ' done' : ''}">${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
             <span class="tc-go">▸</span></button>`;
         }
         const on = sel.has(g.uid);
@@ -4097,14 +4105,14 @@
           <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
           <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
             <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
-          <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b>${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
+          <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b class="tc-state${g.actedThisMonth ? ' done' : ''}">${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
           <span class="tc-go">▸</span></button>`;
       }).join('');
       const wrap = m.el.querySelector('#ex-wrap');
       wrap.innerHTML = `${tabs}${note}<div class="target-list pick-scroll">${cards}</div>`;
       const act = m.el.querySelector('.modal-actions .btn-primary');
       if (act) {
-        act.textContent = mode === 'many' ? (sel.size ? `${sel.size}명 탐색 보내기` : '장수를 체크하세요') : '여러 명 보내기';
+        act.textContent = mode === 'many' ? (sel.size ? `${sel.size}명 탐색 보내기` : '장수를 체크하세요') : '한 명씩 — 카드를 누르세요';
         act.disabled = mode !== 'many' || !sel.size;
       }
       wrap.querySelectorAll('[data-ex]').forEach((b) => {
@@ -4433,7 +4441,7 @@
         <span class="tc-go">▸</span></button>`;
     }).join('');
     const m = SK.modal({ kicker: `${CITY[cityId].name} 첩보`, title: '어느 성을 살필까',
-      body: `<p class="talent-note">정찰하면 3~5개월 동안 그 성의 수비병·성벽·민심·장수를 볼 수 있습니다. 금 ${scoutCost()}과 함께 첩자로 보낼 장수 한 명의 이번 달 행동을 씁니다.</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">정찰하면 3~5개월 동안 그 성의 수비병·성벽·민심·장수를 볼 수 있습니다. 금 ${scoutCost()} + 첩자로 보낼 장수 한 명의 이번 달 행동을 씁니다.</p><div class="target-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }] });
     m.el.querySelectorAll('.target-card').forEach((b) => {
       b.onclick = () => { m.close(); setTimeout(() => openScoutEnvoy(cityId, b.dataset.c), 30); };
@@ -4464,7 +4472,7 @@
     const m = SK.modal({
       kicker: `${CITY[fromId].name} → ${CITY[targetId].name}`,
       title: '누구를 첩자로 보낼까',
-      body: `<p class="talent-note">금 ${scoutCost()}과 함께 보낸 장수의 이번 달 행동을 씁니다. 지력·매력이 높으면 더 오래 성안을 살핍니다.</p>
+      body: `<p class="talent-note">금 ${scoutCost()} + 보낸 장수의 이번 달 행동을 씁니다. 지력·매력이 높으면 더 오래 성안을 살핍니다.</p>
         <div class="target-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }],
     });
@@ -4501,7 +4509,7 @@
     }
     const m = SK.modal({
       kicker: `${CITY[targetId].name} 첩보`, title: '누구를 첩자로 보낼까',
-      body: `<p class="talent-note">금 ${scoutCost()}과 함께 보낸 장수의 이번 달 행동을 씁니다.</p>
+      body: `<p class="talent-note">금 ${scoutCost()} + 보낸 장수의 이번 달 행동을 씁니다.</p>
         <div class="target-list">${rows.join('')}</div>`,
       wide: true, actions: [{ label: '취소' }],
     });
@@ -6646,10 +6654,13 @@
           <p class="op-note">${POLICIES[pol].desc}${pol === 'supply' ? ` · 보내는 곳 <b>${supplyName}</b>` : ''}${isCapital ? ' · 본성은 자동 내정을 하지 않지만 방침은 기억해 둡니다' : ''}</p>
           ${pol === 'supply' ? `<button class="grp-row" data-o="supplyTo" style="margin-top:4px"><div><b>수송 목적지 — ${supplyName}</b><span>남는 병력을 매달 이 성으로 보냅니다</span></div><span class="grp-go">▸</span></button>` : ''}
         </div>
-        <button class="office-auto ${autoOn ? 'on' : ''}" data-o="auto">
+        ${isCapital ? `<div class="office-auto info">
+          <b>본성은 직접 다스립니다</b>
+          <span>자동 내정은 태수를 앉힌 다른 성에서만 돕니다. 본성은 늘 직접 지시합니다</span>
+        </div>` : `<button class="office-auto ${autoOn ? 'on' : ''}" data-o="auto">
           <b>자동 내정 ${autoOn ? '켜짐' : '꺼짐'}</b>
-          <span>${isCapital ? '본성은 달이 바뀌어도 자동으로 내정하지 않습니다' : (gov ? `달이 바뀌면 ${josa(gov.name, 'i')} 남은 행동으로 내정합니다` : '태수를 앉히지 않으면 자동 내정하지 않습니다')}</span>
-        </button>
+          <span>${gov ? `달이 바뀌면 ${josa(gov.name, 'i')} 남은 행동으로 내정합니다` : '태수를 앉히지 않으면 자동 내정하지 않습니다'}</span>
+        </button>`}
         <div class="office-tax">
           <p class="op-note">세율 — 전 거점 공통 · 지금 ${tax.name}${helpDot('tax')}</p>
           <div class="tax-row">${Object.keys(TAX_RATES).map((k) => `<button data-tax="${k}" class="${(s.taxRate || 'normal') === k ? 'on' : ''}">${TAX_RATES[k].name}<small>${TAX_RATES[k].desc}</small></button>`).join('')}</div>
@@ -9207,9 +9218,27 @@
      기준 배율도 1.55 → 1.20으로 낮춰 적이 실제로 플레이어를 노린다 (graceOf 유예는 그대로).
      v5.21 — 2칸 건너(ring) 성은 침공 출발지에서 뺀다. 예전에는 경주 → 부산(재야) → 완산처럼
      길이 이어지지 않은 남의 성을 건너뛰어 치는 '점프 침공'이 나왔다.
-     이제 같은 세력이라도 직접 도로·해로로 이어진 인접 성(adj)에서만 출진한다. */
-  const INVASION_RATIO = 1.20;
-  /* v5.29 — 한 달에 성 두 곳까지 동시에 침공받을 수 있다.
+     이제 같은 세력이라도 직접 도로·해로로 이어진 인접 성(adj)에서만 출진한다.
+     v5.35 — 1.20 → 1.35로 올리고, 방어 뒤 쿨다운·병력 상한을 넣어 침공 템포를 늦췄다. */
+  const INVASION_RATIO = 1.35;
+  /* v5.35 — 내정을 즐길 수 있는 템포로 조정 (사용자: "진짜 미친듯이 쳐들어오네")
+     · 방어·요격으로 침공을 꺾으면 두 달간 천하가 조용해진다 (s.invasionCalmUntil)
+     · 한 번 막은 성은 석 달간 다시 노려지지 않는다 (cs.lastRepelledTurn)
+     · 첩보 경고는 한 달에 한 곳 (성 6곳 이상일 때만 두 곳)
+     · 침공군은 대상 성 전력의 2.4배를 넘지 않는다 (지킬 수 없는 침공이 매달 오지 않게) */
+  const INVASION_QUIET_MONTHS = 2;      // 막은 뒤 온 천하가 쉬는 달
+  const INVASION_CITY_QUIET = 3;        // 막은 성이 다시 노려지기까지
+  const INVASION_POWER_CAP = 2.4;       // 침공 병력 상한 = 성 전력 × 2.4
+  function markInvasionRepelled(cityId, s) {
+    s = s || SK.state;
+    if (!s) return;
+    const cs = s.cities[cityId];
+    const turn = s.turn || 0;
+    if (cs) cs.lastRepelledTurn = turn;
+    s.invasionCalmUntil = Math.max(s.invasionCalmUntil || 0, turn + INVASION_QUIET_MONTHS);
+  }
+  SK.markInvasionRepelled = markInvasionRepelled;
+  /* v5.29 — 한 달에 성 두 곳까지 동시에 침공받을 수 있다. (v5.35 — 성 6곳 이상일 때만 두 곳)
      예전에는 invasionWarn·pendingInvasion이 하나뿐이라 두 번째 침공이 아예 생기지 않았고,
      행군 도착과 겹치면 늦은 쪽이 다음 달로 밀렸다.
      이제 경고는 s.invasionWarns(배열)에 쌓고, 실제 침공은 s.invasionQueue로 차례로 처리한다. */
@@ -9222,15 +9251,21 @@
   SK.invasionWarnList = invasionWarnList;
   function planPlayerInvasion(s) {
     if ((s.turn || 1) <= graceOf(s)) return [];
+    const turn = s.turn || 0;
+    /* v5.35 — 방어·요격으로 막은 직후의 두 달은 새 침공을 계획하지 않는다 */
+    if (turn < (s.invasionCalmUntil || 0)) return [];
     const pendingTargets = new Set((invasionWarnList(s) || []).map((w) => w.target));
     if (s.pendingInvasion) pendingTargets.add(s.pendingInvasion.target);
-    const MAX_WARN = 2;
+    const ownCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).length;
+    const MAX_WARN = ownCities >= 6 ? 2 : 1;
     if (pendingTargets.size >= MAX_WARN) return [];
-    const turn = s.turn || 0;
     const found = [];
     SK.CITY_LIST.forEach((pc) => {
       if (s.cities[pc.id].owner !== PF()) return;
       if (pendingTargets.has(pc.id)) return;
+      /* v5.35 — 방금 막아낸 성은 석 달 쉰다 */
+      const lastRep = s.cities[pc.id].lastRepelledTurn;
+      if (typeof lastRep === 'number' && (turn - lastRep) < INVASION_CITY_QUIET) return;
       const adj = SK.allNeighbors(pc.id);
       const byF = {};
       adj.forEach((aid) => {
@@ -9247,9 +9282,12 @@
         const sum = crew.reduce((a, c) => a + c.strength, 0);
         const ratio = sum / cityPower(s.cities[pc.id]);
         if (ratio < INVASION_RATIO) return;
+        /* v5.35 — 지킬 수 없는 규모가 매달 몰려오지 않게 대상 전력의 2.4배로 묶는다 */
+        const capTroops = Math.max(1200, Math.round(cityPower(s.cities[pc.id]) * INVASION_POWER_CAP));
         found.push({
           from: lead.id, target: pc.id, faction: fid, ratio,
-          troops: Math.round(sum * 0.7),
+          troops: Math.min(capTroops, Math.round(sum * 0.7)),
+          cap: capTroops,
           helpers: crew.filter((c) => c.id !== lead.id).slice(0, 2).map((c) => c.id),
         });
       });
@@ -9275,16 +9313,22 @@
       warns.forEach((w) => {
         const ts = s.cities[w.target], as = s.cities[w.from];
         if (!(ts && as && ts.owner === PF() && as.owner === w.faction)) return;
-        /* v5.13 — 예고한 인접+주변 성이 함께 출진한다 (경고 병력과 실제 병력이 어긋나지 않게) */
+        /* v5.13 — 예고한 인접+주변 성이 함께 출진한다 (경고 병력과 실제 병력이 어긋나지 않게)
+           v5.35 — 예고한 상한(w.cap)을 넘지 않게 출진분을 비례해서 깎는다 */
         const helpers = (w.helpers || []).filter((id) => { const hs = s.cities[id]; return hs && hs.owner === w.faction; });
-        let commit = Math.round((as.troops || 0) * 0.55);
-        as.troops = Math.max(AI_CITY_RESERVE, (as.troops || 0) - commit);
+        const srcs = [{ cs: as, part: Math.round((as.troops || 0) * 0.55) }];
         helpers.forEach((id) => {
           const hs = s.cities[id];
-          const part = Math.round(Math.max(0, (hs.troops || 0) - AI_CITY_RESERVE) * 0.45);
-          hs.troops = Math.max(AI_CITY_RESERVE, (hs.troops || 0) - part);
-          commit += part;
+          srcs.push({ cs: hs, part: Math.round(Math.max(0, (hs.troops || 0) - AI_CITY_RESERVE) * 0.45) });
         });
+        let commit = srcs.reduce((a, x) => a + Math.max(0, x.part), 0);
+        const cap = w.cap || Math.max(1200, Math.round(cityPower(ts) * INVASION_POWER_CAP));
+        if (commit > cap) {
+          const k = cap / commit;
+          srcs.forEach((x) => { x.part = Math.round(Math.max(0, x.part) * k); });
+          commit = srcs.reduce((a, x) => a + x.part, 0);
+        }
+        srcs.forEach((x) => { x.cs.troops = Math.max(AI_CITY_RESERVE, Math.round((x.cs.troops || 0) - x.part)); });
         SK.pushInvasion(s, {
           from: w.from, target: w.target, faction: w.faction,
           troops: Math.max(1200, commit), turn: s.turn, helpers,

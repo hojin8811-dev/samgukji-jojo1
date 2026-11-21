@@ -5459,6 +5459,8 @@
     /* 침공 사건을 정리한다 — 뒤이은 침공(큐)은 chainPendingEvents 가 이어서 연다 */
     if (s.pendingInvasion === inv || (s.pendingInvasion && s.pendingInvasion.target === inv.target && s.pendingInvasion.from === inv.from)) s.pendingInvasion = null;
     s.invasionQueue = (s.invasionQueue || []).filter((q) => q !== inv);
+    /* v5.35 — 요격으로 꺾은 성은 두 달간 다시 노려지지 않는다 */
+    if (inv.target && SK.markInvasionRepelled) SK.markInvasionRepelled(inv.target, s);
     const prisoners = rollPrisoners();
     SK.save();
     SKBattle.refreshUI();
@@ -6136,6 +6138,8 @@
       } else h.hp = 1;
     });
     s.pendingInvasion = null;
+    /* v5.35 — 수성전으로 막은 성도 두 달은 쉰다 */
+    if (B.targetId && SK.markInvasionRepelled) SK.markInvasionRepelled(B.targetId, s);
     /* v5.8 — 수성전에서도 적 장수 일부를 사로잡는다 */
     prisonCity = B.targetId;
     const prisoners = rollPrisoners();
