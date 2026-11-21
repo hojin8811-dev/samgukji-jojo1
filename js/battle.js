@@ -2189,7 +2189,7 @@
     if (!canCounterAt(a, d)) return;
     const mul = counterMulOf(a);
     wait(() => {
-      if (!a.alive || !d.alive || B.over) return;
+      if (!B || !a.alive || !d.alive || B.over) return;   // v5.16 — 전투가 닫힌 뒤(B=null) 콜백 보호
       attackUnit(a, d, { mult: mul }, () => finishCheck());
     }, 240);
   }
@@ -2828,10 +2828,11 @@
     SK.sfx.play('heal');
     u.acted = true;
     SKBattle.refreshUI();
-    wait(() => { if (!B.over) nextUnitOrWait(); }, 450);
+    wait(() => { if (B && !B.over) nextUnitOrWait(); }, 450);   // v5.16 — B=null 보호
   }
 
   function waitUnit() {
+    if (!B) return;   // v5.16 — 전투가 닫힌 뒤 호출 보호
     const u = B.sel;
     if (!u || u.acted) return;
     u.acted = true;

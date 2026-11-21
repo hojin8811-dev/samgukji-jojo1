@@ -1,6 +1,23 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=29`
+기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=30`
+
+## ✅ v5.16 — 인물·보물 도감 · 천하통일 엔딩 · 공성 전란 피해 (2026-11-21 · `?v=30`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 인물 도감 | 625명 수집 체크(내 장수·포로·전장/주점 조우), 세력·등급 필터, 수집률, 초상 그리드, 5능력치 카드 | `app.js` `openCodex`·`codexMerge`·`codexMeet` |
+| 보물 도감 | 151종 보유/획득 체크, 종류·등급 필터, 효과 표시 | `app.js` `codexTreasure`·`codexTreRows` |
+| 누적 기록 | `localStorage['samgukji-jojo-codex']` + `state.codex` — 다음 회차 유지 | `app.js` `codexRead/Write` |
+| 천하통일 엔딩 | 80/80 달성 시 1회 엔딩(걸린 달·거점·장수·명성·도감 %, 등급 칭호) | `app.js` `checkUnification`·`showUnification` |
+| 결산 합계 | 딜/탱/힐/처치 표 아래 `합계` 줄 | `battle.js` `battleReportHTML` |
+| 공성 전란 피해 | 7턴~·성문 파괴 수에 비례해 성벽·시설 경험/레벨·농업·상업·치안·인구 손실 | `battle.js` `victory` |
+| 문구·수치 | 1막 부제·표지 `19 병과 · 625 장수` | `data/historical_scenarios.json`, `index.html` |
+| 병과 핀셋 | 간옹·진림·진군·유엽·왕찬·허유→책사, 완적→군악대 | `data/generals.json` |
+| 야영 스폰 | 목책(F)·바위(M) 위 아군 → 진영 안 14~15행, 천막 위 소나무 → 좌우 가장자리 | `js/data.js` `campMap`·`allySlots` |
+| 전투 콜백 | `B=null` 뒤 `B.over` 접근 3곳 보호 | `js/battle.js` `counter`·`useItem`·`waitUnit` |
+| 검증 | 라이브 47거점 실전 + 엔딩, 콘솔 0 | `tools/v516_*.py`, `preview/v516_live/` |
+
 
 ## ✅ v5.15 — 조조전식 밸런스 대수술 · 8종 요격전 · 1막 판도 정리 (2026-11-21 · `?v=29`)
 
