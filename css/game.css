@@ -1270,7 +1270,7 @@ b { font-weight: 700; }
 .advice-row.info { border-left-color: #4f7a9c; background: #f1f3ee; }
 .advice-row.good { border-left-color: #4d7a42; background: #f0f4e6; }
 .advice-head { display: flex; align-items: baseline; gap: 6px; }
-.advice-head b { font-family: var(--serif); font-size: 12.5px; color: #2c2412; line-height: 1.35; }
+.advice-head b { font-family: var(--serif); font-size: 12.5px; color: #2c2412; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }   /* v5.28 — '맞먹습니다'가 단어 중간에서 끊기지 않게 */
 .advice-tone {
   flex: 0 0 auto; font-size: 8.5px; font-weight: 800; padding: 1px 5px; border-radius: 7px;
   background: #e6d6b4; color: #6b5322;
@@ -1279,7 +1279,7 @@ b { font-weight: 700; }
 .advice-row.warn .advice-tone { background: #c98a2a; color: #fff8ea; }
 .advice-row.info .advice-tone { background: #4f7a9c; color: #f1f7ff; }
 .advice-row.good .advice-tone { background: #4d7a42; color: #f2f8e8; }
-.advice-row p { margin: 3px 0 0; font-size: 10px; line-height: 1.55; color: #4a3c20; }
+.advice-row p { margin: 3px 0 0; font-size: 10px; line-height: 1.55; color: #4a3c20; word-break: keep-all; overflow-wrap: anywhere; }
 .advice-go { display: inline-block; margin-top: 4px; font-size: 9px; font-weight: 800; color: #7a5c22; }
 .advice-go::before { content: "▸ "; }
 
