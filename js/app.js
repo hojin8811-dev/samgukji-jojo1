@@ -831,12 +831,16 @@
     groups.forEach((grp) => spare[grp].sort((a, b) => SK.genScore(SK.GEN_BY_ID[b]) - SK.genScore(SK.GEN_BY_ID[a]) || a - b));
     const homeCap = SK.CITY_LIST.find((c) => c.type === 'capital' && st.cities[c.id].owner === st.playerFaction)
       || SK.CITY_LIST.find((c) => st.cities[c.id].owner === st.playerFaction);
+    /* v5.23 — 빈 주점의 긴급 보충은 '같은 지역' 안에서만 한다.
+       전에는 한국 풀이 바닥나면 위·촉·오 인물을 한국 성에 앉혀, 완산·개성 주점에
+       관우·조조 같은 중국 인재가 서는 일이 있었다. 이제 한국 성은 한국 인재로만 채운다. */
+    const regionOf = (grp) => (grp === '한국' ? '한국' : '중국');
     SK.CITY_LIST.forEach((c) => {
       const cs = st.cities[c.id];
       const want = homeCap && homeCap.id === c.id ? 2 : 1;
       if ((cs.talents || []).length >= want) return;
       const grp = tavernGroupOf(st, c.id);
-      const pools = [spare[grp] || []].concat(groups.filter((x) => x !== grp).map((x) => spare[x]));
+      const pools = [spare[grp] || []].concat(groups.filter((x) => x !== grp && regionOf(x) === regionOf(grp)).map((x) => spare[x]));
       for (let pi = 0; pi < pools.length && cs.talents.length < want; pi++) {
         while (pools[pi].length && cs.talents.length < want) {
           const id = pools[pi].shift();
@@ -1193,6 +1197,9 @@
     toastTimer = setTimeout(() => { t.classList.remove('show'); setTimeout(() => (t.hidden = true), 260); }, 2400);
   };
 
+  /* v5.23 — 열린 모달을 스택으로 관리한다. 안드로이드 뒤로가기(js/backguard.js)가
+     '맨 위 모달만 닫기'를 하려면 어떤 모달이 열려 있고 닫을 수 있는지 알아야 한다. */
+  SK.modalStack = SK.modalStack || [];
   SK.modal = function (opts) {
     if (opts && opts.delay) {
       const t = setTimeout(() => SK.modal(Object.assign({}, opts, { delay: 0 })), opts.delay);
@@ -1219,7 +1226,17 @@
       };
       actions.appendChild(b);
     });
-    function close() { wrap.classList.add('out'); setTimeout(() => wrap.remove(), 220); }
+    let closed = false;
+    function close() {
+      if (closed) return;
+      closed = true;
+      const i = SK.modalStack.indexOf(layer);
+      if (i >= 0) SK.modalStack.splice(i, 1);
+      wrap.classList.add('out');
+      setTimeout(() => wrap.remove(), 220);
+    }
+    const layer = { el: wrap, dismissible: opts.dismissible !== false, close };
+    SK.modalStack.push(layer);
     wrap.addEventListener('click', (e) => { if (e.target === wrap && opts.dismissible !== false) close(); });
     root.appendChild(wrap);
     requestAnimationFrame(() => wrap.classList.add('in'));
@@ -1325,6 +1342,11 @@
         const r2 = await fetch('data/v58_art_manifest.json', { cache: 'no-cache' });
         if (r2.ok) SK.addTopArt(await r2.json());
       } catch (e2) { console.warn('v5.8 신규 일러스트 목록을 불러오지 못했습니다.', e2); }
+      /* v5.23 — 한국 재야 풀 20인 전용 초상(5×4 시트를 256×256으로 잘라 넣은 것) */
+      try {
+        const r3 = await fetch('data/korea_v523_art.json', { cache: 'no-cache' });
+        if (r3.ok) SK.addTopArt(await r3.json());
+      } catch (e3) { console.warn('v5.23 한국 초상 목록을 불러오지 못했습니다.', e3); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }
@@ -5361,9 +5383,10 @@
     const lordSet = SK.lordNameSet(st);
     const take = (g, fromId, here) => {
       if (!g || seen.has(g.id)) return;
-      /* v5.22 — 이 성에 이미 앉혀 둔 재야(here)는 그대로 보여 준다.
-         (왕실 제외로 지역 풀이 바닥나 다른 지역 인물을 긴급히 채운 경우까지 막히던 문제) */
-      if (genPoolGroup(g) !== grp && !here) return;
+      /* v5.23 — 이 성에 앉아 있는 재야(here)도 같은 지역 인물만 보여 준다.
+         (v5.22에서 예외로 둔 탓에 옛 세이브·긴급 보충으로 들어온 중국 인재가
+          한국 성 주점에 그대로 남아 있었다. 한국 풀이 두터워진 지금은 예외가 필요 없다.) */
+      if (genPoolGroup(g) !== grp) return;
       if (SK.isLordOnly(g, lordSet)) return;   // v5.20 — 군주·왕은 재야 인재가 아니다
       if (!SK.debutOk(g, eraYearOf(st))) return;
       if (SK.isDead(g.id, g.name)) return;          // v5.8 — 처형한 장수는 다시 나오지 않는다
@@ -9116,11 +9139,13 @@
     if (cmap) cmap.onclick = () => { SK.closeCitySheet(); SK.showMap(); };
     const rk = $('#map-rank');
     if (rk) { rk.style.cursor = 'pointer'; rk.onclick = () => openRank(); }
-    $('#btn-retreat').onclick = () => {
+    /* v5.23 — 전장 뒤로가기도 상단 ‹ 버튼과 똑같이 이 확인을 띄운다 */
+    SK.confirmRetreat = function () {
       SK.modal({ title: '후퇴할까요?', body: '<p class="modal-p">전투에서 물러나면 이번 공격은 실패합니다.</p>', actions: [
         { label: '계속 싸운다' }, { label: '후퇴', onClick: () => { if (window.SKBattle) SKBattle.retreat(); } },
       ] });
     };
+    $('#btn-retreat').onclick = () => SK.confirmRetreat();
   }
 
   /* expose */

@@ -154,7 +154,8 @@ SK.CLASS_PORTRAIT = {
 /* 여성 장수 — 이 이름들만 여성 초상(gen_muhui)을 쓴다. 남성은 절대 받지 않는다. */
 SK.FEMALE_GENERALS = ['초선', '허황옥', '보연사', '견희', '대교', '소교', '신헌영', '왕원희',
   '진덕여왕', '황진이', '손노반', '손노육', '채문희', '허난설헌', '손상향', '선덕여왕',
-  '축융', '포삼랑', '황월영', '관은병', '장성채', '마운록', '화만', '향랑'];
+  '축융', '포삼랑', '황월영', '관은병', '장성채', '마운록', '화만', '향랑',
+  '논개'];   // v5.23 — 논개(진주)를 여성 장수로 등록
 SK.isFemaleGeneral = function (g) {
   return !!(g && SK.FEMALE_GENERALS.indexOf(g.name) >= 0);
 };
@@ -445,7 +446,14 @@ SK.cityIdByName = function (name) {
 /* v5.18 — 한국 3국 명부 정비: 구수/구수왕·내해/내해이사금처럼 같은 사람이 두 이름으로
    들어 있던 항목과, generals.json에 이미 있는 역대 왕(초고왕·벌휴이사금·산상왕·사반왕)을 걷어냈다.
    여기에는 generals.json에 없는 진짜 장수·책사만 남긴다. */
-SK.KOREAN_EXTRA = ['명림어수', '석우로'];
+/* v5.23 — 아래 38인은 generals.json에 없던 한국 인물이라 region을 '한국'으로 못 박는다 */
+SK.KOREAN_EXTRA = ['명림어수', '석우로',
+  '유금필', '김윤후', '김방경', '이지란', '최윤덕', '정기룡', '연남생', '정운',
+  '권응수', '창조리', '목라근자', '해구', '알천', '죽지랑', '박영규', '장문휴',
+  '홍대용', '박지원', '김시습', '남이', '어유소', '허종', '정문부', '이정암',
+  '신립', '정충신', '영규', '홍계남', '김응서', '김상헌', '거타지', '김정호',
+  '유형원', '정제두', '안용복', '논개', '김천일', '송상현',
+  '오연총', '고연수', '어재연', '원측', '정년'];
 SK.EXTRA_GENERALS = {
   '유언': { job: '군주', tier: 'A', war: 40, intel: 66, lead: 58 },
   '공손강': { job: '군주', tier: 'B', war: 58, intel: 62, lead: 60 },
@@ -520,6 +528,53 @@ SK.EXTRA_GENERALS = {
   '소건': { job: '궁수', tier: 'C', war: 59, intel: 42, lead: 50, birth: 168, debut: 188 },   // 蘇乾 — 엄백호의 부하
   '주흔': { job: '창병', tier: 'B', war: 66, intel: 54, lead: 60, birth: 158, debut: 180 },   // 周昕 — 왕랑의 부하
   '장아': { job: '검병', tier: 'C', war: 61, intel: 46, lead: 52, birth: 165, debut: 184 },   // 張雅 — 왕랑의 부하
+  /* v5.23 — 한국 재야 풀 보강 43인(초상 1·2탄 40명 + 초상 없는 3인). v5.22에서 왕실 인물을 재야에서 빼자 한국 성(완산·개성·경주 등)
+     주점이 비어 중국 인재로 메워지던 문제를 뿌리에서 고친다. 병과는 책사·기병에 몰리지 않게 18병과에 나눠 배분했고, 왕·태자·여왕은 넣지 않았다
+     (이름이 왕·대왕·여왕·이사금·태자로 끝나면 SK.isLordOnly가 재야에서 뺀다). */
+  '유금필': { job: '기병', tier: 'A', war: 91, intel: 74, lead: 88, pol: 56, charm: 64, birth: 166, debut: 190, skill: '훤산성의 역습' },   // 庾黔弼 — 고려 개국 명장
+  '김윤후': { job: '풍수사', tier: 'A', war: 90, intel: 84, lead: 92, pol: 58, charm: 82, birth: 164, debut: 190, skill: '처인성의 한 발' },   // 金允侯 — 처인성에서 살리타 격살
+  '김방경': { job: '수적', tier: 'A', war: 89, intel: 86, lead: 90, pol: 76, charm: 74, birth: 160, debut: 190, skill: '삼별초 진압' },   // 金方慶 — 삼별초 진압
+  '이지란': { job: '궁기', tier: 'A', war: 93, intel: 70, lead: 86, pol: 50, charm: 58, birth: 158, debut: 190, skill: '여진의 명궁' },   // 李之蘭 — 여진 출신 조선 개국 장수
+  '최윤덕': { job: '기병', tier: 'A', war: 91, intel: 78, lead: 88, pol: 72, charm: 74, birth: 157, debut: 190, skill: '사군 개척' },   // 崔潤德 — 조선 4군 개척
+  '정기룡': { job: '기병', tier: 'A', war: 91, intel: 76, lead: 87, pol: 52, charm: 66, birth: 158, debut: 190, skill: '상주성의 창' },   // 鄭起龍 — 임진왜란 육전 명장
+  '연남생': { job: '기병', tier: 'A', war: 87, intel: 88, lead: 91, pol: 74, charm: 68, birth: 156, debut: 190, skill: '대막리지의 군령' },   // 淵男生 — 고구려 대막리지
+  '정운': { job: '수적', tier: 'B', war: 86, intel: 70, lead: 84, pol: 54, charm: 62, birth: 157, debut: 190, skill: '녹도만호의 배' },   // 鄭運 — 임진왜란 녹도만호
+  '권응수': { job: '창병', tier: 'B', war: 85, intel: 70, lead: 84, pol: 58, charm: 72, birth: 159, debut: 190, skill: '영천 의병' },   // 權應銖 — 영천 의병장
+  '창조리': { job: '책사', tier: 'B', war: 54, intel: 86, lead: 78, pol: 82, charm: 64, birth: 160, debut: 190, skill: '고구려의 책략' },   // 倉助利 — 고구려 재상
+  '목라근자': { job: '검병', tier: 'C', war: 76, intel: 56, lead: 74, pol: 52, charm: 55, birth: 165, debut: 192, skill: '백제의 창' },   // 木羅斤資 — 백제 장군
+  '해구': { job: '책사', tier: 'C', war: 50, intel: 74, lead: 66, pol: 80, charm: 58, birth: 162, debut: 190, skill: '조정의 저울' },   // 解仇 — 백제 대신
+  '알천': { job: '책사', tier: 'B', war: 68, intel: 84, lead: 82, pol: 80, charm: 76, birth: 158, debut: 190, skill: '화백의 자리' },   // 閼川 — 신라 화백회의 대장
+  '죽지랑': { job: '검병', tier: 'B', war: 80, intel: 62, lead: 76, pol: 56, charm: 88, birth: 166, debut: 192, skill: '화랑의 검' },   // 竹旨郞 — 신라 화랑
+  '박영규': { job: '기병', tier: 'B', war: 84, intel: 64, lead: 82, pol: 62, charm: 58, birth: 160, debut: 190, skill: '호족의 기병' },   // 朴英規 — 고려 호족 장군
+  '장문휴': { job: '수적', tier: 'B', war: 84, intel: 70, lead: 82, pol: 54, charm: 56, birth: 168, debut: 194, skill: '발해의 뱃길' },   // 張文休 — 발해 수군장
+  '홍대용': { job: '책사', tier: 'B', war: 30, intel: 90, lead: 50, pol: 78, charm: 66, birth: 173, debut: 194, skill: '북경의 지도' },   // 洪大容 — 실학자
+  '박지원': { job: '책사', tier: 'A', war: 28, intel: 92, lead: 48, pol: 82, charm: 84, birth: 173, debut: 194, skill: '열하일기의 눈' },   // 朴趾源 — 열하일기
+  '김시습': { job: '풍수사', tier: 'B', war: 36, intel: 86, lead: 52, pol: 72, charm: 76, birth: 170, debut: 192, skill: '매월당의 붓' },   // 金時習 — 매월당
+  '남이': { job: '무도가', tier: 'B', war: 88, intel: 60, lead: 80, pol: 42, charm: 60, birth: 168, debut: 192, skill: '북정의 기병' },   // 南怡 — 조선 무장
+  '어유소': { job: '기병', tier: 'C', war: 80, intel: 60, lead: 78, pol: 58, charm: 62, birth: 165, debut: 192, skill: '여진 정벌' },   // 魚有沼 — 조선 여진 정벌
+  '허종': { job: '무도가', tier: 'B', war: 84, intel: 66, lead: 82, pol: 64, charm: 60, birth: 163, debut: 190, skill: '국경의 창' },   // 許琮 — 조선 북방 무장
+  '정문부': { job: '산적', tier: 'B', war: 66, intel: 82, lead: 80, pol: 78, charm: 68, birth: 161, debut: 190, skill: '함경 의병' },   // 鄭文孚 — 함경도 의병장
+  '이정암': { job: '등갑병', tier: 'B', war: 82, intel: 80, lead: 86, pol: 72, charm: 70, birth: 160, debut: 190, skill: '연안성 사수' },   // 李廷馣 — 연안성 사수
+  '신립': { job: '궁수', tier: 'C', war: 80, intel: 50, lead: 70, pol: 40, charm: 52, birth: 159, debut: 190, skill: '탄금대의 활' },   // 申砬 — 탄금대
+  '정충신': { job: '궁기', tier: 'B', war: 86, intel: 74, lead: 84, pol: 60, charm: 64, birth: 162, debut: 190, skill: '심하의 기병' },   // 鄭忠信 — 심하·정묘
+  '영규': { job: '창병', tier: 'B', war: 85, intel: 60, lead: 80, pol: 44, charm: 76, birth: 160, debut: 190, skill: '승병의 창' },   // 靈圭 — 승병장
+  '홍계남': { job: '검병', tier: 'C', war: 78, intel: 52, lead: 72, pol: 46, charm: 66, birth: 161, debut: 190, skill: '안성의 의병' },   // 洪季男 — 안성 의병장
+  '김응서': { job: '검병', tier: 'C', war: 78, intel: 58, lead: 72, pol: 52, charm: 58, birth: 160, debut: 190, skill: '도원수의 말' },   // 金應瑞 — 임진왜란 장수
+  '김상헌': { job: '책사', tier: 'B', war: 40, intel: 86, lead: 76, pol: 84, charm: 72, birth: 163, debut: 190, skill: '척화의 붓' },   // 金尙憲 — 척화파 재상
+  '거타지': { job: '궁수', tier: 'C', war: 70, intel: 48, lead: 56, pol: 40, charm: 54, birth: 168, debut: 196, skill: '신라의 활' },   // 居陀知 — 신라 활잡이
+  '김정호': { job: '풍수사', tier: 'C', war: 26, intel: 76, lead: 40, pol: 58, charm: 60, birth: 175, debut: 198, skill: '대동여지도' },   // 金正浩 — 대동여지도
+  '유형원': { job: '책사', tier: 'C', war: 24, intel: 78, lead: 42, pol: 64, charm: 52, birth: 172, debut: 196, skill: '반계수록' },   // 柳馨遠 — 반계수록
+  '정제두': { job: '도사', tier: 'C', war: 28, intel: 74, lead: 40, pol: 60, charm: 56, birth: 170, debut: 196, skill: '양명의 책' },   // 鄭齊斗 — 양명학
+  '안용복': { job: '수적', tier: 'C', war: 52, intel: 62, lead: 54, pol: 48, charm: 62, birth: 166, debut: 194, skill: '울릉도의 바다' },   // 安龍福 — 울릉도·독도
+  '논개': { job: '무희', tier: 'C', war: 44, intel: 50, lead: 48, pol: 42, charm: 90, birth: 167, debut: 194, skill: '진주의 바위' },   // 論介 — 진주
+  '김천일': { job: '등갑병', tier: 'C', war: 70, intel: 62, lead: 70, pol: 60, charm: 66, birth: 160, debut: 190, skill: '진주성의 군' },   // 金千鎰 — 진주성 의병장
+  '송상현': { job: '창병', tier: 'C', war: 66, intel: 64, lead: 68, pol: 66, charm: 70, birth: 158, debut: 190, skill: '동래 성문' },   // 宋象賢 — 동래성
+  /* v5.23 — 한국 초상 2탄에서 새로 들어온 5인 (오연총·고연수·어재연·원측·정년). */
+  '오연총': { job: '궁기', tier: 'A', war: 89, intel: 76, lead: 91, pol: 66, charm: 68, birth: 160, debut: 190, skill: '여진 정벌' },   // 吳延寵 — 고려 별무반 여진 정벌
+  '고연수': { job: '창병', tier: 'A', war: 89, intel: 78, lead: 90, pol: 62, charm: 66, birth: 158, debut: 190, skill: '요동의 창' },   // 高延壽 — 고구려 장수, 안시성
+  '어재연': { job: '등갑병', tier: 'B', war: 84, intel: 62, lead: 80, pol: 50, charm: 72, birth: 172, debut: 196, skill: '광성보의 깃발' },   // 魚在淵 — 신미양요 광성보
+  '원측': { job: '도사', tier: 'B', war: 30, intel: 86, lead: 50, pol: 78, charm: 70, birth: 168, debut: 194, skill: '유식의 한 수' },   // 圓測 — 신라 승려, 유식학
+  '정년': { job: '수적', tier: 'B', war: 86, intel: 64, lead: 80, pol: 48, charm: 58, birth: 164, debut: 192, skill: '장보고의 수군' },   // 鄭年 — 장보고 휘하 수군장
 };
 
 /* 한자 인명 → 한국어 표기 */
