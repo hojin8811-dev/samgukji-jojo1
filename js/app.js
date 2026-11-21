@@ -887,9 +887,57 @@
       h.rank = SK.tierForLv(h.lv);
       const after = SK.classTitle(h.cls, h.lv);
       ups.push({ lv: h.lv, promote: after !== before, title: after, before });
+      /* v5.17 — Lv.10/20/30 전직 연출 대기열 */
+      if (after !== before && SK.isPromoLv(h.lv)) SK.queuePromotion(h, h.lv);
     }
     if (h.lv >= 30) h.exp = Math.min(h.exp, SK.expNeed(30));
     return ups;
+  };
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.17 — 전직 연출 (Lv.10 → Lv.20 → Lv.30)
+     레벨이 전직 지점을 넘으면 대기열에 넣고, 다른 창(승리 결산 등)이 닫힌 뒤
+     한 명씩 전직 팝업을 띄운다. 새로 해금된 병종 기술도 함께 보여 준다.
+     ══════════════════════════════════════════════════════════════ */
+  SK.promoQueue = [];
+  function skillsAtLevel(cls, lv) {
+    const C = SK.CLASSES[cls] || {};
+    return (C.skills || []).map((k) => SK.SKILLS[k]).filter((s) => s && Number(s.unlockLv) === Number(lv));
+  }
+  SK.skillsAtLevel = skillsAtLevel;
+  let promoFlushTimer = null;
+  SK.queuePromotion = function (h, lv) {
+    if (!h || !SK.isPromoLv(lv)) return;
+    if ((SK.promoQueue || []).some((x) => x.uid === h.uid && x.lv === lv)) return;
+    SK.promoQueue.push({ uid: h.uid, name: h.name, cls: h.cls, lv: lv,
+      title: SK.classTitle(h.cls, lv), stage: SK.promoStageOf(lv) });
+    if (promoFlushTimer) return;
+    promoFlushTimer = setTimeout(SK.flushPromotions, 900);
+  };
+  SK.flushPromotions = function () {
+    promoFlushTimer = null;
+    if (!SK.promoQueue || !SK.promoQueue.length) return;
+    if (document.querySelector('#modal-root .modal-layer')) { promoFlushTimer = setTimeout(SK.flushPromotions, 1400); return; }
+    const p = SK.promoQueue.shift();
+    const h = (SK.state && SK.state.heroes || []).find((x) => x.uid === p.uid);
+    const cls = SK.CLASSES[p.cls] || {};
+    const news = skillsAtLevel(p.cls, p.lv);
+    const crown = p.stage >= 3 ? '👑' : p.stage === 2 ? '⚑' : '★';
+    const col = p.stage >= 3 ? '#ffd35c' : p.stage === 2 ? '#dfe6ee' : '#c98b3a';
+    SK.sfx.play('victory');
+    SK.modal({
+      kicker: `전직 ${p.stage}단계 · Lv.${p.lv}`,
+      title: `${p.name} — ${p.title}`,
+      body: `<div class="promo-pop">
+        <div class="promo-seal" style="--pc:${col}">${crown}</div>
+        <p class="promo-line"><b>${p.name}</b>이(가) Lv.${p.lv}에 이르러 <b>${cls.name || ''}</b>에서 <b>${p.title}</b>(으)로 전직했습니다.</p>
+        <div class="promo-rings"><span class="pr-dot done"></span><span class="pr-dot ${p.stage >= 2 ? 'done' : ''}"></span><span class="pr-dot ${p.stage >= 3 ? 'done' : ''}"></span><em>${p.stage} / 3 전직</em></div>
+        ${news.length ? `<div class="promo-skills"><span class="ps-head">새 기술 해금</span>${news.map((sk) => `<div class="ps-row"><b>${sk.name}</b><i>MP ${sk.mp}</i><em>${sk.desc || ''}</em></div>`).join('')}</div>` : '<p class="promo-note">병력 상한과 지휘 능력이 한 단계 올랐습니다.</p>'}
+        <p class="promo-note">전장에서 ${p.stage >= 3 ? '금테 오라와 왕관' : p.stage === 2 ? '은테와 깃발' : '동테'}로 한층 위엄 있게 서게 됩니다.${h && p.lv >= 30 ? ' 더 오를 곳이 없는 최종 전직입니다.' : ''}</p>
+      </div>`,
+      actions: [{ label: '전직을 받아들인다', primary: true, onClick: () => setTimeout(SK.flushPromotions, 400) }],
+      dismissible: false,
+    });
   };
 
   SK.state = null;
@@ -1378,7 +1426,7 @@
             <ul>
               <li><b>지도</b> — 76개 거점을 눌러 내정하고, 적성 인근에서 출진합니다.</li>
               <li><b>내정</b> — 개간·상업·징병·인재·보수로 성을 키웁니다.</li>
-              <li><b>전장</b> — 18×18 대형 격자를 끌어 이동하며 부대를 지휘합니다.</li>
+              <li><b>전장</b> — 24×24(요격·소도시)·28×28(중도시)·32×32(대도시) 격자를 끌어 이동하며 부대를 지휘합니다.</li>
             </ul>
           </div>`,
           actions: [{ label: '출발한다', primary: true }],
@@ -1837,6 +1885,8 @@
   const YARD_SPOTS = [
     { x: 11, y: 34 }, { x: 34, y: 21 }, { x: 66, y: 21 }, { x: 82, y: 26 },
     { x: 18, y: 58 }, { x: 34, y: 62 }, { x: 66, y: 62 }, { x: 82, y: 58 },
+    /* v5.17 — 대도시 10칸 · 중도시 8칸: 안뜰 가운데 두 자리를 더 쓴다 */
+    { x: 50, y: 44 }, { x: 50, y: 70 },
   ];
   /* v5.0.3 — 성벽은 안뜰이 아니라 성문·외벽 위에 둔다 (2026-11-20 지적) */
   const WALL_SPOT = { x: 50, y: 82 };
@@ -1926,7 +1976,8 @@
     SK.save();
     const f = SK.factionInfo(st.owner);
     $('#city-name').textContent = c.name;
-    $('#city-hanja').textContent = typeName(c.type);
+    const ringNo = SK.siegeRingsOfCity ? SK.siegeRingsOfCity(c) : 1;
+    $('#city-hanja').textContent = `${typeName(c.type)} · ${ringNo}중 성벽`;
     $('#city-faction').textContent = SK.markOf(f);
     $('#city-faction').style.background = f.color;
     $('#city-lord-img').src = `${SK.ptSrc(heroPortrait(id))}`;
@@ -2501,7 +2552,8 @@
     workshop: { name: '공방', icon: 'workshop', stat: 'pol', res: 'gold', desc: '수송과 병기를 준비합니다' },
   };
   SK.SLOT_DEFS = SLOT_DEFS;
-  const SLOT_MAX = { capital: 8, mid: 7, town: 6, pass: 2, fortress: 3 };
+  /* v5.17 — 도시 규모별 공터·시설 칸: 소도시 6 · 중도시 8 · 대도시 10 */
+  const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 2, fortress: 3 };
   const SLOT_DEFAULT = {
     capital: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
     mid: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
@@ -4490,14 +4542,16 @@
     const cs = s.cities[cityId];
     const c = CITY[cityId];
     const lv = cityLevel(cs);
+    /* v5.17 — 성곽 겹수(1·2·3중)를 성 그림 테두리와 배지로 보여 준다 */
+    const rings = SK.siegeRingsOfCity ? SK.siegeRingsOfCity(c) : 1;
     const scene = $('#city-scene');
-    if (scene) scene.className = 'city-scene lv-' + lv;
+    if (scene) scene.className = 'city-scene lv-' + lv + ' ring-' + rings;
     sceneImageFor(`assets/scenes/${sceneFor(c)}.webp`, lv);
     /* v5.10 — 성 그림 위 계절 파티클 */
     if (SK.seasonFX) SK.seasonFX.attach($('#city-season'), () => SK.currentSeason());
     const box = $('#scene-lv');
     if (!box) return;
-    let html = '';
+    let html = `<i class="sb-wall-badge r${rings}">${rings}중 성벽</i>`;
     const banners = 1 + lv;
     for (let i = 0; i < banners; i++) {
       html += `<i class="sb-flag" style="left:${16 + i * (66 / banners)}%; animation-delay:${(i * 0.35).toFixed(2)}s"></i>`;
@@ -5560,7 +5614,7 @@
           <button data-o="comfort">백성을 위로한다 — 금 100 · 대기 장수를 보낸다</button>
           <button data-o="appoint">관직 — 문관·무관 24단계 (출진 상한·내정·공방 보너스)</button>
           <button data-o="reward">포상 — 금·보물로 장수 충성 올리기${lowLoyal ? ` <em style="color:#a8443a;font-style:normal;font-weight:900">· 충성 낮은 장수 ${lowLoyal}명</em>` : ''}</button>
-          <button data-o="prisoners">포로 — 억류 장수 설득·몸값 협상${(s.prisoners || []).length ? ` <em style="color:#a8443a;font-style:normal;font-weight:900">· ${s.prisoners.length}명 억류 중</em>` : ''}</button>
+          <button data-o="prisoners">포로 — 설득·몸값 협상${(s.prisoners || []).length ? ` <em style="color:#a8443a;font-style:normal;font-weight:900">· ${s.prisoners.length}명 억류 중</em>` : ''}</button>
           <button data-o="rice">군량 상인 — 지금 금 100에 쌀 ${price} (사고팔기)</button>
           <button data-o="advice">군사 조언 — 지금 필요한 것</button>
           <button data-o="delegate" ${ready ? '' : 'disabled'}>대기 장수 일괄 내정 (${ready}명)</button>
@@ -5657,7 +5711,7 @@
     }).join('');
     const m = SK.modal({
       kicker: '관직 · 명성 ' + fmt(fame), title: '누구에게 관직을 내릴까',
-      body: `<p class="talent-note">관직을 내리면 그 장수의 출진 병력 상한이 넓어지고(일반 5,000 → 10,000) 충성이 오르며, 봉급이 조금 늘어 달마다 금이 더 나갑니다.<br><b>이제는 군주 명성과 장수 개인의 공훈치를 함께</b> 채워야 서임할 수 있습니다 — 건물 담당·탐색·등용·계략·전투로 쌓입니다.</p>
+      body: `<p class="talent-note">관직을 내리면 그 장수의 공격·방어 보정과 충성이 오르고, 봉급이 조금 늘어 달마다 금이 더 나갑니다. 문관 자리는 내정(정치)·책략(지력)에 보탬이 됩니다. 출진 병력 상한은 일반 5,000 · 군주 10,000으로 고정입니다.<br><b>이제는 군주 명성과 장수 개인의 공훈치를 함께</b> 채워야 서임할 수 있습니다 — 건물 담당·탐색·등용·계략·전투로 쌓입니다.</p>
         <div class="ap-list">${rows || '<p class="rs-empty">휘하에 장수가 없습니다.</p>'}</div>`,
       wide: true, actions: [{ label: '닫기' }],
     });
@@ -5683,7 +5737,7 @@
       return `<button class="ap-pick branch-${o.branch || 'none'} ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-k="${o.key}" ${locked ? 'disabled' : ''}>
         <b>${branch ? `<i class="ap-branch">${branch}</i> ` : ''}${o.name}${on ? ' · 현재' : ''}</b>
         <span>${o.fame ? `명성 ${fmt(o.fame)} · 공훈 ${fmt(o.merit || 0)}` : '처음 상태'}</span>
-        <em>${why} · 출진 상한 ${fmt(Math.min(10000, cap))} ${bonus}· 봉급 +${o.salary} · 충성 +${o.loyal}</em>
+        <em>${why} · ${bonus}· 봉급 +${o.salary} · 충성 +${o.loyal}</em>
       </button>`;
     }).join('');
     const m = SK.modal({
@@ -5934,6 +5988,27 @@
   }
   SK.prisonEscapeChance = prisonEscapeChance;
 
+
+  /* v5.17 — 포로를 잡았던 세력(rec.by)이 아직 살아 있는가, 그 세력의 이름은 무엇인가 */
+  function offerFactionAlive(rec, g) {
+    const s = SK.state || {};
+    const id = rec && rec.by ? rec.by : '';
+    if (!id || id === '재야' || id === 'neutral') return false;
+    const f = (s.factions || {})[id];
+    if (!f) return false;
+    const owns = SK.CITY_LIST.some((c) => s.cities && s.cities[c.id] && s.cities[c.id].owner === id);
+    if (!owns && !f.lord) return false;
+    return true;
+  }
+  function offerFromOf(rec, g) {
+    const s = SK.state || {};
+    const id = rec && rec.by ? rec.by : '';
+    const f = id ? (s.factions || {})[id] : null;
+    if (f && f.name) return f.name;
+    if (f && f.lord) return `${f.lord}군`;
+    return '적 세력';
+  }
+
   function prisonTick(s) {
     s.prisoners = s.prisoners || [];
     const news = [];
@@ -5944,8 +6019,16 @@
       rec.recruitTried = false;
       const drop = 4 + Math.floor(Math.random() * 3);
       rec.loyal = clamp((rec.loyal == null ? 70 : rec.loyal) - drop, 0, 100);
-      /* 몸값 제안 — 가둔 지 한 달이 지나면 상대 세력이 협상해 온다 */
-      if (!rec.offer && rec.months >= 1 && Math.random() < 0.35) {
+      /* v5.17 — 잡았던 세력이 사라졌으면 몸값 제안도 끝난다 (한 번만 알린다) */
+      if (!offerFactionAlive(rec, SK.GEN_BY_ID[rec.gid])) {
+        if (!rec.orphan) {
+          rec.orphan = true;
+          news.push({ kind: 'orphan', text: `${rec.name}을(를) 잡았던 세력이 사라져 몸값 제안이 끊겼습니다 — 이제는 [설득]과 [석방]뿐입니다.` });
+        }
+        rec.offer = null;
+      }
+      /* 몸값 제안 — 가둔 지 한 달이 지나면 원 소속 세력이 협상해 온다 */
+      if (!rec.orphan && !rec.offer && rec.months >= 1 && Math.random() < 0.35) {
         const g = SK.GEN_BY_ID[rec.gid];
         const base = rank[rec.tier] || 350;
         const vm = 0.8 + Math.random() * 0.5;
@@ -5961,12 +6044,12 @@
           offer.exchangeUid = hold.uid;
           offer.exchangeName = hold.name;
         }
-        const f = SK.factionInfo(g.faction);
-        offer.from = f.name || '적 세력';
+        /* v5.17 — 제안자는 포로의 "원 소속 세력". 그 세력이 멸망했으면 제안이 끊긴다. */
+        offer.from = offerFromOf(rec, g);
         rec.offer = offer;
         news.push({ kind: 'offer', text: offer.type === 'exchange'
-          ? `${f.name || '적 세력'}이 포로 ${g.name}과(와) 사로잡힌 ${hold.name}을(를) 맞바꾸자고 제안했습니다.`
-          : `${f.name || '적 세력'}이 포로 ${g.name}의 몸값으로 금 ${fmt(offer.gold)}${offer.food ? ` · 군량 ${fmt(offer.food)}` : ''}${offer.treasure ? ` · 보물 ${offer.treasure.name}` : ''}을 제안했습니다.` });
+          ? `${offer.from}의 포로 교환 제안 — ${g.name}과(와) 사로잡힌 ${hold.name}을(를) 맞바꾸자고 합니다.`
+          : `${offer.from}의 포로 몸값 제안 — ${g.name}의 몸값으로 금 ${fmt(offer.gold)}${offer.food ? ` · 군량 ${fmt(offer.food)}` : ''}${offer.treasure ? ` · 보물 ${offer.treasure.name}` : ''}을 제안했습니다.` });
       } else if (rec.offer) {
         rec.offer.expires = (rec.offer.expires || 1) - 1;
         if (rec.offer.expires <= 0) { rec.offer = null; news.push({ kind: 'expire', text: `${rec.name}의 몸값 협상이 결렬되었습니다.` }); }
@@ -6007,7 +6090,7 @@
           <b>${g.name} <i class="pr-tier t${rec.tier}">${rec.tier}</i></b>
           <span>${CITY[rec.city] ? CITY[rec.city].name : '성'} 억류 ${rec.months}개월 · 충성 ${rec.loyal} · 등용 성공 ${Math.round(hireP * 100)}%</span>
           <em class="pr-esc ${chance > 0.06 ? 'hot' : ''}">${rec.months < 3 ? `탈출 불가 — ${3 - rec.months}개월 남음` : `이번 달 탈출 ${Math.round(chance * 100)}%${lvLabel(cs)}`}</em>
-          ${offer ? `<div class="pr-offer"><span>${offer.from}의 ${offer.type === 'exchange' ? '포로 교환' : '몸값'} 제안</span><b>${offer.type === 'exchange' ? `${g.name} ↔ ${offer.exchangeName}` : `금 ${fmt(offer.gold)}${offer.food ? ` · 미 ${fmt(offer.food)}` : ''}${offer.treasure ? ` · ${offer.treasure.name}` : ''}`}</b><small>${offer.expires}개월 뒤 철회</small>
+          ${offer ? `<div class="pr-offer"><span>${offer.from}의 ${offer.type === 'exchange' ? '포로 교환' : '포로 몸값'} 제안</span><b>${offer.type === 'exchange' ? `${g.name} ↔ ${offer.exchangeName}` : `금 ${fmt(offer.gold)}${offer.food ? ` · 미 ${fmt(offer.food)}` : ''}${offer.treasure ? ` · ${offer.treasure.name}` : ''}`}</b><small>${offer.expires}개월 뒤 철회</small>
             <div class="pr-offer-btns"><button data-accept="${i}">수락</button><button data-refuse="${i}">거절</button></div></div>` : ''}
         </div>
         <div class="pr-btns">
@@ -6017,10 +6100,10 @@
       </div>`;
     }).join('');
     const m = SK.modal({
-      kicker: `포로 관리 · ${s.prisoners.length}명`, title: '가둔 장수를 어떻게 할까', wide: true,
-      body: `<p class="talent-note">억류한 장수는 <b>첫 3개월은 탈출하지 못하고</b>, 4개월째부터 매달 기본 10%로 탈출합니다. 성의 <b>순찰소 Lv·치안</b>이 높으면 2~3%까지 떨어집니다. 매달 충성이 4~6씩 내려가고, 달마다 [설득]으로 등용을 시도할 수 있습니다. 상대 세력이 몸값을 제안하면 금·군량·보물을 받고 풀어 줄 수 있습니다.</p>
+      kicker: `포로 관리 · ${s.prisoners.length}명`, title: '포로를 어떻게 할까', wide: true,
+      body: `<p class="talent-note">억류한 포로는 <b>첫 3개월은 탈출하지 못하고</b>, 4개월째부터 매달 기본 10%로 탈출합니다. 성의 <b>순찰소 Lv·치안</b>이 높으면 2~3%까지 떨어집니다. 매달 충성이 4~6씩 내려가고, 달마다 [설득]으로 등용을 시도할 수 있습니다. 상대 세력이 몸값을 제안하면 금·군량·보물을 받고 풀어 줄 수 있습니다.</p>
         ${(s.captured || []).length ? `<p class="talent-note">적에게 사로잡힌 아군 — ${s.captured.map((c) => c.name).join(' · ')} (포로 교환으로 되찾을 수 있습니다)</p>` : ''}
-        <div class="prison-list">${rows || '<p class="tr-empty">가둔 포로가 없습니다. 전투에서 이기면 적 장수를 억류할 수 있습니다.</p>'}</div>`,
+        <div class="prison-list">${rows || '<p class="tr-empty">포로가 없습니다. 전투에서 이기면 적 장수를 억류할 수 있습니다.</p>'}</div>`,
       actions: [{ label: '닫기' }],
     });
     const refresh = () => { m.close(); setTimeout(openPrison, 40); };
@@ -7368,8 +7451,8 @@
       p = clamp(p, 0.2, 0.7);
       if (Math.random() < p) {
         const budget = clamp(Math.round((ts.troops || 2000) * 0.24), 1200, 5200);
-        const cnt = clamp(4 + Math.floor((ts.troops || 0) / 3200), 4, 6);
-        const per = clamp(Math.round(budget / cnt / 100) * 100, 700, 2200);
+        const cnt = clamp(5 + Math.floor((ts.troops || 0) / 3200), 5, 8);
+        const per = clamp(Math.round(budget / cnt / 100) * 100, 900, 2800);
         m.raiders = per * cnt;
         m.interceptType = interceptTypeFor(m);
         s.pendingMarch = { kind: 'intercept', marchId: m.id };
@@ -8680,7 +8763,7 @@
         <div class="help-item"><b>인구와 징병</b><p>징병은 그 성의 인구에서 병사를 빼옵니다. 주둔병은 인구의 30%를 넘을 수 없고, 징병하면 민심이 내려갑니다(매력이 높으면 덜 내려갑니다). 민심이 70 이상이면 세수와 인구가 더 늘고, 40 아래면 줄어듭니다.</p></div>
         <div class="help-item"><b>군사 조언</b><p>관아나 행동력 줄의 [군사] 버튼으로 군사를 임명하면, 그 성의 민심·병력·성벽·재정과 이웃 적성·주점 인재를 읽어 지금 필요한 일을 조언합니다. 조언은 행동력을 쓰지 않고, '조언대로 진행'을 눌러야 실행됩니다. 대기 장수에게 남은 내정을 통째로 맡기려면 관아의 [대기 장수 일괄 내정]을 쓰십시오.</p></div>
         <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
-        <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. 화면을 끌면 18×18 전장을 넓게 볼 수 있습니다.</p></div>
+        <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. 화면을 끌면 24~32칸 전장을 넓게 볼 수 있고, 우측 상단 미니맵을 누르면 그 자리로 바로 갑니다.</p></div>
         <div class="help-item"><b>책략과 군량</b><p>[책략]으로 병과별 기술을 쓰고, [군량]으로 HP를 회복합니다. [대기] 후 다음 부대로 넘어갑니다.</p></div>
         <div class="help-item"><b>병과 상성</b><p>창병 → 기병·야수 <b>+35%</b> · 기병·야수 → 보병 <b>+18%</b> · 보병(검병·등갑병·무도가) → 궁병 <b>+20%</b> · 궁병 → 기병·책략계 <b>+18%</b>, 창병 <b>+20%</b>. 공격 전에 뜨는 [전투 예고]에 상성 배율과 반격 피해가 그대로 찍힙니다.</p></div>
         <div class="help-item"><b>반격</b><p>맞은 쪽이 사거리 안이면 반격합니다. 피해는 <b>75%</b>(검병만 방패 맞다이 <b>90%</b>). 궁수·연노·포차처럼 최소 사거리가 있는 병과는 붙으면 반격하지 못합니다.</p></div>

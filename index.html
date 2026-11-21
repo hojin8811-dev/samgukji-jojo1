@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=30" />
+<link rel="stylesheet" href="css/game.css?v=31" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -117,7 +117,7 @@
           <button id="btn-continue" class="btn btn-ghost" hidden>이어하기</button>
           <button id="btn-slots" class="btn btn-ghost">세이브 슬롯</button>
         </div>
-        <p class="title-foot">80개 거점 · 19 병과 · 625 장수 · 18×18 전장</p>
+        <p class="title-foot">80개 거점 · 19 병과 · 625 장수 · 최대 32×32 대형 전장</p>
         <p class="title-sound" id="title-sound" title="화면을 한 번 누르면 음악이 흐릅니다" aria-label="화면을 한 번 누르면 음악이 흐릅니다">🔊</p>
       </div>
     </div>
@@ -327,6 +327,11 @@
         <button id="b-zoom-out" class="round-btn small">−</button>
         <button id="b-zoom-fit" class="round-btn small">⤢</button>
       </div>
+      <!-- v5.17 — 우측 상단 《조조전》식 미니맵 -->
+      <div class="battle-minimap" id="battle-minimap">
+        <button class="mm-toggle" id="mm-toggle" aria-label="미니맵 접기">◧</button>
+        <div class="mm-box" id="mm-box"><canvas id="mm-canvas"></canvas></div>
+      </div>
       <div class="battle-tip" id="battle-tip">화면을 끌어 이동 · 부대를 눌러 선택</div>
       <div class="battle-feed" id="battle-feed"></div>
       <div class="battle-callout" id="battle-callout"></div>
@@ -383,14 +388,14 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=30"></script>
-<script src="js/mapmask.js?v=30"></script>
-<script src="js/city_geo.js?v=30"></script>
-<script src="js/data.js?v=30"></script>
-<script src="js/bgm.js?v=30"></script>
-<script src="js/sfx.js?v=30"></script>
-<script src="js/app.js?v=30"></script>
-<script src="js/map.js?v=30"></script>
-<script src="js/battle.js?v=30"></script>
+<script src="js/mapgeo.js?v=31"></script>
+<script src="js/mapmask.js?v=31"></script>
+<script src="js/city_geo.js?v=31"></script>
+<script src="js/data.js?v=31"></script>
+<script src="js/bgm.js?v=31"></script>
+<script src="js/sfx.js?v=31"></script>
+<script src="js/app.js?v=31"></script>
+<script src="js/map.js?v=31"></script>
+<script src="js/battle.js?v=31"></script>
 </body>
 </html>

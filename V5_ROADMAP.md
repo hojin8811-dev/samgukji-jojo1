@@ -2,6 +2,29 @@
 
 기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=30`
 
+## ✅ v5.17 — 조조전 스케일 대형 전장 · 3중 성곽 내성 · 미니맵 · 전직 3회 · 5,000/10,000 (2026-11-21 · `?v=31`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 맵 11종 | `preview/v517_maps/battle_*.png` → `assets/maps/v2/battle_*.webp`(교체) + `siege2`·`siege3` 신규. `hq_ally`·`hq_enemy`·`village` → `assets/battle/*.webp` | `assets/maps/v2/`, `assets/battle/` |
+| 동적 격자 | 요격 8종·소도시 24×24 · 중도시 28×28 · 대도시 32×32. `N`·`WORLD`를 `B.cols`·`B.rows`로 | `js/data.js` `SK.MAPS`·`SK.battleSizeFor`, `js/battle.js` |
+| 지도 생성 | 지도마다 `A`(아군 본진)·`E`(적 본진)·`V`(마을) 심기, `SK.MAP_META`에 좌표 기록 | `finishMap`·`placeSite` |
+| 1×1 본진·마을 | 본진 병력 +20%·MP+10·방어+25%, 마을 +10%·MP+5·방어+15%. 밟으면 점령(색·라벨) | `siteBonusOf`·`sitePhase`·`drawSites` |
+| 총대장 승패 | 적 총대장 격파/본진 점령=승, 아군 총대장/본진=패. `♛` 표시 | `finishCheck`·`B.winReason` |
+| AI 역할 | 수비 `guard`(본진 사수) / 돍격 `assault`(마을→아군 본진), 수성전 전원 돍격 | `aiGoalOf`·`enemyAct` |
+| 3중 성곽 | 아래 가로 성벽+정문 → 가운데 성벽+정문 → 맨 위 네모(ㄷ자) 본성 성곽+문 안에 총대장 본진. 성문 2칸 두께 통로 | `siegeMap(3)` |
+| 단계 돌파 | 1단 문 파괴 → 외성 마당, 2단 → 중성, 3단 → 본진. **성문이 살아 있으면 성벽 너머 공격 불가** | `wallBlocked`·`canHit`·`planAuto` |
+| 망루·성내 마을 | 1중 성벽 뒤 좌우 망루 T, 1·2단 사이 마을 2곳(중도시 포함), 소도시는 천막 옆 2 + 성 앞 1 | `siegeMap` |
+| 미니맵 | 우측 상단 104px 축소도 + 총대장 금테 + 화면 흰 사각형 + `◧/◨` 접기 + 터치 이동 | `buildMinimap`·`drawMinimap`·`bindMinimap`, `#battle-minimap` |
+| 출진·상한 | 최대 10부대(기존 유지), 일반 5,000 / 군주 10,000 **고정**, 관직은 공·방·봉급·충성 보상으로 | `js/data.js` `SK.troopCapOf`, `js/app.js` `openAppoint` |
+| 전직 3회 | `at: [10,20,30]`, 이름 4단계, 병종별 Lv.30 궁극기 18종 추가. SD 동테→은테+깃발→금테+오라, 전직 팝업 | `SK.PROMO`·`SK.tierForLv`·`js/app.js` `queuePromotion`·`flushPromotions`, `drawUnit` |
+| 생포/퇴각 | HP 0 → 15% 생포 / 85% 퇴각, 결산 `생포`(금)·`퇴각`. 생포된 적장은 포로 확정 | `downUnit`·`battleReportHTML`·`rollPrisoners` |
+| 포로 몸값 | `rec.by`(잡은 세력)로 `"OO군의 포로 몸값 제안"`, 멸망 세력은 제안 중단 안내, `가둔 장수`→`포로` | `js/battle.js` `addPrisoner`, `js/app.js` `prisonTick`·`offerFromOf` |
+| 내정 성곽 | 1·2·3중 겹테두리 + `N중 성벽` 배지, 시설 칸 소 6 · 중 8 · 대 10, 대도시 10칸 자리 | `js/app.js` `SLOT_MAX`·`YARD_SPOTS`·`renderSceneLevel`, `css` `.city-scene.ring-*` |
+| 밸런스 | 적 6~10부대·900~5,200, 적 명장 공·방을 아군과 같은 식으로(60 기준), 대형 전장 턴 40 | `startBattle`·`makeNamedEnemy` |
+| 자동전투 | 책략이 공격을 늘 앞서 성문 앞 교착 → **공격·성문 먼저**, 회복만 책략 우선 | `planAuto` |
+| 검증 | `tools/v517_smoke.py`·`v517_logic.py`·`v517_rules.py`·`v517_auto.py`·`v517_shots.py`·`v517_play.py` — 콘솔 0, 스크린샷 `preview/v517/` |  |
+
 ## ✅ v5.16 — 인물·보물 도감 · 천하통일 엔딩 · 공성 전란 피해 (2026-11-21 · `?v=30`)
 
 | 갈래 | 내용 | 코드 |

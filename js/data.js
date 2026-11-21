@@ -20,6 +20,10 @@ SK.TERRAIN = {
   /* v5.3 — 공성전 보루. 방어 +45%·턴 시작 회복은 battle.js effDef/턴 리셋에서 처리한다 */
   T: { name: '망루', def: 0, cost: 2, icon: 'tower' },
   K: { name: '본성', def: 0, cost: 1, icon: 'keep' },
+  /* v5.17 — 1×1 본진·마을. 지형 자체는 평지와 같고, 회복·방어 보정은 battle.js가 준다 */
+  A: { name: '아군 본진', def: 0, cost: 1, icon: 'base' },
+  E: { name: '적 본진', def: 0, cost: 1, icon: 'base' },
+  V: { name: '마을', def: 0, cost: 1, icon: 'village' },
 };
 
 /* ───────────── 병과 (16종) ───────────── */
@@ -485,30 +489,32 @@ SK.histById = function (id) { return SK.HIST.find((s) => Number(s.id) === Number
 
 /* ───────────── 승급 · 경험치 ───────────── */
 SK.PROMO = {
-  gunwoong: { names: ['군주', '패왕', '천하대장군', '위무대왕', '천하대장군'], at: [5, 10, 20, 30], skills: ['gomu', 'jihwi'] },
-  gibi: { names: ['기병', '중기병', '철기병', '용기병', '천하기병'], at: [5, 10, 20, 30], skills: ['bangpae', 'yeongyeok'] },
-  gunggi: { names: ['궁기', '신궁기', '백발신궁', '천궁', '신궁'], at: [5, 10, 20, 30], skills: ['gwanse', 'jipsajung'] },
-  changbyung: { names: ['창병', '장창병', '철창병', '신창병', '창성'], at: [5, 10, 20, 30], skills: ['bangpae', 'gwanse'] },
-  geombyung: { names: ['검병', '정예검병', '무쌍검병', '검성', '검신'], at: [5, 10, 20, 30], skills: ['yeongyeok', 'bangpae'] },
-  sanjeok: { names: ['산적', '호적', '산왕', '산신', '산의왕'], at: [5, 10, 20, 30], skills: ['yaseup', 'sangang'] },
-  sujeok: { names: ['수적', '수귀', '해룡', '수신', '해왕'], at: [5, 10, 20, 30], skills: ['paedo', 'suryu'] },
-  chaeksa: { names: ['책사', '참모', '군사', '신책', '천하책사'], at: [5, 10, 20, 30], skills: ['pungsu', 'hwayeom'] },
-  pungsusa: { names: ['풍수사', '대풍수사', '천기사', '신풍수', '천지풍수'], at: [5, 10, 20, 30], skills: ['gomu', 'pungsu'] },
-  dosa: { names: ['도사', '선인', '신선', '천사', '천존'], at: [5, 10, 20, 30], skills: ['yosul', 'hwayeom'] },
-  gungsu: { names: ['궁수', '신궁수', '명궁', '신궁', '천궁수'], at: [5, 10, 20, 30], skills: ['gwanse', 'jipsajung'] },
-  mudoga: { names: ['무도가', '권성', '무신', '천하무적', '무성'], at: [5, 10, 20, 30], skills: ['cheonmu', 'yeongyeok'] },
-  yasubyung: { names: ['야수병', '맹수병', '백호대', '용호대', '만수대'], at: [5, 10, 20, 30], skills: ['sangang', 'yaseup'] },
-  muhui: { names: ['무희', '선무희', '천무희', '무신희', '선녀'], at: [5, 10, 20, 30], skills: ['hwanmu', 'yuhok'] },
-  pocha: { names: ['포차', '대포차', '천자포', '신기포', '천하포'], at: [5, 10, 20, 30], skills: ['yeonpo', 'pogyeok'] },
-  balseokcha: { names: ['발석차', '대발석차', '신기전', '천뢰차', '천지차'], at: [5, 10, 20, 30], skills: ['hwayeom', 'tuseok'] },
-  yeonnobyung: { names: ['연노병', '정예연노', '신연노', '천하연노', '연노신병'], at: [5, 10, 20, 30], skills: ['gwanse', 'yeonno'] },
-  deunggabyung: { names: ['등갑병', '철등갑', '무쌍등갑', '등갑신병', '철벽'], at: [5, 10, 20, 30], skills: ['yeongyeok', 'bangpae'] },
-  gunakdae: { names: ['군악대', '대군악대', '천군악', '군신악', '천하군악'], at: [5, 10, 20, 30], skills: ['jihwi', 'gomu'] },
+  gunwoong: { names: ['군주', '패왕', '천하대장군', '천하제왕'], at: [10, 20, 30], skills: ['gomu', 'jihwi'] },
+  gibi: { names: ['기병', '철기병', '용기병', '천하기병'], at: [10, 20, 30], skills: ['bangpae', 'yeongyeok'] },
+  gunggi: { names: ['궁기', '백발신궁', '천궁', '신궁'], at: [10, 20, 30], skills: ['gwanse', 'jipsajung'] },
+  changbyung: { names: ['창병', '철창병', '신창병', '창성'], at: [10, 20, 30], skills: ['bangpae', 'gwanse'] },
+  geombyung: { names: ['검병', '무쌍검병', '검성', '검신'], at: [10, 20, 30], skills: ['yeongyeok', 'bangpae'] },
+  sanjeok: { names: ['산적', '산왕', '산신', '산의왕'], at: [10, 20, 30], skills: ['yaseup', 'sangang'] },
+  sujeok: { names: ['수적', '해룡', '수신', '해왕'], at: [10, 20, 30], skills: ['paedo', 'suryu'] },
+  chaeksa: { names: ['책사', '군사', '신책', '천하책사'], at: [10, 20, 30], skills: ['pungsu', 'hwayeom'] },
+  pungsusa: { names: ['풍수사', '천기사', '신풍수', '천지풍수'], at: [10, 20, 30], skills: ['gomu', 'pungsu'] },
+  dosa: { names: ['도사', '신선', '천사', '천존'], at: [10, 20, 30], skills: ['yosul', 'hwayeom'] },
+  gungsu: { names: ['궁수', '명궁', '신궁', '천궁수'], at: [10, 20, 30], skills: ['gwanse', 'jipsajung'] },
+  mudoga: { names: ['무도가', '무신', '천하무적', '무성'], at: [10, 20, 30], skills: ['cheonmu', 'yeongyeok'] },
+  yasubyung: { names: ['야수병', '백호대', '용호대', '만수대'], at: [10, 20, 30], skills: ['sangang', 'yaseup'] },
+  muhui: { names: ['무희', '천무희', '무신희', '선녀'], at: [10, 20, 30], skills: ['hwanmu', 'yuhok'] },
+  pocha: { names: ['포차', '천자포', '신기포', '천하포'], at: [10, 20, 30], skills: ['yeonpo', 'pogyeok'] },
+  balseokcha: { names: ['발석차', '신기전', '천뢰차', '천지차'], at: [10, 20, 30], skills: ['hwayeom', 'tuseok'] },
+  yeonnobyung: { names: ['연노병', '신연노', '천하연노', '연노신병'], at: [10, 20, 30], skills: ['gwanse', 'yeonno'] },
+  deunggabyung: { names: ['등갑병', '무쌍등갑', '등갑신병', '철벽'], at: [10, 20, 30], skills: ['yeongyeok', 'bangpae'] },
+  gunakdae: { names: ['군악대', '천군악', '군신악', '천하군악'], at: [10, 20, 30], skills: ['jihwi', 'gomu'] },
 };
+/* v5.17 — 전직 3회: Lv.10 → Lv.20 → Lv.30(풀레벨). 단계 0(기본)~3(최종) */
+SK.PROMO_AT = [10, 20, 30];
 SK.tierForLv = function (lv) {
   let t = 0;
-  [5, 10, 20, 30].forEach((n) => { if (lv >= n) t += 1; });
-  return Math.min(4, t);
+  SK.PROMO_AT.forEach((n) => { if (lv >= n) t += 1; });
+  return Math.min(3, t);
 };
 SK.classTitle = function (cls, lv) {
   const p = SK.PROMO[cls];
@@ -522,6 +528,9 @@ SK.skillsFor = function (cls, lv) {
   });
 };
 SK.expNeed = function (lv) { return 100 + lv * 45; };
+/* v5.17 — 그 레벨에서 전직하는가 (10/20/30). battle.js·app.js의 전직 연출이 쓴다 */
+SK.isPromoLv = function (lv) { return SK.PROMO_AT.indexOf(Number(lv)) >= 0; };
+SK.promoStageOf = function (lv) { return SK.tierForLv(lv); };
 SK.troopForNamed = function (lv, tier) {
   tier = tier == null ? SK.tierForLv(lv) : tier;
   return Math.min(4800, Math.round(1600 + lv * 120 + tier * 380));
@@ -530,7 +539,7 @@ SK.troopForNamed = function (lv, tier) {
    장군 직책(rank)을 얻으면 일반 10,000 / 군주 20,000까지 열린다. */
 SK.TROOP_CAP = {
   base: { lord: 10000, named: 5000 },
-  general: { lord: 20000, named: 10000 },
+  general: { lord: 10000, named: 5000 },
 };
 /* v5.8 — 관직(교위 → 중랑장 → 진동·진서장군 → 대장군).
    군주 명성이 오르면 휘하 장수에게 내리고, 출진 병력 상한이 5,000 → 10,000까지 열린다.
@@ -605,18 +614,12 @@ SK.troopCapOf = function (hero, st) {
   const state = st || SK.state || {};
   const lordName = ((state.factions || {})[state.playerFaction || ''] || {}).lord || '';
   const isLord = !!(hero && lordName && hero.name === lordName) || (hero && hero.rank === '군주');
-  const promoted = !!(hero && (hero.rank === '장군' || hero.rank === '대장군' || Number(hero.lv) >= 20));
-  const set = promoted ? SK.TROOP_CAP.general : SK.TROOP_CAP.base;
-  const base = isLord ? set.lord : set.named;
-  /* v5.8 — 관직이 있으면 병력 상한이 열린다 (일반 5,000 → 최대 10,000) */
-  const add = SK.officeAdd(hero);
-  if (!add) return base;
-  const grown = base + add;
-  return isLord ? Math.min(SK.TROOP_CAP.general.lord, grown) : Math.min(SK.TROOP_CAP.general.named, grown);
+  /* v5.17 — 상한은 단순하다. 일반 장수 5,000 / 군주 10,000.
+     관직·공적 보너스가 붙어도 이 상한을 넘지 않는다 (그 보너스는 공·방·봉급으로 간다). */
+  return isLord ? SK.TROOP_CAP.base.lord : SK.TROOP_CAP.base.named;
 };
 SK.nextPromo = function (lv) {
-  const at = [5, 10, 20, 30];
-  for (let i = 0; i < at.length; i++) if (lv < at[i]) return at[i];
+  for (let i = 0; i < SK.PROMO_AT.length; i++) if (lv < SK.PROMO_AT[i]) return SK.PROMO_AT[i];
   return null;
 };
 
@@ -664,8 +667,8 @@ SK.applyClassData = function (list) {
     C.minRng = rng.min;
     SK.TB[cls] = Object.assign({ siege: 0, naval: 0, mountain: 0, fortress: 0 }, d.terrainBonus || {});
     if (d.promotions && d.promotions.length) {
-      SK.PROMO[cls] = SK.PROMO[cls] || { names: [], at: [5, 10, 20, 30], skills: [] };
-      SK.PROMO[cls].names = [C.name].concat(d.promotions.slice(0, 4));
+      SK.PROMO[cls] = SK.PROMO[cls] || { names: [], at: [10, 20, 30], skills: [] };
+      SK.PROMO[cls].names = [C.name].concat(d.promotions.slice(0, 3));
     }
     C.skills = (d.skills || []).map((sk, i) => {
       const key = 'c_' + cls + '_' + i;
@@ -1524,204 +1527,314 @@ SK.cityTroopsBase = function (type) {
   return { capital: 15000, town: 9500, pass: 11000, fortress: 12000 }[type] || 9000;
 };
 
-/* ───────────── 전장 지도 (18×18) ───────────── */
-function blankGrid() {
-  return Array.from({ length: 18 }, () => Array(18).fill('P'));
-}
+/* ───────────── 전장 지도 (요격·소도시 24×24 · 중도시 28×28 · 대도시 32×32) ─────────────
+   v5.17 — 《조조전》 스케일 대형 전장.
+   · 격자 크기는 전장마다 다르고(B.cols·B.rows), 지도는 코드로 그린다.
+   · 모든 지도에 아군 본진 'A' · 적 총대장 본진 'E' · 마을 'V'를 심는다(각 1×1).
+   · 배경 그림(assets/maps/v2/battle_*.webp)은 칸 수에 맞춰 늘려 깔고,
+     성벽(C)·성문(G) 칸은 그림의 성벽 줄과 같은 자리에 놓는다.
+   · SK.MAP_META[key] = { cols, rows, allyBase, enemyBase, villages } — battle.js가 읽는다. */
+SK.MAP_META = {};
+SK.MAP_SIZES = { field: 24, siege: 24, siege2: 28, siege3: 32 };
+
+const MAP_SITE_CHARS = 'DPRSBF';       // 본진·마을을 놓을 수 있는 땅
+function mkGrid(cols, rows, ch) { return Array.from({ length: rows }, () => Array(cols).fill(ch || 'P')); }
 function g2s(g) { return g.map((r) => r.join('')); }
-function paint(g, list, ch) {
-  list.forEach(([y, x]) => { if (y >= 0 && y < 18 && x >= 0 && x < 18) g[y][x] = ch; });
+function inG(g, y, x) { return y >= 0 && y < g.length && x >= 0 && x < g[0].length; }
+function setT(g, y, x, ch) { if (inG(g, y, x)) g[y][x] = ch; }
+function paint(g, list, ch) { list.forEach(([y, x]) => setT(g, y, x, ch)); }
+function fillRect(g, y0, y1, x0, x1, ch) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) setT(g, y, x, ch); }
+function hline(g, y, x0, x1, ch) { for (let x = x0; x <= x1; x++) setT(g, y, x, ch); }
+function vline(g, x, y0, y1, ch) { for (let y = y0; y <= y1; y++) setT(g, y, x, ch); }
+/* 숲·바위 덩어리 — 가운데를 기준으로 삐죽한 원을 찍는다 */
+function blob(g, cx, cy, r, ch, seed) {
+  const s = seed || (cx * 7 + cy * 13);
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const wob = 0.55 + 0.45 * Math.sin((dx + dy + s) * 1.7);
+      if (d <= r * (0.62 + wob * 0.42)) setT(g, cy + dy, cx + dx, ch);
+    }
+  }
+}
+/* 본진·마을 자리 — 원하는 칸이 벽·물·궁궐이면 가까운 땅으로 옮긴다 */
+function placeSite(g, ch, x, y, occupied) {
+  const ok = (yy, xx) => inG(g, yy, xx) && MAP_SITE_CHARS.indexOf(g[yy][xx]) >= 0
+    && !(occupied && occupied.some((o) => o.x === xx && o.y === yy));
+  for (let r = 0; r < 7; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const yy = y + dy, xx = x + dx;
+        if (ok(yy, xx)) { g[yy][xx] = ch; return { x: xx, y: yy }; }
+      }
+    }
+  }
+  return null;
+}
+/* 지도 하나를 마무리 — 본진·마을을 심고 메타를 남긴다 */
+function finishMap(key, g, spec) {
+  const cols = g[0].length, rows = g.length;
+  const cx = Math.floor(cols / 2);
+  const sites = [];
+  const ally = placeSite(g, 'A', spec.ally ? spec.ally[0] : cx, spec.ally ? spec.ally[1] : rows - 2, sites);
+  if (ally) sites.push(Object.assign({ type: 'allyHQ' }, ally));
+  const enemy = placeSite(g, 'E', spec.enemy ? spec.enemy[0] : cx, spec.enemy ? spec.enemy[1] : 2, sites);
+  if (enemy) sites.push(Object.assign({ type: 'enemyHQ' }, enemy));
+  (spec.villages || []).forEach(([x, y]) => {
+    const v = placeSite(g, 'V', x, y, sites);
+    if (v) sites.push(Object.assign({ type: 'village' }, v));
+  });
+  const rowsOut = g2s(g);
+  SK.MAPS[key] = rowsOut;
+  SK.MAP_META[key] = { cols, rows, allyBase: ally, enemyBase: enemy,
+    villages: sites.filter((s) => s.type === 'village') };
+  return rowsOut;
 }
 
-/* v5.1 — 직교 공성전 맵 (정면 시점). 위쪽에 성, 아래쪽에 공격 진영.
-   y0 후벽 · y1~5 성 안 마당(궁궐 4×2) · y6 외벽+성문 2칸 · y7 해자(다리 2칸, 여울 2곳)
-   · y8~12 성문 앞 길 · y13~17 아군 진영. 격자와 그림이 1:1로 맞도록 배경 그림 없이 코드로 그린다. */
-/* v5.11 — 공성/수성 통일 맵. 같은 성이면 공격할 때나 지길 때나 같은 성벽·성문·망루·본성을 쓴다.
-   도시 등급에 따라 소도시 1중 · 중도시 2중 · 대도시 3중 성벽.
-   성문은 성벽 줄(x8·x9)마다 하나씩 있고, 바깥 성문부터 차례로 부숴야 안쪽으로 들어갈 수 있다. */
+/* ── 평야 요격전 ── */
+function plainMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  /* 십자로 — 남북 2칸 · 동서 2칸 */
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  hline(g, 11, 0, n - 1, 'R'); hline(g, 12, 0, n - 1, 'R');
+  /* 네 모서리 숲·바위 */
+  blob(g, 3, 5, 3, 'F', 1); blob(g, 20, 5, 3, 'F', 2);
+  blob(g, 4, 19, 3, 'F', 3); blob(g, 19, 18, 3, 'F', 4);
+  blob(g, 1, 11, 2, 'M', 5); blob(g, 22, 12, 2, 'M', 6);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  return finishMap('plain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[5, 13], [18, 13], [cx, 17]] });
+}
+
+/* ── 도하전 ── */
+function fordMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  hline(g, 11, 0, n - 1, 'W'); hline(g, 12, 0, n - 1, 'W');
+  /* 가운데 나무다리 2칸 + 좌우 여울 */
+  fillRect(g, 11, 12, cx - 1, cx, 'B');
+  fillRect(g, 11, 12, 3, 4, 'S'); fillRect(g, 11, 12, 19, 20, 'S');
+  vline(g, cx - 1, 0, 10, 'R'); vline(g, cx, 0, 10, 'R');
+  vline(g, cx - 1, 13, n - 1, 'R'); vline(g, cx, 13, n - 1, 'R');
+  hline(g, 17, 3, 20, 'R');
+  blob(g, 4, 5, 3, 'F', 11); blob(g, 20, 4, 3, 'F', 12);
+  blob(g, 4, 20, 3, 'F', 13); blob(g, 20, 20, 3, 'F', 14);
+  blob(g, 1, 12, 1, 'M', 15); blob(g, 22, 9, 1, 'M', 16);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 0], [22, 0], [23, 1], [0, 23], [0, 22], [1, 23], [23, 23], [22, 23], [23, 22]], 'M');
+  return finishMap('ford', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[6, 8], [17, 8], [cx, 18]] });
+}
+
+/* ── 산전 ── */
+function mountainMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'M');
+  const path = [[cx, 22], [10, 19], [8, 17], [7, 14], [9, 12], [11, 10], [13, 8], [15, 6], [16, 4], [14, 3], [cx, 2]];
+  const carve = (y, x, ch) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) setT(g, y + dy, x + dx, ch || 'P');
+  };
+  let prev = path[0];
+  carve(prev[1], prev[0]);
+  path.slice(1).forEach((p) => {
+    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
+    for (let i = 1; i <= steps; i++) {
+      carve(Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps));
+    }
+    prev = p;
+  });
+  /* 산허리 길 — 길게 뚫린 오솔길 */
+  prev = path[0];
+  path.slice(1).forEach((p) => {
+    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
+    for (let i = 1; i <= steps; i++) {
+      setT(g, Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), 'R');
+    }
+    prev = p;
+  });
+  /* 길목을 지키는 숲 */
+  blob(g, 4, 9, 2, 'F', 21); blob(g, 19, 15, 2, 'F', 22);
+  blob(g, 18, 6, 2, 'F', 23); blob(g, 5, 16, 2, 'F', 24);
+  fillRect(g, 0, 0, 0, n - 1, 'M');
+  return finishMap('mountain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 16], [15, 6], [11, 10]] });
+}
+
+/* ── 밀림 매복전 ── */
+function forestMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'F');
+  const path = [[cx, 23], [10, 20], [13, 18], [15, 15], [12, 13], [9, 11], [8, 8], [11, 6], [13, 3], [cx, 1]];
+  const carve = (y, x, ch) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) setT(g, y + dy, x + dx, ch || 'P');
+  };
+  let prev = path[0];
+  carve(prev[1], prev[0]);
+  path.slice(1).forEach((p) => {
+    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
+    for (let i = 1; i <= steps; i++) {
+      carve(Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps));
+    }
+    prev = p;
+  });
+  prev = path[0];
+  path.slice(1).forEach((p) => {
+    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
+    for (let i = 1; i <= steps; i++) {
+      setT(g, Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), 'R');
+    }
+    prev = p;
+  });
+  /* 오솔길 옆 공터 */
+  blob(g, 4, 4, 2, 'P', 31); blob(g, 19, 19, 2, 'P', 32); blob(g, 17, 8, 2, 'P', 33);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  return finishMap('forest', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 11], [15, 16], [4, 4]] });
+}
+
+/* ── 협곡 잔도전 ── */
+function gorgeMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'M');
+  fillRect(g, 0, n - 1, 8, 15, 'P');
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  /* 가운데 급류 — 잔도 2칸 + 여울 */
+  fillRect(g, 10, 11, 8, 15, 'W');
+  fillRect(g, 10, 11, cx - 1, cx, 'B');
+  setT(g, 10, 8, 'S'); setT(g, 11, 8, 'S'); setT(g, 10, 15, 'S'); setT(g, 11, 15, 'S');
+  /* 절벽 그늘 숲 */
+  blob(g, 9, 5, 2, 'F', 41); blob(g, 14, 17, 2, 'F', 42);
+  blob(g, 9, 18, 1, 'F', 43); blob(g, 14, 4, 1, 'F', 44);
+  return finishMap('gorge', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 7], [14, 16]] });
+}
+
+/* ── 야영 기습전 ── */
+function campMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  hline(g, 5, 2, n - 3, 'R'); hline(g, 16, 2, n - 3, 'R');
+  /* 막사 사이 목책 숲 */
+  paint(g, [[3, 3], [4, 3], [3, 20], [4, 20], [9, 4], [10, 4], [9, 19], [10, 19], [19, 3], [19, 20]], 'F');
+  blob(g, 1, 1, 1, 'F', 51); blob(g, 22, 1, 1, 'F', 52);
+  blob(g, 1, 22, 1, 'F', 53); blob(g, 22, 22, 1, 'F', 54);
+  paint(g, [[0, 11], [0, 12], [1, 11], [1, 12], [23, 11], [23, 12], [22, 11], [22, 12]], 'M');
+  return finishMap('camp', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[6, 8], [17, 8], [cx, 14]] });
+}
+
+/* ── 수전 ── */
+function navalMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  fillRect(g, 5, 18, 0, n - 1, 'W');
+  /* 세 갈래 나무다리 */
+  [4, cx - 1, 19].forEach((x) => { fillRect(g, 5, 18, x, x + 1, 'B'); });
+  hline(g, 4, 0, n - 1, 'S'); hline(g, 19, 0, n - 1, 'S');
+  /* 다리 옆 물가 섬 — 마을이 들어선다 */
+  fillRect(g, 10, 12, 7, 8, 'P'); fillRect(g, 10, 12, 16, 17, 'P');
+  vline(g, cx - 1, 0, 3, 'R'); vline(g, cx, 0, 3, 'R');
+  vline(g, cx - 1, 20, n - 1, 'R'); vline(g, cx, 20, n - 1, 'R');
+  blob(g, 2, 2, 1, 'F', 61); blob(g, 21, 2, 1, 'F', 62);
+  blob(g, 2, 21, 1, 'F', 63); blob(g, 21, 21, 1, 'F', 64);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  return finishMap('naval', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[7, 11], [17, 11], [cx, 3]] });
+}
+
+/* ── 요새전 ── */
+function fortressMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  /* 오른쪽 위 요새 — 성벽 사각 + 성문 2칸 */
+  fillRect(g, 2, 13, 13, 23, 'D');
+  hline(g, 2, 13, 23, 'C'); hline(g, 13, 13, 23, 'C');
+  vline(g, 13, 2, 13, 'C'); vline(g, 23, 2, 13, 'C');
+  setT(g, 13, 17, 'G'); setT(g, 13, 18, 'G');
+  setT(g, 2, 17, 'T'); setT(g, 2, 18, 'T');
+  fillRect(g, 4, 5, 17, 18, 'H'); setT(g, 6, 17, 'K'); setT(g, 6, 18, 'K');
+  /* 성 앞 진입로 */
+  vline(g, 17, 14, n - 1, 'R'); vline(g, 18, 14, n - 1, 'R');
+  hline(g, 18, 3, 22, 'R');
+  blob(g, 5, 5, 3, 'F', 71); blob(g, 4, 20, 2, 'F', 72); blob(g, 20, 19, 2, 'F', 73);
+  blob(g, 1, 12, 1, 'M', 74); blob(g, 8, 1, 2, 'M', 75);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22]], 'M');
+  return finishMap('fortress', g, { ally: [cx, n - 2], enemy: [18, 6], villages: [[8, 15], [5, 9]] });
+}
+
+/* ── 공성전 — 겹성벽 (소 1중 24×24 · 중 2중 28×28 · 대 3중 32×32) ──
+   성벽 줄(row)은 배경 그림(battle_siege*.webp)의 성벽과 같은 자리에 맞춘다.
+   · 소도시: 아래쪽 성벽 1줄 + 중앙 정문, 그 위가 성 안(궁궐·천막)
+   · 중도시: 1중(아래) · 2중(가운데) 두 줄 + 각각 중앙 정문
+   · 대도시: 1중(아래) · 2중(가운데) + 맨 위 중앙의 네모(ㄷ자) 본성 성곽 —
+     본성 성곽 안에 적 총대장 본진(1×1)이 있다.
+   1단 문을 깨면 1·2단 사이 외성 마당, 2단 문을 깨면 2·3단 사이 마당,
+   마지막 본성 문을 깨면 총대장 본진 앞까지 들어갈 수 있다. */
 function siegeMap(rings) {
   rings = rings === 3 ? 3 : (rings === 2 ? 2 : 1);
-  const g = blankGrid();
-  const row = (y, ch, x0 = 0, x1 = 17) => { for (let x = x0; x <= x1; x++) g[y][x] = ch; };
-  const wallRows = rings === 3 ? [3, 6, 9] : (rings === 2 ? [3, 7] : [6]);
-  const outer = wallRows[wallRows.length - 1];
-  /* 성 안(마지막 성벽까지)은 마당, 밖은 들 */
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = y <= outer ? 'D' : 'P';
-  /* 궁궐·관아(맨 안쪽), 본성 계단, 망루 */
-  row(1, 'H', 7, 10);
-  g[2][8] = 'K'; g[2][9] = 'K';
-  if (rings === 1) { g[3][4] = 'T'; g[3][13] = 'T'; }
-  if (rings === 2) { g[3][4] = 'T'; g[3][13] = 'T'; g[5][6] = 'T'; g[5][11] = 'T'; }
-  if (rings === 3) { g[3][4] = 'T'; g[3][13] = 'T'; g[5][5] = 'T'; g[5][12] = 'T'; g[8][4] = 'T'; g[8][13] = 'T'; }
-  /* 성벽 줄과 성문(2칸) */
-  wallRows.forEach((y) => { row(y, 'C'); g[y][8] = 'G'; g[y][9] = 'G'; });
-  /* 해자 — 바깥 성벽 바로 아래. 성문 앞은 다리, 양옆은 여울 */
-  const moat = outer + 1;
-  if (moat < 17) { row(moat, 'W'); g[moat][8] = 'B'; g[moat][9] = 'B'; g[moat][3] = 'S'; g[moat][14] = 'S'; }
-  /* 성문 앞길 — 해자 아래부터 진영까지 */
-  for (let y = moat + 1; y <= 14; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
-  row(15, 'R', 6, 11);
-  /* 성 밖: 숲(우회·엄폐) · 산(모서리) — 성벽 안쪽 마당은 건드리지 않는다 */
-  paint(g, [[9, 16], [10, 16], [11, 16], [3, 13], [3, 14], [14, 13], [14, 14], [4, 16], [13, 16]], 'F');
-  paint(g, [[0, 16], [0, 17], [1, 17], [17, 16], [17, 17], [16, 17], [0, 13], [17, 13]], 'M');
-  return g2s(g);
-}
-
-function navalMap() {
-  const g = blankGrid();
-  for (let y = 5; y <= 10; y++) for (let x = 0; x < 18; x++) g[y][x] = 'W';
-  for (let x = 0; x < 18; x++) { g[4][x] = 'S'; g[11][x] = 'S'; }
-  for (let y = 3; y <= 12; y++) { g[y][4] = 'B'; g[y][5] = 'B'; g[y][12] = 'B'; g[y][13] = 'B'; }
-  /* v5.0.1 — 오른쪽 나무다리(그림 x 78~96%)를 실제로 건널 수 있게 다리 타일로 바꿈 */
-  for (let y = 4; y <= 11; y++) { g[y][15] = 'B'; g[y][16] = 'B'; }
-  g[4][14] = 'B'; g[5][14] = 'B'; g[10][17] = 'B'; g[11][17] = 'B';
-  paint(g, [[0, 0], [0, 1], [1, 0], [1, 1], [0, 16], [0, 17], [1, 16], [1, 17], [16, 0], [16, 1], [17, 0], [17, 1], [16, 16], [16, 17], [17, 16], [17, 17]], 'F');
-  paint(g, [[2, 2], [3, 2], [2, 15], [3, 15], [14, 2], [15, 2], [14, 15], [15, 15]], 'F');
-  paint(g, [[6, 8], [6, 9], [7, 8], [1, 9], [16, 8]], 'R');
-  return g2s(g);
-}
-
-function mountainMap() {
-  const g = blankGrid();
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = 'M';
-  const path = [[16, 2], [15, 4], [13, 5], [12, 7], [10, 8], [9, 10], [7, 11], [6, 13], [4, 14], [3, 16]];
-  let prev = path[0];
-  const carve = (y, x) => {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const ny = y + dy, nx = x + dx;
-      if (ny >= 0 && ny < 18 && nx >= 0 && nx < 18) g[ny][nx] = 'P';
-    }
-  };
-  carve(prev[0], prev[1]);
-  path.slice(1).forEach((p) => {
-    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) {
-      carve(Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps));
-    }
-    prev = p;
-  });
-  paint(g, [[16, 2], [16, 3], [15, 2], [14, 3], [13, 4], [12, 6], [11, 8], [10, 9], [8, 11], [7, 13], [5, 15]], 'R');
-  paint(g, [[4, 10], [3, 12], [6, 9], [8, 7], [10, 5], [12, 10], [14, 8], [15, 11], [3, 8], [1, 3], [2, 15], [5, 16]], 'F');
-  paint(g, [[0, 0], [0, 1], [1, 0], [16, 16], [17, 17], [17, 16]], 'W');
-  return g2s(g);
-}
-
-function fortressMap() {
-  const g = blankGrid();
-  for (let y = 2; y <= 9; y++) for (let x = 10; x <= 17; x++) {
-    const wall = y === 2 || y === 9 || x === 10 || x === 17;
-    g[y][x] = wall ? 'C' : 'D';
+  /* 성벽 두께는 그림과 맞춰 2칸. walls는 바깥(아래)부터가 아니라 안쪽→바깥 순서로 적는다. */
+  const cfg = rings === 3
+    ? { size: 32, walls: [[17, 18], [24, 25]], box: { top: [1, 2], bottom: [10, 11], x0: 10, x1: 22 } }
+    : (rings === 2
+      ? { size: 28, walls: [[10, 11], [19, 20]], box: null }
+      : { size: 24, walls: [[11, 12]], box: null });
+  const n = cfg.size, cx = Math.floor(n / 2);
+  const walls = cfg.walls;
+  const outer = walls[walls.length - 1][1];
+  const g = mkGrid(n, n, 'P');
+  /* 성 안(바깥 성벽 위쪽)은 마당 */
+  fillRect(g, 0, outer, 0, n - 1, 'D');
+  const palEnd = Math.round(n * 0.13) + 1;
+  let enemyBase;
+  if (cfg.box) {
+    /* 대도시 — 맨 위 중앙의 네모(ㄷ자) 본성 성곽. 안에 적 총대장 본진. */
+    const b = cfg.box;
+    fillRect(g, b.top[0], b.top[1], b.x0, b.x1, 'C');
+    fillRect(g, b.bottom[0], b.bottom[1], b.x0, b.x1, 'C');
+    vline(g, b.x0, b.top[0], b.bottom[1], 'C');
+    vline(g, b.x1, b.top[0], b.bottom[1], 'C');
+    b.bottom.forEach((gy) => { setT(g, gy, cx - 1, 'G'); setT(g, gy, cx, 'G'); });
+    /* 본성 안 궁궐 — 문 앞까지 마당을 비워 둔다 */
+    fillRect(g, b.top[1] + 1, b.top[1] + 4, cx - 4, cx + 3, 'H');
+    setT(g, b.top[1] + 5, cx - 1, 'K'); setT(g, b.top[1] + 5, cx, 'K');
+    enemyBase = [cx, b.bottom[0] - 2];
+  } else {
+    fillRect(g, 1, palEnd, cx - 4, cx + 3, 'H');
+    setT(g, palEnd + 1, cx - 1, 'K'); setT(g, palEnd + 1, cx, 'K');
+    enemyBase = [cx, palEnd + 3];
   }
-  g[9][12] = 'G'; g[9][13] = 'G';
-  paint(g, [[12, 3], [13, 4], [14, 5], [13, 7], [12, 8], [10, 11], [9, 12], [10, 12], [9, 13], [10, 13]], 'R');
-  paint(g, [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [15, 12], [16, 12], [16, 13], [15, 13], [17, 14], [14, 14]], 'F');
-  paint(g, [[14, 0], [15, 0], [15, 1], [16, 0], [13, 1], [5, 0], [6, 0], [5, 1]], 'M');
-  paint(g, [[13, 0], [13, 1], [14, 1]], 'W');
-  paint(g, [[13, 2]], 'S');
-  paint(g, [[16, 3], [17, 4], [16, 5], [15, 4]], 'F');
-  return g2s(g);
-}
-
-/* v5.3 — 행군 도중 요격전용 전장: 넓은 들(평야전) · 강 건널목(도하전) · 숲길(매복전) */
-function plainMap() {
-  const g = blankGrid();
-  paint(g, [[2, 2], [2, 3], [3, 2], [14, 14], [15, 14], [14, 15], [15, 15], [6, 13], [7, 13], [6, 14]], 'F');
-  paint(g, [[0, 0], [0, 1], [1, 0], [0, 17], [1, 17], [1, 16], [17, 0], [17, 1], [16, 0], [17, 17], [16, 17], [17, 16]], 'M');
-  for (let x = 0; x < 18; x++) { g[9][x] = x % 5 === 4 ? 'S' : 'R'; }
-  paint(g, [[4, 6], [4, 7], [5, 8], [12, 9], [13, 10], [11, 5], [3, 12], [14, 3]], 'R');
-  return g2s(g);
-}
-
-function fordMap() {
-  const g = blankGrid();
-  for (let x = 0; x < 18; x++) { g[7][x] = 'W'; g[8][x] = 'W'; }
-  /* 중앙 나무다리 + 좌우 여울(징검돌) — 배경 그림의 다리·징검돌과 자리를 맞춘다 */
-  [[4, 7], [5, 7], [4, 8], [5, 8], [12, 7], [13, 7], [12, 8], [13, 8]].forEach(([x, y]) => { g[y][x] = 'S'; });
-  paint(g, [[7, 8], [8, 8], [7, 9], [8, 9]], 'B');
-  paint(g, [[1, 1], [1, 2], [2, 1], [6, 14], [7, 14], [6, 15], [15, 2], [16, 2], [15, 3], [12, 16], [13, 16]], 'F');
-  paint(g, [[0, 0], [0, 1], [1, 0], [17, 17], [17, 16], [16, 17], [0, 17], [1, 17], [0, 16]], 'M');
-  for (let y = 0; y <= 6; y++) { g[y][8] = 'R'; }
-  for (let y = 9; y < 18; y++) { g[y][9] = 'R'; }
-  return g2s(g);
-}
-
-/* v5.15 — 밀림 매복전: 숲이 판을 덮고 오솔길 하나만 뚫려 있다.
-   야수병·산적이 길목을 끊으면 보병은 걷기만 해도 지친다. */
-function forestMap() {
-  const g = blankGrid();
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = 'F';
-  const path = [[8, 17], [9, 15], [7, 14], [8, 12], [10, 10], [9, 8], [7, 7], [8, 5], [10, 4], [9, 2], [9, 0]];
-  let prev = path[0];
-  const carve = (y, x, ch) => {
-    if (y < 0 || y > 17 || x < 0 || x > 17) return;
-    g[y][x] = ch || 'R';
-  };
-  carve(prev[0], prev[1]);
-  path.slice(1).forEach((p) => {
-    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) {
-      carve(Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps));
-    }
-    prev = p;
+  /* 1중·2중 성벽 — 화면 끝까지 가로지르고 중앙에 정문(2칸) */
+  walls.forEach((rows) => {
+    rows.forEach((y) => {
+      hline(g, y, 0, n - 1, 'C');
+      /* 성문은 성벽 두께만큼 뚫린 통로 — 문을 부수면 이 두 줄로 성 안에 들어간다 */
+      setT(g, y, cx - 1, 'G'); setT(g, y, cx, 'G');
+    });
   });
-  /* 오솔길 옆 작은 공터 — 진형을 펼 수 있는 몇 안 되는 자리 */
-  paint(g, [[3, 15], [4, 15], [3, 14], [13, 13], [14, 13], [13, 12], [4, 8], [3, 8], [14, 6], [15, 6], [4, 3], [5, 3], [13, 2], [14, 2]], 'P');
-  /* 숲속 바위지대 */
-  paint(g, [[0, 0], [1, 0], [0, 1], [17, 17], [16, 17], [17, 16], [0, 17], [1, 17], [0, 16], [17, 0], [16, 0], [17, 1]], 'M');
-  return g2s(g);
+  /* 바깥 성문 앞길 */
+  for (let y = outer + 1; y <= n - 1; y++) { setT(g, y, cx - 1, 'R'); setT(g, y, cx, 'R'); }
+  hline(g, n - 3, cx - 5, cx + 4, 'R');
+  /* 1중 성벽 뒤 좌·우 망루 — 수성 궁수·연노의 사거리 +1 거점 */
+  setT(g, outer - 2, 3, 'T'); setT(g, outer - 2, n - 4, 'T');
+  if (rings >= 2) { const mid = walls[0][0]; setT(g, mid - 2, 3, 'T'); setT(g, mid - 2, n - 4, 'T'); }
+  /* 성 밖 숲·바위 */
+  blob(g, 3, n - 4, 2, 'F', 81); blob(g, n - 4, n - 4, 2, 'F', 82);
+  blob(g, 2, n - 8, 1, 'F', 83); blob(g, n - 3, n - 8, 1, 'F', 84);
+  paint(g, [[0, 0], [0, 1], [1, 0], [n - 1, n - 1], [n - 1, n - 2], [n - 2, n - 1]], 'M');
+  /* 마을 — 1단과 2단 성벽 사이 외성 마당 좌·우 (+ 소도시는 성 안 천막 자리) */
+  const villages = [];
+  if (rings >= 2) {
+    const midY = Math.round((walls[0][1] + outer - 1) / 2) + 1;
+    villages.push([4, midY], [n - 5, midY]);
+    if (rings === 3) villages.push([cx - 7, walls[0][0] - 3]);
+  } else {
+    villages.push([3, 4], [n - 4, 4], [cx - 6, n - 5]);
+  }
+  const key = rings === 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege');
+  return finishMap(key, g, { ally: [cx, n - 2], enemy: enemyBase, villages });
 }
 
-/* v5.15 — 협곡·잔도전: 양쪽 절벽 사이 외길 하나. 창병·등갑병이 길목을 막고
-   궁수·연노가 절벽 그늘에서 쏜다. 가운데는 잔도(다리) 하나뿐이다. */
-function gorgeMap() {
-  const g = blankGrid();
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = (x < 6 || x > 11) ? 'M' : 'P';
-  /* 계곡 바닥의 외길 */
-  for (let y = 0; y < 18; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
-  for (let x = 7; x <= 10; x++) { g[15][x] = 'R'; g[2][x] = 'R'; }
-  /* 가운데 협곡(건널 수 없는 급류) + 잔도 하나 */
-  for (let y = 8; y <= 9; y++) { for (let x = 6; x <= 11; x++) g[y][x] = 'W'; }
-  g[8][8] = 'B'; g[9][8] = 'B'; g[8][9] = 'B'; g[9][9] = 'B';
-  g[8][6] = 'S'; g[9][6] = 'S'; g[8][11] = 'S'; g[9][11] = 'S';
-  /* 절벽 그늘의 숲 — 궁병이 앉을 자리 */
-  paint(g, [[3, 4], [4, 4], [3, 5], [13, 12], [14, 12], [13, 13], [2, 13], [3, 13], [14, 4], [15, 4], [2, 6], [15, 11]], 'F');
-  /* 바깥쪽 벽은 더 높은 산 */
-  paint(g, [[0, 0], [1, 0], [0, 1], [17, 17], [16, 17], [17, 16], [0, 17], [0, 16], [17, 0], [17, 1], [1, 17], [16, 0]], 'M');
-  return g2s(g);
-}
-
-/* v5.15 — 야영 기습전: 목책과 막사·보급품이 늘어선 적 진영을 기습한다.
-   막사 사이 좁은 통로와 군량 더미가 엄폐물 노릇을 한다. */
-function campMap() {
-  const g = blankGrid();
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = 'P';
-  /* 진영 안길 */
-  for (let y = 0; y < 18; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
-  for (let x = 2; x <= 15; x++) { g[4][x] = 'R'; g[12][x] = 'R'; }
-  /* 진영 밖 숲·언덕 */
-  /* v5.16 — 천막 위에 소나무가 겹쳐 보이던 아래쪽 숲([2,16]·[3,16]·[14,16]·[15,16])을
-     진영 밖 빈 땅(좌우 가장자리 14행)으로 옮긴다. 막사·보급품과 겹치지 않는다. */
-  paint(g, [[0, 0], [1, 0], [0, 1], [0, 17], [1, 17], [0, 16], [17, 0], [16, 0], [17, 1], [17, 17], [16, 17], [17, 16], [0, 14], [1, 14], [16, 14], [17, 14]], 'F');
-  paint(g, [[8, 0], [9, 0], [8, 1], [8, 17], [9, 17], [8, 16]], 'M');
-  /* 막사 자리를 막는 목책 줄 (지나갈 수 없는 장애물 대신 진입 비용 2의 숲으로 표현) */
-  paint(g, [[5, 2], [6, 2], [11, 2], [12, 2], [5, 7], [6, 7], [11, 7], [12, 7], [5, 14], [6, 14], [11, 14], [12, 14]], 'F');
-  return g2s(g);
-}
-
-SK.MAPS = {
-  siege: siegeMap(1),
-  siege2: siegeMap(2),
-  siege3: siegeMap(3),
-  naval: navalMap(),
-  mountain: mountainMap(),
-  fortress: fortressMap(),
-  plain: plainMap(),
-  ford: fordMap(),
-  forest: forestMap(),
-  ambush: forestMap(),   /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
-  gorge: gorgeMap(),
-  camp: campMap(),
-};
+SK.MAPS = {};
+plainMap(); fordMap(); mountainMap(); forestMap(); campMap(); navalMap(); fortressMap();
+siegeMap(1); siegeMap(2); siegeMap(3);
+/* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
+SK.MAPS.ambush = SK.MAPS.forest;
+SK.MAP_META.ambush = SK.MAP_META.forest;
 
 /* v5.11 — 성 등급별 성벽 겹수 (소도시 1중 · 중도시 2중 · 대도시 3중) */
 SK.siegeRingsOfLevel = function (lv) {
@@ -1734,31 +1847,37 @@ SK.siegeRingsOfCity = function (city) {
   return t === 'capital' ? 3 : (t === 'mid' ? 2 : 1);
 };
 SK.siegeMapKey = function (rings) { return rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'); };
+/* v5.17 — 전장 격자 크기. 요격전·소도시 24 / 중도시 28 / 대도시 32 */
+SK.battleSizeFor = function (type, rings) {
+  if (type === 'siege' || type === 'defense') return rings >= 3 ? 32 : (rings === 2 ? 28 : 24);
+  if (type === 'fortress') return 24;
+  return 24;
+};
 
 /* 전장 유형 정보 */
 SK.BATTLE_TYPES = {
-  siege: { name: '공성전', hanja: '攻城戰', map: 'siege', desc: '성벽과 성문을 뚫어라',
-    objective: '성문을 넘어 적을 전멸시켜라', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
-  fortress: { name: '요새전', hanja: '要塞戰', map: 'fortress', desc: '목책과 망루를 함락하라',
-    objective: '목책의 성문을 부수고 적을 전멸시켜라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
+  siege: { name: '공성전', hanja: '', map: 'siege', img: 'siege', desc: '성벽과 성문을 뚫어라',
+    objective: '적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
+  fortress: { name: '요새전', hanja: '', map: 'fortress', img: 'fortress', desc: '목책과 요새를 함락하라',
+    objective: '적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
   /* v5.3 — 행군 요격전 8종 (v5.15에서 밀림·협곡·야영 3종 추가) */
   plain: { name: '평야전', hanja: '', map: 'plain', img: 'plain', desc: '넓은 들에서 적 요격대와 맞붙는다',
-    objective: '평야에서 적 요격대를 전멸시켜라', skill: '기병·무도가는 평지에서 강합니다.' },
+    objective: '적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '기병·무도가는 평지에서 강합니다.' },
   ford: { name: '도하전', hanja: '', map: 'ford', img: 'ford', desc: '강 건널목을 사이에 두고 맞선다',
-    objective: '여울과 다리를 건너 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
+    objective: '여울과 다리를 건너 적 본진을 점령하라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   mountain: { name: '산전', hanja: '', map: 'mountain', img: 'mountain', desc: '산길을 사이에 두고 맞선다',
-    objective: '산허리 길을 따라 올라가 적을 전멸시켜라', skill: '산적·야수병은 산지에서 이동력이 +1입니다.' },
+    objective: '산허리 길을 따라 올라가 적 본진을 점령하라', skill: '산적·야수병은 산지에서 이동력이 +1입니다.' },
   forest: { name: '밀림 매복전', hanja: '', map: 'forest', img: 'forest', desc: '숲길에서 기습을 받았다',
-    objective: '오솔길을 뚫고 복병을 전멸시켜라', skill: '산적·야수병은 숲에서 강하고 야수병은 숲에서 이동력 6급입니다.' },
+    objective: '오솔길을 뚫고 적 본진을 점령하라', skill: '산적·야수병은 숲에서 강하고 야수병은 숲에서 이동력 6급입니다.' },
   gorge: { name: '협곡 잔도전', hanja: '', map: 'gorge', img: 'gorge', desc: '절벽 사이 외길에서 길목을 다툰다',
-    objective: '잔도를 건너 적을 전멸시켜라', skill: '창병·등갑병이 길목을 막고 궁수·연노가 절벽 그늘에서 쏩니다.' },
+    objective: '잔도를 건너 적 본진을 점령하라', skill: '창병·등갑병이 길목을 막고 궁수·연노가 절벽 그늘에서 쏩니다.' },
   camp: { name: '야영 기습전', hanja: '', map: 'camp', img: 'camp', desc: '적 야영지를 기습했다',
-    objective: '막사와 보급로를 끊고 적을 전멸시켜라', skill: '기병·야수병의 돌격이 막사 사이에서 힘을 냅니다.' },
+    objective: '막사와 보급로를 끊고 적 본진을 점령하라', skill: '기병·야수병의 돌격이 막사 사이에서 힘을 냅니다.' },
   naval: { name: '수전', hanja: '', map: 'naval', img: 'naval', desc: '강을 건너 적선을 무찌르라',
-    objective: '다리와 물길을 이용해 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
+    objective: '다리와 물길을 이용해 적 본진을 점령하라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   /* v5.7 — 수성전: 아군이 성 안에서 적 침공군을 맞는다 (지도는 공성전을 뒤집어 쓴다) */
-  defense: { name: '수성전', hanja: '', map: 'siege', desc: '성을 지켜 적을 물리쳐라',
-    objective: '성을 지켜라 — 적을 전멸시켜라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
+  defense: { name: '수성전', hanja: '', map: 'siege', img: 'siege', desc: '성을 지켜 적을 물리쳐라',
+    objective: '성을 지켜라 — 적 총대장을 쓰러뜨리거나 적 본진을 점령하라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
 };
 
 /* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.
@@ -1772,62 +1891,78 @@ SK.battleTypeFor = function (city) {
 
 /* 방어 병력 기본값 */
 SK.cityTroopsBase = function (type) {
-  return { capital: 6400, town: 4200, pass: 4800, fortress: 5000 }[type] || 4000;
+  return { capital: 6400, mid: 5200, town: 4200, pass: 4800, fortress: 5000 }[type] || 4000;
 };
 
 /* 적 부대 구성 */
 SK.enemyClassesFor = function (type, idx) {
   const tables = {
-    siege:    ['geombyung', 'yeonnobyung', 'chaeksa', 'pocha', 'changbyung', 'balseokcha', 'deunggabyung', 'gungsu'],
-    naval:    ['sujeok', 'sujeok', 'gungsu', 'sujeok', 'chaeksa', 'dosa', 'gunakdae', 'sujeok'],
-    mountain: ['sanjeok', 'yasubyung', 'sanjeok', 'yeonnobyung', 'chaeksa', 'mudoga', 'sanjeok', 'yasubyung'],
-    fortress: ['deunggabyung', 'gungsu', 'changbyung', 'pocha', 'chaeksa', 'balseokcha', 'yeonnobyung', 'geombyung'],
-    defense:  ['geombyung', 'yeonnobyung', 'chaeksa', 'pocha', 'changbyung', 'balseokcha', 'deunggabyung', 'gungsu'],
-    plain:    ['gibi', 'changbyung', 'geombyung', 'gungsu', 'mudoga', 'chaeksa', 'gibi', 'gungsu'],
-    ford:     ['sujeok', 'gungsu', 'changbyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'geombyung', 'sujeok'],
-    ambush:   ['sanjeok', 'yasubyung', 'mudoga', 'sanjeok', 'gungsu', 'chaeksa', 'yasubyung', 'sanjeok'],
-    forest:   ['sanjeok', 'yasubyung', 'yasubyung', 'sanjeok', 'mudoga', 'gungsu', 'chaeksa', 'sanjeok'],
-    gorge:    ['changbyung', 'deunggabyung', 'yeonnobyung', 'gungsu', 'changbyung', 'chaeksa', 'deunggabyung', 'balseokcha'],
-    camp:     ['gibi', 'geombyung', 'changbyung', 'gungsu', 'yasubyung', 'chaeksa', 'mudoga', 'yeonnobyung'],
+    siege:    ['geombyung', 'yeonnobyung', 'chaeksa', 'pocha', 'changbyung', 'balseokcha', 'deunggabyung', 'gungsu', 'gunggi', 'geombyung'],
+    naval:    ['sujeok', 'sujeok', 'gungsu', 'sujeok', 'chaeksa', 'dosa', 'gunakdae', 'sujeok', 'sujeok', 'gungsu'],
+    mountain: ['sanjeok', 'yasubyung', 'sanjeok', 'yeonnobyung', 'chaeksa', 'mudoga', 'sanjeok', 'yasubyung', 'gungsu', 'changbyung'],
+    fortress: ['deunggabyung', 'gungsu', 'changbyung', 'pocha', 'chaeksa', 'balseokcha', 'yeonnobyung', 'geombyung', 'gunggi', 'mudoga'],
+    defense:  ['geombyung', 'yeonnobyung', 'chaeksa', 'pocha', 'changbyung', 'balseokcha', 'deunggabyung', 'gungsu', 'gunggi', 'geombyung'],
+    plain:    ['gibi', 'changbyung', 'geombyung', 'gungsu', 'mudoga', 'chaeksa', 'gibi', 'gungsu', 'gunggi', 'changbyung'],
+    ford:     ['sujeok', 'gungsu', 'changbyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'geombyung', 'sujeok', 'gungsu', 'sujeok'],
+    ambush:   ['sanjeok', 'yasubyung', 'mudoga', 'sanjeok', 'gungsu', 'chaeksa', 'yasubyung', 'sanjeok', 'changbyung', 'gungsu'],
+    forest:   ['sanjeok', 'yasubyung', 'yasubyung', 'sanjeok', 'mudoga', 'gungsu', 'chaeksa', 'sanjeok', 'gungsu', 'yasubyung'],
+    gorge:    ['changbyung', 'deunggabyung', 'yeonnobyung', 'gungsu', 'changbyung', 'chaeksa', 'deunggabyung', 'balseokcha', 'gungsu', 'mudoga'],
+    camp:     ['gibi', 'geombyung', 'changbyung', 'gungsu', 'yasubyung', 'chaeksa', 'mudoga', 'yeonnobyung', 'gungsu', 'gibi'],
   };
   const t = tables[type] || tables.siege;
   return t[idx % t.length];
 };
 
-/* 배치 좌표 [x, y] (18×18) */
-/* v5.11 — 성 안쪽 수비 슬롯은 성벽 겹수에 맞춰 성벽 사이사이에 선다 */
-SK.innerSlots = function (rings) {
-  if (rings >= 3) return [[8, 4], [9, 4], [5, 4], [12, 4], [8, 7], [9, 7], [5, 7], [12, 7], [8, 2], [4, 8]];
-  if (rings === 2) return [[8, 4], [9, 4], [5, 4], [12, 4], [8, 6], [9, 6], [5, 6], [12, 6], [8, 2], [9, 2]];
-  return [[8, 3], [5, 4], [12, 4], [4, 3], [13, 3], [8, 5], [9, 5], [3, 5], [8, 4], [9, 4]];
+/* 배치 좌표 [x, y] — 격자 크기에 맞춰 계산한다 (v5.17) */
+SK.innerSlots = function (rings, cols) {
+  const n = cols || (rings >= 3 ? 32 : (rings === 2 ? 28 : 24));
+  return SK.enemySlots('siege', rings, n);
 };
-SK.enemySlots = function (type, rings) {
-  /* v5.3 — 수비 2기는 망루(5,4)·(12,4)에 붙어 버틴다 */
-  /* v5.7 — 수성전은 공성전을 뒤집는다: 지키는 우리가 성 안쪽, 적이 성 앞 */
-  if (type === 'defense') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
-  if (type === 'siege') return SK.innerSlots(rings || 1);
-  if (type === 'naval') return [[3, 2], [6, 2], [9, 2], [12, 2], [15, 2], [5, 1], [11, 1], [14, 1]];
-  if (type === 'mountain') return [[16, 2], [14, 4], [11, 7], [10, 9], [8, 10], [13, 5], [15, 3], [9, 11]];
-  if (type === 'plain') return [[4, 2], [8, 2], [12, 2], [6, 3], [10, 3], [13, 3], [3, 3], [15, 3]];
-  if (type === 'ford') return [[5, 1], [8, 1], [11, 1], [6, 2], [9, 2], [12, 2], [7, 3], [13, 2]];
-  if (type === 'forest' || type === 'ambush') return [[9, 1], [8, 2], [10, 2], [7, 3], [10, 4], [9, 3], [8, 4], [11, 2]];
-  if (type === 'gorge') return [[8, 1], [9, 1], [8, 2], [9, 3], [8, 4], [10, 3], [7, 2], [10, 5]];
-  if (type === 'camp') return [[4, 3], [8, 3], [13, 3], [6, 5], [11, 5], [9, 2], [12, 6], [5, 6]];
-  return [[12, 4], [15, 4], [13, 6], [16, 7], [11, 7], [12, 9], [14, 5], [16, 3]];
+/* 성 안쪽(수비) 슬롯 — 적 본진을 감싸는 자리 */
+function slotsAround(base, n, count) {
+  const out = [];
+  if (!base) return [[Math.floor(n / 2), Math.floor(n / 2)]];
+  for (let dy = 0; dy <= 3; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      const x = base.x + dx, y = base.y + dy;
+      if (x < 0 || y < 0 || x >= n || y >= n) continue;
+      out.push([x, y]);
+    }
+    for (let dx = -2; dx <= 2; dx++) {
+      const x = base.x + dx, y = base.y - dy;
+      if (y < 0 || x < 0 || x >= n || y >= n) continue;
+      if (dy > 0) out.push([x, y]);
+    }
+  }
+  return out.slice(0, count || 10);
+}
+SK.enemySlots = function (type, rings, cols) {
+  const meta = SK.MAP_META[type === 'defense' ? 'siege' : (SK.BATTLE_TYPES[type] && SK.BATTLE_TYPES[type].img)] || null;
+  const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
+  const m = SK.MAP_META[key] || meta;
+  const n = cols || (m ? m.cols : 24);
+  if (type === 'defense') {
+    /* 수성전 — 침공군은 성 밖 길목에서 올라온다 */
+    const outerRow = Math.max(3, (m ? m.rows : n) - 3);
+    const out = [];
+    for (let dy = 0; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) out.push([Math.floor(n / 2) + dx, outerRow - dy]);
+    return out;
+  }
+  return slotsAround(m && m.enemyBase, n, 10);
 };
-SK.allySlots = function (type, rings) {
-  if (type === 'defense') return SK.innerSlots(rings || 1);
-  if (type === 'siege') return [[8, 13], [9, 13], [7, 14], [10, 14], [6, 13], [11, 13], [5, 14], [12, 14], [8, 15], [9, 15]];
-  if (type === 'naval') return [[3, 15], [6, 15], [9, 15], [12, 15], [15, 15], [4, 16], [7, 16], [10, 16], [13, 16], [16, 16]];
-  if (type === 'mountain') return [[2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 12], [3, 16], [4, 16], [5, 14], [6, 13]];
-  if (type === 'plain') return [[4, 15], [8, 15], [12, 15], [6, 16], [10, 16], [14, 16], [3, 16], [16, 15], [7, 14], [11, 14]];
-  if (type === 'ford') return [[4, 15], [7, 15], [10, 15], [13, 15], [5, 16], [8, 16], [11, 16], [6, 14], [12, 14], [14, 16]];
-  if (type === 'forest' || type === 'ambush') return [[8, 16], [9, 14], [7, 15], [10, 16], [6, 16], [8, 13], [11, 15], [5, 15], [9, 16], [7, 17]];
-  if (type === 'gorge') return [[8, 16], [9, 16], [8, 14], [9, 13], [8, 12], [10, 14], [7, 15], [10, 16], [9, 15], [7, 14]];
-  /* v5.16 — 아군이 아래쪽 목책(F)·산(M) 타일 위에 서던 자리를 진영 안쪽 빈 땅·길로 옮긴다
-     ([6,14]·[11,14]는 목책 숲, [8,16]은 바위산이었다) */
-  if (type === 'camp') return [[4, 15], [5, 15], [7, 15], [10, 15], [11, 15], [13, 15], [3, 14], [7, 14], [10, 14], [13, 14]];
-  return [[3, 15], [5, 16], [7, 15], [9, 16], [4, 13], [6, 14], [8, 16], [2, 14], [10, 16], [5, 14]];
+SK.allySlots = function (type, rings, cols) {
+  const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
+  const m = SK.MAP_META[key];
+  const n = cols || (m ? m.cols : 24);
+  if (type === 'defense') return slotsAround(m && m.enemyBase, n, 10);
+  const base = m && m.allyBase ? m.allyBase : { x: Math.floor(n / 2), y: n - 2 };
+  /* 아군은 본진 앞 두 줄에 폭 5칸으로 늘어선다 (10부대) */
+  const out = [];
+  [0, -1, -2].forEach((dy) => [-2, -1, 0, 1, 2].forEach((dx) => {
+    const x = base.x + dx, y = base.y + dy;
+    if (x >= 0 && y >= 0 && x < n && y < n) out.push([x, y]);
+  }));
+  return out;
 };
 
 /* ══════════════════════════════════════════════════════════════

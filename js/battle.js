@@ -1,11 +1,14 @@
 /* ══════════════════════════════════════════════════════════════
-   4단계 · 대형 격자 전장 — 18×18 팬/줌, 이동·공격·책략·AI
+   4단계 · 대형 격자 전장 — 24/28/32 팬/줌·미니맵, 이동·공격·책략·AI
    ══════════════════════════════════════════════════════════════ */
 'use strict';
 (function () {
   const SK = window.SK;
   const $ = (s) => document.querySelector(s);
-  const TILE = 64, N = 18, WORLD = N * TILE;
+  /* v5.17 — 격자 크기는 전장마다 다르다. 요격·소도시 24, 중도시 28, 대도시 32.
+     startBattle에서 B.cols·B.rows에 맞춰 N·WORLD를 다시 잡는다. */
+  const TILE = 64;
+  let N = 18, WORLD = N * TILE;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const rnd = (a, b) => a + Math.random() * (b - a);
   /* cheb — 정사각(맨해튼 아님) 거리. 인연·특기 같은 '주변' 판정에만 쓴다 */
@@ -105,6 +108,14 @@
     const mapKey = isSiege && SK.siegeMapKey ? SK.siegeMapKey(rings) : def.map;
     const mapRows = SK.MAPS[mapKey] || SK.MAPS[def.map];
     const tiles = mapRows.map((r) => r.split(''));
+    /* v5.17 — 동적 격자 크기 + 1×1 본진·마을 자리 */
+    const meta = SK.MAP_META[mapKey] || (def.map && SK.MAP_META[def.map]) || null;
+    const cols = meta ? meta.cols : tiles[0].length;
+    const rows = meta ? meta.rows : tiles.length;
+    N = cols; WORLD = N * TILE;
+    const bgKey = (type === 'siege' || type === 'defense')
+      ? (rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'))
+      : (def.img || def.map);
     const faction = defense ? defense.faction : s.cities[opts.targetId].owner;
     const bossInfo = bossOfFaction(faction);
     const intercept = opts.intercept || null;
@@ -115,11 +126,12 @@
 
     /* v5.7 — 수성전이면 적 병력은 침공군 규모, 지키는 쪽이 아군 */
     const cityTroops = defense ? Math.max(1200, defense.troops || 0) : s.cities[opts.targetId].troops;
-    const enemyCount = intercept ? clamp(4 + Math.floor(cityTroops / 3200), 4, 6)
-      : clamp(5 + Math.floor(cityTroops / 2600), 5, 8);
+    /* v5.17 — 출진 10부대·병력 5,000/10,000 시대에 맞춰 적 편성도 6~10부대로 늘린다 */
+    const enemyCount = intercept ? clamp(5 + Math.floor((intercept.troops || 2400) / 2600), 5, 8)
+      : clamp(6 + Math.floor(cityTroops / 3800), 6, 10);
     const per = intercept
-      ? clamp(Math.round((intercept.troops || 2400) / enemyCount / 100) * 100, 700, 2200)
-      : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 600, 4200);
+      ? clamp(Math.round((intercept.troops || 2400) / enemyCount / 100) * 100, 900, 2800)
+      : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 900, 5200);
     const defGens = (defense ? (defense.genIds || []) : (s.cities[opts.targetId].genIds || []))
       .map((id) => {
         const g = SK.GEN_BY_ID[id];
@@ -178,12 +190,21 @@
        수성전도 같은 성문·성벽을 그대로 쓴다 (진영만 바뀐다). */
     const gateRows = [];
     if (type === 'siege' || type === 'defense' || type === 'fortress') {
-      tiles.forEach((row, y) => row.forEach((ch, x) => {
-        if (ch !== 'G') return;
-        let g = gateRows.find((o) => o.row === y);
-        if (!g) { g = { row: y, tiles: [] }; gateRows.push(g); }
-        g.tiles.push({ x, y });
-      }));
+      const rowsWithGate = [];
+      tiles.forEach((row, y) => {
+        if (row.indexOf('G') < 0) return;
+        rowsWithGate.push(y);
+      });
+      /* v5.17 — 성벽 두께(2칸)만큼 이어진 성문 줄은 하나의 성문으로 묶는다 */
+      rowsWithGate.sort((a, b) => b - a);
+      rowsWithGate.forEach((y) => {
+        const last = gateRows[gateRows.length - 1];
+        if (last && last.rows[last.rows.length - 1] - y <= 1) last.rows.push(y);
+        else gateRows.push({ row: y, rows: [y], tiles: [] });
+      });
+      gateRows.forEach((gr) => {
+        gr.rows.forEach((y) => tiles[y].forEach((ch, x) => { if (ch === 'G') gr.tiles.push({ x, y }); }));
+      });
     }
     /* 바깥(큰 y)부터 안쪽 순서 */
     gateRows.sort((a, b) => b.row - a.row);
@@ -198,6 +219,7 @@
       type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name} · ${def.name}` : `${target.name} ${def.name}`),
       targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null,
+      cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings,
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
       event: SK.pickEvent(target, defGens),
@@ -224,10 +246,45 @@
         { k: 'siege_tower', x: 4, y: 14, s: 0.9 }, { k: 'siege_tower', x: 13, y: 14, s: 0.9 },
       ];
     }
-    placeSide(allies, SK.allySlots(type, rings), 'ally');
-    placeSide(enemies, SK.enemySlots(type, rings), 'enemy');
+    placeSide(allies, SK.allySlots(type, rings, cols), 'ally');
+    placeSide(enemies, SK.enemySlots(type, rings, cols), 'enemy');
+    /* v5.17 — 1×1 본진·마을. 수성전은 진영이 뒤집히므로 본진 자리도 바꿔 단다 */
+    B.sites = [];
+    if (meta) {
+      const allyPos = type === 'defense' ? meta.enemyBase : meta.allyBase;
+      const enemyPos = type === 'defense' ? meta.allyBase : meta.enemyBase;
+      if (allyPos) B.sites.push({ type: 'allyHQ', x: allyPos.x, y: allyPos.y, owner: 'ally' });
+      if (enemyPos) B.sites.push({ type: 'enemyHQ', x: enemyPos.x, y: enemyPos.y, owner: 'enemy' });
+      (meta.villages || []).forEach((v) => B.sites.push({ type: 'village', x: v.x, y: v.y, owner: null }));
+    }
+    /* v5.17 — 총대장(적)과 아군 총대장. 격파되면 그 자리에서 승패가 갈린다 */
+    const eLeader = B.units.filter((u) => u.side === 'enemy').sort((a, b) => ((b.boss ? 1 : 0) - (a.boss ? 1 : 0)) || (b.lv - a.lv))[0];
+    if (eLeader) {
+      eLeader.leader = true;
+      /* 무명 수비 부대가 총대장이 되면 이름을 붙여 준다 (적 성에 장수가 없을 때) */
+      if (!eLeader.genId && !eLeader.boss) {
+        eLeader.boss = true;
+        eLeader.name = `${SK.factionName(faction).replace(/군$/, '')} 수비대장`;
+      }
+      B.enemyLeaderId = eLeader.id;
+    }
+    const aLeader = B.units.filter((u) => u.side === 'ally' && u.uid).sort((a, b) => b.lv - a.lv)[0]
+      || B.units.filter((u) => u.side === 'ally')[0];
+    if (aLeader) { aLeader.leader = true; B.allyLeaderId = aLeader.id; }
+    /* v5.17 — AI 역할: 수비대·호위병은 본진·총대장을 지키고, 돍격대는 아군 본진·빈 마을을 노린다 */
+    /* 수성전은 적이 성으로 밀고 들어오는 입장이라 전원 돍격, 공성·요새는 수비대가 자리를 지킨다.
+       들판 요격전은 절반이 마을·아군 본진을 노리는 돍격대가 된다. */
+    const eHQ = B.sites.find((x) => x.type === 'enemyHQ');
+    B.units.filter((u) => u.side === 'enemy').forEach((u, i) => {
+      if (type === 'defense') { u.role = 'assault'; return; }
+      if (type === 'siege' || type === 'fortress') { u.role = 'guard'; return; }
+      u.role = u.leader ? 'guard' : (i % 2 === 0 ? 'assault' : 'guard');
+    });
+    B.units.forEach((u) => { if (u.tier == null) u.tier = SK.tierForLv(u.lv); });
     /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
     if (SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
+    B.objective = defense ? SK.BATTLE_TYPES.defense.objective : def.objective;
+    if (B.sites && B.sites.length) B.objective = '적 총대장 격파 또는 적 본진 점령 — 아군 총대장·본진을 지켜라';
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
     anims.length = 0;
@@ -340,8 +397,11 @@
     return {
       id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv, genId: g.id,
       hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
-      atk: (C.atk + g.war * 0.13) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.03) * lvMul,
-      def: (C.def + g.leadership * 0.08) * (1 + 0.06 * ((SK.TIER_LV[g.tier] || 3) - 1)) * lvMul,
+      /* v5.17 — 적 명장도 아군과 같은 모양의 계산을 쓴다 (능력치 60 기준).
+         예전에는 g.war를 그대로 더해 A급 적장이 아군보다 1.8배 강했다 — 반격까지 겹쳐
+         아군이 4배 이상 손해를 보던 원인. */
+      atk: (C.atk + (g.war - 60) * 0.14) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.025) * lvMul,
+      def: (C.def + (g.leadership - 60) * 0.08) * (1 + 0.04 * ((SK.TIER_LV[g.tier] || 3) - 1)) * lvMul,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel, tong: g.leadership,
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
@@ -475,14 +535,19 @@
     ctx = canvas.getContext('2d');
     resizeCanvas();
     bindBattleCamera();
+    mmStatic = null;
+    buildMinimap();
+    bindMinimap();
     if (!B.started) {
       B.started = true;
       // center camera on allies before the fade-in
       const a = B.units.filter((u) => u.side === 'ally');
-      const cx = a.reduce((s2, u) => s2 + u.x, 0) / a.length;
-      const cy = a.reduce((s2, u) => s2 + u.y, 0) / a.length;
-      const focus = { siege: [8.5, 9.5], fortress: [8, 11], naval: [9, 8.5], mountain: [8, 10] }[B.type] || [9, 9];
-      cam.s = clamp(stage.clientWidth / (12.5 * TILE), 0.44, 0.7);
+      const cx = a.reduce((s2, u) => s2 + u.x, 0) / Math.max(1, a.length);
+      const cy = a.reduce((s2, u) => s2 + u.y, 0) / Math.max(1, a.length);
+      /* v5.17 — 화면에 약 11칸이 들어오게 맞추고 아군 본진 쪽을 비춘다 */
+      const base = (B.sites || []).find((s) => s.type === 'allyHQ');
+      const focus = base ? [base.x, base.y - 1] : [cx, cy];
+      cam.s = clamp(stage.clientWidth / (11 * TILE), 0.42, 0.8);
       centerCam(focus[0], focus[1]);
     }
     if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(loop); }
@@ -922,6 +987,119 @@
     ctx.restore();
   }
 
+  /* ══════════ v5.17 — 우측 상단 미니맵 (조조전식) ══════════
+     전체 전장 축소도 위에 아군(파랑)·적군(빨강)·총대장(금테)·본진(금)·마을(초록),
+     지금 화면이 보이는 범위를 흰 사각형으로 보여 준다. 누르면 그 자리로 즉시 이동. */
+  const MM_W = 104, MM_H = 104;
+  let mmStatic = null, mmBound = false, mmOpen = true;
+  function mmEl() { return document.getElementById('mm-canvas'); }
+  function buildMinimap() {
+    const cv = mmEl();
+    if (!cv || !B || !B.tiles) return;
+    const dpr2 = Math.min(2.5, window.devicePixelRatio || 1);
+    cv.width = Math.round(MM_W * dpr2); cv.height = Math.round(MM_H * dpr2);
+    cv.style.width = MM_W + 'px'; cv.style.height = MM_H + 'px';
+    const st = document.createElement('canvas');
+    st.width = cv.width; st.height = cv.height;
+    const sc = st.getContext('2d');
+    sc.setTransform(dpr2, 0, 0, dpr2, 0, 0);
+    sc.fillStyle = '#2a2317'; sc.fillRect(0, 0, MM_W, MM_H);
+    const img = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
+    if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, MM_W, MM_H);
+    else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, MM_W, MM_H); }
+    const sx = MM_W / N, sy = MM_H / N;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = B.tiles[y][x];
+        if (ch === 'C' || ch === 'H') { sc.fillStyle = 'rgba(34,26,14,0.62)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
+        else if (ch === 'W') { sc.fillStyle = 'rgba(40,96,150,0.55)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
+      }
+    }
+    if (img.complete && img.naturalWidth) st.dataset.img = '1';
+    mmStatic = st;
+  }
+  function drawMinimap() {
+    const cv = mmEl();
+    if (!cv || !B || !B.tiles || !mmOpen) return;
+    if (!mmStatic || cv.width !== Math.round(MM_W * Math.min(2.5, window.devicePixelRatio || 1))) buildMinimap();
+    /* 배경 그림이 늦게 도착하면 한 번 다시 그린다 */
+    if (mmStatic && !mmStatic.dataset.img) {
+      const im0 = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
+      if (im0.complete && im0.naturalWidth) { buildMinimap(); }
+    }
+    if (!mmStatic) return;
+    const c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(mmStatic, 0, 0);
+    const dpr2 = cv.width / MM_W;
+    c.setTransform(dpr2, 0, 0, dpr2, 0, 0);
+    const sx = MM_W / N, sy = MM_H / N;
+    /* 본진·마을 */
+    (B.sites || []).forEach((s) => {
+      c.fillStyle = s.type === 'village'
+        ? (s.owner === 'ally' ? '#6fb6ff' : s.owner === 'enemy' ? '#ff7a5c' : '#7ee08a')
+        : (s.type === 'allyHQ' ? '#ffd35c' : '#e8b23c');
+      c.fillRect(s.x * sx + 0.5, s.y * sy + 0.5, Math.max(2.4, sx), Math.max(2.4, sy));
+      c.strokeStyle = 'rgba(30,22,10,0.8)'; c.lineWidth = 0.8;
+      c.strokeRect(s.x * sx + 0.5, s.y * sy + 0.5, Math.max(2.4, sx), Math.max(2.4, sy));
+    });
+    /* 성문 */
+    (B.gates || []).forEach((gate) => {
+      gate.tiles.forEach((t) => {
+        c.fillStyle = gate.hp > 0 ? '#ffe08a' : 'rgba(120,180,110,0.9)';
+        c.fillRect(t.x * sx, t.y * sy, sx + 0.4, sy + 0.4);
+      });
+    });
+    /* 부대 */
+    B.units.forEach((u) => {
+      if (!u.alive) return;
+      c.fillStyle = u.side === 'ally' ? '#5aa0ff' : '#ff5a3c';
+      c.beginPath();
+      c.arc((u.x + 0.5) * sx, (u.y + 0.5) * sy, 1.9, 0, Math.PI * 2);
+      c.fill();
+      if (u.leader) {
+        c.strokeStyle = '#ffd35c'; c.lineWidth = 1.2;
+        c.beginPath(); c.arc((u.x + 0.5) * sx, (u.y + 0.5) * sy, 3.1, 0, Math.PI * 2); c.stroke();
+      }
+    });
+    /* 지금 보이는 화면 */
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    const vx = (-cam.x / cam.s) / TILE, vy = (-cam.y / cam.s) / TILE;
+    const vw = (w / cam.s) / TILE, vh = (h / cam.s) / TILE;
+    c.strokeStyle = 'rgba(255,255,255,0.95)';
+    c.lineWidth = 1.4;
+    const x0 = clamp(vx, 0, N) * sx, y0 = clamp(vy, 0, N) * sy;
+    const x1 = clamp(vx + vw, 0, N) * sx, y1 = clamp(vy + vh, 0, N) * sy;
+    c.strokeRect(x0, y0, Math.max(2, x1 - x0), Math.max(2, y1 - y0));
+  }
+  function bindMinimap() {
+    if (mmBound) return;
+    mmBound = true;
+    const cv = mmEl();
+    const tog = document.getElementById('mm-toggle');
+    const box = document.getElementById('mm-box');
+    if (tog && box) {
+      tog.onclick = (e) => {
+        e.stopPropagation();
+        mmOpen = !mmOpen;
+        box.style.display = mmOpen ? '' : 'none';
+        tog.textContent = mmOpen ? '◧' : '◨';
+        tog.setAttribute('aria-label', mmOpen ? '미니맵 접기' : '미니맵 펼치기');
+      };
+    }
+    if (!cv) return;
+    const jump = (ev) => {
+      if (!B || !canvas) return;
+      const r = cv.getBoundingClientRect();
+      const x = clamp((ev.clientX - r.left) / r.width, 0, 1) * N;
+      const y = clamp((ev.clientY - r.top) / r.height, 0, 1) * N;
+      centerCam(Math.floor(x), Math.floor(y));
+      SK.sfx.play('ui');
+    };
+    cv.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); jump(ev); });
+  }
+
   function draw() {
     if (!ctx) return;
     const w = canvas.width / dpr, h = canvas.height / dpr;
@@ -938,19 +1116,15 @@
     ctx.translate(cam.x + ox, cam.y + oy);
     ctx.scale(cam.s, cam.s);
 
-    // background — 공성·수성은 같은 성벽 맵을 쓴다
-    if (B.type === 'siege' || B.type === 'defense') {
-      if (!B.siegeLayer) B.siegeLayer = buildSiegeLayer(B.tiles);
-      ctx.drawImage(B.siegeLayer, 0, 0, WORLD, WORLD);
-      drawSiegeWater();
-    } else {
-      const bg = loadImg(`assets/maps/v2/battle_${B.def.img || B.def.map}.webp`);
-      if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
-      else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
-    }
+    // v5.17 — 모든 전장이 칸 수에 맞는 그림을 쓴다 (공성·수성은 겹성벽 그림)
+    const bg = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
+    if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
+    else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
 
     drawTerrainTint();
     drawBattleProps();
+    drawKeyProps();
+    drawSites();
     drawGrid();
     drawObjective();
     drawHighlights();
@@ -958,6 +1132,7 @@
     drawFx();
     ctx.restore();
     drawFloats();
+    drawMinimap();
   }
 
   /* v5.11 — assets/battle/ 추출 에셋을 격자 좌표에 맞춰 얹는다.
@@ -976,7 +1151,8 @@
 
   function drawBattleProps() {
     if (!B || !B.tiles) return;
-    if (B.type !== 'siege' && B.type !== 'defense' && B.type !== 'fortress' && B.type !== 'camp') return;
+    /* v5.17 — 배경 그림이 막사·성벽·성문을 이미 담고 있다. 프랍을 다시 얹으면 겹쳐 보인다. */
+    return;
     const img = (n) => loadImg(`assets/battle/${n}.webp`);
     const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 'P' : B.tiles[y][x]);
     const wallAt = (x, y) => { const c = at(x, y); return c === 'C' || c === 'G'; };
@@ -1030,7 +1206,31 @@
   }
 
   function drawTerrainTint() {
-    if (B.type === 'siege') return; // v5.1 — 공성전은 buildSiegeLayer가 타일을 직접 그린다
+    /* v5.17 — 겹성벽은 그림 위에 성벽·성문 칸을 옅게 덧칠해 "어디가 막힌 칸인지"를 보여 준다 */
+    if (B.type === 'siege' || B.type === 'defense') {
+      const t0 = B.tiles;
+      ctx.save();
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const ch = t0[y][x];
+          if (ch === 'C') {
+            ctx.fillStyle = 'rgba(44,36,24,0.10)';
+            ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+          } else if (ch === 'G') {
+            const gate = (B.gates || []).find((g) => g.tiles.some((t) => t.x === x && t.y === y));
+            const broken = gate && gate.hp <= 0;
+            /* 문이 살아 있으면 금테만, 부서졌으면 초록 점선으로 "지나갈 수 있음"을 보인다 */
+            ctx.strokeStyle = broken ? 'rgba(126,224,138,0.85)' : 'rgba(255,200,90,0.9)';
+            ctx.lineWidth = 2.6;
+            if (broken) ctx.setLineDash([5, 4]);
+            ctx.strokeRect(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6);
+            ctx.setLineDash([]);
+          }
+        }
+      }
+      ctx.restore();
+      return;
+    }
     const t = B.tiles;
     for (let y = 0; y < N; y++) {
       for (let x = 0; x < N; x++) {
@@ -1098,6 +1298,98 @@
       }
     });
     ctx.restore();
+  }
+
+  /* v5.17 — 망루(T)·본성 계단(K)은 배경 그림에 없으므로 코드로 얹는다 */
+  function drawKeyProps() {
+    if (!B || !B.tiles) return;
+    const tower = loadImg('assets/battle/watchtower.webp');
+    const keep = loadImg('assets/battle/hq_pavilion.webp');
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = B.tiles[y][x];
+        if (ch === 'T') drawProp(tower, x, y, 0.94, 0.96);
+        else if (ch === 'K') drawProp(keep, x, y, 1.08, 0.96);
+      }
+    }
+  }
+
+  /* ══════ v5.17 — 1×1 본진 · 마을 ══════
+     본진 위 부대: 턴 시작 최대 병력 +20% · MP +10 · 방어 +25%
+     마을 위 부대(점령한 편): 최대 병력 +10% · MP +5 · 방어 +15%
+     마을은 밟은 진영의 것이 되고, 적진이 다시 밟으면 빼앗긴다. */
+  function siteAt(x, y) {
+    if (!B || !B.sites) return null;
+    return B.sites.find((s) => s.x === x && s.y === y) || null;
+  }
+  function siteBonusOf(u) {
+    if (!u) return null;
+    const s = siteAt(u.x, u.y);
+    if (!s) return null;
+    if (s.type === 'village') return s.owner === u.side ? { def: 1.15, heal: 0.10, mp: 5 } : null;
+    const mine = (s.type === 'allyHQ' && u.side === 'ally') || (s.type === 'enemyHQ' && u.side === 'enemy');
+    return mine ? { def: 1.25, heal: 0.20, mp: 10 } : null;
+  }
+  function sitePhase(heal) {
+    if (!B || !B.sites || B.over) return;
+    B.units.forEach((u) => {
+      if (!u.alive) return;
+      const s = siteAt(u.x, u.y);
+      if (!s) return;
+      if (s.type === 'village' && s.owner !== u.side) {
+        s.owner = u.side;
+        feed(`${u.name} — 마을 점령 (${u.side === 'ally' ? '아군' : '적군'})`, u.side === 'ally' ? 'good' : 'bad');
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '마을 점령', '#9ef0b8');
+        SK.sfx.play('ui');
+      }
+      if (!heal) return;
+      const b = siteBonusOf(u);
+      if (!b) return;
+      if (u.hp < u.maxHp) {
+        const hh = Math.max(1, Math.round(u.maxHp * b.heal));
+        u.hp = Math.min(u.maxHp, u.hp + hh);
+        addHeal(u, hh, u);
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.34) * TILE, '+' + hh, '#a8f0b8');
+        addFx({ kind: 'heal', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520 });
+      }
+      if (u.mp < u.maxMp) u.mp = Math.min(u.maxMp, u.mp + b.mp);
+    });
+  }
+  /* 본진·마을 그림 — 배경 위에 깔리고, 부대는 그 위에 선다 */
+  function drawSites() {
+    if (!B || !B.sites || !B.sites.length) return;
+    const t = performance.now() / 950;
+    const k = clamp(1 / Math.max(0.5, cam.s), 1, 1.5);
+    B.sites.forEach((s) => {
+      const key = s.type === 'allyHQ' ? 'hq_ally' : s.type === 'enemyHQ' ? 'hq_enemy' : 'village';
+      const img = loadImg(`assets/battle/${key}.webp`);
+      const x = s.x * TILE, y = s.y * TILE;
+      const col = s.type === 'village'
+        ? (s.owner === 'ally' ? '90,160,255' : s.owner === 'enemy' ? '255,90,60' : '126,196,132')
+        : (s.type === 'allyHQ' ? '90,160,255' : '255,90,60');
+      ctx.save();
+      ctx.fillStyle = `rgba(${col},0.16)`;
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.strokeStyle = `rgba(${col},${(0.55 + 0.22 * Math.sin(t * 3)).toFixed(3)})`;
+      ctx.lineWidth = 2.4;
+      ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      if (img.complete && img.naturalWidth) {
+        const w = TILE * (s.type === 'village' ? 0.84 : 1.45);
+        ctx.drawImage(img, x + TILE / 2 - w / 2, y + TILE - w, w, w);
+      }
+      const label = s.type === 'allyHQ' ? '본진' : s.type === 'enemyHQ' ? '적 본진'
+        : (s.owner === 'ally' ? '마을 · 아군' : s.owner === 'enemy' ? '마을 · 적' : '마을');
+      ctx.font = `800 ${Math.round(9.4 * k)}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(label).width + 11 * k;
+      const th = Math.round(13.5 * k);
+      ctx.fillStyle = 'rgba(24,19,11,0.82)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x + TILE / 2 - tw / 2, y - th - 2 * k, tw, th, th / 2); ctx.fill(); }
+      else ctx.fillRect(x + TILE / 2 - tw / 2, y - th - 2 * k, tw, th);
+      ctx.fillStyle = s.type === 'village' && !s.owner ? '#cfeccf' : '#fff3d8';
+      ctx.fillText(label, x + TILE / 2, y - th / 2 - 2 * k + 0.5);
+      ctx.restore();
+    });
   }
 
   /* v5.15 — 야수병: 숲·산지에 서 있거나 산전·밀림전이면 이동력 +1 (실효 6급).
@@ -1406,7 +1698,9 @@
     const ready = img.complete && img.naturalWidth;
     // 스프라이트를 보이는 높이 기준으로 통일 (넓은 말·공성차는 살짝 줄여 무게를 맞춘다)
     const box = ready ? unitBox(img) : { x: 0, y: 0, w: 3, h: 4 };
-    const targetH = TILE * 0.9;
+    /* v5.17 — 전직 단계마다 SD가 조금씩 커진다 */
+    const tier = clamp(Number(u.tier) || 0, 0, 3);
+    const targetH = TILE * (0.9 + 0.022 * tier);
     let sc = targetH / Math.max(1, box.h);
     const ar = box.w / Math.max(1, box.h);
     if (ar > 0.82) sc *= Math.max(0.76, 0.82 / ar);
@@ -1434,6 +1728,25 @@
     ctx.ellipse(bx, by - 2, TILE * 0.3, TILE * 0.135, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+    /* v5.17 — 전직 3단계 외형: 1단계 동테 · 2단계 은테 · 3단계 금테+오라 */
+    if (tier > 0) {
+      const tcol = tier >= 3 ? '255,211,92' : (tier === 2 ? '212,220,228' : '198,140,60');
+      const pulse = tier >= 3 ? (0.60 + 0.30 * Math.sin(performance.now() / 260)).toFixed(2) : '0.78';
+      ctx.save();
+      ctx.strokeStyle = `rgba(${tcol},${pulse})`;
+      ctx.lineWidth = tier >= 3 ? 3.4 : 2.2;
+      ctx.beginPath();
+      ctx.ellipse(bx, by - 2, TILE * (0.34 + tier * 0.02), TILE * (0.152 + tier * 0.008), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (tier >= 3) {
+        ctx.strokeStyle = `rgba(${tcol},0.22)`;
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.ellipse(bx, by - 2, TILE * 0.41, TILE * 0.19, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     if (ready) {
       ctx.save();
       if (u.side === 'enemy') ctx.filter = 'saturate(0.9) brightness(0.99)';
@@ -1530,6 +1843,24 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
       ctx.fillText('◆', bx, pillY - 3 * k);
+    }
+    /* v5.17 — 총대장(적 총대장·아군 총대장) 금관 · 전직 2~3단계 깃발 */
+    if (u.leader) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = `bold ${Math.round(13 * k)}px "Noto Sans CJK KR", sans-serif`;
+      ctx.fillStyle = '#ffd35c';
+      ctx.fillText('♛', bx + (u.side === 'enemy' ? 0 : 0), pillY - 2 * k);
+      ctx.restore();
+    } else if (tier >= 2) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = `bold ${Math.round(10 * k)}px "Noto Sans CJK KR", sans-serif`;
+      ctx.fillStyle = tier >= 3 ? '#ffe08a' : '#dfe6ee';
+      ctx.fillText('⚑', bx + bw / 2 + 6 * k, pillY + pillH);
+      ctx.restore();
     }
     // 강화 표시
     if (u.buffs.atk || u.buffs.def) {
@@ -2023,7 +2354,10 @@
     const mul = Math.max(0.05, 1 + buffVal(u, 'def'));
     /* v5.3 — 망루·본성 위에서는 방어 +45% */
     const hold = (ch === 'T' || ch === 'K') ? 1.45 : 1;
-    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * mul * hold;
+    /* v5.17 — 본진 위 +25% · 점령한 마을 위 +15% */
+    const site = siteBonusOf(u);
+    const sit = site ? site.def : 1;
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * mul * hold * sit;
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -2033,7 +2367,10 @@
      산·성 지형 보너스(aff.rng)와 겹쳐도 최대 +1까지만 (effRng에서 합산해 자른다). */
   const WALL_RNG_CLS = { gungsu: 1, gunggi: 1, yeonnobyung: 1, pocha: 1, balseokcha: 1 };
   function wallRngBonus(u) {
-    if (!B || !B.defense || !u || !WALL_RNG_CLS[u.cls]) return 0;
+    if (!B || !u || !WALL_RNG_CLS[u.cls]) return 0;
+    /* v5.17 — 성을 지키는 쪽(공성전이면 적, 수성전이면 아군)이 성벽·망루·본성 위에서 쏘면 +1 */
+    const defending = B.defense ? u.side === 'ally' : u.side === 'enemy';
+    if (!defending) return 0;
     const ch = B.tiles[u.y] && B.tiles[u.y][u.x];
     return (ch === 'C' || ch === 'T' || ch === 'K') ? 1 : 0;
   }
@@ -2052,7 +2389,10 @@
     const dist = manh(a.x, a.y, d.x, d.y);
     const min = a.minRng || 1;
     if (dist < min || dist > (rng || effRng(a))) return false;
-    if (wallBlocked(a, d) && attackKind(a) === 'melee') return false;   // 성문이 버티는 동안 근접 공격 불가
+    /* v5.17 — 성문이 버티는 동안에는 성벽 너머로 어떤 공격도 닿지 않는다.
+       (근접만 막던 예전 규칙에서는 성 밖에서 사격·투석으로 적 총대장을 잡아 버려
+        겹성벽을 뚫는 의미가 없었다) */
+    if (wallBlocked(a, d)) return false;
     return true;
   }
   /* v5.14 — 성문 타일 한 칸을 칠 수 있는 거리인가 (성문 클릭·황금 타일과 같은 눈금) */
@@ -2132,6 +2472,14 @@
     if (d) statOf(d).taken += dmg;
   }
 
+  /* v5.17 — 전투 불능은 더 이상 "전사"가 아니다. 15% 생포 / 85% 퇴각. */
+  function downUnit(u) {
+    if (!u || !u.alive) return;
+    u.hp = 0;
+    u.alive = false;
+    u.fate = Math.random() < 0.15 ? '생포' : '퇴각';
+  }
+
   function applyDamage(a, d, dmg, crit, bond) {
     const wasAlive = d.hp > 0;
     d.hp = Math.max(0, d.hp - dmg);
@@ -2142,8 +2490,8 @@
       crit ? '#ffd166' : (bond ? '#ffd0c0' : '#ffe9d0'));
     if (a.side === 'ally' && a.uid) a.expGain = (a.expGain || 0) + (d.hp <= 0 ? 42 : 9);
     if (d.hp <= 0) {
-      d.alive = false;
-      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.2) * TILE, '격파', '#ff9a7a');
+      downUnit(d);
+      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.2) * TILE, d.fate === '생포' ? '생포!' : '퇴각', d.fate === '생포' ? '#ffd166' : '#ff9a7a');
       d.flash = 1;
     }
     if (window.SKBattle) SKBattle.refreshUI();
@@ -2293,6 +2641,8 @@
       SKBattle.refreshUI();
       const t = SK.TERRAIN[B.tiles[u.y][u.x]];
       $('#battle-tip').textContent = `${u.name} 이동 완료 · ${t.name} · 공격하거나 [대기]를 누르세요`;
+      sitePhase(false);      // v5.17 — 마을을 밟았으면 그 자리에서 점령
+      finishCheck();
     } });
   }
 
@@ -2580,10 +2930,21 @@
 
   function finishCheck() {
     if (B.over) return;
+    sitePhase(false);          // v5.17 — 밟고 선 마을 점령 반영
+    if (B.over) return;
     const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
-    if (!enemies.length) return victory();
-    if (!allies.length) return defeat();
+    if (!enemies.length) { B.winReason = '적군 전멸'; return victory(); }
+    if (!allies.length) { B.winReason = '아군 전멸'; return defeat(); }
+    /* v5.17 — 총대장 격파 · 본진 점령은 그 즉시 승패 */
+    const eL = B.enemyLeaderId ? B.units.find((u) => u.id === B.enemyLeaderId) : null;
+    if (eL && !eL.alive) { B.winReason = '적 총대장 격파'; return victory(); }
+    const aL = B.allyLeaderId ? B.units.find((u) => u.id === B.allyLeaderId) : null;
+    if (aL && !aL.alive) { B.winReason = '아군 총대장 격파'; return defeat(); }
+    const eHQ = (B.sites || []).find((s) => s.type === 'enemyHQ');
+    const aHQ = (B.sites || []).find((s) => s.type === 'allyHQ');
+    if (eHQ && allies.some((u) => u.x === eHQ.x && u.y === eHQ.y)) { B.winReason = '적 본진 점령'; return victory(); }
+    if (aHQ && enemies.some((u) => u.x === aHQ.x && u.y === aHQ.y)) { B.winReason = '아군 본진 점령당함'; return defeat(); }
     SKBattle.refreshUI();
   }
 
@@ -2754,7 +3115,7 @@
             addMagicDamage(u, t, dmg);
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
-            if (t.hp <= 0) t.alive = false;
+            if (t.hp <= 0) downUnit(t);
           }
         });
         SK.sfx.play('hit');
@@ -2779,7 +3140,7 @@
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.55) * TILE, life: 720 });
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 520, color: '255,150,80' });
-        if (target.hp <= 0) target.alive = false;
+        if (target.hp <= 0) downUnit(target);
         SK.sfx.play('hit');
         finishCheck();
         finish(520);
@@ -3130,8 +3491,11 @@
 
   /* 한 부대가 할 최선의 행동을 고른다 — 책략 > 사거리 안 적 공격 > (문을 부수는 진영만) 성문 타격 > 접근 */
   function planAuto(u) {
+    /* v5.17 — 책략보다 실제 공격·성문 공략을 먼저 본다.
+       (예전엔 광역 버프가 늘 앞서서 성문 앞에서 버프만 되풀이하는 자동전투 교착이 있었다.
+        회복이 급한 경우에만 책략을 앞세운다.) */
     const sup = planSupportSkill(u);
-    if (sup) return sup;
+    if (sup && sup.mode === 'heal' && sup.score > 45) return sup;
     const rng = effRng(u);
     const minR = u.minRng || 1;
     /* v5.14 — 성문 공략은 문을 부수는 진영만 고른다. 수비측은 적 부대 요격·망루 수사에 집중 */
@@ -3150,7 +3514,7 @@
       foes.forEach((e) => {
         const d = manh(t.x, t.y, e.x, e.y);
         if (d < minR || d > rng) return;
-        if (wallBlocked({ x: t.x, y: t.y }, e) && kind === 'melee') return;
+        if (wallBlocked({ x: t.x, y: t.y }, e)) return;
         const est = calcDamage(u, e, {}).dmg;
         const score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
@@ -3164,6 +3528,7 @@
       }
     });
     if (best) return best;
+    if (sup) return sup;
     let pick = null;
     tiles.forEach((t) => {
       const d = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
@@ -3232,6 +3597,8 @@
 
   function enemyPhase() {
     if (B.over) return;
+    sitePhase(true);          // v5.17 — 적 턴 시작: 본진·점령 마을 위 부대 회복
+    if (B.over) return;
     classAuraPhase('enemy');
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
     let i = 0;
@@ -3240,7 +3607,8 @@
       if (i >= enemies.length) {
         // back to player's turn
         B.turn += 1;
-        if (B.turn > 30) return defeat();
+        /* v5.17 — 대형 전장(28·32칸)은 턴 한도를 늘린다 */
+        if (B.turn > (N >= 28 ? 40 : 30)) return defeat();
         B.units.forEach((u) => {
           if (!u.alive) return;
           u.acted = false;
@@ -3258,6 +3626,8 @@
           }
         });
         B.phase = 'ally';
+        sitePhase(true);       // v5.17 — 아군 턴 시작: 본진·점령 마을 위 부대 회복
+        if (B.over) return;
         B.units.forEach((u) => { if (u.side === 'ally' && u.alive) triggerPassive(u, 'turn_start'); });
         classAuraPhase('ally');
         banner('아군 페이즈', 'ally');
@@ -3273,6 +3643,20 @@
     step();
   }
 
+  /* v5.17 — AI 역할별 목표지. 호위병은 본진, 돍격대는 빈 마을 → 아군 본진 */
+  function aiGoalOf(e) {
+    if (!B || !B.sites) return null;
+    const enemyHQ = B.sites.find((s) => s.type === 'enemyHQ');
+    const allyHQ = B.sites.find((s) => s.type === 'allyHQ');
+    if (e.role === 'guard') return enemyHQ || null;
+    const free = B.sites.filter((s) => s.type === 'village' && s.owner !== e.side);
+    if (free.length) {
+      const best = free.map((s) => ({ s, d: manh(e.x, e.y, s.x, s.y) })).sort((a, b) => a.d - b.d)[0];
+      if (best && best.d <= 10) return best.s;
+    }
+    return allyHQ || null;
+  }
+
   function enemyAct(e, done) {
     if (!e.alive) { done(); return; }
     if (e.x != null) trackTurn(e, true);
@@ -3282,6 +3666,7 @@
       const d = manh(e.x, e.y, t.x, t.y);
       return !best || d < best.d ? { t, d } : best;
     }, null).t;
+    const aiGoal = aiGoalOf(e);
     const rng = effRng(e);
     /* v5.3 — 망루·본성에 선 수비 부대는 적이 사거리 밖이면 자리를 지켜 회복한다 */
     const holdCh = B.tiles[e.y][e.x];
@@ -3335,7 +3720,7 @@
         addFx({ kind: 'fire', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.55) * TILE, life: 700 });
         impactAt(target, '255,150,90');
         SK.sfx.play('hit');
-        if (target.hp <= 0) target.alive = false;
+        if (target.hp <= 0) downUnit(target);
         finishCheck();
         done();
       }, 300);
@@ -3362,7 +3747,13 @@
     freeTiles.forEach((t) => {
       const d = manh(t.x, t.y, target.x, target.y);
       const inRange = d >= minR && d <= rng;
-      const score = inRange ? -100 + d : (d < minR ? 150 - d : d);
+      let score = inRange ? -100 + d : (d < minR ? 150 - d : d);
+      /* v5.17 — 수비대는 본진 곁을, 돍격대는 마을·아군 본진 쪽으로 움직인다 */
+      if (aiGoal) {
+        const gd = manh(t.x, t.y, aiGoal.x, aiGoal.y);
+        if (e.role === 'guard') score += gd * (inRange ? 0.25 : 0.85);
+        else score += gd * 0.5;
+      }
       if (!best || score < best.score) best = { t, score, inRange };
     });
     const moveTo = already ? null : (best && best.t);
@@ -3372,7 +3763,7 @@
         wait(() => {
           if (!B || B.over) { done(); return; }
           const dist = manh(e.x, e.y, target.x, target.y);
-          if (dist >= (e.minRng || 1) && dist <= rng && !(wallBlocked(e, target) && attackKind(e) === 'melee')) {
+          if (dist >= (e.minRng || 1) && dist <= rng && !wallBlocked(e, target)) {
             attackUnit(e, target, {}, () => {
               if (!B || B.over) { done(); return; }
               if (target.alive && manh(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
@@ -3422,7 +3813,7 @@
     const list = B.units.filter((u) => u.side === 'ally').map((u) => {
       const s = u.stat || { dealt: 0, taken: 0, heal: 0, kills: 0 };
       return { name: u.name, dealt: Math.round(s.dealt), taken: Math.round(s.taken),
-        heal: Math.round(s.heal), kills: s.kills, alive: u.alive,
+        heal: Math.round(s.heal), kills: s.kills, alive: u.alive, fate: u.fate || null,
         score: s.dealt * 0.6 + s.taken * 0.18 + s.heal * 0.5 + s.kills * 150 };
     });
     if (!list.length) return '';
@@ -3436,7 +3827,7 @@
       <div class="rm-report-scroll"><table class="rm-dmg">
         <thead><tr><th>장수</th><th>총공격</th><th>받은피해</th><th>회복</th><th>처치</th></tr></thead>
         <tbody>${list.sort((a, b) => b.score - a.score).map((r) => `<tr class="${r.name === best.name ? 'mvp' : ''}">
-          <td>${r.name === best.name ? '👑 ' : ''}${r.name}${r.alive ? '' : ' <em class="rm-fallen">전사</em>'}</td>
+          <td>${r.name === best.name ? '👑 ' : ''}${r.name}${r.alive ? '' : ` <em class="rm-fallen ${r.fate === '생포' ? 'captured' : ''}">${r.fate || '퇴각'}</em>`}</td>
           <td><i style="width:${Math.max(2, Math.round((r.dealt / maxDealt) * 32))}px"></i>${fmtN(r.dealt)}</td>
           <td>${fmtN(r.taken)}</td><td>${r.heal ? '+' + fmtN(r.heal) : '0'}</td><td>${r.kills}</td>
         </tr>`).join('')}</tbody>
@@ -3556,19 +3947,21 @@
   function rollPrisoners() {
     const bossName = (SK.factionInfo(B.faction) || {}).lord || '';
     const named = [];
+    const caught = [];          // v5.17 — 전장에서 생포된 적은 반드시 포로가 된다
     B.units.forEach((u) => {
       if (u.side !== 'enemy' || !u.genId) return;
       const g = SK.GEN_BY_ID[u.genId];
       if (!g || g.name === bossName) return;
       if (named.some((x) => x.id === g.id)) return;
       named.push(g);
+      if (u.fate === '생포') caught.push(g);
     });
-    const out = [];
+    const out = caught.slice(0, 2);
     named.forEach((g) => {
-      if (out.length >= 2) return;
-      if (Math.random() < 0.55) out.push(g);
+      if (out.length >= 2 || out.indexOf(g) >= 0) return;
+      if (Math.random() < 0.45) out.push(g);
     });
-    if (!out.length && named.length && Math.random() < 0.35) {
+    if (!out.length && named.length && Math.random() < 0.3) {
       out.push(named[Math.floor(Math.random() * named.length)]);
     }
     return out;
@@ -3587,7 +3980,10 @@
     const found = s.prisoners.find((p) => p.gid === g.id);
     if (found) return found;
     if (s.prisoners.length >= PRISON_CAP) return null;
-    const rec = { gid: g.id, name: g.name, tier: g.tier || 'C', faction: g.faction || '',
+    /* v5.17 — 몸값 제안은 "누가 잡았나"가 아니라 "원 소속 세력"이 보낸다.
+       사로잡은 순간의 상대 세력을 by에 남겨 두고, 그 세력이 멸망했으면 외교 제안을 끊는다. */
+    const by = (B && B.faction) || (g.faction !== '재야' ? g.faction : '') || '';
+    const rec = { gid: g.id, name: g.name, tier: g.tier || 'C', faction: g.faction || '', by: by,
       city: cityId || s.lastCity, months: 0, loyal: SK.enemyLoyal ? SK.enemyLoyal(g) : 72,
       offer: null, recruitTried: false };
     s.prisoners.push(rec);
@@ -3840,6 +4236,7 @@
       title: `${c.name} 함락`,
       body: `<div class="result-modal win">
         <div class="rm-seal">승</div>
+        ${B.winReason ? `<p class="rm-reason">${B.winReason}${B.winReason.indexOf('전멸') >= 0 ? '' : ' — 적 진영이 무너졌습니다'}!</p>` : ''}
         <p class="rm-line">${SK.factionName(prevOwner)}을(를) 무찌르고 <b>${c.name}</b>을(를) 차지했습니다.</p>
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
@@ -3915,6 +4312,7 @@
       kicker: '패배',
       title: '퇴각',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
+        ${B.winReason ? `<p class="rm-reason">${B.winReason}!</p>` : ''}
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
         ${battleReportHTML()}
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
@@ -4245,6 +4643,10 @@
       get busy() { return busy; },
       get pending() { return pendingSkill; },
       get autoOn() { return autoOn; },
+      get cam() { return cam; },
+      centerCam(x, y) { centerCam(x, y); },
+      zoomFit() { if (!stage) return; const fit = Math.min(stage.clientWidth / WORLD, stage.clientHeight / WORLD); cam.s = fit; cam.x = (stage.clientWidth - WORLD * fit) / 2; cam.y = (stage.clientHeight - WORLD * fit) / 2; },
+      get enemies() { return B ? B.units.filter((u) => u.side === 'enemy' && u.alive).map((u) => u.name) : []; },
       get anims() { return anims.map((a) => a.kind); },
       get fx() { return fx.map((f) => f.kind); },
       get floats() { return floats.map((f) => f.text); },
@@ -4252,6 +4654,17 @@
       tap(x, y) { onTileTap(x, y); },
       select(name) { const u = B.units.find((o) => o.name === name && o.alive); if (u) { selectUnit(u); return { x: u.x, y: u.y }; } return null; },
       endTurn,
+      checkFinish() { finishCheck(); },
+      gateStrike(name) { const u = B && B.units.find((o) => o.name === name); const g = activeGate(); if (!u || !g) return null; const before = g.hp; doGateAttack(u, g.tiles[0]); return { before, after: g.hp, busy, acted: u.acted, attacker: isGateAttacker(u) }; },
+      plan(name) { const u = B && B.units.find((o) => o.name === name); if (!u) return null; const p = planAuto(u); return p ? { kind: p.kind, x: p.x, y: p.y, gate: p.gate || null, target: p.target ? p.target.name : null } : null; },
+      reach(name) { const u = B && B.units.find((o) => o.name === name); if (!u) return null; return { from: [u.x, u.y], tiles: [...reachSet(u)] }; },
+      kill(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        const a = B.units.find((o) => o.side !== u.side);
+        applyDamage(a, u, Math.max(1, u.hp), false, null);
+        return { fate: u.fate, alive: u.alive };
+      },
       openSkillMenu,
       beginSkill,
       /* v5.13 — 자동전투 판단 점검: 이 부대가 고를 책략(회복 포함)을 그대로 돌려준다 */
