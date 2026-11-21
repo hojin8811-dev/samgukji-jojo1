@@ -663,6 +663,8 @@ b { font-weight: 700; }
 .hi-quote { margin: 4px 0 0; font-family: var(--serif); font-size: 11px; color: #8a5f2a; }
 
 .target-list { display: flex; flex-direction: column; gap: 7px; }
+/* v5.32 — 장수 목록이 길어도 모달 하단 버튼(취소·보내기)이 화면에 남게 목록만 스크롤 */
+.pick-scroll { max-height: 42vh; overflow-y: auto; padding-right: 2px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .target-card {
   display: flex; align-items: center; gap: 9px; border: 1px solid #cfb47d; border-radius: 11px;
   background: rgba(255, 251, 240, 0.8); padding: 8px 10px; text-align: left;

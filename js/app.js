@@ -3892,7 +3892,7 @@
           <span class="tc-go">▸</span></button>`;
       }).join('');
       const wrap = m.el.querySelector('#ex-wrap');
-      wrap.innerHTML = `${tabs}${note}<div class="target-list">${cards}</div>`;
+      wrap.innerHTML = `${tabs}${note}<div class="target-list pick-scroll">${cards}</div>`;
       const act = m.el.querySelector('.modal-actions .btn-primary');
       if (act) {
         act.textContent = mode === 'many' ? (sel.size ? `${sel.size}명 탐색 보내기` : '장수를 체크하세요') : '여러 명 보내기';
@@ -9149,7 +9149,7 @@
       const wrap = m.el.querySelector('#is-wrap');
       wrap.innerHTML = `<p class="talent-note">길목 지형 — <b>${idef.name}</b> · ${idef.desc}<br>${idef.skill || ''}</p>
         <div class="is-sum"><span>출진 <b>${n}명</b></span><span>나갈 병력 <b>${fmt(send)}</b></span><span>성에 남는 병력 <b>${fmt(avail - send)}</b></span></div>
-        <div class="target-list">${rows}</div>`;
+        <div class="target-list pick-scroll">${rows}</div>`;
       wrap.querySelectorAll('[data-pick]').forEach((b) => {
         b.onclick = () => {
           const uid = b.dataset.pick;
