@@ -5149,7 +5149,7 @@
       kicker: '행군 실패',
       title: homeName ? '회군' : '유랑군',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
-        <p class="rm-line">요격대에 길이 막혔습니다. ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : ''}이(가) 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
+        <p class="rm-line">요격대에 길이 막혔습니다. ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.josa(SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성', 'i')} 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
         ${battleReportHTML()}
         <p class="rm-note">복귀 병력 ${Math.round(back).toLocaleString('ko-KR')}${cut ? ` (패전 피해 감소 +${Math.round(back - troopsLeft)})` : ''} · 금 -100</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],

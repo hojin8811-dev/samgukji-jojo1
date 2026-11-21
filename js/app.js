@@ -8105,7 +8105,7 @@
     const originSt = s.cities[m.origin];
     const originLost = !!(originSt && originSt.owner !== PF());
     const originNote = originLost
-      ? `<p class="me-note me-warn">⚠ 출발 성 ${SK.CITY[m.origin] ? SK.CITY[m.origin].name : ''}이(가) 이미 함락되었습니다 — 이 성을 차지하면 여기에 주둔하고, 지면 가장 가까운 아군 성으로 회군합니다.</p>`
+      ? `<p class="me-note me-warn">⚠ 출발 성 ${josa(SK.CITY[m.origin] ? SK.CITY[m.origin].name : '본성', 'i')} 이미 함락되었습니다 — 이 성을 차지하면 여기에 주둔하고, 지면 가장 가까운 아군 성으로 회군합니다.</p>`
       : '';
     if (s.pendingMarch.kind === 'intercept') {
       /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
