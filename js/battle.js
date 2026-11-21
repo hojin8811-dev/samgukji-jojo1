@@ -1276,7 +1276,7 @@
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = '#6e7bac';
+    ctx.fillStyle = '#5c6cae';
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
     ctx.save();
@@ -1293,6 +1293,15 @@
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(gx, gy, rad, 0, Math.PI * 2); ctx.fill();
     });
+    ctx.restore();
+    /* 밤의 어둑함 — 가장자리를 더 어둡게 죽여 횃불 주변만 읽히게 */
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const vig = ctx.createRadialGradient(w * 0.5, h * 0.46, Math.min(w, h) * 0.22, w * 0.5, h * 0.46, Math.max(w, h) * 0.78);
+    vig.addColorStop(0, 'rgba(6,10,30,0)');
+    vig.addColorStop(1, 'rgba(5,8,26,0.55)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
 
