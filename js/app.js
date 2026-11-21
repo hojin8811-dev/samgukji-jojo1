@@ -7356,13 +7356,31 @@
      성을 모두 잃어도 이미 출발한 원정 주력이 살아 있으면 1회 점령 도전.
      성공하면 그 성을 되찾아 재기하고, 실패하면 패망한다.
      ══════════════════════════════════════════════════════════════ */
+  /* v5.20 — 패망 잠금: 행군·침공 예약을 지우고 다음 달 진행을 막는다 */
+  SK.lockRun = function () {
+    const s = SK.state;
+    if (!s) return;
+    s.over = true;
+    s.marches = [];
+    s.pendingMarch = null;
+    s.pendingInvasion = null;
+    s.reinforce = null;
+    try { SK.save(); } catch (e) { /* ignore */ }
+  };
   SK.gameOver = function (reason) {
+    const s = SK.state;
+    /* v5.20 — 패망한 뒤에도 [다음 달]이 그대로 돌아가 행군·요격 이벤트가 계속 뜨던 문제.
+       패망 선언 순간 행군·침공 예약을 지우고, 다음 달 진행을 잠근다. */
+    SK.lockRun();
     SK.modal({
       kicker: '천하 패배', title: '패망',
       body: `<div class="result-modal lose"><div class="rm-seal">망</div>
         <p class="rm-line">${reason || '천하를 잃었습니다.'}</p>
-        <p class="rm-note">처음부터 다시 도전할 수 있습니다. 메뉴의 [처음부터 시작]을 쓰십시오.</p></div>`,
-      actions: [{ label: '지도로', onClick: () => SK.showMap() }], dismissible: false,
+        <p class="rm-note">처음부터 다시 도전할 수 있습니다. 아래 <b>[새로 시작]</b>으로 새 판을 열어 보세요.</p></div>`,
+      actions: [
+        { label: '지도 보기', onClick: () => SK.showMap() },
+        { label: '새로 시작', primary: true, onClick: () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } startGame(true); } },
+      ], dismissible: false,
     });
   };
   SK.lastStandDone = false;
@@ -8169,6 +8187,26 @@
     SK.refreshHud();
     SK.showMap();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    /* v5.20 — 마지막 성을 '철수'로 내주면 도시 0·수도 null인 채로 게임이 계속 돌던 문제.
+       남은 원정대가 있으면 배수진을, 없으면 패망을 바로 연다. */
+    const left = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === PF()).length;
+    if (!left) {
+      const army = (s.marches || []).filter((m) => (m.units || []).some((u) => u.uid && u.troops > 0));
+      if (army.length && SK.openLastStand) {
+        SK.modal({
+          kicker: '천하 패배 직전', title: '마지막 성을 내주었습니다',
+          body: `<div class="result-modal lose"><div class="rm-seal">망</div>
+            <p class="rm-line">성을 모두 내주었지만 밖에 나가 있던 원정 주력 <b>${army.length}부대</b>가 살아 있습니다.</p>
+            <p class="rm-note">유랑군이 되어 성 하나를 되찾는 <b>배수진</b>에 한 번 도전할 수 있습니다.</p></div>`,
+          actions: [{ label: '패망을 받아들인다', onClick: () => SK.gameOver('유랑군이 길에서 흩어졌습니다.') },
+            { label: '유랑군 배수진', primary: true, onClick: () => SK.openLastStand() }],
+          dismissible: false,
+        });
+        return;
+      }
+      SK.gameOver('마지막 성을 내주어 천하를 잃었습니다.');
+      return;
+    }
     SK.modal({
       kicker: '철수', title: `${SK.josa(c.name, 'eul')} 내주었습니다`,
       body: `<div class="result-modal lose"><div class="rm-seal">퇴</div>
@@ -8437,6 +8475,7 @@
   function confirmNextMonth() {
     const s = SK.state;
     if (!s) return;
+    if (s.over) { SK.toast('이미 천하를 잃었습니다. [새로 시작]으로 새 판을 열어 주세요.'); return; }
     const n = pendingCount();
     SK.modal({
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
@@ -8455,6 +8494,7 @@
 
   function advanceMonth() {
     const s = SK.state;
+    if (!s || s.over) return;
     const prevYear = s.eraYear || (195 + s.year);
     s.month += 1;
     if (s.month >= 12) { s.month = 0; s.year += 1; if (s.eraYear) s.eraYear += 1; }

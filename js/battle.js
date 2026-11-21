@@ -4462,7 +4462,7 @@
         body: `<div class="result-modal lose"><div class="rm-seal">망</div>${battleReportHTML()}
           <p class="rm-line">마지막 성이 함락되어 천하를 잃었습니다.</p>
           <p class="rm-note">처음부터 다시 도전할 수 있습니다. 메뉴의 [처음부터 시작]을 쓰십시오.</p></div>`,
-        actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
+        actions: [{ label: '지도로', onClick: () => { if (SK.lockRun) SK.lockRun(); closeBattle(); SK.showMap(); } }],
         dismissible: false,
       });
       return;
