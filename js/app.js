@@ -1458,32 +1458,53 @@
   /* v5.12 — 정사 연도 뱃지 대신 코믹 막(幕) 표기 */
   const SC_ACT = { 190: '1막', 200: '2막', 208: '3막', 220: '4막' };
   const actOf = (sc) => SC_ACT[sc && sc.year] || '난투';
+  /* v5.18 — 지금 열려 있는 것은 1막뿐. 2·3·4막 자리는 '새 컨텐츠 준비중' 카드로 둔다 */
+  const SOON_ACTS = [
+    { act: '2막', art: 'scen_200', color: '#2b3f6b' },
+    { act: '3막', art: 'scen_208', color: '#8a2f24' },
+    { act: '4막', art: 'scen_220', color: '#4b2f6b' },
+  ];
+  const OPEN_SCENARIO_YEAR = 190;
   function scenarioLine(sc) {
-    const facs = sc.factions || [];
-    const names = facs.slice(0, 3).map((f) => String(f.name || '').replace(/군$/, '')).filter(Boolean);
-    return `${facs.length}개 세력 · ${names.join('·')}${facs.length > 3 ? '\u00A0외' : ''}`;
+    const n = (sc.factions || []).length;
+    return `${n}개 세력 · 전 영웅 집합!`;
+  }
+
+  function soonCard(s) {
+    return `<button class="scbn soon" data-soon="${s.act}" style="--ac:${s.color}" aria-disabled="true">
+        <span class="scbn-art"><img src="assets/scenarios/${s.art}.webp" alt="" /></span>
+        <span class="scbn-soon-tag" aria-hidden="true">🚧 공사중</span>
+        <span class="scbn-body">
+          <span class="scbn-year">${s.act}</span>
+          <span class="scbn-name">새 컨텐츠 준비중</span>
+          <span class="scbn-sub">곧 새로운 모드가 업데이트됩니다!</span>
+        </span>
+        <span class="scbn-lock" aria-hidden="true">🔒</span>
+      </button>`;
   }
 
   function openScenarioPicker() {
     if (!SK.HIST.length) { beginScenario(null, null); return; }
     const list = $('#scenario-list');
+    /* v5.18 — 1막만 플레이 가능한 카드로 열고, 나머지 막은 준비중 카드 3장 */
+    const open = SK.HIST.find((sc) => Number(sc.year) === OPEN_SCENARIO_YEAR) || SK.HIST[0];
     if (list) {
-      list.innerHTML = SK.HIST.map((sc) => `<button class="scbn" data-sc="${sc.id}" style="--ac:${SC_BADGE[sc.year] || '#7a2b26'}">
-        <span class="scbn-art"><img src="assets/scenarios/scen_${sc.year}.webp" alt="" /></span>
+      const act1 = open ? `<button class="scbn" data-sc="${open.id}" style="--ac:${SC_BADGE[open.year] || '#7a2b26'}">
+        <span class="scbn-art"><img src="assets/scenarios/scen_${open.year}.webp" alt="" /></span>
         <span class="scbn-body">
-          <span class="scbn-year">${actOf(sc)}</span>
-          <span class="scbn-name">${sc.title}</span>
-          ${sc.subtitle ? `<span class="scbn-sub">${sc.subtitle}</span>` : ''}
-          <span class="scbn-meta">${scenarioLine(sc)}</span>
+          <span class="scbn-year">${actOf(open)}</span>
+          <span class="scbn-name">${open.title}</span>
+          ${open.subtitle ? `<span class="scbn-sub">${open.subtitle}</span>` : ''}
+          <span class="scbn-meta">${scenarioLine(open)}</span>
         </span>
         <span class="scbn-go" aria-hidden="true">›</span>
-      </button>`).join('');
+      </button>` : '';
+      list.innerHTML = act1 + SOON_ACTS.map(soonCard).join('');
       list.scrollTop = 0;
-      list.querySelectorAll('.scbn').forEach((b) => {
-        b.onclick = () => {
-          const sc = SK.HIST.find((x) => Number(x.id) === Number(b.dataset.sc));
-          if (sc) openFactionPicker(sc);
-        };
+      const btn = list.querySelector('.scbn[data-sc]');
+      if (btn) btn.onclick = () => openFactionPicker(open);
+      list.querySelectorAll('.scbn[data-soon]').forEach((b) => {
+        b.onclick = () => SK.toast(`${b.dataset.soon}은 새 컨텐츠 준비중입니다. 곧 업데이트됩니다!`);
       });
     }
     SK.show('screen-scenario');
@@ -1975,7 +1996,9 @@
     s.purseCity = id;          // v5.11 — 이 성의 금고를 연다
     SK.save();
     const f = SK.factionInfo(st.owner);
-    $('#city-name').textContent = c.name;
+    /* v5.18 — 성 이름이 길어 헤더에서 잘리지 않게, 관문·요새는 종류를 뺀 짧은 이름을 쓴다
+       (종류는 바로 아래 '관문 · 1중 성벽' 배지가 이미 말해 준다) */
+    $('#city-name').textContent = String(c.name).replace(/\s*(관문|요새)$/, '');
     const ringNo = SK.siegeRingsOfCity ? SK.siegeRingsOfCity(c) : 1;
     $('#city-hanja').textContent = `${typeName(c.type)} · ${ringNo}중 성벽`;
     $('#city-faction').textContent = SK.markOf(f);

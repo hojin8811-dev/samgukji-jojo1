@@ -350,11 +350,18 @@ b { font-weight: 700; }
 .city-pick-row .cp-main span { font-size: 9px; color: #7b6538; }
 .city-pick-row .cp-cap { flex: 0 0 auto; font-size: 9px; font-weight: 800; color: #8a5f2a; }
 .city-title-wrap #city-hanja { font-family: var(--sans); font-size: 9px; font-weight: 800; color: #8b7445; white-space: nowrap; background: #efe2c4; border: 1px solid #cdb489; border-radius: 7px; padding: 0 5px; }
+/* v5.18 — 성 이름 옆 '대도시 · 3중 성벽' 배지가 우측 금/군량 숫자와 붙지 않게:
+   제목 줄은 넘칠 때 배지를 줄이고(줄임표), 배지와 자원 열 사이에 숨 쉴 틈을 둔다 */
+.city-title-wrap { min-width: 0; }
+.ct-line1 { min-width: 0; overflow: hidden; }
+.ct-line1 #city-hanja { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 92px; margin-left: 2px; }
+.ct-line1 #city-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.city-top .city-res { padding-left: 4px; }
 .faction-tag {
   align-self: center; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
   color: #fff8e8; font-family: var(--serif); font-weight: 900; font-size: 12px;
 }
-.city-res { display: flex; flex-direction: column; gap: 1px; align-items: flex-end; }
+.city-res { display: flex; flex-direction: column; gap: 1px; align-items: flex-end; flex: 0 0 auto; margin-left: 2px; }
 .city-res .res { color: #4a3c1d; font-size: 10.5px; }
 .city-res .res-ic { width: 15px; height: 15px; }
 
@@ -1749,6 +1756,42 @@ b { font-weight: 700; }
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
   font-family: var(--serif); font-size: 22px; font-weight: 900; line-height: 1; color: #8a6626;
   text-shadow: 0 1px 0 rgba(255, 248, 228, 0.85);
+}
+
+/* v5.18 — 2·3·4막 자리: '새 컨텐츠 준비중' 잠금 카드 (누르면 준비중 토스트만) */
+.scbn.soon {
+  cursor: default; border-style: dashed; border-color: #9a834f;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 243, 208, 0.35),
+    inset 0 0 18px rgba(96, 74, 34, 0.28),
+    0 1px 0 rgba(255, 226, 160, 0.12), 0 6px 14px rgba(0, 0, 0, 0.42);
+}
+.scbn.soon .scbn-art img {
+  filter: grayscale(0.82) brightness(0.72) contrast(0.9) sepia(0.18);
+  opacity: 0.9;
+}
+.scbn.soon .scbn-body { opacity: 0.94; }
+.scbn.soon .scbn-year {
+  background-color: #5f5847; border-color: #bfae7d; color: #f0e8d2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.scbn.soon .scbn-name { color: #4a3c24; }
+.scbn.soon .scbn-sub { color: #6f5f3e; }
+.scbn.soon::before { opacity: 0.4; }
+.scbn.soon:active { transform: scale(0.994); filter: brightness(1.03); }
+.scbn-soon-tag {
+  position: absolute; left: 12px; top: 10px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 10px;
+  font-family: var(--sans); font-size: 9px; font-weight: 900; letter-spacing: 0.02em;
+  color: #f6eed8; background: rgba(48, 39, 24, 0.82);
+  border: 1px solid rgba(214, 189, 133, 0.66);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.scbn-lock {
+  position: absolute; right: 9px; top: 8px; z-index: 3;
+  font-size: 15px; line-height: 1; opacity: 0.82;
+  filter: grayscale(0.35) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 .sc-foot {
   margin: 0; padding: 6px 14px calc(9px + env(safe-area-inset-bottom));
