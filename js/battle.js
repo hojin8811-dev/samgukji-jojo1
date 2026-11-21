@@ -1492,7 +1492,7 @@
           ctx.beginPath(); ctx.moveTo(x * TILE + 6, y * TILE + TILE - 6); ctx.lineTo(x * TILE + TILE - 6, y * TILE + 6); ctx.stroke();
         } else if (ch === 'W') {
           /* v5.31 — 물 칸이 목록 모양의 네모로 보이지 않게 칸마다 농도를 살짝 다르게 칠한다 */
-          const wv = 0.11 + 0.055 * (0.5 + 0.5 * Math.sin(x * 1.7 + y * 2.3));
+          const wv = 0.125 + 0.022 * (0.5 + 0.5 * Math.sin(x * 1.7 + y * 2.3));
           ctx.fillStyle = `rgba(41,96,128,${wv.toFixed(3)})`;
           ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
         } else if (ch === 'D') {
@@ -2184,20 +2184,28 @@
     const ailKeys = u.ail ? Object.keys(u.ail).filter((k) => u.ail[k] > 0) : [];
     if (ailKeys.length && !tinyView) {
       const asz = Math.max(8, Math.round(9 * k));
+      /* v5.31 — 390px 화면에서 이웃 라벨을 덮지 않게 가장 심한 상태 하나만 그린다.
+         (나머지는 부대 카드의 알약으로 본다) */
+      const order = ['stun', 'confuse', 'fear', 'burn', 'poison', 'slow'];
+      const top = order.find((k) => ailKeys.indexOf(k) >= 0) || ailKeys[0];
       ctx.save();
       ctx.font = `900 ${asz}px "Noto Sans CJK KR", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ailKeys.slice(0, 3).forEach((ak, i) => {
-        const ax = bx - bw / 2 - 4 * k - i * (asz + 2.4);
-        const ay = pillY + pillH / 2;
-        ctx.fillStyle = `rgba(${AIL[ak].c},0.92)`;
-        ctx.beginPath();
-        ctx.arc(ax, ay, asz * 0.62, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#231a0c';
-        ctx.fillText(AIL[ak].n.charAt(0), ax, ay + 0.5);
-      });
+      const ax = pillX - asz * 0.58 - 1;
+      const ay = pillY + pillH / 2;
+      ctx.fillStyle = `rgba(${AIL[top].c},0.92)`;
+      ctx.beginPath();
+      ctx.arc(ax, ay, asz * 0.58, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#231a0c';
+      ctx.fillText(AIL[top].n.charAt(0), ax, ay + 0.5);
+      if (ailKeys.length > 1) {
+        ctx.font = `800 ${Math.round(asz * 0.7)}px "Noto Sans CJK KR", sans-serif`;
+        ctx.fillStyle = '#ffe9c0';
+        ctx.textAlign = 'left';
+        ctx.fillText('+', ax + asz * 0.5, ay - asz * 0.42);
+      }
       ctx.restore();
     }
     // 적장 표시
@@ -5905,7 +5913,6 @@
             });
           }
           if (u.aboard) pills.push('<span class="bf good">조각배</span>');
-          if (u.slow) pills.push('<span class="bf bad">둔화(이동−1)</span>');
           bfBox.innerHTML = pills.join('');
         }
         $('#uc-mov').textContent = movOf(u);
