@@ -381,6 +381,7 @@
       rp: 0, techs: [], truce: {}, pacts: {}, genLoyal: {}, deadGens: {}, deadNames: {},
       marches: [], marchSeq: 0, pendingMarch: null, recruitFail: {}, autoBestDuty: false,
       prisoners: [], captured: [],   // v5.11 — 억류 포로 · 적에게 사로잡힌 아군
+      codex: { g: {}, t: {} },        // v5.16 — 인물·보물 도감 누적 기록
     };
     SK.CITY_LIST.forEach((c) => enforceStartLevel(cities[c.id], c));
     if (sc) {
@@ -894,6 +895,8 @@
   SK.state = null;
 
   SK.save = function () {
+    /* v5.16 — 저장할 때마다 도감 누적 기록을 지금 상태와 맞춘다 */
+    if (SK.codexMerge) { try { SK.codexMerge(); } catch (e) { /* ignore */ } }
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(SK.state)); } catch (e) { /* ignore */ }
   };
   SK.load = function () {
@@ -964,6 +967,7 @@
       s.recruitFail = s.recruitFail || {};
       if (s.autoBestDuty == null) s.autoBestDuty = false;
       s.prisoners = s.prisoners || [];   // v5.11 — 억류 포로
+      s.codex = s.codex || { g: {}, t: {} };   // v5.16 — 도감
       s.captured = s.captured || [];     // v5.11 — 적에게 사로잡힌 아군
       if (s.pendingMarch == null) s.pendingMarch = null;
       (s.heroes || []).forEach((h) => { if (!s.marches.some((m) => m.id === h.marchId)) h.marchId = null; });
@@ -1169,6 +1173,8 @@
     if (window.SKMap) { SKMap.init(); SKMap.refresh(); setTimeout(() => SKMap.relayout && SKMap.relayout(), 30); }
     /* v5.3 — 저장을 다시 열었을 때 남아 있는 행군 사건을 이어서 보여 준다 */
     if (SK.state && SK.state.pendingMarch) setTimeout(openPendingMarch, 520);
+    /* v5.16 — 모든 거점을 손에 넣었으면 천하통일 엔딩으로 */
+    if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 620);
   };
 
   /* ───────────── 499 장수 로드 ───────────── */
@@ -2169,6 +2175,7 @@
     let pick = pool[0];
     for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { pick = pool[i]; break; } }
     s.treasures.push(pick.id);
+    if (SK.codexTreasure) SK.codexTreasure(pick.id);
     return pick;
   };
 
@@ -3284,6 +3291,7 @@
         let total = weights.reduce((a, b) => a + b, 0), r = Math.random() * total, hit = pool[0];
         for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { hit = pool[i]; break; } }
         s.treasures.push(hit.id);
+        if (SK.codexTreasure) SK.codexTreasure(hit.id);
         return { ok: true, kind: 'treasure', title: `보물을 찾았다 — ${hit.name}`, text: `${c.name} 근방 산야에서 ${hit.grade} 등급의 ${josa(hit.name, 'eul')} 캐냈습니다. ${hit.effect}`, gain: '보관함에 넣었습니다' };
       }
     }
@@ -3998,6 +4006,7 @@
           if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
           SK.sfx.play('ui');
           SK.openCity(cityId);
+          if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 700);
           SK.modal({
             kicker: '항복 권고 성사', title: `${SK.josa(CITY[tid].name, 'i')} 문을 열었다`, wide: true,
             body: `<div class="surr-card"><span class="surr-seal">降</span>
@@ -5303,6 +5312,8 @@
     if (!s.recruitFail) s.recruitFail = {};
     const c = CITY[cityId];
     const pool = tavernPool(cityId);
+    /* v5.16 — 주점에서 마주친 인재는 도감에 조우로 남는다 */
+    if (SK.codexMeet) SK.codexMeet(pool.map((p) => p.g.id));
     const hereN = pool.filter((p) => p.here).length;
     const rows = pool.map(({ g, cityId: fromId, here }) => {
       const cls = SK.genClass(g);
@@ -6073,6 +6084,229 @@
     });
   }
   SK.openPrison = openPrison;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.16 — 인물·보물 도감 (수집 체크리스트)
+     · 인물 : SK.GENERALS 625명 중 내 장수·포로로 만났거나 전장·주점에서 조우한 사람
+     · 보물 : SK.TREASURES 151종 중 보유·획득한 것
+     · 누적 기록은 localStorage 'samgukji-jojo-codex'에 남아 다음 회차에도 이어진다
+     ══════════════════════════════════════════════════════════════ */
+  const CODEX_KEY = 'samgukji-jojo-codex';
+  const GEN_FACS = ['전체', '위', '촉', '오', '군웅', '한국', '재야'];
+  const TIERS = ['전체', 'S', 'A', 'B', 'C'];
+  const TRE_TYPES = ['전체', '무기', '방어구', '명마', '병법서·보물'];
+  const TRE_GRADES = ['전체', '전설', '영웅', '희귀'];
+  const CDX_PAGE = 120;
+
+  function codexRead() {
+    try {
+      const raw = localStorage.getItem(CODEX_KEY);
+      const o = raw ? JSON.parse(raw) : null;
+      if (!o || typeof o !== 'object') return { g: {}, t: {} };
+      return { g: o.g || {}, t: o.t || {} };
+    } catch (e) { return { g: {}, t: {} }; }
+  }
+  function codexWrite(store) {
+    try { localStorage.setItem(CODEX_KEY, JSON.stringify(store)); } catch (e) { /* ignore */ }
+  }
+  /* 지금 상태(내 장수·포로·보물·장비)를 누적 기록에 합치고 state.codex에도 비춘다 */
+  function codexMerge() {
+    const store = codexRead();
+    const s = SK.state;
+    if (s) {
+      (s.heroes || []).forEach((h) => { if (h && h.genId != null) store.g[String(h.genId)] = 1; });
+      (s.prisoners || []).forEach((r) => { if (r && r.gid != null) store.g[String(r.gid)] = 1; });
+      const tids = [];
+      (s.treasures || []).forEach((id) => tids.push(id));
+      (s.heroes || []).forEach((h) => Object.keys(h.equip || {}).forEach((k) => tids.push(h.equip[k])));
+      tids.forEach((num) => { if (num != null) store.t[String(num)] = 1; });
+      s.codex = { g: store.g, t: store.t };
+    }
+    codexWrite(store);
+    return store;
+  }
+  SK.codexMerge = codexMerge;
+  SK.codexMeet = function (ids) {
+    const list = Array.isArray(ids) ? ids : [ids];
+    const store = codexRead();
+    let added = 0;
+    list.forEach((id) => {
+      if (id == null) return;
+      const k = String(id);
+      if (SK.GEN_BY_ID && !SK.GEN_BY_ID[id]) return;
+      if (!store.g[k]) { store.g[k] = 1; added += 1; }
+    });
+    if (added) codexWrite(store);
+    return added;
+  };
+  SK.codexTreasure = function (ids) {
+    const list = Array.isArray(ids) ? ids : [ids];
+    const store = codexRead();
+    let added = 0;
+    list.forEach((id) => {
+      if (id == null) return;
+      const k = String(id);
+      if (!store.t[k]) { store.t[k] = 1; added += 1; }
+    });
+    if (added) codexWrite(store);
+    return added;
+  };
+  function codexStats() {
+    const store = codexMerge();
+    const gens = SK.GENERALS || [];
+    const tres = SK.TREASURES || [];
+    const gHave = gens.filter((g) => store.g[String(g.id)]).length;
+    const tHave = tres.filter((t) => store.t[String(t.id)]).length;
+    return { store, gens, tres, gHave, tHave,
+      gPct: gens.length ? (gHave / gens.length) * 100 : 0,
+      tPct: tres.length ? (tHave / tres.length) * 100 : 0 };
+  }
+  SK.codexStats = codexStats;
+
+  function codexBar(label, have, total, pct) {
+    return `<div class="cdx-prog">
+      <div class="cdx-prog-top"><b>${label}</b><span><em>${fmt(have)}</em> / ${fmt(total)}종</span><strong>${pct.toFixed(1)}%</strong></div>
+      <i class="cdx-bar"><s style="width:${Math.max(1.2, pct).toFixed(1)}%"></s></i>
+    </div>`;
+  }
+
+  let cdx = { tab: 'gen', fac: '전체', tier: '전체', type: '전체', grade: '전체', limit: CDX_PAGE, q: '' };
+
+  function codexGenCells(st) {
+    const store = st.store;
+    const q = (cdx.q || '').trim();
+    let list = st.gens.filter((g) => {
+      if (cdx.fac !== '전체' && String(g.faction || '재야') !== cdx.fac) return false;
+      if (cdx.tier !== '전체' && String(g.tier) !== cdx.tier) return false;
+      return true;
+    });
+    if (q) {
+      const hit = (g) => store.g[String(g.id)] && String(g.name).indexOf(q) >= 0;
+      list = list.filter(hit);
+    }
+    const order = { S: 0, A: 1, B: 2, C: 3 };
+    /* v5.16 — 수집한 인물을 먼저 보여 준다 (모은 보람이 바로 보이게) */
+    const gotOf = (g) => (store.g[String(g.id)] ? 0 : 1);
+    list.sort((a, b) => (gotOf(a) - gotOf(b)) || ((order[a.tier] ?? 4) - (order[b.tier] ?? 4)) || String(a.name).localeCompare(String(b.name)));
+    const shown = list.slice(0, cdx.limit);
+    const cells = shown.map((g) => {
+      const got = !!store.g[String(g.id)];
+      const cls = SK.genClass(g);
+      const cname = (SK.CLASSES[cls] && SK.CLASSES[cls].name) || g.job || '';
+      return `<button class="cdx-cell ${got ? 'got' : ''} t${g.tier}" data-gid="${g.id}" ${got ? '' : 'disabled'}>
+        <span class="cdx-face">${got ? `<img src="${SK.ptSrc(SK.genPortrait(g))}" alt="" loading="lazy">` : '<em>?</em>'}<i class="cdx-tier">${g.tier}</i></span>
+        <b class="cdx-name">${got ? g.name : '？？？'}</b>
+        <small>${got ? cname : String(g.faction || '재야')}</small>
+      </button>`;
+    }).join('');
+    const more = list.length > shown.length
+      ? `<button class="cdx-more" data-more="1">${fmt(list.length - shown.length)}명 더 보기</button>` : '';
+    return `<div class="cdx-grid">${cells || '<p class="tr-empty">조건에 맞는 장수가 없습니다.</p>'}</div>${more}`;
+  }
+
+  function codexTreRows(st) {
+    const store = st.store;
+    let list = st.tres.filter((t) => {
+      if (cdx.type !== '전체' && String(t.type) !== cdx.type) return false;
+      if (cdx.grade !== '전체' && String(t.grade) !== cdx.grade) return false;
+      return true;
+    });
+    const order = { '전설': 0, '영웅': 1, '희귀': 2 };
+    const gotOf = (t) => (store.t[String(t.id)] ? 0 : 1);
+    list = list.slice().sort((a, b) => (gotOf(a) - gotOf(b)) || ((order[a.grade] ?? 3) - (order[b.grade] ?? 3)) || String(a.name).localeCompare(String(b.name)));
+    const shown = list.slice(0, cdx.limit);
+    const rows = shown.map((t) => {
+      const got = !!store.t[String(t.id)];
+      return `<div class="cdx-row ${got ? 'got' : ''}" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">
+        <span class="cdx-gd">${t.grade}</span>
+        <div><b>${got ? t.name : '？？？'}</b><small>${t.type}${got ? ` · ${t.effect || ''}` : ' · 아직 얻지 못했습니다'}</small></div>
+        <em class="cdx-check">${got ? '✓' : '—'}</em>
+      </div>`;
+    }).join('');
+    const more = list.length > shown.length
+      ? `<button class="cdx-more" data-more="1">${fmt(list.length - shown.length)}종 더 보기</button>` : '';
+    return `<div class="cdx-list">${rows || '<p class="tr-empty">조건에 맞는 보물이 없습니다.</p>'}</div>${more}`;
+  }
+
+  function codexBody(st) {
+    if (cdx.tab === 'tre') return codexTreRows(st);
+    return codexGenCells(st);
+  }
+  function codexChips(list, cur, kind) {
+    return list.map((v) => `<button class="cdx-chip ${v === cur ? 'on' : ''}" data-f="${kind}" data-v="${v}">${v}</button>`).join('');
+  }
+  function codexRefresh(m) {
+    const st = codexStats();
+    const body = m.el.querySelector('#cdx-body');
+    const tabs = m.el.querySelector('.cdx-tabs');
+    if (tabs) {
+      tabs.innerHTML = `<button class="cdx-tab ${cdx.tab === 'gen' ? 'on' : ''}" data-ct="gen">인물 도감 <b>${st.gHave}/${st.gens.length}</b><em>${st.gPct.toFixed(1)}%</em></button>
+        <button class="cdx-tab ${cdx.tab === 'tre' ? 'on' : ''}" data-ct="tre">보물 도감 <b>${st.tHave}/${st.tres.length}</b><em>${st.tPct.toFixed(1)}%</em></button>`;
+      tabs.querySelectorAll('[data-ct]').forEach((b) => {
+        b.onclick = () => { cdx.tab = b.dataset.ct; cdx.limit = CDX_PAGE; codexRefresh(m); };
+      });
+    }
+    if (!body) return;
+    if (cdx.tab === 'gen') {
+      body.innerHTML = `${codexBar('인물 수집', st.gHave, st.gens.length, st.gPct)}
+        <div class="cdx-filters"><div>${codexChips(GEN_FACS, cdx.fac, 'fac')}</div><div>${codexChips(TIERS, cdx.tier, 'tier')}</div></div>
+        ${codexGenCells(st)}`;
+    } else {
+      body.innerHTML = `${codexBar('보물 수집', st.tHave, st.tres.length, st.tPct)}
+        <div class="cdx-filters"><div>${codexChips(TRE_TYPES, cdx.type, 'type')}</div><div>${codexChips(TRE_GRADES, cdx.grade, 'grade')}</div></div>
+        ${codexTreRows(st)}`;
+    }
+    body.querySelectorAll('[data-f]').forEach((b) => {
+      b.onclick = () => { cdx[b.dataset.f] = b.dataset.v; cdx.limit = CDX_PAGE; codexRefresh(m); };
+    });
+    const more = body.querySelector('[data-more]');
+    if (more) more.onclick = () => { cdx.limit += CDX_PAGE; codexRefresh(m); };
+    body.querySelectorAll('[data-gid]').forEach((b) => {
+      b.onclick = () => { if (!b.disabled) openCodexGen(Number(b.dataset.gid)); };
+    });
+  }
+
+  function openCodexGen(gid) {
+    const g = SK.GEN_BY_ID[gid];
+    if (!g) return;
+    const s = SK.state;
+    const cls = SK.genClass(g);
+    const cname = (SK.CLASSES[cls] && SK.CLASSES[cls].name) || g.job || '';
+    const mine = (s && s.heroes || []).some((h) => h.genId === gid);
+    const jailed = (s && s.prisoners || []).some((r) => r.gid === gid);
+    const stat = (k, v) => `<span class="cdx-stat"><i>${k}</i><b>${v == null ? '-' : v}</b></span>`;
+    SK.modal({
+      kicker: `인물 도감 · ${g.tier}급 ${cname}`,
+      title: g.name,
+      body: `<div class="cdx-detail">
+        <img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <div class="cdx-detail-main">
+          <p class="cdx-detail-tag">${String(g.faction || '재야')} · ${cname}${mine ? ' · <b>내 장수</b>' : jailed ? ' · <b>억류 중</b>' : ' · 조우 기록'}</p>
+          <div class="cdx-stats">${stat('통솔', g.leadership)}${stat('무력', g.war)}${stat('지력', g.intel)}${stat('정치', g.politics)}${stat('매력', g.charm)}</div>
+          <p class="cdx-detail-skill">${g.skill ? `고유특기 — <b>${g.skill}</b>` : '고유특기 없음'}</p>
+        </div>
+      </div>`,
+      actions: [{ label: '닫기', primary: true }],
+    });
+  }
+
+  function openCodex(tab) {
+    if (tab) cdx.tab = tab;
+    cdx.limit = CDX_PAGE;
+    const st = codexStats();
+    const m = SK.modal({
+      kicker: '도감', title: '수집 기록', wide: true,
+      body: `<p class="talent-note">내 장수로 맞이했거나 전장·주점에서 마주친 인물, 그리고 손에 넣은 보물을 기록합니다. <b>기록은 다음 회차에도 이어집니다.</b></p>
+        <div class="cdx-tabs"></div>
+        <div class="cdx-body" id="cdx-body"></div>`,
+      actions: [{ label: '닫기', primary: true }],
+    });
+    m.st = st;
+    codexRefresh(m);
+    return m;
+  }
+  SK.openCodex = openCodex;
+
 
   /* 태수 임명 — 정치·통솔이 높은 장수가 내정과 징병을 끌어올린다
      v5.14 — 건물 배속과 같이 적합도(정치 60% + 통솔 40%) 순으로 세우고 상위 2명에게 [추천] */
@@ -6944,6 +7178,63 @@
     SK.toast(`긴급 회군 — ${CITY[m.origin || m.from] ? CITY[m.origin || m.from].name : '본성'}으로 병력 ${fmt(troops)} 복귀`);
     return true;
   };
+  /* ══════════════════════════════════════════════════════════════
+     v5.16 — 천하통일 엔딩
+     · 모든 거점(80)이 내 깃발 아래 들어오면 한 번만 축하 화면을 연다
+     · 걸린 달 수·장수·명성·도감 수집률을 함께 보여 주고, 계속 둘러볼 수 있게 한다
+     ══════════════════════════════════════════════════════════════ */
+  function ownedCount(s) {
+    s = s || SK.state;
+    if (!s || !s.cities) return 0;
+    return SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === PF()).length;
+  }
+  SK.ownedCount = ownedCount;
+  SK.checkUnification = function (force) {
+    const s = SK.state;
+    if (!s) return false;
+    if (ownedCount(s) < SK.CITY_LIST.length) return false;
+    if (s.unified && !force) return false;
+    s.unified = true;
+    try { SK.save(); } catch (e) { /* ignore */ }
+    setTimeout(() => showUnification(), 380);
+    return true;
+  };
+  function showUnification() {
+    const s = SK.state;
+    if (!s) return;
+    const months = Math.max(1, s.turn || 1);
+    const q = SK.codexStats ? SK.codexStats() : { gPct: 0, tPct: 0, gHave: 0, gTotal: 0 };
+    const rank = months <= 24 ? '전설의 난투왕' : months <= 48 ? '백전노장' : '천하의 주인';
+    const f = s.factions[s.playerFaction] || {};
+    const lord = f.lord ? SK.GEN_BY_NAME[f.lord] : null;
+    SK.sfx.play('victory');
+    if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
+    SK.modal({
+      kicker: '천하통일', title: '천하가 하나로 모였습니다', wide: true,
+      body: `<div class="unify-card">
+        <div class="unify-seal">통일</div>
+        ${lord ? `<img class="unify-lord" src="${SK.ptSrc(SK.genPortrait(lord))}" alt="">` : ''}
+        <p class="unify-line"><b>${f.name || SK.factionName(s.playerFaction)}</b>의 깃발이 <b>${SK.CITY_LIST.length}개 거점</b> 모두에 섰습니다. ${months}개월의 난투 끝에 천하가 하나가 되었습니다.</p>
+        <div class="unify-rank">${rank}</div>
+        <div class="unify-stats">
+          <div><span>걸린 달</span><b>${months}</b></div>
+          <div><span>거점</span><b>${ownedCount(s)} / ${SK.CITY_LIST.length}</b></div>
+          <div><span>장수</span><b>${(s.heroes || []).length}명</b></div>
+          <div><span>명성</span><b>${fmt(s.fame || 0)}</b></div>
+          <div><span>인물 도감</span><b>${q.gPct.toFixed(1)}%</b></div>
+          <div><span>보물 도감</span><b>${q.tPct.toFixed(1)}%</b></div>
+        </div>
+        <p class="unify-note">도감은 다음 회차에도 이어집니다. 아직 만나지 못한 장수와 보물을 모아 보십시오.</p>
+      </div>`,
+      actions: [
+        { label: '도감 보기', onClick: () => setTimeout(() => SK.openCodex(), 160) },
+        { label: '계속 둘러보기', primary: true, onClick: () => { SK.showMap(); } },
+      ],
+      dismissible: false,
+    });
+  }
+  SK.showUnification = showUnification;
+
   /* ══════════════════════════════════════════════════════════════
      v5.11 — 유랑군 배수진
      성을 모두 잃어도 이미 출발한 원정 주력이 살아 있으면 1회 점령 도전.
@@ -8345,7 +8636,9 @@
       kicker: '군령',
       title: '메뉴',
       body: `<div class="menu-list">
+        <button data-m="codex">도감 · 인물·보물 수집</button>
         <button data-m="roster">장수 명부 · 보물 · 배치</button>
+        <button data-m="recall">원정 부대 · 긴급 회군</button>
         <button data-m="slots">세이브 슬롯 (5칸 + 자동)</button>
         <button data-m="help">조작법 보기</button>
         <button data-m="reset">처음부터 시작</button>
@@ -8356,6 +8649,8 @@
       b.onclick = () => {
         const k = b.dataset.m;
         m.close();
+        if (k === 'codex') SK.openCodex();
+        if (k === 'recall') SK.openRecall(SK.state && (SK.state.purseCity || SK.state.lastCity));
         if (k === 'roster') SK.openRoster();
         if (k === 'help') SK.showHelp();
         if (k === 'slots') SK.openSaveSlots('save');
@@ -8451,6 +8746,8 @@
       SK.openCity(id);
     };
     $('#btn-map-menu').onclick = openMenu;
+    const cdxBtn = $('#btn-map-codex');
+    if (cdxBtn) cdxBtn.onclick = () => SK.openCodex();
     const estrip = $('#econ-strip');
     if (estrip) estrip.onclick = openEcon;
     $('#btn-city-back').onclick = () => SK.showMap();

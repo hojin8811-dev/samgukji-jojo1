@@ -226,6 +226,8 @@
     }
     placeSide(allies, SK.allySlots(type, rings), 'ally');
     placeSide(enemies, SK.enemySlots(type, rings), 'enemy');
+    /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
+    if (SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
     anims.length = 0;
@@ -3426,15 +3428,18 @@
     const best = list.slice().sort((a, b) => b.score - a.score)[0];
     const maxDealt = Math.max(1, ...list.map((r) => r.dealt));
     const fmtN = (n) => Math.round(n).toLocaleString('ko-KR');
+    /* v5.16 — 총공격력·총피해·총회복 합계 줄 */
+    const sum = list.reduce((a, r) => ({ dealt: a.dealt + r.dealt, taken: a.taken + r.taken, heal: a.heal + r.heal, kills: a.kills + r.kills }), { dealt: 0, taken: 0, heal: 0, kills: 0 });
     return `<div class="rm-report">
       <div class="rm-report-head"><b>전투 결산</b><span>MVP <em>👑 ${best.name}</em></span></div>
       <div class="rm-report-scroll"><table class="rm-dmg">
-        <thead><tr><th>장수</th><th>딜</th><th>탱</th><th>힐</th><th>처치</th></tr></thead>
+        <thead><tr><th>장수</th><th>총공격</th><th>받은피해</th><th>회복</th><th>처치</th></tr></thead>
         <tbody>${list.sort((a, b) => b.score - a.score).map((r) => `<tr class="${r.name === best.name ? 'mvp' : ''}">
           <td>${r.name === best.name ? '👑 ' : ''}${r.name}${r.alive ? '' : ' <em class="rm-fallen">전사</em>'}</td>
           <td><i style="width:${Math.max(2, Math.round((r.dealt / maxDealt) * 32))}px"></i>${fmtN(r.dealt)}</td>
           <td>${fmtN(r.taken)}</td><td>${r.heal ? '+' + fmtN(r.heal) : '0'}</td><td>${r.kills}</td>
         </tr>`).join('')}</tbody>
+        <tfoot><tr class="rm-sum"><td>합계</td><td>${fmtN(sum.dealt)}</td><td>${fmtN(sum.taken)}</td><td>${sum.heal ? '+' + fmtN(sum.heal) : '0'}</td><td>${sum.kills}</td></tr></tfoot>
       </table></div>
     </div>`;
   }
@@ -3763,6 +3768,34 @@
     const woundedAdd = lostN && SK.addWounded ? SK.addWounded(B.targetId, lostN, { ratio: SK.woundedRatio(B.origin) }) : 0;
     st.troops = Math.max(1200, Math.round(troopsLeft));
     st.def = Math.max(30, Math.round(st.def * 0.8));
+    /* v5.16 — 공성 전란 피해: 오래 끌거나(7턴~) 중간 성문을 부순 채 함락하면
+       성벽·내성 시설 경험치·레벨·농업·상업·치안·인구가 함께 상한다.
+       → 성 밖에서 [요격]해 미리 막는 쪽이 이득이라는 유인이 생긴다. */
+    let siegeWreck = null;
+    if (B.type === 'siege' || B.type === 'fortress') {
+      const gatesBroken = (B.gates || []).filter((g) => g.hp <= 0).length;
+      const longFight = clamp(((B.turn || 1) - 6) / 10, 0, 1);
+      const sev = clamp(0.18 + longFight * 0.42 + gatesBroken * 0.08, 0.18, 0.86);
+      const b0 = { def: Math.round(st.def || 30), agri: Math.round(st.agri || 0), comm: Math.round(st.comm || 0), order: Math.round(st.order || 0), pop: Math.round(st.pop || 0) };
+      st.def = Math.max(24, Math.round((st.def || 30) - (6 + 20 * sev)));
+      st.agri = clamp((st.agri || 0) - Math.round(2 + 7 * sev), 0, 100);
+      st.comm = clamp((st.comm || 0) - Math.round(2 + 7 * sev), 0, 100);
+      st.order = clamp((st.order || 0) - Math.round(3 + 8 * sev), 0, 100);
+      st.pop = Math.max(6000, Math.round((st.pop || 0) * (1 - 0.01 - 0.03 * sev)));
+      let wrecked = 0;
+      (st.slots || []).forEach((sl) => {
+        if (!sl || !sl.key) return;
+        sl.exp = Math.round((sl.exp || 0) * (1 - 0.15 - 0.35 * sev));
+        if (sev > 0.58 && Math.random() < 0.22) {
+          const lv = sl.lv || 1;
+          if (lv > 1) { sl.lv = lv - 1; wrecked += 1; }
+        }
+      });
+      siegeWreck = { turn: B.turn || 1, gates: gatesBroken, sev, wrecked,
+        def: b0.def - Math.round(st.def), agri: b0.agri - Math.round(st.agri),
+        comm: b0.comm - Math.round(st.comm), order: b0.order - Math.round(st.order),
+        pop: b0.pop - Math.round(st.pop) };
+    }
     st.loyalty = 55;
     st.governor = null;
     st.advisor = null;
@@ -3775,6 +3808,7 @@
     s.food += B.rewards.food;
     s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
     const drop = SK.rollTreasure ? SK.rollTreasure(defeatedNames, c.name) : null;
+    if (drop && SK.codexTreasure) SK.codexTreasure(drop.id);
     awardMvpMerit();
     /* v5.8 — 이긴 자리에서 적 장수 일부를 사로잡는다 */
     prisonCity = B.targetId;
@@ -3823,6 +3857,7 @@
         ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         ${woundedAdd ? `<p class="rm-note">부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 ${c.name}에서 회복 중입니다 — 달이 바뀌면 돌아오고, [병영]에서 금으로 바로 치료할 수 있습니다.</p>` : ''}
         ${B.event ? `<p class="rm-event">특별 이벤트 — ${B.event.title} · 명성 +5</p>` : ''}
+        ${siegeWreck ? `<p class="rm-war">전란 피해 — ${siegeWreck.turn}턴 공성${siegeWreck.gates ? ` · 성문 ${siegeWreck.gates}개 파괴` : ''} · 성벽 −${siegeWreck.def} · 농업 −${siegeWreck.agri} · 상업 −${siegeWreck.comm} · 치안 −${siegeWreck.order} · 인구 −${Math.round(siegeWreck.pop).toLocaleString('ko-KR')}${siegeWreck.wrecked ? ` · 시설 ${siegeWreck.wrecked}곳 Lv. 하락` : ''} · 내성 건물 경험치 −${Math.round((0.15 + 0.35 * siegeWreck.sev) * 100)}%<br><em>성을 오래 두드리면 함락해도 쓸모가 줄어듭니다. 다음에는 행군 길목에서 [요격]해 적을 먼저 꺾으십시오.</em></p>` : ''}
         ${victoryQuote() ? `<p class="rm-quote">“${victoryQuote()}”</p>` : ''}
         <p class="rm-note">${owned >= SK.CITY_LIST.length ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
       </div>`,
