@@ -81,7 +81,13 @@ SK.CITY_META = {
   '광주': ['gwangju', '廣州', 0.848, 0.452, '한국'],
   '경주': ['gyeongju', '慶州', 0.916, 0.382, '한국'],
   '부산': ['busan', '釜山', 0.902, 0.434, '한국'],
-  '탐라': ['tamna', '耽羅', 0.856, 0.514, '한국'],
+  '탐라': ['tamna', '耽羅', 0.845, 0.523, '한국'],
+};
+
+/* v5.21 — 자동 생성 좌표(mapgeo.js) 보정표.
+   탐라는 섬 동북쪽 바다(0.856, 0.514)에 찍혀 마커가 물 위에 떠 보였다 → 제주 섬 한가운데로 당긴다. */
+SK.CITY_COORD_FIX = {
+  '탐라': [0.845, 0.523],
 };
 
 /* mapgeo 좌표와 결합해 data.js가 쓰는 SK.CITY_GEO를 만든다 */
@@ -91,6 +97,8 @@ SK.CITY_GEO = {};
   Object.keys(SK.CITY_META).forEach(function (name) {
     var m = SK.CITY_META[name];
     var xy = geo[name];
+    var fix = (SK.CITY_COORD_FIX || {})[name];
+    if (fix) xy = fix;
     if (!xy) return;
     SK.CITY_GEO[name] = [m[0], m[1], xy[0], xy[1], m[4] || '중원'];
   });

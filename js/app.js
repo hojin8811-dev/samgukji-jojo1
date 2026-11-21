@@ -1728,6 +1728,19 @@
     if (gcell) gcell.title = `${purseId ? CITY[purseId].name : '현재 성'} 금고 ${fmt(pcs ? pcs.gold : 0)} · 전체 ${fmt(tg)}`;
     if (fcell) fcell.title = `${purseId ? CITY[purseId].name : '현재 성'} 창고 ${fmt(pcs ? pcs.food : 0)} · 전체 ${fmt(tf)}`;
     $('#map-troops').textContent = fmt(totalTroops());
+    /* v5.21 — 상단 자원 줄 밀도: 숫자가 5~6자리로 길어지면 글씨·아이콘·보조 합계를 단계적으로 줄여
+       우측 도감 버튼과 겹치지 않게 한다 (좁은 폰 390px 기준) */
+    const topBar = document.querySelector('.map-top');
+    if (topBar) {
+      const digits = ['#map-gold', '#map-food', '#map-troops'].reduce((a, sel) => {
+        const el = $(sel);
+        return a + (el ? el.textContent.replace(/[^0-9]/g, '').length : 0);
+      }, 0) + ['#map-gold-total', '#map-food-total'].reduce((a, sel) => {
+        const el = $(sel);
+        return a + (el ? el.textContent.replace(/[^0-9]/g, '').length : 0);
+      }, 0);
+      topBar.dataset.res = digits >= 20 ? 'xlong' : (digits >= 15 ? 'long' : 'short');
+    }
     $('#map-date').textContent = SK.dateLabel(s.eraYear || (195 + s.year), s.month);
     $('#map-fame').textContent = '명성 ' + fmt(s.fame);
     const rank = SK.rankFor(s.fame);
@@ -3499,7 +3512,7 @@
     }
     const tech = 1 + (SK.techPct ? SK.techPct('recruitPct') : 0) / 100;
     const est = (g) => {
-      const want = Math.round(2500 * conMul(cityId, g) * tech);
+      const want = Math.round(1200 * conMul(cityId, g) * tech);
       return Math.max(0, Math.min(want, cap - st.troops, Math.floor((st.pop - 6000) * 0.9)));
     };
     const rows = pool.map((g, i) => {
@@ -5230,13 +5243,14 @@
     } },
     recruit: { name: '징병', run(cityId, actor) {
       const s = SK.state; const st = s.cities[cityId];
-      if (s.gold < 150 || s.food < 120) return fail('금이나 군량이 부족합니다. (필요 금 150 · 미 120)');
+      if (s.gold < 150 || s.food < 120) return fail('금이나 군량이 부족합니다. (필요 금 150 · 군량 120)');
       const cap = cityCap(st);
       if (st.troops >= cap) return fail(`인구 대비 병력 상한입니다. (최대 ${fmt(cap)} · 인구 17%)`);
       if (st.pop < 9000) return fail(`인구가 너무 적습니다. (인구 ${fmt(st.pop)})`);
       const m = conMul(cityId, actor);
       const rPct = 1 + (SK.techPct ? SK.techPct('recruitPct') : 0) / 100;
-      const want = Math.min(Math.round((2500 + (roll(0.2) ? 800 : 0)) * m * rPct), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
+      /* v5.21 — 징병량 절반(2,500 → 1,200 · 보너스 800 → 350). 비용은 금 150 · 군량 120 그대로 */
+      const want = Math.min(Math.round((1200 + (roll(0.2) ? 350 : 0)) * m * rPct), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
       if (want < 300) return fail('징병할 수 있는 인구가 부족합니다.');
       const drop = clamp(5 - Math.round(((actor ? actor.cha : 60) - 60) * 0.04), 2, 7);
       s.gold -= 150; s.food -= 120;
@@ -5573,7 +5587,7 @@
       kicker: `${CITY[cityId].name} 병영`,
       title: '군사를 일으킨다',
       body: `<div class="menu-list">
-        <button data-b="recruit">징병 — 금 150 · 미 120 · 수비병 +2,500</button>
+        <button data-b="recruit">징병 — 금 150 · 군량 120 · 수비병 +1,200</button>
         <button data-b="train">훈련 — 금 80 · 주둔 장수 경험치</button>
         ${wound ? `<button data-b="heal">부상병 치료 — ${fmt(wound)}명 회복중 · 금 ${fmt(healCost)}</button>` : ''}
       </div>
@@ -6811,7 +6825,7 @@
     } else if (capGap > cap * 0.32 && canRecruit) {
       push({ key: 'recruit', tone: 'info',
         title: `병력이 상한의 ${Math.round(cs.troops / cap * 100)}%입니다`,
-        body: `이 성은 인구 ${fmt(cs.pop)}으로 ${fmt(cap)}까지 병력을 채울 수 있습니다. 징병으로 ${fmt(Math.min(capGap, 2500))}가량을 더 세울 수 있습니다.`,
+        body: `이 성은 인구 ${fmt(cs.pop)}으로 ${fmt(cap)}까지 병력을 채울 수 있습니다. 징병으로 ${fmt(Math.min(capGap, 1200))}가량을 더 세울 수 있습니다.`,
         label: '병영 · 징병 (금 150 · 군량 120)', short: '징병' });
     }
 
@@ -7501,9 +7515,14 @@
       if (c.type === 'pass' || c.type === 'fortress') p += 0.08;
       p = clamp(p, 0.2, 0.7);
       if (Math.random() < p) {
-        const budget = clamp(Math.round((ts.troops || 2000) * 0.24), 1200, 5200);
-        const cnt = clamp(5 + Math.floor((ts.troops || 0) / 3200), 5, 8);
-        const per = clamp(Math.round(budget / cnt / 100) * 100, 900, 2800);
+        /* v5.21 — 요격대 병력 뻥튀기 수정.
+           옛 식은 부대 수 5 × 부대당 최소 900명이라 2,000명 성에도 무조건 4,500명이 나왔다.
+           이제 요격대 총합은 목표 성 병력의 25~40%, 부대 수 2~6, 부대당 최소 병력도 성 규모에 맞춘다. */
+        const tgt = Math.max(200, Math.round(ts.troops || 2000));
+        const total = clamp(Math.round(tgt * (0.25 + Math.random() * 0.15)), Math.min(400, tgt), 6000);
+        const cnt = clamp(2 + Math.round(tgt / 6000), 2, 6);
+        const perCap = Math.max(120, Math.floor((tgt * 0.4) / cnt));
+        const per = clamp(Math.round(total / cnt / 50) * 50, Math.min(200, perCap), perCap);
         m.raiders = per * cnt;
         m.interceptType = interceptTypeFor(m);
         s.pendingMarch = { kind: 'intercept', marchId: m.id };
@@ -7720,8 +7739,11 @@
   }
 
   /* 플레이어 접경 성을 노리는 침공 — 한 달 전에 경고만 남긴다
-     v5.13 — 인접 성 1곳만 보지 않고 같은 세력의 인접+주변(2칸) 성 출진 병력을 합산해 판단한다.
-     기준 배율도 1.55 → 1.20으로 낮춰 적이 실제로 플레이어를 노린다 (graceOf 유예는 그대로). */
+     v5.13 — 인접 성 1곳만 보지 않고 같은 세력의 인접 성 출진 병력을 합산해 판단한다.
+     기준 배율도 1.55 → 1.20으로 낮춰 적이 실제로 플레이어를 노린다 (graceOf 유예는 그대로).
+     v5.21 — 2칸 건너(ring) 성은 침공 출발지에서 뺀다. 예전에는 경주 → 부산(재야) → 완산처럼
+     길이 이어지지 않은 남의 성을 건너뛰어 치는 '점프 침공'이 나왔다.
+     이제 같은 세력이라도 직접 도로·해로로 이어진 인접 성(adj)에서만 출진한다. */
   const INVASION_RATIO = 1.20;
   function planPlayerInvasion(s) {
     if ((s.turn || 1) <= graceOf(s)) return null;
@@ -7731,17 +7753,14 @@
     SK.CITY_LIST.forEach((pc) => {
       if (s.cities[pc.id].owner !== PF()) return;
       const adj = SK.allNeighbors(pc.id);
-      /* 접경 성의 한 다리 안쪽까지 — 같은 세력의 후방 성도 원군으로 합산 */
-      const ring = adj.slice();
-      adj.forEach((aid) => SK.allNeighbors(aid).forEach((a2) => { if (a2 !== pc.id && ring.indexOf(a2) < 0) ring.push(a2); }));
       const byF = {};
-      ring.forEach((aid) => {
+      adj.forEach((aid) => {
         const as = s.cities[aid];
         if (!as || as.owner === PF() || as.owner === 'neutral') return;
         if (s.truce && s.truce[as.owner] > turn) return;
         const strength = (as.troops || 0) - AI_CITY_RESERVE;
         if (strength < 800) return;
-        (byF[as.owner] = byF[as.owner] || []).push({ id: aid, strength, front: adj.indexOf(aid) >= 0 });
+        (byF[as.owner] = byF[as.owner] || []).push({ id: aid, strength, front: true });
       });
       Object.keys(byF).forEach((fid) => {
         const crew = byF[fid].sort((a, b) => b.strength - a.strength || (b.front ? 1 : 0) - (a.front ? 1 : 0));
@@ -8116,23 +8135,23 @@
         <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(ts.troops)}</b></span><span>성벽 <b>${Math.round(ts.def)}</b></span><span>주둔 장수 <b>${gens.length}명</b></span>${woundNow ? `<span>부상병 <b>${fmt(woundNow)}</b></span>` : ''}</div>
         ${rfg ? `<div class="rfg-ready"><b>${CITY[rfg.from].name} 원군 대기</b><span>병력 ${fmt(rfgTroops)}${rfgGens ? ` · 장수 ${rfgGens}명` : ''} — 수성전에 함께 들어갑니다</span></div>`
           : (near.length ? `<div class="rfg-tip"><b>지원군을 보낼 수 있습니다</b><span>${near.map((o) => `${o.name}(${o.via}·${fmt(o.troops)})`).join(' · ')}</span></div>` : '')}
-        <p class="talent-note">[수성전] — 격자 전장에서 성을 지킵니다. 이기면 적을 물리치고, 지면 성을 잃고 남은 병력·장수는 가까운 내 성으로 물러납니다.</p>
+        <p class="talent-note">[수성전] — 격자 전장에서 성을 지킵니다. 출진 장수(최대 10명)와 자리(외성·망루·내성)를 먼저 고릅니다. 이기면 적을 물리치고, 지면 성을 잃고 남은 병력·장수는 가까운 내 성으로 물러납니다.</p>
         <p class="talent-note">[철수] — 싸우지 않고 병력 85%와 장수를 가까운 내 성으로 빼고 성을 내줍니다.</p>
       </div>`,
       actions: [
         { label: '철수', onClick: () => surrenderCity(inv) },
         (s.marches || []).length ? { label: '긴급 회군', onClick: () => { setTimeout(() => SK.openRecall(inv.target), 120); } } : null,
         near.length || rfg ? { label: rfg ? '지원군 다시' : '지원군 파견', onClick: () => { if (rfg) { cancelReinforce(); } setTimeout(() => openReinforce(inv.target), 140); } } : null,
-        { label: rfg ? '수성전 (원군 합류)' : '수성전', primary: true, onClick: () => startDefense(inv) },
+        { label: rfg ? '수성전 (원군 합류)' : '수성전', primary: true, onClick: () => { setTimeout(() => openDefenseDeploy(inv), 140); } },
       ].filter(Boolean),
       dismissible: false,
     });
   }
   SK.openPendingInvasion = openPendingInvasion;
 
-  function startDefense(inv) {
+  function startDefense(inv, plan) {
     const s = SK.state;
-    const units = defenseUnits(inv.target);
+    const units = (plan && plan.units && plan.units.length) ? plan.units : defenseUnits(inv.target);
     if (!units.length) {
       SK.toast('지킬 병력이 없습니다 — 철수합니다.');
       surrenderCity(inv);
@@ -8148,9 +8167,154 @@
       origin: inv.target, targetId: inv.target, type: 'defense', units: all,
       defense: { faction: inv.faction, troops: inv.troops, from: inv.from, genIds: (from.genIds || []).slice(0, 1) },
       reinforce: rfg,
+      /* v5.21 — 고르지 않아 성에 남긴 예비 병력 (이기면 성에 그대로 남는다) */
+      reserve: (plan && plan.reserve) || 0,
     });
   }
   SK.startDefense = startDefense;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.21 — 수성전 배치: 최대 10명 출진 장수를 고르고 각자 설 자리를 정한다.
+     · 외성(1중 성벽 안쪽 마당) · 망루(좌·우 망루) · 내성(2중 성벽·본진 앞)
+     · 고르지 않은 장수의 병력과 10부대를 넘는 병력은 성에 남아 예비대가 된다
+     ══════════════════════════════════════════════════════════════ */
+  const DEF_ZONES = [
+    { key: 'wall', name: '외성', mark: '성', desc: '1중 성벽 안쪽 마당 — 성문 앞을 막는다' },
+    { key: 'tower', name: '망루', mark: '루', desc: '좌·우 망루 — 궁수·연노병이 성 밖을 쏜다' },
+    { key: 'keep', name: '내성', mark: '내', desc: '2중 성벽·본진 앞 — 마지막 방어선' },
+  ];
+  function defZoneDefault(h) {
+    const c = h && h.cls;
+    if (c === 'gungsu' || c === 'yeonnobyung' || c === 'gunggi' || c === 'balseokcha' || c === 'pocha') return 'tower';
+    if (c === 'chaeksa' || c === 'pungsusa' || c === 'dosa' || c === 'gunakdae' || c === 'muhui') return 'keep';
+    return 'wall';
+  }
+  /* 고른 장수·자리로 부대를 짠다. 남는 부대 자리(최대 10부대)는 수비병 부대로 채운다 */
+  function buildDefensePlan(cityId, pick, zones) {
+    const s = SK.state;
+    const st = s.cities[cityId];
+    const avail = Math.floor(st.troops || 0);
+    const MAXU = 10;
+    const chosen = pick.map((uid) => s.heroes.find((h) => h.uid === uid)).filter(Boolean);
+    const units = [];
+    const used = () => units.reduce((a, u) => a + u.troops, 0);
+    if (chosen.length) {
+      const reserveSlots = Math.max(0, Math.min(3, MAXU - chosen.length));   // 수비병 부대 몫
+      const per = Math.max(400, Math.round(avail / (chosen.length + reserveSlots) / 100) * 100);
+      chosen.forEach((h) => {
+        const room = avail - used();
+        if (room < 300) return;
+        const t = Math.min(SK.troopCapOf(h), per, room);
+        units.push({ kind: 'hero', uid: h.uid, troops: t, zone: zones[h.uid] || defZoneDefault(h) });
+      });
+    }
+    let rest = avail - used();
+    let guard = 0;
+    while (rest >= 500 && units.length < (chosen.length ? MAXU - 1 : 8) && guard++ < 10) {
+      const t = Math.min(2000, rest);
+      units.push({ kind: 'regiment', cls: 'changbyung', name: `${CITY[cityId].name} 수비병`, troops: t, zone: 'wall' });
+      rest -= t;
+    }
+    return { units, reserve: Math.max(0, rest) };
+  }
+  function openDefenseDeploy(inv) {
+    const s = SK.state;
+    const cityId = inv.target;
+    const c = CITY[cityId];
+    const st = s.cities[cityId];
+    const f = SK.factionInfo(inv.faction);
+    const gens = cityGens(cityId).slice().sort((a, b) => (b.tong * 0.6 + b.wu * 0.4) - (a.tong * 0.6 + a.wu * 0.4));
+    const rfg = (s.reinforce && s.reinforce.target === cityId) ? s.reinforce : null;
+    const rfgIds = rfg ? (rfg.units || []).map((u) => u.uid).filter(Boolean) : [];
+    const pool = gens.filter((h) => rfgIds.indexOf(h.uid) < 0);
+    const MAXH = 10;
+    const zones = {};
+    pool.forEach((h) => { zones[h.uid] = defZoneDefault(h); });
+    let pick = pool.slice(0, MAXH).map((h) => h.uid);
+    const rfgTroops = rfg ? rfg.units.reduce((a, u) => a + (u.troops || 0), 0) : 0;
+    const rfgGens = rfg ? rfg.units.filter((u) => u.uid).length : 0;
+
+    const rowsHTML = () => pool.map((h) => {
+      const on = pick.indexOf(h.uid) >= 0;
+      const z = zones[h.uid] || defZoneDefault(h);
+      return `<div class="def-row ${on ? 'on' : ''}" data-uid="${h.uid}">
+        <img class="dr-pt" src="${SK.ptSrc(h.portrait)}" alt="">
+        <div class="dr-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 통 ${h.tong} 무 ${h.wu}</span></div>
+        <div class="dr-zones">${DEF_ZONES.map((zz) => `<button type="button" class="dz ${on && z === zz.key ? 'on' : ''}" data-z="${zz.key}" title="${zz.desc}">${zz.name}</button>`).join('')}</div>
+        <button type="button" class="dr-toggle ${on ? 'on' : ''}" data-t="1" aria-label="출진">${on ? '출진' : '대기'}</button>
+      </div>`;
+    }).join('') || '<p class="empty-gens">주둔 장수가 없습니다. 수비병 부대만으로 성을 지킵니다.</p>';
+
+    const summaryHTML = () => {
+      const plan = buildDefensePlan(cityId, pick, zones);
+      const heroN = plan.units.filter((u) => u.kind === 'hero').length;
+      const regN = plan.units.length - heroN;
+      const total = plan.units.reduce((a, u) => a + u.troops, 0);
+      const byZone = { wall: 0, tower: 0, keep: 0 };
+      plan.units.forEach((u) => { byZone[u.zone] = (byZone[u.zone] || 0) + 1; });
+      return `<div class="def-sum">
+        <div><span>출진 장수</span><b>${heroN} / ${MAXH}명</b></div>
+        <div><span>수비병 부대</span><b>${regN}부대</b></div>
+        <div><span>출진 병력</span><b>${fmt(total)}</b></div>
+        <div><span>성에 남는 예비</span><b>${fmt(plan.reserve)}</b></div>
+        <div><span>자리</span><b>외성 ${byZone.wall} · 망루 ${byZone.tower} · 내성 ${byZone.keep}</b></div>
+      </div>`;
+    };
+
+    const m = SK.modal({
+      kicker: `${c.name} 수성전 · ${SK.factionName(inv.faction)}의 침공`,
+      title: '누가 어디서 지킬까',
+      wide: true,
+      body: `<div class="def-prep">
+        <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(st.troops)}</b></span><span>성벽 <b>${Math.round(st.def)}</b></span>${st.wounded ? `<span>부상병 <b>${fmt(Math.round(st.wounded))}</b></span>` : ''}</div>
+        ${rfg ? `<div class="rfg-ready"><b>${CITY[rfg.from].name} 원군</b><span>병력 ${fmt(rfgTroops)}${rfgGens ? ` · 장수 ${rfgGens}명` : ''} — 함께 들어갑니다</span></div>` : ''}
+        <p class="deploy-tip">출진할 장수를 고르고, 각자 설 자리를 정하세요. <b>외성</b>은 성문 안쪽 마당을 막고, <b>망루</b>는 좌·우 망루에서 성 밖 적을 쏘며, <b>내성</b>은 본진 앞 마지막 방어선입니다. 고르지 않은 장수의 병력은 성에 남아 예비대가 됩니다.</p>
+        <div class="def-list" id="def-list">${rowsHTML()}</div>
+        <div id="def-sum">${summaryHTML()}</div>
+      </div>`,
+      actions: [
+        { label: '철수', onClick: () => surrenderCity(inv) },
+        { label: '수성전 시작', primary: true, onClick: () => {
+          const plan = buildDefensePlan(cityId, pick, zones);
+          startDefense(inv, plan);
+        } },
+      ],
+      dismissible: false,
+    });
+    const paint = () => {
+      const list = m.el.querySelector('#def-list');
+      if (list) list.innerHTML = rowsHTML();
+      const sum = m.el.querySelector('#def-sum');
+      if (sum) sum.innerHTML = summaryHTML();
+      bind();
+    };
+    const bind = () => {
+      m.el.querySelectorAll('.def-row').forEach((row) => {
+        const uid = row.dataset.uid;
+        row.querySelectorAll('.dz').forEach((b) => {
+          b.onclick = (e) => {
+            e.stopPropagation();
+            if (pick.indexOf(uid) < 0) { SK.toast('먼저 출진을 켜십시오.'); return; }
+            zones[uid] = b.dataset.z;
+            paint();
+          };
+        });
+        const tg = row.querySelector('.dr-toggle');
+        if (tg) tg.onclick = (e) => {
+          e.stopPropagation();
+          const i = pick.indexOf(uid);
+          if (i >= 0) pick.splice(i, 1);
+          else {
+            if (pick.length >= MAXH) { SK.toast(`출진 장수는 ${MAXH}명까지입니다.`); return; }
+            pick.push(uid);
+          }
+          paint();
+        };
+      });
+    };
+    bind();
+  }
+  SK.openDefenseDeploy = openDefenseDeploy;
 
   /* 지원군 편성을 취소하고 원래 성으로 되돌린다 */
   function cancelReinforce() {

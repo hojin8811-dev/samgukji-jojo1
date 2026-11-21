@@ -121,16 +121,20 @@
     const intercept = opts.intercept || null;
 
     const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i, opts.origin) : makeRegiment(spec, i)));
+    /* v5.21 — 수성전 배치 모달에서 고른 자리(외성·망루·내성)를 부대에 달아 둔다 */
+    allies.forEach((u, i) => { const sp = opts.units[i]; if (sp && sp.zone) u.zone = sp.zone; });
     /* v5.9 — 인접 성에서 온 지원군 표시 (전투가 끝나면 원래 성으로 돌아간다) */
     if (opts.reinforce) allies.forEach((u, i) => { if (opts.units[i] && opts.units[i].rfg) u.rfg = opts.reinforce.from; });
 
     /* v5.7 — 수성전이면 적 병력은 침공군 규모, 지키는 쪽이 아군 */
     const cityTroops = defense ? Math.max(1200, defense.troops || 0) : s.cities[opts.targetId].troops;
-    /* v5.17 — 출진 10부대·병력 5,000/10,000 시대에 맞춰 적 편성도 6~10부대로 늘린다 */
-    const enemyCount = intercept ? clamp(5 + Math.floor((intercept.troops || 2400) / 2600), 5, 8)
+    /* v5.17 — 출진 10부대·병력 5,000/10,000 시대에 맞춰 적 편성도 6~10부대로 늘린다
+       v5.21 — 요격전은 경고창에 적힌 요격대 병력(intercept.troops)과 실제 편성이 같아야 한다.
+       예전에는 700명 요격대도 부대 수 5 × 최소 900명 = 4,500명으로 불어나 있었다. */
+    const enemyCount = intercept ? clamp(2 + Math.round((intercept.troops || 800) / 1200), 2, 6)
       : clamp(6 + Math.floor(cityTroops / 3800), 6, 10);
     const per = intercept
-      ? clamp(Math.round((intercept.troops || 2400) / enemyCount / 100) * 100, 900, 2800)
+      ? Math.max(120, Math.round(((intercept.troops || 800) / (enemyCount + 0.5)) / 20) * 20)
       : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 900, 5200);
     const defGens = (defense ? (defense.genIds || []) : (s.cities[opts.targetId].genIds || []))
       .map((id) => {
@@ -226,6 +230,8 @@
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense, lastStand: !!opts.lastStand,
       reinforce: opts.reinforce || null, supportNames: supportNames,
+      /* v5.21 — 수성전에서 고르지 않아 성에 남긴 예비 병력 */
+      reserve: Math.max(0, Math.round(opts.reserve || 0)),
     };
     /* v5.11 — 공성 진영 장식 (assets/battle). 격자 뒤에 깔려 부대를 가리지 않는다 */
     if (type === 'camp') {
@@ -246,7 +252,7 @@
         { k: 'siege_tower', x: 4, y: 14, s: 0.9 }, { k: 'siege_tower', x: 13, y: 14, s: 0.9 },
       ];
     }
-    placeSide(allies, SK.allySlots(type, rings, cols), 'ally');
+    placeSide(allies, SK.allySlots(type, rings, cols), 'ally', type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null);
     placeSide(enemies, SK.enemySlots(type, rings, cols), 'enemy');
     /* v5.17 — 1×1 본진·마을. 수성전은 진영이 뒤집히므로 본진 자리도 바꿔 단다 */
     B.sites = [];
@@ -433,19 +439,77 @@
     };
   }
 
-  function placeSide(list, slots, side) {
+  function placeSide(list, slots, side, opts) {
+    const zmap = (opts && opts.zones) || null;
+    const taken = new Set();
+    const zused = { wall: 0, tower: 0, keep: 0 };
     list.forEach((u, i) => {
-      let [x, y] = slots[i % slots.length];
-      if (!B.tiles[y] || !passable(B.tiles[y][x]) || B.units.some((o) => o.x === x && o.y === y)) {
-        const alt = findFree(B.tiles, x, y);
+      let x, y;
+      /* v5.21 — 수성전은 장수가 고른 자리(외성·망루·내성)부터 채운다 */
+      const zone = zmap && u.zone && zmap[u.zone] ? u.zone : null;
+      if (zone) {
+        const zs = zmap[zone];
+        for (let k = zused[zone]; k < zs.length; k++) {
+          const [zx, zy] = zs[k];
+          if (taken.has(zx + ',' + zy)) continue;
+          if (!B.tiles[zy] || !passable(B.tiles[zy][zx])) continue;
+          if (B.units.some((o) => o.x === zx && o.y === zy)) continue;
+          x = zx; y = zy; zused[zone] = k + 1;
+          break;
+        }
+      }
+      if (x == null) [x, y] = slots[i % slots.length];
+      if (x == null || !B.tiles[y] || !passable(B.tiles[y][x]) || B.units.some((o) => o.x === x && o.y === y)) {
+        const alt = findFree(B.tiles, x == null ? 1 : x, y == null ? 1 : y);
         x = alt.x; y = alt.y;
       }
+      taken.add(x + ',' + y);
       u.x = x; u.y = y; u.rx = x; u.ry = y; u.flash = 0; u.shake = 0; u.side = side;
       B.units.push(u);
     });
   }
 
   function passable(ch) { return ch !== 'C' && ch !== 'H'; }
+
+  /* v5.21 — 수성전 자리별 슬롯.
+     · 외성: 가장 바깥 성벽(성문 줄) 안쪽 1~3칸 마당 — 성문 앞을 막는다
+     · 망루: 망루(T) 칸과 그 사방 — 좌·우에서 성 밖을 쏜다
+     · 내성: 본진 앞 마당 (슬롯 계산은 slotsAround) */
+  function defenseZoneSlots(tiles, meta, cols, rows) {
+    const free = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows && passable(tiles[y][x]);
+    let outer = -1;
+    const towers = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const ch = tiles[y][x];
+        if (ch === 'G') outer = Math.max(outer, y);
+        else if (ch === 'T') towers.push({ x, y });
+      }
+    }
+    const cx = Math.floor(cols / 2);
+    const wall = [];
+    if (outer >= 0) {
+      for (let dy = 1; dy <= 3; dy++) {
+        const y = outer - dy;
+        if (y < 0) continue;
+        for (let dx = 0; dx <= 5; dx++) {
+          const xs = dx === 0 ? [cx - 1, cx] : [cx - dx, cx + dx - 1];
+          xs.forEach((x) => { if (free(x, y)) wall.push([x, y]); });
+        }
+      }
+    }
+    const tower = [];
+    /* 바깥 성벽에 가까운 망루부터 (적이 성문으로 몰리는 쪽) */
+    towers.sort((a, b) => Math.abs(a.y - outer) - Math.abs(b.y - outer));
+    towers.forEach((t) => {
+      if (free(t.x, t.y)) tower.push([t.x, t.y]);
+      [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => { if (free(t.x + dx, t.y + dy)) tower.push([t.x + dx, t.y + dy]); });
+    });
+    const base = meta && meta.enemyBase ? meta.enemyBase : { x: cx, y: Math.max(1, outer - 4) };
+    const keep = slotsAround(base, cols, 14).filter(([x, y]) => free(x, y));
+    return { wall, tower, keep };
+  }
+  SK.defenseZoneSlots = defenseZoneSlots;
   function findFree(tiles, cx, cy) {
     for (let r = 0; r < N; r++) {
       for (let dy = -r; dy <= r; dy++) {
@@ -1123,6 +1187,7 @@
 
     drawTerrainTint();
     drawBattleProps();
+    drawBrokenGates();
     drawKeyProps();
     drawSites();
     drawGrid();
@@ -1187,6 +1252,44 @@
       if (g.hp > 0) return;
       const t0 = g.tiles[0];
       if (t0) drawProp(img('fire'), t0.x, t0.y, 0.72, 0.9);
+    });
+  }
+
+  /* v5.21 — 성문이 무너지면 배경의 닫힌 문짝 위에 '박살 난 문' 오버레이 타일을 얹는다.
+     (배경 그림에는 문이 닫힌 모습만 있어서, 부서져도 문이 그대로 서 있는 것처럼 보였다)
+     이미지는 성문 칸 묶음(2칸 폭 x 성문 줄 + 위 한 줄)에 맞춰 늘려 그린다.
+     배경 그림의 성문은 겹수·크기마다 칸 눈금과 조금씩 어긋나 있어서, 그림 속 문 위치에 맞춰
+     아래 표만큼 세로로 밀어 준다 (칸 단위). */
+  const GATE_ART_OFF = {
+    siege: { 1: 0.1 },
+    siege2: { 1: 0.8, 2: 1.7 },
+    siege3: { 1: 2.0, 2: 2.0, 3: 2.0 },
+  };
+  SK.GATE_ART_OFF = GATE_ART_OFF;
+  function drawBrokenGates() {
+    if (!B || !B.tiles) return;
+    if (B.type !== 'siege' && B.type !== 'defense' && B.type !== 'fortress') return;
+    const list = B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []);
+    const img = loadImg('assets/battle/gate_broken.webp');
+    if (!img.complete || !img.naturalWidth) return;
+    const offTbl = GATE_ART_OFF[B.mapKey] || null;
+    list.forEach((g) => {
+      if (!g || !g.tiles || !g.tiles.length || g.hp > 0) return;
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      g.tiles.forEach((t) => {
+        x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x);
+        y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y);
+      });
+      if (!isFinite(x0)) return;
+      const off = offTbl ? (offTbl[g.ring] || 0) : 0;
+      const padX = 0.2, up = 1;
+      const bx = (x0 - padX) * TILE;
+      const bw = (x1 - x0 + 1 + padX * 2) * TILE;
+      const by = (y0 - up + off) * TILE;
+      const bh = (y1 - y0 + 1 + up) * TILE;
+      ctx.save();
+      ctx.drawImage(img, bx, by, bw, bh);
+      ctx.restore();
     });
   }
 
@@ -1405,8 +1508,14 @@
     return Math.min(10, m);
   }
 
-  function moveCost(cls, ch, x, y) {
-    if (ch === 'G') return gateTileAt(x, y) ? 99 : 1;   // v5.2 — 그 성문이 살아 있으면 통행 불가
+  function moveCost(cls, ch, x, y, side) {
+    if (ch === 'G') {
+      if (!gateTileAt(x, y)) return 1;
+      /* v5.21 — 성 주인(수성전 아군)은 살아 있는 자기 성문을 그냥 지난다.
+         적 침공군만 문에 막힌다. (예전에는 아군까지 99라 성 안에 갇혔다) */
+      if (B && B.defense && side === 'ally') return 1;
+      return 99;
+    }
     if (ch === 'W') return cls === 'sujeok' ? 1 : 99;
     if (ch === 'C' || ch === 'H') return 99;
     if (ch === 'M') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 99 : 2);
@@ -1432,7 +1541,7 @@
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
         const ch = B.tiles[ny][nx];
-        const cost = moveCost(u.cls, ch, nx, ny);
+        const cost = moveCost(u.cls, ch, nx, ny, u.side);
         if (cost >= 90) continue;
         if (B.units.some((o) => o.alive && o.x === nx && o.y === ny)) continue;
         const nc = c + cost;
@@ -2094,7 +2203,7 @@
           if (!dx && !dy) continue;
           const nx = cur.x + dx, ny = cur.y + dy;
           if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-          const cost = moveCost(u.cls, B.tiles[ny][nx], nx, ny);
+          const cost = moveCost(u.cls, B.tiles[ny][nx], nx, ny, u.side);
           if (cost >= 90) continue;
           if (blocked(nx, ny)) continue;
           const nc = cur.c + cost;
@@ -2567,6 +2676,11 @@
        v5.14 — 문을 부수는 진영만. 수성전 아군은 자기 성문을 칠 수 없다. */
     if (!t && gateIntact() && gateTileAt(x, y) && u && u.side === 'ally' && !u.acted) {
       if (!isGateAttacker(u)) {
+        /* v5.21 — 수성전 성 주인은 자기 성문을 지나갈 수 있다 (누르면 이동, 공격 모드면 안내) */
+        if (mode !== 'attack') {
+          const reachG = B.reachCache && B.reachCache.uid === u.id ? B.reachCache.set : null;
+          if (reachG && reachG.has(x + ',' + y)) { moveUnit(u, x, y); return; }
+        }
         if (mode === 'attack') SK.toast('수성전 — 우리 성문은 아군이 칠 수 없습니다.');
         clearSel();
         return;
@@ -4354,7 +4468,7 @@
     if (st) {
       const wallLoss = 7 + (B.rings || 1) * 3;
       const before = { def: Math.round(st.def || 50), agri: Math.round(st.agri || 0), comm: Math.round(st.comm || 0), order: Math.round(st.order || 0) };
-      st.troops = Math.max(600, Math.round(troopsLeft));
+      st.troops = Math.max(600, Math.round(troopsLeft) + Math.round(B.reserve || 0));
       st.loyalty = clamp((st.loyalty || 50) + 2, 0, 100);
       st.def = Math.max(12, Math.round((st.def || 50) - wallLoss));
       st.agri = clamp((st.agri || 0) - 3, 0, 100);

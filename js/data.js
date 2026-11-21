@@ -495,6 +495,20 @@ SK.EXTRA_GENERALS = {
   '사광': { job: '창병', tier: 'B', war: 63, intel: 58, lead: 58, birth: 168, debut: 190 },
   '환린': { job: '검병', tier: 'B', war: 72, intel: 52, lead: 60, birth: 165, debut: 190 },
   '유의': { job: '궁수', tier: 'B', war: 64, intel: 62, lead: 59, birth: 158, debut: 184 },
+  /* v5.21 — 소세력 5팀(도겸·공용·한수·엄백호·왕랑) 고유 부하. 랜덤 재야 보충 대신 실제 부하로 채운다 */
+  '장개': { job: '산적', tier: 'B', war: 66, intel: 40, lead: 55, birth: 160, debut: 184 },   // 張闓 — 도겸의 부하
+  '도상': { job: '창병', tier: 'C', war: 58, intel: 46, lead: 52, birth: 172, debut: 190 },   // 陶商 — 도겸의 장남
+  '종보': { job: '창병', tier: 'B', war: 71, intel: 44, lead: 58, birth: 160, debut: 184 },   // 宗寶 — 공융의 부하
+  '좌승조': { job: '책사', tier: 'B', war: 38, intel: 72, lead: 58, birth: 155, debut: 184 },   // 左承祖 — 공융의 막료
+  '성공영': { job: '책사', tier: 'A', war: 52, intel: 84, lead: 70, birth: 160, debut: 184 },   // 成公英 — 한수의 막료
+  '장횡': { job: '창병', tier: 'B', war: 70, intel: 44, lead: 57, birth: 162, debut: 184 },   // 張橫 — 한수의 부하
+  '후선': { job: '검병', tier: 'B', war: 66, intel: 48, lead: 56, birth: 163, debut: 184 },   // 侯選 — 한수의 부하
+  '주혼': { job: '수적', tier: 'C', war: 62, intel: 40, lead: 52, birth: 165, debut: 188 },   // 周欣 — 엄백호의 수군 족장
+  '추타': { job: '산적', tier: 'C', war: 63, intel: 34, lead: 50, birth: 166, debut: 188 },   // 鄒陀 — 엄백호의 부하
+  '황룡': { job: '창병', tier: 'C', war: 60, intel: 38, lead: 51, birth: 168, debut: 188 },   // 黃龍 — 엄백호의 부하
+  '소건': { job: '궁수', tier: 'C', war: 59, intel: 42, lead: 50, birth: 168, debut: 188 },   // 蘇乾 — 엄백호의 부하
+  '주흔': { job: '창병', tier: 'B', war: 66, intel: 54, lead: 60, birth: 158, debut: 180 },   // 周昕 — 왕랑의 부하
+  '장아': { job: '검병', tier: 'C', war: 61, intel: 46, lead: 52, birth: 165, debut: 184 },   // 張雅 — 왕랑의 부하
 };
 
 /* 한자 인명 → 한국어 표기 */
@@ -520,12 +534,12 @@ SK.EARLY_RETAINERS = {
   mateng: ['마등', '마초', '마대', '방덕', '마휴', '마철', '성의'],
   /* v5.20 — 공손공은 요동 공손강군으로 옮기고 북평은 공손속으로 채운다 */
   gongsunzan: ['공손찬', '엄강', '선우보', '전해', '공손속', '관정'],
-  taoqian: ['도겸', '미축', '미방', '진규', '조표'],
-  hansui: ['한수', '염행', '양추', '이감'],
-  kongrong: ['공융', '왕수', '무안국'],
+  taoqian: ['도겸', '진규', '조표', '진등', '장개', '도상'],
+  hansui: ['한수', '염행', '양추', '이감', '성공영', '장횡', '후선'],
+  kongrong: ['공융', '왕수', '무안국', '종보', '좌승조', '손소'],
   liuyao: ['유요', '우번', '착융', '번능', '장영', '설례'],
-  yanbaihu: ['엄백호', '엄여'],
-  wanglang: ['왕랑', '우번'],
+  yanbaihu: ['엄백호', '엄여', '주혼', '추타', '황룡', '소건'],
+  wanglang: ['왕랑', '주흔', '장아', '하제', '고정', '동습'],
   zhanglu: ['장로', '양송', '염포', '양백', '양임', '장위'],
   /* v5.18 — 한국 3국은 군주 1명 + 명장·책사·문신으로 정리 (왕만 우르르 서지 않게) */
   goguryeo: ['광개토대왕', '을지문덕', '연개소문', '양만춘', '온달', '을파소', '명림답부', '밀우', '유유', '검모잠'],
