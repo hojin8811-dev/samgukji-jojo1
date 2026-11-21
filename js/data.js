@@ -1592,169 +1592,122 @@ function finishMap(key, g, spec) {
   return rowsOut;
 }
 
-/* ── 평야 요격전 ── */
+/* ── 평야 요격전 ── (배경: 십자로와 네 모서리 숲) */
 function plainMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'P');
-  /* 십자로 — 남북 2칸 · 동서 2칸 */
   vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
   hline(g, 11, 0, n - 1, 'R'); hline(g, 12, 0, n - 1, 'R');
-  /* 네 모서리 숲·바위 */
-  blob(g, 3, 5, 3, 'F', 1); blob(g, 20, 5, 3, 'F', 2);
-  blob(g, 4, 19, 3, 'F', 3); blob(g, 19, 18, 3, 'F', 4);
-  blob(g, 1, 11, 2, 'M', 5); blob(g, 22, 12, 2, 'M', 6);
+  blob(g, 2, 6, 2, 'F', 1); blob(g, 21, 6, 2, 'F', 2);
+  blob(g, 2, 18, 2, 'F', 3); blob(g, 21, 18, 2, 'F', 4);
+  blob(g, 1, 11, 1, 'M', 5); blob(g, 22, 12, 1, 'M', 6);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
-  return finishMap('plain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[5, 13], [18, 13], [cx, 17]] });
+  return finishMap('plain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[6, 8], [17, 8], [cx, 16]] });
 }
 
-/* ── 도하전 ── */
+/* ── 도하전 ── (배경: 세로 길 + 가운데 강과 나무다리) */
 function fordMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'P');
-  hline(g, 11, 0, n - 1, 'W'); hline(g, 12, 0, n - 1, 'W');
-  /* 가운데 나무다리 2칸 + 좌우 여울 */
-  fillRect(g, 11, 12, cx - 1, cx, 'B');
-  fillRect(g, 11, 12, 3, 4, 'S'); fillRect(g, 11, 12, 19, 20, 'S');
-  vline(g, cx - 1, 0, 10, 'R'); vline(g, cx, 0, 10, 'R');
-  vline(g, cx - 1, 13, n - 1, 'R'); vline(g, cx, 13, n - 1, 'R');
-  hline(g, 17, 3, 20, 'R');
-  blob(g, 4, 5, 3, 'F', 11); blob(g, 20, 4, 3, 'F', 12);
-  blob(g, 4, 20, 3, 'F', 13); blob(g, 20, 20, 3, 'F', 14);
-  blob(g, 1, 12, 1, 'M', 15); blob(g, 22, 9, 1, 'M', 16);
+  fillRect(g, 10, 13, 0, n - 1, 'W');
+  fillRect(g, 10, 13, cx - 1, cx, 'B');
+  fillRect(g, 10, 13, 3, 4, 'S'); fillRect(g, 10, 13, 19, 20, 'S');
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  blob(g, 3, 4, 2, 'F', 11); blob(g, 20, 4, 2, 'F', 12);
+  blob(g, 3, 19, 2, 'F', 13); blob(g, 20, 19, 2, 'F', 14);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 0], [22, 0], [23, 1], [0, 23], [0, 22], [1, 23], [23, 23], [22, 23], [23, 22]], 'M');
-  return finishMap('ford', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[6, 8], [17, 8], [cx, 18]] });
+  return finishMap('ford', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[7, 6], [16, 6], [cx, 18]] });
 }
 
-/* ── 산전 ── */
+/* ── 산전 ── (배경: 좌우 절벽 + 가운데 세로 길 + 강과 다리) */
 function mountainMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'M');
-  const path = [[cx, 22], [10, 19], [8, 17], [7, 14], [9, 12], [11, 10], [13, 8], [15, 6], [16, 4], [14, 3], [cx, 2]];
-  const carve = (y, x, ch) => {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) setT(g, y + dy, x + dx, ch || 'P');
-  };
-  let prev = path[0];
-  carve(prev[1], prev[0]);
-  path.slice(1).forEach((p) => {
-    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) {
-      carve(Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps));
-    }
-    prev = p;
-  });
-  /* 산허리 길 — 길게 뚫린 오솔길 */
-  prev = path[0];
-  path.slice(1).forEach((p) => {
-    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) {
-      setT(g, Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), 'R');
-    }
-    prev = p;
-  });
-  /* 길목을 지키는 숲 */
-  blob(g, 4, 9, 2, 'F', 21); blob(g, 19, 15, 2, 'F', 22);
-  blob(g, 18, 6, 2, 'F', 23); blob(g, 5, 16, 2, 'F', 24);
-  fillRect(g, 0, 0, 0, n - 1, 'M');
-  return finishMap('mountain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 16], [15, 6], [11, 10]] });
+  fillRect(g, 0, n - 1, 7, 16, 'P');
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  fillRect(g, 11, 12, 7, 16, 'W');
+  fillRect(g, 11, 12, cx - 1, cx, 'B');
+  setT(g, 11, 7, 'S'); setT(g, 12, 7, 'S'); setT(g, 11, 16, 'S'); setT(g, 12, 16, 'S');
+  blob(g, 8, 4, 1, 'F', 21); blob(g, 15, 19, 1, 'F', 22);
+  blob(g, 15, 4, 1, 'F', 23); blob(g, 8, 19, 1, 'F', 24);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23]], 'F');
+  return finishMap('mountain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 17], [14, 6], [cx, 8]] });
 }
 
-/* ── 밀림 매복전 ── */
+/* ── 밀림 매복전 ── (배경: 열린 풀밭 + 십자로 + 나무 덩어리) */
 function forestMap() {
   const n = 24, cx = 12;
-  const g = mkGrid(n, n, 'F');
-  const path = [[cx, 23], [10, 20], [13, 18], [15, 15], [12, 13], [9, 11], [8, 8], [11, 6], [13, 3], [cx, 1]];
-  const carve = (y, x, ch) => {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) setT(g, y + dy, x + dx, ch || 'P');
-  };
-  let prev = path[0];
-  carve(prev[1], prev[0]);
-  path.slice(1).forEach((p) => {
-    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) {
-      carve(Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps));
-    }
-    prev = p;
-  });
-  prev = path[0];
-  path.slice(1).forEach((p) => {
-    const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) {
-      setT(g, Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps), Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), 'R');
-    }
-    prev = p;
-  });
-  /* 오솔길 옆 공터 */
-  blob(g, 4, 4, 2, 'P', 31); blob(g, 19, 19, 2, 'P', 32); blob(g, 17, 8, 2, 'P', 33);
-  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
-  return finishMap('forest', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 11], [15, 16], [4, 4]] });
+  const g = mkGrid(n, n, 'P');
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  hline(g, 10, 0, n - 1, 'R'); hline(g, 11, 0, n - 1, 'R');
+  [[6, 3], [17, 3], [6, 8], [18, 8], [6, 15], [17, 15], [5, 20], [18, 20]].forEach(([x, y], i) => blob(g, x, y, 2, 'F', 31 + i));
+  blob(g, 1, 12, 1, 'M', 41); blob(g, 22, 12, 1, 'M', 42);
+  return finishMap('forest', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 6], [15, 17], [cx, 13]] });
 }
 
-/* ── 협곡 잔도전 ── */
+/* ── 협곡 잔도전 ── (배경: 좌우 절벽 + 외길 + 가운데 급류) */
 function gorgeMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'M');
   fillRect(g, 0, n - 1, 8, 15, 'P');
   vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
-  /* 가운데 급류 — 잔도 2칸 + 여울 */
   fillRect(g, 10, 11, 8, 15, 'W');
   fillRect(g, 10, 11, cx - 1, cx, 'B');
   setT(g, 10, 8, 'S'); setT(g, 11, 8, 'S'); setT(g, 10, 15, 'S'); setT(g, 11, 15, 'S');
-  /* 절벽 그늘 숲 */
-  blob(g, 9, 5, 2, 'F', 41); blob(g, 14, 17, 2, 'F', 42);
+  blob(g, 9, 5, 1, 'F', 41); blob(g, 14, 17, 1, 'F', 42);
   blob(g, 9, 18, 1, 'F', 43); blob(g, 14, 4, 1, 'F', 44);
   return finishMap('gorge', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 7], [14, 16]] });
 }
 
-/* ── 야영 기습전 ── */
+/* ── 야영 기습전 ── (배경: 위쪽 진영 흙바닥 + 아래쪽 풀밭 + 가운데 길) */
 function campMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'P');
-  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
-  hline(g, 5, 2, n - 3, 'R'); hline(g, 16, 2, n - 3, 'R');
-  /* 막사 사이 목책 숲 */
-  paint(g, [[3, 3], [4, 3], [3, 20], [4, 20], [9, 4], [10, 4], [9, 19], [10, 19], [19, 3], [19, 20]], 'F');
-  blob(g, 1, 1, 1, 'F', 51); blob(g, 22, 1, 1, 'F', 52);
-  blob(g, 1, 22, 1, 'F', 53); blob(g, 22, 22, 1, 'F', 54);
-  paint(g, [[0, 11], [0, 12], [1, 11], [1, 12], [23, 11], [23, 12], [22, 11], [22, 12]], 'M');
-  return finishMap('camp', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[6, 8], [17, 8], [cx, 14]] });
+  fillRect(g, 1, 11, 1, n - 2, 'D');
+  vline(g, cx - 1, 12, n - 1, 'R'); vline(g, cx, 12, n - 1, 'R');
+  hline(g, 2, 1, n - 2, 'R'); hline(g, 10, 1, n - 2, 'R');
+  /* 막사는 그림에만 두고 길을 막지 않는다 (천막 자리를 장애물로 만들면 그림과 어긋난다) */
+  blob(g, 2, 14, 1, 'F', 51); blob(g, 21, 14, 1, 'F', 52);
+  blob(g, 6, 18, 1, 'F', 53); blob(g, 17, 18, 1, 'F', 54);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  return finishMap('camp', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[5, 6], [18, 6], [cx, 18]] });
 }
 
-/* ── 수전 ── */
+/* ── 수전 ── (배경: 가운데 넓은 강 + 좌우 나무다리 + 양쪽 뭍길) */
 function navalMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'P');
-  fillRect(g, 5, 18, 0, n - 1, 'W');
-  /* 세 갈래 나무다리 */
-  [4, cx - 1, 19].forEach((x) => { fillRect(g, 5, 18, x, x + 1, 'B'); });
-  hline(g, 4, 0, n - 1, 'S'); hline(g, 19, 0, n - 1, 'S');
-  /* 다리 옆 물가 섬 — 마을이 들어선다 */
-  fillRect(g, 10, 12, 7, 8, 'P'); fillRect(g, 10, 12, 16, 17, 'P');
-  vline(g, cx - 1, 0, 3, 'R'); vline(g, cx, 0, 3, 'R');
-  vline(g, cx - 1, 20, n - 1, 'R'); vline(g, cx, 20, n - 1, 'R');
-  blob(g, 2, 2, 1, 'F', 61); blob(g, 21, 2, 1, 'F', 62);
-  blob(g, 2, 21, 1, 'F', 63); blob(g, 21, 21, 1, 'F', 64);
+  fillRect(g, 9, 15, 0, n - 1, 'W');
+  fillRect(g, 9, 15, 5, 6, 'B');
+  fillRect(g, 9, 15, 17, 18, 'B');
+  hline(g, 7, 0, n - 1, 'R'); hline(g, 16, 0, n - 1, 'R');
+  vline(g, cx - 1, 0, 8, 'R'); vline(g, cx, 0, 8, 'R');
+  vline(g, cx - 1, 16, n - 1, 'R'); vline(g, cx, 16, n - 1, 'R');
+  blob(g, 1, 3, 1, 'F', 61); blob(g, 22, 3, 1, 'F', 62);
+  blob(g, 1, 20, 1, 'F', 63); blob(g, 22, 20, 1, 'F', 64);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
-  return finishMap('naval', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[7, 11], [17, 11], [cx, 3]] });
+  return finishMap('naval', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 7], [15, 7], [cx, 20]] });
 }
 
-/* ── 요새전 ── */
+/* ── 요새전 ── (배경: 위쪽을 가로지르는 요새 성벽 + 아래로 난 길) */
 function fortressMap() {
   const n = 24, cx = 12;
   const g = mkGrid(n, n, 'P');
-  /* 오른쪽 위 요새 — 성벽 사각 + 성문 2칸 */
-  fillRect(g, 2, 13, 13, 23, 'D');
-  hline(g, 2, 13, 23, 'C'); hline(g, 13, 13, 23, 'C');
-  vline(g, 13, 2, 13, 'C'); vline(g, 23, 2, 13, 'C');
-  setT(g, 13, 17, 'G'); setT(g, 13, 18, 'G');
-  setT(g, 2, 17, 'T'); setT(g, 2, 18, 'T');
-  fillRect(g, 4, 5, 17, 18, 'H'); setT(g, 6, 17, 'K'); setT(g, 6, 18, 'K');
-  /* 성 앞 진입로 */
-  vline(g, 17, 14, n - 1, 'R'); vline(g, 18, 14, n - 1, 'R');
-  hline(g, 18, 3, 22, 'R');
-  blob(g, 5, 5, 3, 'F', 71); blob(g, 4, 20, 2, 'F', 72); blob(g, 20, 19, 2, 'F', 73);
-  blob(g, 1, 12, 1, 'M', 74); blob(g, 8, 1, 2, 'M', 75);
+  /* 요새 성벽 — 화면 끝까지, 아래 가운데 성문 */
+  hline(g, 2, 0, n - 1, 'C');
+  hline(g, 11, 0, n - 1, 'C');
+  fillRect(g, 3, 10, 0, n - 1, 'D');
+  vline(g, 0, 2, 11, 'C'); vline(g, n - 1, 2, 11, 'C');
+  setT(g, 11, cx - 1, 'G'); setT(g, 11, cx, 'G');
+  setT(g, 2, cx - 1, 'G'); setT(g, 2, cx, 'G');
+  setT(g, 3, 3, 'T'); setT(g, 3, n - 4, 'T');
+  fillRect(g, 4, 6, cx - 4, cx + 3, 'H');
+  setT(g, 7, cx - 1, 'K'); setT(g, 7, cx, 'K');
+  vline(g, cx - 1, 12, n - 1, 'R'); vline(g, cx, 12, n - 1, 'R');
+  blob(g, 3, 16, 2, 'F', 71); blob(g, 20, 16, 2, 'F', 72);
+  blob(g, 6, 21, 1, 'F', 73); blob(g, 17, 21, 1, 'F', 74);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22]], 'M');
-  return finishMap('fortress', g, { ally: [cx, n - 2], enemy: [18, 6], villages: [[8, 15], [5, 9]] });
+  return finishMap('fortress', g, { ally: [cx, n - 2], enemy: [cx, 8], villages: [[4, 14], [19, 14]] });
 }
 
 /* ── 공성전 — 겹성벽 (소 1중 24×24 · 중 2중 28×28 · 대 3중 32×32) ──
@@ -1830,7 +1783,12 @@ function siegeMap(rings) {
 }
 
 SK.MAPS = {};
-plainMap(); fordMap(); mountainMap(); forestMap(); campMap(); navalMap(); fortressMap();
+plainMap(); fordMap(); mountainMap(); forestMap(); gorgeMap(); campMap(); navalMap(); fortressMap();
+/* 모든 전장 유형의 지도가 실제로 있는지 확인 (없으면 startBattle이 터진다) */
+Object.keys(SK.BATTLE_TYPES || {}).forEach((k) => {
+  const key = SK.BATTLE_TYPES[k].map;
+  if (!SK.MAPS[key]) console.error('전장 지도 없음:', k, key);
+});
 siegeMap(1); siegeMap(2); siegeMap(3);
 /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
 SK.MAPS.ambush = SK.MAPS.forest;
