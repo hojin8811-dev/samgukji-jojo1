@@ -5360,8 +5360,8 @@
     for (let i = 0; i < banners; i++) {
       html += `<i class="sb-flag" style="left:${16 + i * (66 / banners)}%; animation-delay:${(i * 0.35).toFixed(2)}s"></i>`;
     }
-    /* v5.33 — 3px 갈색 점(.sb-crowd)은 지웠다. 성 안 사람은 아래 CityLife 캔버스가
-       도트 꼬마 인물(옷색 5종·모자·걸음·그림자)로 그린다(사용자 '돌아다니는 사람들 퀄리티 업'). */
+    /* v5.34 — 성 안 사람은 아래 CityLife 캔버스가 도트 시민 6종 스프라이트
+       (assets/townsfolk/folk_0~5)로 걷게 하고, 머리 위에 조그만 말풍선을 띄운다. */
     if (lv >= 3) {
       for (let i = 0; i < 6; i++) {
         html += `<i class="sb-lamp" style="left:${12 + i * 15}%;top:${54 + (i % 2) * 9}%;animation-delay:${(i * 0.5).toFixed(2)}s"></i>`;
@@ -5373,47 +5373,122 @@
   SK.renderSceneLevel = renderSceneLevel;
 
   /* ══════════════════════════════════════════════════════════════
-     v5.5 — 성 안 살아 움직이는 백성·병사 (경량 2D 캔버스)
-     · 성 그림 위에 투명 캔버스를 얹고, 지어진 시설(농원·시장·병영·순찰소·관아) 주변을
-       카이로소프트풍 2등신 사람들이 오가게 그린다. 이미지·GIF 없이 코드로만 그린다.
-     · 인구·민심·시설 수가 많을수록 사람이 늘고 거리가 활기차진다.
+     v5.34 — 성 안을 걷는 도트 시민 6종 + 조그만 말풍선 (경량 2D 캔버스)
+     · v5.33까지 코드로 그리던 2등신 인물을, 추출해 둔 도트 스프라이트 6종
+       (assets/townsfolk/folk_0~5.webp)으로 갈아 끼웠다.
+       0 삿갓 행인 · 1 보따리 상인 · 2 부채 서생 · 3 창 순찰병 · 4 한복 여인 · 5 바구니 농부
+     · 성 마당 가운데 큰길과 성문 앞 마당을 걷는다. 건물 이름표(.hs-name)의 실제 사각형을
+       재서 그 안에는 서지도 걷지도 않게 한다(라벨과 겹침 최소화).
+     · 한 번에 1~2명만 머리 위에 조그만 말풍선을 2.5~3초 띄웠다가 부드럽게 지운다.
      ══════════════════════════════════════════════════════════════ */
   const CityLife = (function () {
-    /* v5.33 — 3px 점 대신 '도트 꼬마 인물'. 옷색 5종+·모자 형태·허리띠·발걸음이 다르다 */
-    const ROLES = {
-      farmer: { body: '#6f8b3c', trim: '#d9e7a8', belt: '#4c5f27', hat: 'straw' },
-      merchant: { body: '#c08a2e', trim: '#f6e2b0', belt: '#7d5416', hat: 'cap' },
-      soldier: { body: '#3f6494', trim: '#b8cdec', belt: '#2b4668', hat: 'helmet', spear: true },
-      patrol: { body: '#a8443a', trim: '#f0c2b2', belt: '#71281f', hat: 'helmet', spear: true },
-      worker: { body: '#86744f', trim: '#e3d4ae', belt: '#5a4c2f', hat: 'band' },
-      scholar: { body: '#5b7d8a', trim: '#d5e8ee', belt: '#3b5560', hat: 'gat' },
-      noble: { body: '#7a4b8a', trim: '#e6cff0', belt: '#4f2f5c', hat: 'gat' },
-      kid: { body: '#cc9257', trim: '#f8dfb9', belt: '#946640', hat: 'none', small: true },
+    const FOLK = [
+      { src: 'assets/townsfolk/folk_0.webp', kind: 'citizen' },  /* 삿갓 행인 */
+      { src: 'assets/townsfolk/folk_1.webp', kind: 'merchant' }, /* 보따리 상인 */
+      { src: 'assets/townsfolk/folk_2.webp', kind: 'scholar' },  /* 부채 서생 */
+      { src: 'assets/townsfolk/folk_3.webp', kind: 'guard' },    /* 창 순찰병 */
+      { src: 'assets/townsfolk/folk_4.webp', kind: 'citizen' },  /* 한복 여인 */
+      { src: 'assets/townsfolk/folk_5.webp', kind: 'farmer' },   /* 바구니 농부 */
+    ];
+    /* 역할·상황 맞춤 대사 — 순찰병/시민/상인/농부/서생 */
+    const LINES = {
+      guard: ['근무 중 이상 무!', '성문 경계 이상 없습니다!', '오늘도 튼튼합니다!'],
+      citizen: ['좋은 아침이에요, 성주님!', '성주님 덕에 든든합니다', '오늘 날씨 참 좋네요~'],
+      merchant: ['장사가 잘됩니다!', '물건이 쏙쏙 나가요~'],
+      farmer: ['올해도 풍년이겠소!', '밭이 기름집니다~'],
+      scholar: ['책 읽기 좋은 날이군요', '민심이 아주 좋습니다'],
     };
+    const LINE_WINTER = ['눈길 조심하세요!'];
+    const LINE_LOW = ['먹고살기 팍팍하네요...'];
+    const LINE_HIGH = ['태평성대가 따로 없네!'];
+
+    /* 걷는 길 — 성 마당 가운데 큰길과 성문 앞 마당(캔버스 대비 비율)
+       · 성 그림(city_lv1~5·mountain·river)마다 배치가 달라, 어느 그림에서나 길인
+         가운데 띠(y 25~59%)만 걷게 한다. 성벽·성문(y 60% 아래)은 걷지 않는다. */
+    const LANES = [
+      { key: 'road', x0: 0.398, x1: 0.602, y0: 0.255, y1: 0.600, share: 6 },
+      { key: 'yard', x0: 0.345, x1: 0.655, y0: 0.470, y1: 0.600, share: 4 },
+    ];
+    const FONT = '"Noto Sans CJK KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif';
+    const BUB = 9;            /* 말풍선 글자 크기(px) */
+    const BUB_H = 15;         /* 말풍선 높이(px) */
+    const MAX_TALK = 2;       /* 동시에 뜨는 말풍선 수 */
+    const TALK_COOL = 7;      /* 같은 사람이 다시 말하기까지(초) */
+
+    const IMG = FOLK.map((f) => {
+      const im = new Image();
+      im.decoding = 'async';
+      im.src = f.src;
+      return im;
+    });
+
     let cv = null, ctx = null, raf = 0, W = 0, H = 0, dpr = 1;
+    let people = [], cityId = null, last = 0, running = false;
+    let labelBoxes = [], talkTimer = 0.6, spriteH = 17.5;
+    let talkFails = 0;
+    let LOD = [];   /* 화면 크기로 미리 줄여 둔 스프라이트(도트가 뭉개지지 않게 단계별 축소) */
     const cityLevelOf = (id) => {
       const s = SK.state, cs = s && s.cities ? s.cities[id] : null;
       if (!cs) return 1;
       return (typeof cityLevel === 'function') ? cityLevel(cs) : 1;
     };
-    let people = [], cityId = null, last = 0, running = false;
 
-    function spotsFor(id) {
-      const s = SK.state;
-      const cs = s && s.cities[id];
-      if (!cs) return [];
-      const out = [{ x: OFFICE_SPOT.x, y: OFFICE_SPOT.y, role: 'patrol' }];
-      (cs.slots || []).forEach((sl, i) => {
-        if (!sl.key) return;
-        const sp = sl.key === 'wall' ? WALL_SPOT : (YARD_SPOTS[i] || { x: 50, y: 60 });
-        const role = sl.key === 'farm' ? 'farmer'
-          : (sl.key === 'market' || sl.key === 'workshop') ? 'merchant'
-          : (sl.key === 'barracks' || sl.key === 'training') ? 'soldier'
-          : sl.key === 'patrol' ? 'patrol'
-          : (sl.key === 'office' || sl.key === 'research') ? 'scholar' : 'worker';
-        out.push({ x: sp.x, y: sp.y, role: role, lv: sl.lv || 1 });
+    /* ── 건물 이름표가 차지하는 실제 사각형(캔버스 좌표) ── */
+    function boxOf(el, cb, padX, padY) {
+      const r = el.getBoundingClientRect();
+      if (!r.width) return null;
+      return { x0: r.left - cb.left - padX, x1: r.right - cb.left + padX, y0: r.top - cb.top - padY, y1: r.bottom - cb.top + padY };
+    }
+    function measureLabels() {
+      const hs = document.getElementById('scene-hotspots');
+      const out = [];
+      if (!cv || !hs) return out;
+      const cb = cv.getBoundingClientRect();
+      hs.querySelectorAll('.hs-pin').forEach((el) => {
+        const b = boxOf(el.querySelector('.hs-name') || el, cb, 2, 3);   /* 실제 글자판만(버튼 여백 제외) */
+        if (b) out.push(b);
       });
       return out;
+    }
+    /* ── 말풍선이 가리면 안 되는 것 — 이름표 + 깃발·등불(캔버스보다 위에 그려지는 DOM) ── */
+    function measureDeco() {
+      const out = labelBoxes.slice();
+      const lv = document.getElementById('scene-lv');
+      if (!cv || !lv) return out;
+      const cb = cv.getBoundingClientRect();
+      lv.querySelectorAll('.sb-flag, .sb-lamp').forEach((el) => {
+        const b = boxOf(el, cb, 1, 1);
+        if (b) out.push(b);
+      });
+      return out;
+    }
+    const overlap = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+    /* 발끝(p.x, p.y)에 선 사람의 몸이 이름표를 건드리는가 */
+    function feetHit(x, y, h) {
+      const box = { x0: x - h * 0.34, x1: x + h * 0.34, y0: y - h * 1.02, y1: y };
+      for (let i = 0; i < labelBoxes.length; i++) if (overlap(box, labelBoxes[i])) return true;
+      return false;
+    }
+
+    function laneRect(ln) {
+      return { x0: ln.x0 * W, x1: ln.x1 * W, y0: ln.y0 * H, y1: ln.y1 * H };
+    }
+
+    function pickSpot(taken, minD) {
+      for (let tries = 0; tries < 60; tries++) {
+        const ln = LANES[Math.random() * (LANES[0].share + LANES[1].share) < LANES[0].share ? 0 : 1];
+        const r = laneRect(ln);
+        const x = r.x0 + Math.random() * Math.max(1, r.x1 - r.x0);
+        const y = r.y0 + Math.random() * Math.max(1, r.y1 - r.y0);
+        if (feetHit(x, y, spriteH)) continue;
+        let near = false;
+        for (let i = 0; i < taken.length; i++) {
+          if (Math.hypot(taken[i].x - x, taken[i].y - y) < minD) { near = true; break; }
+        }
+        if (near) continue;
+        return { x: x, y: y, ln: ln };
+      }
+      return null;
     }
 
     function resize() {
@@ -5425,6 +5500,37 @@
       cv.width = Math.round(W * dpr);
       cv.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;   /* 도트를 1:1로 또렷하게 */
+      spriteH = Math.max(15, Math.min(19, H * 0.068));
+      buildLods();
+    }
+
+    /* 원본(300px대)을 18px로 한 번에 줄이면 점이 뭉개지므로 반씩 줄여 내려온다 */
+    function buildLods() {
+      const th = Math.max(18, Math.round(spriteH * dpr));
+      LOD = IMG.map((im) => {
+        if (!im.complete || !im.naturalWidth) return null;
+        let cur = im, cw = im.naturalWidth, ch = im.naturalHeight;
+        while (ch > th * 2) {
+          const nch = Math.round(ch / 2);
+          const nw = Math.max(1, Math.round(cw * nch / ch));
+          const c = document.createElement('canvas');
+          c.width = nw; c.height = nch;
+          const cx = c.getContext('2d');
+          cx.imageSmoothingEnabled = true;
+          cx.imageSmoothingQuality = 'high';
+          cx.drawImage(cur, 0, 0, nw, nch);
+          cur = c; cw = nw; ch = nch;
+        }
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(cw * th / ch));
+        c.height = th;
+        const cx = c.getContext('2d');
+        cx.imageSmoothingEnabled = true;
+        cx.imageSmoothingQuality = 'high';
+        cx.drawImage(cur, 0, 0, c.width, c.height);
+        return c;
+      });
     }
 
     function spawn() {
@@ -5432,197 +5538,200 @@
       const cs = s && s.cities[cityId];
       people = [];
       if (!cs) return;
-      const spots = spotsFor(cityId);
-      const built = Math.max(1, spots.length);
-      const pop = cs.pop || 0;
-      const morale = cs.loyalty == null ? 50 : cs.loyalty;
-      /* v5.33 — 성 등급·시설 레벨·민심이 오를수록 사람이 늘고 거리가 활기차진다 */
+      labelBoxes = measureLabels();
       const lv = cityLevelOf(cityId);
-      const slotLv = (cs.slots || []).reduce((a, sl) => a + (sl && sl.key ? (sl.lv || 1) : 0), 0);
-      const want = Math.round(4 + built * 0.85 + pop / 26000 + morale / 18 + (lv - 1) * 2 + slotLv * 0.2);
-      const n = Math.max(4, Math.min(24, want));
-      for (let i = 0; i < n; i++) {
-        const sp = spots[i % spots.length];
-        const roll = Math.random();
-        const role = (roll < 0.12 && n > 6) ? 'kid' : sp.role;
-        const hx = sp.x / 100 * W;
-        const hy = sp.y / 100 * H + H * 0.085;
-        const rad = Math.min(W, H) * (0.07 + Math.random() * 0.16);
-        people.push({
-          role: role, hx: hx, hy: hy, x: hx + (Math.random() * 2 - 1) * rad * 0.5,
-          y: hy + (Math.random() * 2 - 1) * rad * 0.4, tx: hx, ty: hy, rad: rad,
-          sp: (10 + Math.random() * 12), ph: Math.random() * Math.PI * 2, wait: Math.random() * 1.4, face: Math.random() < 0.5 ? -1 : 1,
-          vs: 0.88 + Math.random() * 0.26,
-        });
-        pickTarget(people[people.length - 1]);
+      const morale = cs.loyalty == null ? 50 : cs.loyalty;
+      const built = (cs.slots || []).filter((sl) => sl && sl.key).length;
+      /* 8~12명 — 성 등급·시설·민심이 오르면 사람이 늘어난다 */
+      let n = 8 + (lv >= 2 ? 1 : 0) + (lv >= 4 ? 1 : 0) + (built >= 5 ? 1 : 0) + (morale >= 75 ? 1 : 0);
+      n = Math.max(8, Math.min(12, n));
+      /* 6종이 골고루 — 먼저 한 사람씩 6종을 세우고, 남는 자리는 무작위.
+         서로 22px은 떨어뜨리고, 자리가 모자라면 간격을 줄여 다시 놓는다. */
+      let spots = [];
+      const gaps = [22, 17, 13];
+      for (let g = 0; g < gaps.length; g++) {
+        spots = [];
+        for (let i = 0; i < n; i++) {
+          const spot = pickSpot(spots, gaps[g]);
+          if (!spot) continue;
+          spots.push(spot);
+        }
+        if (spots.length >= Math.min(8, n)) break;
+      }
+      for (let i = 0; i < spots.length; i++) {
+        const spot = spots[i];
+        const sprite = people.length < 6 ? people.length : Math.floor(Math.random() * 6);
+        const p = {
+          sprite: sprite,
+          kind: FOLK[sprite].kind,
+          h: spriteH * (0.94 + Math.random() * 0.12),
+          x: spot.x, y: spot.y, tx: spot.x, ty: spot.y,
+          lx0: spot.ln.x0 * W, lx1: spot.ln.x1 * W,
+          ly0: spot.ln.y0 * H, ly1: spot.ln.y1 * H,
+          sp: 8 + Math.random() * 6,
+          ph: Math.random() * Math.PI * 2,
+          wait: Math.random() * 2.2,
+          face: Math.random() < 0.5 ? -1 : 1,
+          talk: null, lastTalk: -99,
+        };
+        people.push(p);
+        pickTarget(p);
       }
       people.sort((a, b) => a.y - b.y);
+      talkTimer = 0.5 + Math.random() * 0.6;
     }
 
     function pickTarget(p) {
-      const a = Math.random() * Math.PI * 2;
-      const d = p.rad * (0.35 + Math.random() * 0.65);
-      p.tx = clamp(p.hx + Math.cos(a) * d, 12, W - 12);
-      p.ty = clamp(p.hy + Math.sin(a) * d * 0.7, H * 0.16, H - 14);
+      for (let i = 0; i < 8; i++) {
+        const tx = p.lx0 + Math.random() * Math.max(1, p.lx1 - p.lx0);
+        const ty = p.ly0 + Math.random() * Math.max(1, p.ly1 - p.ly0);
+        if (feetHit(tx, ty, p.h)) continue;
+        if (Math.hypot(tx - p.x, ty - p.y) < 12) continue;
+        p.tx = tx; p.ty = ty;
+        return;
+      }
+      p.tx = p.x; p.ty = p.y;
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       v5.33 — 도트 꼬마 인물 (2등신)
-       · 큰 머리(전체의 40%) + 짧은 팔 + 도포·허리띠 + 두 다리 걸음 + 바닥 그림자
-       · 옷색 5종 이상(농부·상인·병사·순찰·일꾼·선비·귀족·아이)과 모자(삿갓·투구·갓·두건·상투)
-       · 걷는 방향으로 고개를 돌리고(dir), 걸음마다 살짝 통통 튄다(bob)
-       ══════════════════════════════════════════════════════════════ */
-    function draw(p, sc) {
-      const def = ROLES[p.role] || ROLES.worker;
-      const h = (def.small ? 21 : 31) * sc * (p.vs || 1);
-      const walking = p.wait <= 0;
-      const swing = walking ? Math.sin(p.ph) : 0;
-      const bob = walking ? Math.abs(Math.sin(p.ph)) * h * 0.045 : 0;
-      const dir = p.face || 1;
-      const x = p.x, y = p.y - bob;
-      const ink = 'rgba(30, 19, 8, 0.62)';
-      const bodyW = h * 0.50, bodyH = h * 0.42;
-      const hipY = y - h * 0.26;
-      const shoulderY = y - h * 0.66;
-      const headR = h * 0.235;
-      const headY = y - h * 0.83;
+    /* ── 대사 고르기 (역할 + 계절·민심 반응) ── */
+    function lineFor(p) {
+      const s = SK.state || {};
+      const cs = s.cities ? s.cities[cityId] : null;
+      const morale = cs && cs.loyalty != null ? cs.loyalty : 60;
+      const season = (SK.seasonKeyOf && s.month != null) ? SK.seasonKeyOf(s.month) : 'summer';
+      const r = Math.random();
+      if (season === 'winter' && r < 0.2) return LINE_WINTER[0];
+      if (morale <= 45 && r < 0.42) return LINE_LOW[0];
+      if (morale >= 85 && r < 0.42) return LINE_HIGH[0];
+      const pool = LINES[p.kind] || LINES.citizen;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    /* 말풍선 자리 — 머리 위를 먼저 보고, 이름표와 겹치면 머리 옆으로 비켜 단다 */
+    function bubbleBox(q, text, others) {
+      if (!ctx) return null;
+      ctx.font = `700 ${BUB}px ${FONT}`;
+      const bw = Math.ceil(ctx.measureText(text).width) + 12;
+      const bh = BUB_H;
+      const head = q.y - q.h;
+      const spots = [
+        { bx: q.x - bw / 2, by: head - 5 - bh, side: 'b' },
+        { bx: q.x - bw + 4, by: head - bh - 1, side: 'b' },
+        { bx: q.x - 4, by: head - bh - 1, side: 'b' },
+        { bx: q.x + 9, by: head - bh * 0.5 + 2, side: 'l' },
+        { bx: q.x - bw - 9, by: head - bh * 0.5 + 2, side: 'r' },
+        { bx: q.x - bw / 2, by: head - 7 - bh - 8, side: 'b' },
+      ];
+      const deco = measureDeco();
+      for (let i = 0; i < spots.length; i++) {
+        const s = spots[i];
+        const x0 = Math.max(3, Math.min(W - bw - 3, s.bx));
+        const y0 = Math.max(2, Math.min(H - bh - 2, s.by));
+        const box = { x0: x0, x1: x0 + bw, y0: y0, y1: y0 + bh, w: bw, h: bh, side: s.side };
+        if (deco.some((b) => overlap(box, b))) continue;
+        if (others.some((b) => overlap(box, b))) continue;
+        return box;
+      }
+      return null;
+    }
+
+    function startTalk() {
+      if (!people.length || !ctx) return;
+      let talking = 0;
+      for (let i = 0; i < people.length; i++) if (people[i].talk) talking += 1;
+      if (talking >= MAX_TALK) return;
+      const now = performance.now() / 1000;
+      labelBoxes = measureLabels();   /* 이름표가 다시 그려졌을 수 있어 매번 새로 잰다 */
+      const cand = people.filter((q) => !q.talk && now - q.lastTalk > TALK_COOL);
+      if (!cand.length) return;
+      const talkingBoxes = people.filter((q) => q.talk).map((q) => q.talk.box);
+      for (let k = 0; k < cand.length; k++) {
+        const q = cand.splice(Math.floor(Math.random() * cand.length), 1)[0];
+        const text = lineFor(q);
+        const box = bubbleBox(q, text, talkingBoxes);
+        if (!box) continue;
+        q.talk = { text: text, t: 0, dur: 2.5 + Math.random() * 0.5, box: box };   /* 2.5~3초 */
+        q.lastTalk = now;
+        q.wait = q.talk.dur + 0.25;   /* 말하는 동안은 걸음을 멈춘다 */
+        return;
+      }
+      talkFails += 1;
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function drawBubble(q) {
+      const b = q.talk.box, a = Math.max(0, Math.min(1, q.talk.t / 0.25, (q.talk.dur - q.talk.t) / 0.4));
+      if (a <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = `700 ${BUB}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      /* 꼬리 — 머리를 향해 */
+      const headY = q.y - q.h + 2;
+      const edgeY = Math.max(b.y0 + 4, Math.min(b.y1 - 4, headY));
+      ctx.beginPath();
+      if (b.side === 'l') {
+        ctx.moveTo(b.x0 + 1, edgeY - 3.4);
+        ctx.lineTo(b.x0 + 1, edgeY + 3.4);
+        ctx.lineTo(b.x0 - 4, headY);
+      } else if (b.side === 'r') {
+        ctx.moveTo(b.x1 - 1, edgeY - 3.4);
+        ctx.lineTo(b.x1 - 1, edgeY + 3.4);
+        ctx.lineTo(b.x1 + 4, headY);
+      } else {
+        const tx = Math.max(b.x0 + 7, Math.min(b.x1 - 7, q.x));
+        ctx.moveTo(tx - 3.4, b.y1 - 1);
+        ctx.lineTo(tx + 3.4, b.y1 - 1);
+        ctx.lineTo(q.x >= b.x0 + 4 && q.x <= b.x1 - 4 ? q.x : tx, b.y1 + 4);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 250, 239, 0.97)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(96, 68, 28, 0.8)';
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      /* 판 */
+      roundRect(b.x0 + 0.5, b.y0 + 0.5, b.w - 1, b.h - 1, 3.5);
+      ctx.fillStyle = 'rgba(255, 250, 239, 0.97)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(96, 68, 28, 0.8)';
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      ctx.fillStyle = '#3b2c14';
+      ctx.fillText(q.talk.text, b.x0 + b.w / 2, b.y0 + b.h / 2 + 0.6);
+      ctx.restore();
+    }
+
+    function draw(p) {
+      const bob = p.wait <= 0 ? Math.abs(Math.sin(p.ph)) * 1.1 : 0;
+      const y = p.y - bob;
       /* 바닥 그림자 */
       ctx.fillStyle = 'rgba(24, 15, 5, 0.22)';
       ctx.beginPath();
-      ctx.ellipse(x, p.y + h * 0.02, bodyW * 0.62, h * 0.075, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y + 0.5, p.h * 0.30, p.h * 0.10, 0, 0, Math.PI * 2);
       ctx.fill();
-      /* 다리 — 걸음마다 앞뒤로 */
-      ctx.strokeStyle = '#4a3620';
-      ctx.lineWidth = Math.max(1.4, h * 0.115);
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x - bodyW * 0.17, hipY);
-      ctx.lineTo(x - bodyW * 0.17 + swing * h * 0.26, y);
-      ctx.moveTo(x + bodyW * 0.17, hipY);
-      ctx.lineTo(x + bodyW * 0.17 - swing * h * 0.26, y);
-      ctx.stroke();
-      /* 도포(몸통) — 어깨에서 아래로 퍼지는 사다리꼴 */
-      ctx.beginPath();
-      ctx.moveTo(x - bodyW * 0.42, shoulderY);
-      ctx.lineTo(x + bodyW * 0.42, shoulderY);
-      ctx.lineTo(x + bodyW * 0.50, hipY + h * 0.02);
-      ctx.lineTo(x - bodyW * 0.50, hipY + h * 0.02);
-      ctx.closePath();
-      ctx.fillStyle = def.body;
-      ctx.fill();
-      ctx.strokeStyle = ink;
-      ctx.lineWidth = Math.max(0.9, h * 0.035);
-      ctx.stroke();
-      /* 허리띠 */
-      if (def.belt) {
-        ctx.fillStyle = def.belt;
-        ctx.fillRect(x - bodyW * 0.47, hipY - h * 0.10, bodyW * 0.94, h * 0.065);
-      }
-      /* 옷깃 */
-      ctx.fillStyle = def.trim;
-      ctx.beginPath();
-      ctx.moveTo(x - bodyW * 0.22, shoulderY + h * 0.01);
-      ctx.lineTo(x + bodyW * 0.22, shoulderY + h * 0.01);
-      ctx.lineTo(x, shoulderY + h * 0.17);
-      ctx.closePath();
-      ctx.fill();
-      /* 팔 — 짧고 통통하게, 반대로 흔든다 */
-      ctx.strokeStyle = def.body;
-      ctx.lineWidth = Math.max(1.4, h * 0.105);
-      ctx.beginPath();
-      ctx.moveTo(x - bodyW * 0.40, shoulderY + h * 0.06);
-      ctx.lineTo(x - bodyW * 0.46 - swing * h * 0.10, hipY - h * 0.10);
-      ctx.moveTo(x + bodyW * 0.40, shoulderY + h * 0.06);
-      ctx.lineTo(x + bodyW * 0.46 + swing * h * 0.10, hipY - h * 0.10);
-      ctx.stroke();
-      /* 창 */
-      if (def.spear) {
-        const sx = x + bodyW * 0.58 * dir;
-        ctx.strokeStyle = '#6b5a3a';
-        ctx.lineWidth = Math.max(0.9, h * 0.055);
-        ctx.beginPath();
-        ctx.moveTo(sx, y - h * 1.02);
-        ctx.lineTo(sx, y - h * 0.02);
-        ctx.stroke();
-        ctx.strokeStyle = '#cdd2d8';
-        ctx.beginPath();
-        ctx.moveTo(sx, y - h * 1.02);
-        ctx.lineTo(sx, y - h * 1.14);
-        ctx.stroke();
-      }
-      /* 머리 */
-      ctx.fillStyle = '#f6d6ad';
-      ctx.beginPath();
-      ctx.arc(x, headY, headR, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = ink;
-      ctx.lineWidth = Math.max(0.8, h * 0.03);
-      ctx.stroke();
-      /* 눈 두 점 (걷는 쪽으로 조금) */
-      ctx.fillStyle = '#2e2318';
-      const eyeX = dir * headR * 0.34;
-      ctx.beginPath();
-      ctx.arc(x + eyeX, headY + headR * 0.08, Math.max(0.7, h * 0.028), 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x + eyeX + dir * headR * 0.42, headY + headR * 0.08, Math.max(0.7, h * 0.028), 0, Math.PI * 2);
-      ctx.fill();
-      /* 모자·머리카락 */
-      if (def.hat === 'straw') {
-        ctx.fillStyle = '#dcc07c';
-        ctx.beginPath();
-        ctx.moveTo(x - headR * 1.62, headY - headR * 0.22);
-        ctx.lineTo(x + headR * 1.62, headY - headR * 0.22);
-        ctx.lineTo(x, headY - headR * 1.42);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(92, 68, 26, 0.55)';
-        ctx.lineWidth = Math.max(0.6, h * 0.02);
-        ctx.stroke();
-      } else if (def.hat === 'helmet') {
-        ctx.fillStyle = '#8d939c';
-        ctx.beginPath();
-        ctx.arc(x, headY, headR * 1.06, Math.PI * 0.98, Math.PI * 2.02);
-        ctx.fill();
-        ctx.strokeStyle = ink; ctx.lineWidth = Math.max(0.7, h * 0.025); ctx.stroke();
-        ctx.fillStyle = '#9aa1aa';
-        ctx.fillRect(x - headR * 1.18, headY - headR * 0.20, headR * 2.36, headR * 0.26);
-        ctx.fillStyle = '#b8443a';
-        ctx.fillRect(x - headR * 0.13, headY - headR * 1.42, headR * 0.26, headR * 0.5);
-      } else if (def.hat === 'gat') {
-        ctx.fillStyle = '#2a2218';
-        ctx.beginPath();
-        ctx.ellipse(x, headY - headR * 0.42, headR * 1.55, headR * 0.36, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x, headY - headR * 0.56, headR * 0.86, Math.PI, Math.PI * 2);
-        ctx.fill();
-      } else if (def.hat === 'cap') {
-        ctx.fillStyle = '#3a2f1c';
-        ctx.beginPath();
-        ctx.arc(x, headY - headR * 0.16, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98);
-        ctx.fill();
-      } else if (def.hat === 'band') {
-        ctx.fillStyle = '#e8d9b4';
-        ctx.fillRect(x - headR * 1.02, headY - headR * 0.62, headR * 2.04, headR * 0.34);
-        ctx.fillStyle = '#3a2a18';
-        ctx.beginPath();
-        ctx.arc(x, headY - headR * 0.44, headR * 0.98, Math.PI, Math.PI * 2);
-        ctx.fill();
-      } else {
-        /* 아이 — 상투 하나, 발그레한 볼 */
-        ctx.fillStyle = '#3a2a18';
-        ctx.beginPath();
-        ctx.arc(x, headY - headR * 0.28, headR * 1.0, Math.PI * 0.96, Math.PI * 2.04);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x + dir * headR * 0.1, headY - headR * 1.28, headR * 0.26, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(230, 130, 116, 0.5)';
-        ctx.beginPath();
-        ctx.arc(x + dir * headR * 0.62, headY + headR * 0.34, headR * 0.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      const small = LOD[p.sprite];
+      if (!small) return;
+      const w = p.h * (small.width / small.height);
+      ctx.save();
+      ctx.translate(p.x, y);
+      if (p.face < 0) ctx.scale(-1, 1);
+      ctx.drawImage(small, -w / 2, -p.h, w, p.h);
+      ctx.restore();
     }
 
     function frame(ts) {
@@ -5631,27 +5740,34 @@
       if (!scr || !scr.classList.contains('active')) { stop(); return; }
       const dt = Math.min(0.05, Math.max(0, (ts - last) / 1000));
       last = ts;
-      const sc = Math.max(0.85, Math.min(1.45, H / 300));
       ctx.clearRect(0, 0, W, H);
+      /* 말풍선 띄우기 — 1.4~2.4초마다 한 명씩, 최대 2개 */
+      talkTimer -= dt;
+      if (talkTimer <= 0) { startTalk(); talkTimer = 1.4 + Math.random() * 1.0; }
       for (let i = 0; i < people.length; i++) {
         const p = people[i];
+        if (p.talk) {
+          p.talk.t += dt;
+          if (p.talk.t >= p.talk.dur) p.talk = null;
+          else if (labelBoxes.some((b) => overlap(p.talk.box, b))) p.talk = null;   /* 이름표가 비키면 끝낸다 */
+        }
         if (p.wait > 0) {
           p.wait -= dt;
-          p.ph += dt * 1.2;
         } else {
           const dx = p.tx - p.x, dy = p.ty - p.y;
           const d = Math.hypot(dx, dy);
-          if (d < 1.6) { p.wait = 0.5 + Math.random() * 2.4; pickTarget(p); }
+          if (d < 1.6) { p.wait = 0.7 + Math.random() * 2.6; pickTarget(p); }
           else {
             const step = p.sp * dt;
             p.x += dx / d * step; p.y += dy / d * step;
             p.face = dx >= 0 ? 1 : -1;
-            p.ph += dt * 9;
+            p.ph += dt * 8;
           }
         }
-        draw(p, sc);
       }
       people.sort((a, b) => a.y - b.y);
+      for (let i = 0; i < people.length; i++) draw(people[i]);
+      for (let i = 0; i < people.length; i++) if (people[i].talk) drawBubble(people[i]);
       raf = requestAnimationFrame(frame);
     }
 
@@ -5661,6 +5777,7 @@
       ctx = cv.getContext('2d');
       cityId = id || (SK.state && SK.state.lastCity);
       stop();
+      IMG.forEach((im) => { if (!im.complete) im.addEventListener('load', buildLods, { once: true }); });
       resize();
       spawn();
       running = true;
@@ -5675,8 +5792,26 @@
     }
     return {
       start: start, stop: stop,
-      info() { return { running: running, count: people.length, w: W, h: H, city: cityId }; },
+      info() {
+        let loaded = 0;
+        for (let i = 0; i < IMG.length; i++) if (IMG[i].complete && IMG[i].naturalWidth) loaded += 1;
+        return {
+          running: running, count: people.length, speaking: people.filter((q) => q.talk).length,
+          sprites: loaded, spriteH: Math.round(spriteH * 10) / 10,
+          labels: labelBoxes.length, talkFails: talkFails, w: W, h: H, city: cityId,
+        };
+      },
       resize() { resize(); spawn(); },
+      /* QA — 이름표·사람·말풍선 사각형을 그대로 꺼내 본다 */
+      debug() {
+        return {
+          w: W, h: H, spriteH: spriteH, labels: labelBoxes,
+          people: people.map((q) => ({
+            sprite: q.sprite, x: Math.round(q.x * 10) / 10, y: Math.round(q.y * 10) / 10,
+            h: Math.round(q.h * 10) / 10, talk: q.talk ? { text: q.talk.text, box: q.talk.box } : null,
+          })),
+        };
+      },
     };
   })();
   SK.cityLife = CityLife;
