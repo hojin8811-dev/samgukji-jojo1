@@ -2170,10 +2170,10 @@
       const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38;
       ctx.save();
       ctx.globalAlpha = 1 - p * 0.85;
-      ctx.font = 'bold 20px "Noto Serif CJK KR", serif';
+      ctx.font = 'bold 17px "Noto Serif CJK KR", serif';
       ctx.textAlign = 'center';
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(30,24,12,0.85)';
+      ctx.lineWidth = 4.5;
+      ctx.strokeStyle = 'rgba(24,18,8,0.92)';
       ctx.strokeText(f.text, sx, sy);
       ctx.fillStyle = f.color || '#fff2c8';
       ctx.fillText(f.text, sx, sy);
@@ -2813,7 +2813,7 @@
         ${triHtml}
         ${canCounter
           ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격 ${Math.round(cntMul * 100)}%${triBack.mul > 1 ? ` · ${triBack.label}` : ''}</em></div>`
-          : `<div class="ap-row"><span>반격</span><b>없음</b><em>${dMin > 1 ? `${d.name}은(는) ${dMin}칸 안쪽을 못 쏩니다` : '사거리 밖'}</em></div>`}
+          : `<div class="ap-row"><span>반격</span><b>없음</b><em>${dMin > 1 ? `${SK.josa(d.name, 'eun')} ${dMin}칸 안쪽을 못 쏩니다` : '사거리 밖'}</em></div>`}
         <div class="ap-row"><span>지형</span><b>${tr.name}</b><em>방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</em></div>
         ${bondHtml}
         <p class="ap-note">${d.name} 병력 ${Math.round(d.hp).toLocaleString('ko-KR')} / ${Math.round(d.maxHp).toLocaleString('ko-KR')}</p>
@@ -4561,7 +4561,7 @@
         <p class="rm-line">적의 방어가 완강했습니다. 병력을 정비하고 다시 도전하십시오.</p>
         ${battleReportHTML()}
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
-        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}에서 회복 중입니다` : '없음'}${captured ? ` · <b>${captured}</b>이(가) 적에게 사로잡혔습니다` : ''}</p></div>`,
+        <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성'}에서 회복 중입니다` : '없음'}${captured ? ` · 사로잡힌 장수 <b>${captured}</b>` : ''}</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });
@@ -4741,6 +4741,8 @@
     pendingSkill = null;
     cancelAnimationFrame(raf); raf = 0;
     $('#battle-overlay').hidden = true;
+    /* v5.25 — 전투가 끝난 뒤에도 남은 행군 도착·적 침공 사건을 이어서 띄운다 */
+    if (SK.armPendingWatch) setTimeout(() => SK.armPendingWatch(), 500);
   }
 
   /* ───────────── 전장 UI ───────────── */
@@ -4797,7 +4799,7 @@
       const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
       const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
       $('#battle-name').textContent = B.name;
-      $('#battle-kind').textContent = `${B.def.name} · ${B.objective}`;
+      $('#battle-kind').textContent = `${B.def.name} · ${B.def.desc}`;
       /* v5.2 — 성문 내구도는 화면 위 칩에 숫자로 크게 보인다 */
       const goalChip = $('#battle-objective');
       if (goalChip) {

@@ -966,7 +966,7 @@
       title: `${p.name} — ${p.title}`,
       body: `<div class="promo-pop">
         <div class="promo-seal" style="--pc:${col}">${crown}</div>
-        <p class="promo-line"><b>${p.name}</b>이(가) Lv.${p.lv}에 이르러 <b>${cls.name || ''}</b>에서 <b>${p.title}</b>(으)로 전직했습니다.</p>
+        <p class="promo-line"><b>${p.name}</b>${hasBatchim(p.name) ? '이' : '가'} Lv.${p.lv}에 이르러 <b>${cls.name || ''}</b>에서 <b>${p.title}</b>${hasBatchim(p.title) ? '으로' : '로'} 전직했습니다.</p>
         <div class="promo-rings"><span class="pr-dot done"></span><span class="pr-dot ${p.stage >= 2 ? 'done' : ''}"></span><span class="pr-dot ${p.stage >= 3 ? 'done' : ''}"></span><em>${p.stage} / 3 전직</em></div>
         ${news.length ? `<div class="promo-skills"><span class="ps-head">새 기술 해금</span>${news.map((sk) => `<div class="ps-row"><b>${sk.name}</b><i>MP ${sk.mp}</i><em>${sk.desc || ''}</em></div>`).join('')}</div>` : '<p class="promo-note">병력 상한과 지휘 능력이 한 단계 올랐습니다.</p>'}
         <p class="promo-note">전장에서 ${p.stage >= 3 ? '금테 오라와 왕관' : p.stage === 2 ? '은테와 깃발' : '동테'}로 한층 위엄 있게 서게 됩니다.${h && p.lv >= 30 ? ' 더 오를 곳이 없는 최종 전직입니다.' : ''}</p>
@@ -1256,6 +1256,38 @@
     try { JojoBGM.play(theme); } catch (e) { /* ignore */ }
   }
   SK.bgm = bgm;
+
+  /* v5.25 — 표지 아래 수치를 실제 데이터에서 다시 채운다 (장수 623 → 697처럼 낡지 않게) */
+  function refreshTitleFoot() {
+    const el = document.querySelector('.title-foot');
+    if (!el) return;
+    const n = (SK.GENERALS || []).length, c = (SK.CITY_LIST || []).length, k = Object.keys(SK.CLASSES || {}).length;
+    if (!n || !c || !k) return;
+    el.textContent = `${c}개 거점 · ${k}개 병과 · ${n}명 장수 · 최대 32×32 대형 전장`;
+  }
+  SK.refreshTitleFoot = refreshTitleFoot;
+
+  /* v5.25 — 달이 바뀐 뒤 꼭 열려야 할 사건(행군 도착·요격·적 침공)이 모달에 가려
+     영영 안 뜨는 일이 없도록 몇 초 동안 다시 확인한다. */
+  let pendingWatch = null;
+  function armPendingWatch() {
+    if (pendingWatch) clearTimeout(pendingWatch);
+    let left = 10;
+    const tick = () => {
+      pendingWatch = null;
+      const s = SK.state;
+      if (!s || s.over) return;
+      if (document.querySelector('#modal-root .modal-layer')) {
+        if (left-- > 0) pendingWatch = setTimeout(tick, 700);
+        return;
+      }
+      if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
+      if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
+      if (left-- > 0) pendingWatch = setTimeout(tick, 700);
+    };
+    pendingWatch = setTimeout(tick, 900);
+  }
+  SK.armPendingWatch = armPendingWatch;
   SK.show = function (id) {
     SCREENS.forEach((s) => $('#' + s).classList.toggle('active', s === id));
   };
@@ -1268,8 +1300,8 @@
     }
     SK.refreshHud();
     if (window.SKMap) { SKMap.init(); SKMap.refresh(); setTimeout(() => SKMap.relayout && SKMap.relayout(), 30); }
-    /* v5.3 — 저장을 다시 열었을 때 남아 있는 행군 사건을 이어서 보여 준다 */
-    if (SK.state && SK.state.pendingMarch) setTimeout(openPendingMarch, 520);
+    /* v5.3 — 저장을 다시 열었을 때 남아 있는 행군·침공 사건을 이어서 보여 준다 */
+    if (SK.state && (SK.state.pendingMarch || SK.state.pendingInvasion)) armPendingWatch();
     /* v5.16 — 모든 거점을 손에 넣었으면 천하통일 엔딩으로 */
     if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 620);
   };
@@ -1880,7 +1912,7 @@
     SK.save();
     SK.refreshHud();
     SK.sfx.play('ui');
-    SK.toast(`${spy.name}을(를) 첩자로 보냈습니다 — ${CITY[id].name} ${months}개월간 훔쳐봅니다. (금 −${scoutCost()})`);
+    SK.toast(`${josa(spy.name, 'eul')} 첩자로 보냈습니다 — ${CITY[id].name} ${months}개월간 훔쳐봅니다. (금 −${scoutCost()})`);
     if (document.querySelector('#screen-map.active')) SK.openCitySheet(id);
     else if (document.querySelector('#screen-city.active')) SK.openCity(from);
     return true;
@@ -3487,7 +3519,7 @@
     const gold = 70 + Math.floor(Math.random() * 150) + Math.round(bonus * 170 + boost * 380);
     const food = 95 + Math.floor(Math.random() * 125);
     s.gold += gold; s.food += food;
-    return { ok: true, kind: 'goods', title: '탐색 성과 — 은닉한 재물', text: `${c.name} 산기슭의 옛 창고에서 금 ${fmt(gold)}과(와) 군량 ${fmt(food)}을(를) 찾았습니다.`, gain: `금 +${fmt(gold)} · 군량 +${fmt(food)}` };
+    return { ok: true, kind: 'goods', title: '탐색 성과 — 은닉한 재물', text: `${c.name} 산기슭의 옛 창고에서 금 ${fmt(gold)}, 군량 ${fmt(food)}를 찾았습니다.`, gain: `금 +${fmt(gold)} · 군량 +${fmt(food)}` };
   }
   SK.explore = explore;
 
@@ -5502,7 +5534,7 @@
     const m = SK.modal({
       kicker: `${c.name} 주점`,
       title: '어떤 인재가 있나',
-      body: `<p class="talent-note">${actor ? `${josa(actor.name, 'i')} 이번 달 주점을 찾았습니다. ` : ''}이 성에서 ${hereN}명, 길로 이어진 옆 성에서 ${pool.length - hereN}명을 만났습니다. 등용하면 ${actor ? actor.name + ' 님의 행동력과 ' : ''}새로 온 장수의 이번 달 행동이 끝납니다. 매력이 높은 장수가 사신으로 나서면 값이 줄고 성공률이 오릅니다.${actor && dutyLabelOf(cityId, actor) ? ` 사신 <b>${actor.name}</b>은(는) ${dutyLabelOf(cityId, actor)} 중이라 시도하는 순간 배속이 풀립니다.` : ''}<br><b>보통 인재(B·C급)가 흔하고, S·A급은 좀처럼 모습을 드러내지 않습니다.</b> 이 성 깃발에 맞는 동네 인물만 찾아옵니다.</p>
+      body: `<p class="talent-note">${actor ? `${josa(actor.name, 'i')} 이번 달 주점을 찾았습니다. ` : ''}이 성에서 ${hereN}명, 길로 이어진 옆 성에서 ${pool.length - hereN}명을 만났습니다. 등용하면 ${actor ? actor.name + ' 님의 행동력과 ' : ''}새로 온 장수의 이번 달 행동이 끝납니다. 매력이 높은 장수가 사신으로 나서면 값이 줄고 성공률이 오릅니다.${actor && dutyLabelOf(cityId, actor) ? ` 사신 <b>${josa(actor.name, 'i')}</b> ${dutyLabelOf(cityId, actor)} 중이라 시도하는 순간 배속이 풀립니다.` : ''}<br><b>보통 인재(B·C급)가 흔하고, S·A급은 좀처럼 모습을 드러내지 않습니다.</b> 이 성 깃발에 맞는 동네 인물만 찾아옵니다.</p>
         ${envoyRow}
         <div class="gen-pick-list">${rows}</div>`,
       wide: true,
@@ -5638,7 +5670,7 @@
       kicker: `${CITY[cityId].name} 병영`,
       title: '군사를 일으킨다',
       body: `<div class="menu-list">
-        <button data-b="recruit">징병 — 금 150 · 군량 120 · 수비병 +1,200</button>
+        <button data-b="recruit">징병 — 금 150 · 군량 120 · 병력 1,200+ (통솔·매력 보정)</button>
         <button data-b="train">훈련 — 금 80 · 주둔 장수 경험치</button>
         ${wound ? `<button data-b="heal">부상병 치료 — ${fmt(wound)}명 회복중 · 금 ${fmt(healCost)}</button>` : ''}
       </div>
@@ -5701,7 +5733,7 @@
         </div>
         <button class="office-auto ${autoOn ? 'on' : ''}" data-o="auto">
           <b>자동 내정 ${autoOn ? '켜짐' : '꺼짐'}</b>
-          <span>${isCapital ? '본성은 달이 바뀌어도 자동으로 내정하지 않습니다' : (gov ? `달이 바뀌면 ${gov.name}이(가) 남은 행동으로 내정합니다` : '태수를 앉히지 않으면 자동 내정하지 않습니다')}</span>
+          <span>${isCapital ? '본성은 달이 바뀌어도 자동으로 내정하지 않습니다' : (gov ? `달이 바뀌면 ${josa(gov.name, 'i')} 남은 행동으로 내정합니다` : '태수를 앉히지 않으면 자동 내정하지 않습니다')}</span>
         </button>
         <div class="office-tax">
           <p class="op-note">세율 — 전 거점 공통 · 지금 ${tax.name}${helpDot('tax')}</p>
@@ -6121,7 +6153,7 @@
       if (!offerFactionAlive(rec, SK.GEN_BY_ID[rec.gid])) {
         if (!rec.orphan) {
           rec.orphan = true;
-          news.push({ kind: 'orphan', text: `${rec.name}을(를) 잡았던 세력이 사라져 몸값 제안이 끊겼습니다 — 이제는 [설득]과 [석방]뿐입니다.` });
+          news.push({ kind: 'orphan', text: `${josa(rec.name, 'eul')} 잡았던 세력이 사라져 몸값 제안이 끊겼습니다 — 이제는 [설득]과 [석방]뿐입니다.` });
         }
         rec.offer = null;
       }
@@ -6146,7 +6178,7 @@
         offer.from = offerFromOf(rec, g);
         rec.offer = offer;
         news.push({ kind: 'offer', text: offer.type === 'exchange'
-          ? `${offer.from}의 포로 교환 제안 — ${g.name}과(와) 사로잡힌 ${hold.name}을(를) 맞바꾸자고 합니다.`
+          ? `${offer.from}의 포로 교환 제안 — ${josa(g.name, 'gwa')} 사로잡힌 ${josa(hold.name, 'eul')} 맞바꾸자고 합니다.`
           : `${offer.from}의 포로 몸값 제안 — ${g.name}의 몸값으로 금 ${fmt(offer.gold)}${offer.food ? ` · 군량 ${fmt(offer.food)}` : ''}${offer.treasure ? ` · 보물 ${offer.treasure.name}` : ''}을 제안했습니다.` });
       } else if (rec.offer) {
         rec.offer.expires = (rec.offer.expires || 1) - 1;
@@ -6156,7 +6188,7 @@
       const cs = s.cities[rec.city];
       const ch = prisonEscapeChance(rec, cs);
       if (ch > 0 && Math.random() < ch) {
-        news.push({ kind: 'escape', text: `${rec.name}이(가) ${cs ? CITY[rec.city].name : '성'}에서 탈출했습니다.${lvLabel(cs)}` });
+        news.push({ kind: 'escape', text: `${josa(rec.name, 'i')} ${cs ? CITY[rec.city].name : '성'}에서 탈출했습니다.${lvLabel(cs)}` });
         return false;
       }
       return true;
@@ -6229,7 +6261,7 @@
         const rec = s.prisoners[Number(b.dataset.free)];
         if (!rec) return;
         s.prisoners = s.prisoners.filter((x) => x !== rec);
-        s.fame += 1; SK.save(); SK.toast(`${rec.name}을(를) 풀어 주었습니다. 명성 +1`); refresh();
+        s.fame += 1; SK.save(); SK.toast(`${josa(rec.name, 'eul')} 풀어 주었습니다. 명성 +1`); refresh();
       };
     });
     m.el.querySelectorAll('[data-accept]').forEach((b) => {
@@ -6243,7 +6275,7 @@
           s.captured = (s.captured || []).filter((x) => x.uid !== offer.exchangeUid);
           s.prisoners = s.prisoners.filter((x) => x !== rec);
           s.fame += 2; SK.save(); SK.sfx.play('ui');
-          SK.toast(`포로 교환 — ${offer.exchangeName}이(가) 돌아오고 ${rec.name}을(를) 풀어 주었습니다.`);
+          SK.toast(`포로 교환 — ${josa(offer.exchangeName, 'i')} 돌아오고 ${josa(rec.name, 'eul')} 풀어 주었습니다.`);
           refresh();
           return;
         }
@@ -6252,7 +6284,7 @@
         if (offer.treasure && s.treasures) s.treasures.push(offer.treasure.id);
         s.prisoners = s.prisoners.filter((x) => x !== rec);
         s.fame += 2; SK.save(); SK.sfx.play('coin');
-        SK.toast(`몸값을 받고 ${rec.name}을(를) 풀어 주었습니다 — 금 +${fmt(offer.gold)} · 명성 +2`);
+        SK.toast(`몸값을 받고 ${josa(rec.name, 'eul')} 풀어 주었습니다 — 금 +${fmt(offer.gold)} · 명성 +2`);
         refresh();
       };
     });
@@ -6514,7 +6546,7 @@
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 인사`,
       title: '태수로 임명할 장수',
-      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>이(가) 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다. <b>정치 60% + 통솔 40%</b> 순으로 세우고 상위 2명에게 <em class="duty-reco">추천</em>을 달았습니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>${hasBatchim(lordHero.name) ? '이' : '가'} 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다. <b>정치 60% + 통솔 40%</b> 순으로 세우고 상위 2명에게 <em class="duty-reco">추천</em>을 달았습니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
       actions: [{ label: '취소' }],
       wide: true,
     });
@@ -6523,7 +6555,7 @@
         const pickUid = b.dataset.uid;
         const pick = gens.find((g) => g.uid === pickUid);
         if (lordHero && pickUid !== lordHero.uid) {
-          SK.toast(`군주 ${lordHero.name}이(가) 주둔한 성은 군주가 친히 다스립니다. 군주를 옮기면 다른 장수에게 맡길 수 있습니다.`);
+          SK.toast(`군주 ${josa(lordHero.name, 'i')} 주둔한 성은 군주가 친히 다스립니다. 군주를 옮기면 다른 장수에게 맡길 수 있습니다.`);
           return;
         }
         cs.governor = pickUid;
@@ -8931,6 +8963,7 @@
     showMonthBanner(SK.dateLabel(s.eraYear || (195 + s.year), s.month));
     SK.modal({
       delay: 900,
+      dismissible: false,   // v5.25 — 바깥을 잘못 눌러 월정산이 닫혀도 뒤이을 사건(요격·침공·선택지)이 사라지지 않게
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
@@ -9002,6 +9035,8 @@
         else flow();
       } }],
     });
+    /* v5.25 — 월정산이 어떤 이유로든 일찍 닫혀도 행군·침공 사건을 다시 띄운다 */
+    if (s.pendingMarch || s.pendingInvasion) armPendingWatch();
   }
 
   /* ───────────── 메뉴 ───────────── */
@@ -9044,7 +9079,7 @@
       body: `<div class="help-body">
         <div class="help-item"><b>지도</b><p>두 손가락으로 확대·축소하고, 한 손가락으로 끌어 이동합니다. 우리 성을 누르면 내정, 적성을 누르면 공격 정보가 열립니다. 아래 [내 본성 ▶]을 누르면 언제든 내 수도로 돌아갑니다.</p></div>
         <div class="help-item"><b>태수·군사와 자동 내정</b><p>관아에서 태수(정치·통솔)와 군사(지력·매력)를 앉힙니다. 태수가 앉은 성은 [다음 달]을 누를 때 대기 장수로 개간·징병·보수·민심·훈련을 스스로 마치고 월정산에 보고합니다. 본성과 태수가 없는 성은 자동으로 움직이지 않으며, 관아에서 자동 내정을 끄거나 언제든 직접 지시할 수 있습니다.</p></div>
-        <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·연구소를 직접 지을 수 있습니다(소도시 5칸 · 대도시 8칸 · 관문 2칸 · 요새 3칸). 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건전을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다.</p></div>
+        <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·연구소를 직접 지을 수 있습니다(소도시 5칸 · 대도시 8칸 · 관문 2칸 · 요새 3칸). 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건물을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다.</p></div>
         <div class="help-item"><b>장수는 한 달에 한 번</b><p>장수는 <b>건물 담당</b>, 아니면 직접 명령(탐색·등용·수송·계략·연구·출진) 중 하나를 합니다. 담당을 맡은 장수는 매달 자동으로 건물 효과를 내므로, 급히 출진에 쓰고 싶으면 그 건물에서 담당을 해제하세요. 행동력 숫자는 없앴고 장수 카드에 <b>건물 담당 / 대기 / 이번 달 완료</b>로만 표시됩니다.</p></div>
         <div class="help-item"><b>인사·탐색</b><p>주점에서 재야 인재를 등용하고, [탐색]은 <b>금이 들지 않고</b> 장수의 그달 행동만 씁니다. 탐색에서는 보물·은거 인재·금·군량·의용병 합류·산적 퇴치·맹수 사냥·일기토가 고루 나옵니다. 태수·군사는 관아에서 언제든 바꿉니다.</p></div>
         <div class="help-item"><b>외교·계략</b><p>정찰(금 45)로 3~4개월 적성 내부를 보고, 이간계(금 100)·유언비어(금 80)로 적의 병력·성벽·민심을 깎고, 화친(금 200)으로 6개월 휴전을 청합니다.</p></div>
@@ -9181,6 +9216,8 @@
     loadPassives();
     bind();
     if (hasSaveOnBoot()) $('#btn-continue').hidden = false;
+    /* v5.25 — 표지 수치(거점·병과·장수)를 실제 데이터로 다시 적는다 */
+    Promise.all([loadCities(), loadClasses(), loadGenerals()]).then(refreshTitleFoot).catch(() => {});
   });
   function hasSaveOnBoot() { return SK.hasSave(); }
 
