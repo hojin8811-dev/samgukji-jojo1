@@ -3891,11 +3891,13 @@
           <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b>${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
           <span class="tc-go">▸</span></button>`;
       }).join('');
-      const go = mode === 'many'
-        ? `<button class="ex-go" id="ex-go" ${sel.size ? '' : 'disabled'}>${sel.size}명 탐색 보내기</button>`
-        : '';
       const wrap = m.el.querySelector('#ex-wrap');
-      wrap.innerHTML = `${tabs}${note}<div class="target-list">${cards}</div>${go}`;
+      wrap.innerHTML = `${tabs}${note}<div class="target-list">${cards}</div>`;
+      const act = m.el.querySelector('.modal-actions .btn-primary');
+      if (act) {
+        act.textContent = mode === 'many' ? (sel.size ? `${sel.size}명 탐색 보내기` : '장수를 체크하세요') : '여러 명 보내기';
+        act.disabled = mode !== 'many' || !sel.size;
+      }
       wrap.querySelectorAll('[data-ex]').forEach((b) => {
         b.onclick = () => { mode = b.dataset.ex; SK.sfx.play('ui'); render(m); };
       });
@@ -3925,14 +3927,20 @@
       };
       const none = wrap.querySelector('#ex-none');
       if (none) none.onclick = () => { sel.clear(); SK.sfx.play('ui'); render(m); };
-      const goBtn = wrap.querySelector('#ex-go');
-      if (goBtn) goBtn.onclick = () => { m.close(); sendMany(); };
     };
 
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 탐색`, title: '누구를 보낼까',
       body: `<div id="ex-wrap"></div>`,
-      wide: true, actions: [{ label: '취소' }],
+      wide: true,
+      actions: [
+        { label: '취소' },
+        { label: '여러 명 보내기', primary: true, onClick: () => {
+          if (mode !== 'many') { SK.toast('위의 [여러 명 한번에] 탭에서 쓸 수 있습니다.'); return; }
+          if (!sel.size) { SK.toast('보낼 장수를 체크하세요.'); return; }
+          sendMany();
+        } },
+      ],
     });
     render(m);
   }
@@ -9141,8 +9149,7 @@
       const wrap = m.el.querySelector('#is-wrap');
       wrap.innerHTML = `<p class="talent-note">길목 지형 — <b>${idef.name}</b> · ${idef.desc}<br>${idef.skill || ''}</p>
         <div class="is-sum"><span>출진 <b>${n}명</b></span><span>나갈 병력 <b>${fmt(send)}</b></span><span>성에 남는 병력 <b>${fmt(avail - send)}</b></span></div>
-        <div class="target-list">${rows}</div>
-        <button class="ex-go" id="is-go" ${n && send <= budget ? '' : 'disabled'}>요격 출진 — ${fmt(send)}으로 맞이한다</button>`;
+        <div class="target-list">${rows}</div>`;
       wrap.querySelectorAll('[data-pick]').forEach((b) => {
         b.onclick = () => {
           const uid = b.dataset.pick;
@@ -9151,25 +9158,32 @@
           render(m);
         };
       });
-      const go = wrap.querySelector('#is-go');
-      if (go) go.onclick = () => {
-        if (!picked.size) { SK.toast('요격에 나갈 장수를 한 명 이상 고르세요.'); return; }
-        const units = gens.filter((g) => picked.has(g.uid)).map((g) => ({ kind: 'hero', uid: g.uid, troops: per }));
-        const total = units.reduce((a, u) => a + u.troops, 0);
-        if (total > budget) { SK.toast('나갈 병력이 너무 많습니다 — 장수를 줄이세요.'); return; }
-        ts.troops = Math.max(0, avail - total);
-        SK.save();
-        SK.startBattle({
-          origin: cid, targetId: cid, type: itype, units,
-          intercept: { name: `${SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적'} → ${c.name} 길목`, troops: inv.troops, invasion: inv },
-        });
-      };
+      const act = m.el.querySelector('.modal-actions .btn-primary');
+      if (act) {
+        act.textContent = n && send <= budget ? `요격 출진 — ${fmt(send)}` : '장수를 고르세요';
+        act.disabled = !(n && send <= budget);
+      }
+    };
+    /* 고른 장수로 길목 요격전을 연다 (모달 하단 고정 버튼) */
+    const startSortie = () => {
+      if (!picked.size) { SK.toast('요격에 나갈 장수를 한 명 이상 고르세요.'); return; }
+      const per = perOf(picked.size);
+      const units = gens.filter((g) => picked.has(g.uid)).map((g) => ({ kind: 'hero', uid: g.uid, troops: per }));
+      const total = units.reduce((a, u) => a + u.troops, 0);
+      if (total > budget) { SK.toast('나갈 병력이 너무 많습니다 — 장수를 줄이세요.'); return; }
+      ts.troops = Math.max(0, avail - total);
+      SK.save();
+      SK.startBattle({
+        origin: cid, targetId: cid, type: itype, units,
+        intercept: { name: `${SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적'} → ${c.name} 길목`, troops: inv.troops, invasion: inv },
+      });
     };
     const m = SK.modal({
       kicker: `${c.name} 요격 출진 · ${SK.factionName(inv.faction)}의 침공`,
       title: '누구를 길목에 세울까',
       body: `<div id="is-wrap"></div>`,
-      wide: true, actions: [{ label: '취소' }],
+      wide: true,
+      actions: [{ label: '취소' }, { label: '요격 출진', primary: true, onClick: () => startSortie() }],
     });
     render(m);
   }
