@@ -570,6 +570,8 @@ b { font-weight: 700; }
 }
 .uc-buffs .bf.bad { background: rgba(190, 80, 80, 0.22); border-color: rgba(255, 160, 150, 0.6); color: #ffe1da; }
 .uc-buffs .bf.good { background: rgba(96, 170, 110, 0.22); border-color: rgba(160, 230, 170, 0.55); color: #e2ffe6; }
+/* v5.33 — 전투 중 실시간으로 쌓인 경험치 알약 */
+.uc-buffs .bf.exp { background: rgba(214, 168, 70, 0.24); border-color: rgba(255, 214, 120, 0.65); color: #fff2cd; }
 
 .uc-stats b { color: #3b2e13; }
 .battle-actions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
@@ -756,6 +758,8 @@ b { font-weight: 700; }
 .sk-mp { width: 28px; height: 28px; border-radius: 50%; background: #dbe9f5; border: 1px solid #8fb4d6; display: grid; place-items: center; font-size: 11px; font-weight: 900; color: #33587c; }
 .skill-row b { display: block; font-size: 12.5px; color: #2e2510; }
 .skill-row b em { font-size: 9px; color: #8a7448; margin-left: 3px; }
+/* v5.33 — 책사·풍수사·도사 책략 사거리 +1 표기 */
+.skill-row b .sk-rng { font-style: normal; font-size: 8.5px; font-weight: 800; color: #a4601e; background: rgba(214, 168, 70, 0.18); border-radius: 6px; padding: 0 5px; margin-left: 5px; vertical-align: middle; }
 .skill-row span { font-size: 9.5px; color: #6b5830; }
 .skill-mp { font-size: 10px; color: #5c6f8a; text-align: right; margin: 6px 0 0; }
 
@@ -2618,6 +2622,20 @@ b { font-weight: 700; }
 .crew-row .cw-gain { flex: 0 0 auto; font-size: 9.5px; font-weight: 800; color: #4f7a2c; }
 .crew-row button.onoff { flex: 0 0 auto; border: 1px solid #cdb489; border-radius: 7px; padding: 3px 7px; font-size: 9.5px; font-weight: 800; color: #6a4a10; background: #f6ead0; }
 .crew-row button.onoff.on { border-color: #47673c; background: #e8f3d6; color: #35521f; }
+/* v5.33 — 장수 전출 복수 선택 */
+/* 긴 명단은 창 안에서만 스크롤 — [N명 이동] 버튼이 화면 밖으로 밀리지 않게 */
+#tr-list { max-height: 44vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding-right: 2px; }
+.tr-bar { display: flex; align-items: center; gap: 4px; margin: 2px 0 6px; }
+.tr-mini {
+  border: 1px solid #cdb489; border-radius: 999px; padding: 3px 9px; font-size: 10px; font-weight: 800;
+  color: #6a4a10; background: #f6ead0;
+}
+.tr-mini:active { transform: scale(0.96); }
+.tr-count { margin-left: auto; font-size: 10px; font-weight: 900; color: #8a5a1a; }
+.crew-row.sel { background: #f2f7e6; box-shadow: inset 0 0 0 1px #47673c; border-radius: 7px; }
+.crew-row[data-locked="1"] { opacity: 0.5; }
+.crew-row button.onoff[disabled] { opacity: 0.5; }
+.btn-primary.off { filter: grayscale(0.6); opacity: 0.55; }
 
 /* 월정산 — AI 세력 소식 · 침공 경고 */
 .mr-ai { margin-top: 6px; border-top: 1px dashed rgba(150, 120, 60, 0.35); padding-top: 5px; }
@@ -3531,6 +3549,29 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   box-shadow: 0 0 0 2px rgba(184, 134, 47, 0.25), inset 0 1px 0 #fffdf4;
 }
 .cdx-body { max-height: 52vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding-right: 2px; }
+/* v5.33 — 도감 이름 검색창 */
+.cdx-search {
+  display: flex; align-items: center; gap: 5px; margin: 2px 0 6px;
+  padding: 5px 8px; border-radius: 10px; border: 1.5px solid #cdb887;
+  background: linear-gradient(180deg, #fffdf6, #f4ead2);
+  box-shadow: inset 0 1px 2px rgba(90, 70, 30, 0.12);
+}
+.cdx-search .cs-ico { font-size: 11px; line-height: 1; opacity: 0.75; }
+.cdx-search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  font-family: var(--sans, inherit); font-size: 12.5px; color: #3b2e13;
+  -webkit-appearance: none; appearance: none;
+}
+.cdx-search input::placeholder { color: #a4917073; }
+.cdx-search input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.cdx-search #cdx-q-clear {
+  border: 0; background: #d9c9a4; color: #4a3410; font-size: 10px; font-weight: 900;
+  width: 18px; height: 18px; border-radius: 50%; line-height: 1; padding: 0; flex: 0 0 auto;
+}
+.cdx-qinfo { margin: -2px 0 6px; font-size: 10.5px; font-weight: 800; color: #8a6a2c; }
+.cdx-qinfo[hidden] { display: none; }
+.cdx-cell[disabled] { opacity: 0.55; }
+.cdx-cell[disabled] .cdx-name { color: #7c6636; }
 .cdx-prog { margin: 6px 0 8px; }
 .cdx-prog-top { display: flex; align-items: baseline; gap: 6px; font-size: 10px; color: #7c6636; }
 .cdx-prog-top b { font-family: var(--serif); font-size: 11.5px; color: #4a3410; }
@@ -3618,6 +3659,11 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .cdx-tre-stat { margin: 0 0 4px; font-size: 9.5px; color: #6b5324; }
 .cdx-tre-hint { margin: 0; font-size: 9.5px; line-height: 1.5; color: #7c6636; }
 .cdx-tre-hint b { color: #a4601e; }
+/* v5.33 — 힌트 아래 '지역' 줄 (어느 성·지역에서 노릴지) */
+.cdx-where { display: block; margin-top: 1px; font-style: normal; font-size: 8px; line-height: 1.35; color: #6f5a2c; opacity: 0.95; }
+.cdx-tre-where { margin: 4px 0 0; font-size: 9.5px; line-height: 1.5; color: #6f5a2c; }
+.cdx-tre-where b { color: #a4601e; }
+.cdx-tre-where small { display: block; margin-top: 2px; font-size: 8.5px; color: #8a7448; }
 .unify-card { text-align: center; padding: 4px 0 2px; }
 .unify-seal {
   display: inline-block; padding: 10px 14px; margin-bottom: 6px; border-radius: 6px;

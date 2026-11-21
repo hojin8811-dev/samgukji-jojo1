@@ -1384,6 +1384,71 @@ SK.setTreasures = function (list) {
   SK.TREASURE_BY_ID = {};
   SK.TREASURES.forEach((t) => { SK.TREASURE_BY_ID[t.id] = t; });
 };
+/* ══════════════════════════════════════════════════════════════
+   v5.33 — 보물 획득 '지역' 판정
+   151종의 dropHint에는 '서량·옹주 지역', '강동 제패', '경주 왕릉'처럼 지역 이름이 섞여 있다.
+   그런데 실제 드랍(전투 보상)·탐색은 지역을 보지 않아, 도감의 힌트가 '어디서'를 말해 주지 못했다.
+   힌트의 지역 낱말을 성 묶음으로 풀어 두고 → 전투 드랍·탐색 가중치에 실제로 쓴다.
+   ══════════════════════════════════════════════════════════════ */
+SK.TREASURE_REGIONS = [
+  { key: '서량', name: '서량·옹주', cities: ['무위', '금성', '천수', '안정'], words: ['서량', '옹주', '마초', '마등', '한수', '양추', '완성', '호표기'] },
+  { key: '하북', name: '하북·기주', cities: ['남피', '업', '계', '진양', '상당'], words: ['하북', '기주', '원소', '원상', '심배', '계교', '관도', '백마', '연진'] },
+  { key: '유주', name: '유주·북방', cities: ['북평', '평원', '대', '산해관', '삭방'], words: ['유주', '북방', '공손찬', '공손강', '오환', '유목', '초원', '기마', '오르도스', '만리장성'] },
+  { key: '중원', name: '중원·사례', cities: ['낙양', '허창', '진류', '완', '호로관', '함곡관', '동관', '호관'], words: ['중원', '낙양', '허창', '진류', '동탁', '왕실', '제례', '호로관'] },
+  { key: '서주', name: '서주·예주', cities: ['하비', '소패', '광릉', '여남', '수춘'], words: ['서주', '예주', '하비', '소패', '황건', '장각', '여포', '흑산적', '흑산'] },
+  { key: '형주', name: '형주·남양', cities: ['양양', '신야', '강하', '강릉', '무릉', '장사', '영릉', '계양', '상용'], words: ['형주', '남양', '강남 서원', '양양', '장사', '적벽', '장판교', '맥성', '번성', '화용도', '이릉', '강하'] },
+  { key: '익주', name: '익주·남만', cities: ['성도', '강주', '영안', '건녕', '운남', '영창', '노수 관문', '검각', '자동', '양평관'], words: ['익주', '남만', '남중', '맹획', '촉한', '제갈량', '오장원', '정군산', '북벌', '목우유마'] },
+  { key: '강동', name: '강동·강남', cities: ['건업', '오', '시상', '회계', '건안', '합비'], words: ['강동', '오나라', '손견', '손책', '주유', '여몽', '감녕', '강남', '수군', '합비', '유수구'] },
+  { key: '한중', name: '한중·관중', cities: ['한중', '장안', '양평관', '검각'], words: ['한중', '관중', '장안', '서황', '정군산'] },
+  { key: '고구려', name: '고구려·요동', cities: ['국내성', '요동', '안시성', '부여', '옥저', '평양', '함흥'], words: ['고구려', '요동', '만주', '개마', '연개소문', '을지문덕', '광개토', '졸본', '평양', '살수', '안시성', '여진'] },
+  { key: '삼국', name: '백제·신라·가야', cities: ['한성', '웅진', '청주', '원주', '완산', '광주', '경주', '부산', '금성'], words: ['백제', '신라', '가야', '화랑', '김유신', '근초고왕', '경주', '한강', '김해', '사비', '황산벌'] },
+  { key: '고려', name: '고려·개성', cities: ['개성', '철원 요새', '대관령 관문'], words: ['고려', '개성', '왕건', '강감찬', '서희', '윤관', '척준경', '귀주'] },
+  { key: '조선', name: '조선·한성', cities: ['한성', '개성', '평양', '부산', '탐라'], words: ['조선', '이순신', '세종', '정도전', '거북선', '명량', '한산', '노량', '진포'] },
+  { key: '해상', name: '남해·섬', cities: ['남해', '탐라', '부산', '타이베이', '타이난', '건안'], words: ['해전', '수전', '해상', '섬', '탐라', '제주', '남해안'] },
+];
+SK.TREASURE_REGION_BY_KEY = {};
+SK.TREASURE_REGIONS.forEach((r) => { SK.TREASURE_REGION_BY_KEY[r.key] = r; });
+/* 힌트 → { regions:[...], cities:[직접 언급된 성 이름] } */
+SK.treasureWhere = function (t) {
+  const hint = String((t && t.dropHint) || '');
+  const regions = [];
+  SK.TREASURE_REGIONS.forEach((r) => {
+    if (r.words.some((w) => hint.indexOf(w) >= 0)) {
+      if (!regions.some((x) => x.key === r.key)) regions.push(r);
+    }
+  });
+  const cities = [];
+  if (SK.CITY_LIST) {
+    SK.CITY_LIST.forEach((c) => {
+      const nm = String(c.name).replace(' 요새', '').replace(' 관문', '');
+      if (nm && nm.length >= 2 && hint.indexOf(nm) >= 0 && cities.indexOf(c.id) < 0) {
+        cities.push(c.id);
+        /* 직접 적힌 성은 그 지역도 함께 (예: '하비' → 서주·예주) */
+        const reg = SK.TREASURE_REGIONS.find((r) => r.cities.some((x) => x === c.name || x === c.name.replace(' 요새', '').replace(' 관문', '')));
+        if (reg && !regions.some((x) => x.key === reg.key)) regions.push(reg);
+      }
+    });
+  }
+  return { regions, cities };
+};
+/* 도감·상세에 쓰는 한 줄: 어디서 노리면 되는지 (전투 / 탐색 / 대상인) */
+SK.treasurePathText = function (t, full) {
+  const w = SK.treasureWhere(t);
+  const hint = String((t && t.dropHint) || '');
+  const isStart = /시작/.test(hint);
+  const battle = /격파|토벌|전투|공방전|승리|보상|전리품|정벌|원정|제패|평정|습격|수성|공성|난이도/.test(hint);
+  const explore = /탐사|탐방|탐험|유적|고분|발굴|고적|수집|거래|정찰|지리|유물|무기고|상단|학당|서원|도요지|능묘|천문대/.test(hint);
+  const cityTxt = w.cities.map((id) => (SK.CITY && SK.CITY[id] ? SK.CITY[id].name : '')).filter(Boolean).join('·');
+  const regTxt = w.regions.length ? w.regions.slice(0, 2).map((r) => r.name).join(' · ') : '';
+  /* 성 이름이 힌트에 있으면 그 성을, 없으면 지역을 쓴다. 둘 다 있으면 '하비(서주·예주)'처럼 함께 */
+  const where = cityTxt ? (regTxt ? `${cityTxt}(${regTxt})` : cityTxt) : regTxt;
+  const parts = [];
+  if (isStart) parts.push('시작 보유');
+  if (battle) parts.push('전투 — ' + (where || '전국 어디서나'));
+  if (explore || !battle) parts.push('탐색 — ' + (where || '전국 어디서나'));
+  if (full) parts.push('대상인 — 내 성에 가끔 찾아오는 상인에게 금으로 구매');
+  return parts.join(' / ');
+};
 SK.treasureSlot = function (t) { return SK.TREASURE_SLOTS[t.type] || 'manual'; };
 SK.treasureStats = function (t) {
   return { war: (t.statBonus || {}).war || 0, intel: (t.statBonus || {}).intel || 0, leadership: (t.statBonus || {}).leadership || 0,
@@ -2366,15 +2431,19 @@ SK.enemySlots = function (type, rings, cols) {
     const bands = [];
     let y0 = 1;
     gateRows.forEach((gy) => { if (gy - 1 >= y0) bands.push([y0, gy - 1]); y0 = gy + 2; });
-    if (y0 <= rows2 - 4) bands.push([y0, rows2 - 4]);
+    /* v5.33 — 맨 바깥 성문 밖(공격자가 서는 들판) 구간은 수비대 자리에서 뺀다.
+       예전에는 [y0, rows-4]까지 bands에 넣어, reverse() 때 그 들판이 가장 먼저 쓰여
+       1턴부터 수비대 6부대가 성 밖(창병·포차·연노·검병·책사)에 서 있었다(사용자 제보 '공성 갔는데 죄다 밖에 나와 있네?'). */
+    const outerGate = gateRows.length ? gateRows[gateRows.length - 1] : rows2 - 1;
     const out = [];
     bands.slice().reverse().forEach((b) => {
       const yA = b[1] - 1, yB = Math.max(b[0], b[1] - 3);
       [[0, yA], [-2, yA], [2, yA], [0, yB], [-2, yB], [2, yB]].forEach(([dx, y]) => {
+        if (y >= outerGate) return;                 // 성문 밖은 절대 쓰지 않는다
         out.push([clampX(cx2 + dx, n), y]);
       });
     });
-    const near = slotsAround(m.enemyBase, n, 10);
+    const near = slotsAround(m.enemyBase, n, 10).filter(([, y]) => y < outerGate);
     return out.concat(near).slice(0, 10);
   }
   return slotsAround(m && m.enemyBase, n, 10);

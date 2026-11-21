@@ -4,7 +4,7 @@
   "description": "시공초월 꼬마영웅들이 벌이는 전국 지도 내정 + 격자 전장 삼국지.",
   "lang": "ko",
   "dir": "ltr",
-  "start_url": "./index.html?v=46",
+  "start_url": "./index.html?v=47",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

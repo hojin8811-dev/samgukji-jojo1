@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.32** 8라운드 — 사기·상태이상 장기전 튜닝·3턴 원정 야영·미니맵 확대·도감 열전·주점 누수 수정·훈련/탐색·뒤로가기 종료 확인·침공 요격 출진 · 2026-11-22 · 라이브 `?v=46`
+> 기준: **v5.33** 9라운드 — 190 조선·맹획군 0명·도감 검색·보물 지역 경로·전투 중 실시간 EXP·자동 턴 종료·공성 수비대 성 안 스폰·장수 복수 전출·본성=군주 자리·요격→수성전 편성 유지·보조 병과 후방 지원 · 2026-11-22 · 라이브 `?v=47`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -18,6 +18,34 @@
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
+
+---
+
+## 0.0 v5.33 — 9라운드 + 실기기 제보 13건 (2026-11-22 · `?v=47`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 190 조선·맹획군 0명 | `assignGarrisons`가 `startGenerals`(확정 명부)를 등장 연도로 다시 걸러 조선 10·맹획군 11이 통째로 빠졌다 → 명부는 연도 검사를 건너뛴다. `SK.rosterAudit()`로 28세력 전수(0명 0·빈 성 0·명부=주둔) | `js/app.js` `assignGarrisons`·`rosterAudit` |
+| 도감 검색 | 인물·보물 탭 위 검색창(모은 것 우선, 미수집은 이름+`미수집`), 보물은 이름·효과·경로로도 검색. 결과 수 표시 | `js/app.js` `codexSearchBar`·`codexGenCells`·`codexTreRows`·`codexRefresh`, `css/game.css` `.cdx-search` |
+| 보물 지역 경로 | 151종 전부 `전투/탐색 — 지역(성)` 표기, 지역 가중치(전투·탐색 4~8배) 실제 적용. 지역 힌트 없는 46종은 '전국 어디서나' | `js/data.js` `TREASURE_REGIONS`·`treasureWhere`·`treasurePathText`, `js/app.js` `explore`·`rollTreasure` |
+| 전투 중 실시간 EXP | 명중 9·처치 42·치유 8을 즉시 `SK.gainExp`, 레벨업 시 부대 공·방·MP·기술 재계산 + `Lv.N!`. 전투 종료 정산은 참전·승리 보너스만 | `js/battle.js` `battleExp`·`recalcAlly`·`growMul`·`debug.exp()` |
+| 자동 턴 종료 | 아군 전원 `acted`면 400ms 뒤 `endTurn()`. 모달·연출 중 재예약(최대 8회), 턴 시작 전원 행동불가도 같은 경로 | `js/battle.js` `scheduleAutoEndTurn`·`canActAlly`·`nextUnitOrWait` |
+| 공성 수비대 위치 | `enemySlots`(siege)가 맨 바깥 성문 밖 밴드를 수비 자리로 써서 6부대가 들판에 스폰 → 그 밴드 제거 + `y >= outermostGate` 컷 | `js/data.js` `SK.enemySlots` |
+| 장수 복수 전출 | 전체/대기만/해제·인원수·목적지 선택, 담당/태수/군사 자동 해제, 행군 중 잠금, 정원 99 | `js/app.js` `openTransferPick`·`openTransferDest`·`doTransferMany` |
+| 본성 = 군주 자리 | `syncPlayerCapital`을 저장·불러오기·전출·월말 정산에서 호출. 행군·포로 중이면 유지 | `js/app.js` `syncPlayerCapital`·`SK.save`·`SK.load` |
+| 요격전 이름/재요격 | 요격 객체에 `faction`·`from`·`genIds` 전달, `faction` 계산에서 `intercept.faction` 우선. 패배 시 `inv.intercepted` 후 곧바로 수성전 배치 | `js/battle.js` `startBattle`·`invasionInterceptDefeat`, `js/app.js` `openInterceptSortie`·`openPendingInvasion` |
+| 요격→수성 편성 유지 | 살아남은 적 부대(병종·장수·HP·레벨)를 `survivingEnemies`로 넘겨 수성전에서 그대로 재편성, 격파분 제외 | `js/battle.js` `invasionInterceptDefeat`·`startBattle`(surv), `js/app.js` `startDefense` |
+| 적 침공 장수 | 침공 건에 출발 성 장수 최대 6명, 요격전 `intercept.genIds` 전원, 수성전 `defGens` 1명 제한 제거 | `js/app.js` `runAiCampaigns`·`startDefense`, `js/battle.js` `defGens` |
+| 보조 병과 후방 | 일반 전장에서도 풍수사·도사·군악대·무희·책사는 아군 전투 부대 뒤·적과 3~4칸 유지(`foeThreatAt`). 군주는 적극 전진(본진 위급 시만 수비), 전투 병과는 문관에 붙은 적 우선·길목 차단 | `js/battle.js` `planAuto`·`planSupportSkill`·`aiGoalOf`·`enemyAct` |
+| 책략 사거리 +1 | 책사·풍수사·도사 `skRange` +1(3→4), `supportReach`도 +1, 스킬 창 `사거리 N` | `js/battle.js` `CASTER_RANGE_BONUS`·`skRange` |
+| 수성전 교착 | 적 2부대 이하·아군 2배·성 밖 원거리만 남으면 문을 열고 출격(`defenseSortieNeeded`), 문 밖 아군은 계속 교전 | `js/battle.js` `defenseAllowed`·`defenseSortieNeeded`·`planAuto` |
+| 미니맵 확대 | 32×32에서 148px 상한 + 확대 시 카메라 왼쪽 비키기 → 본성·성문 가림 0(벽 237칸 중 4칸) | `js/battle.js` `mmPx`·`shiftCamForMinimap` |
+| 일기토 가드 | 같은 편·죽은 부대끼리 컷인 금지(`a.side === d.side → return`) | `js/battle.js` `duelCutin` |
+| 내정 화면 사람 | 3px 점(`.sb-crowd`) 제거, 캔버스 도트 꼬마 인물(2등신·옷색 8종·모자 5종·걸음·그림자), 성 등급·시설 Lv·민심으로 인원 증가 | `js/app.js` `CityLife`(`ROLES`·`draw`·`spawn`·`renderSceneLevel`) |
+
+**검증 메모** — 190 주둔 28세력 239/239·0명 0 / 도감 `이순신`→1명·`청룡`→2종·`기절`→1종 / 보물 경로 151·구체 지역 105 / EXP 명중 9·처치 42·치유 8·Lv.2에서 공 35→36 / 자동 턴 종료 6번째 [대기] 뒤 `phase=enemy` / 1·2·3중성 수비대 성 밖 0 / 전출 2명 이동·담당 해제 / 요격 패배→수성전 배치 자동 / 요격 생존 4부대 병종·HP 그대로 / 침공 장수 5명(수성)·4명(요격) / 보조 최소거리 3·3(순유·곽가) / 사거리 3→4 / 발석 1부대 교착 5턴 `적군 전멸` / 22성 14개월·전투 146회 오류 0.
+
+**검증 훅** — `SK.rosterAudit()`·`SK.garrisonLeaks()`·`SK.syncPlayerCapital(s)`·`SK.doTransferMany(from,to,uids)`·`SK.skRange(u,sk)`·`SK.defenseSortieNeeded(home)`·`SK.treasureWhere(t)`·`SK.treasurePathText(t)`·`SKBattle.debug.exp()`·`SKBattle.debug.allActed`·`SKBattle.debug.autoEndPending`.
 
 ---
 

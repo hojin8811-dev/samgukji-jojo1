@@ -122,7 +122,11 @@
     const bgKey = (type === 'siege' || type === 'defense')
       ? (rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'))
       : (def.img || def.map);
-    const faction = defense ? defense.faction : s.cities[opts.targetId].owner;
+    /* v5.33 — 요격 출진은 '아군 성'에서 벌어지므로 targetId의 주인이 곧 아군이다.
+       침공군 세력(intercept.faction)을 먼저 본다 — 예전에는 유비 성을 요격하면
+       적 부대 이름이 '유비 무도가대'처럼 아군 세력으로 붙었다(사용자 제보). */
+    const faction = defense ? defense.faction
+      : ((opts.intercept && opts.intercept.faction) ? opts.intercept.faction : s.cities[opts.targetId].owner);
     const bossInfo = bossOfFaction(faction);
     const intercept = opts.intercept || null;
 
@@ -142,16 +146,21 @@
     const per = intercept
       ? Math.max(120, Math.round(((intercept.troops || 800) / (enemyCount + 0.5)) / 20) * 20)
       : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 900, 5200);
-    const defGens = (defense ? (defense.genIds || []) : (s.cities[opts.targetId].genIds || []))
+    /* v5.33 — 요격전은 침공군이 데려온 장수(intercept.genIds)를 모두 세운다.
+       예전에는 1명으로 잘라, 적 침공인데도 이름 있는 장수가 거의 없었다(사용자 제보 '적 장수는 1도 안 왔어?'). */
+    const genIdSrc = (intercept && (intercept.genIds || []).length) ? intercept.genIds
+      : (defense ? (defense.genIds || []) : (s.cities[opts.targetId].genIds || []));
+    const genLvFrom = defense ? defense.from : ((intercept && intercept.from) ? intercept.from : opts.targetId);
+    const defGens = genIdSrc
       .map((id) => {
         const g = SK.GEN_BY_ID[id];
         if (!g) return null;
         /* v5.10 — 적 성 장수도 Lv.1에서 시작해 달마다 자란다 (수성전은 공격해 온 성 기준) */
-        const lv = SK.enemyGenLevel ? SK.enemyGenLevel(defense ? defense.from : opts.targetId, id) : 1;
+        const lv = SK.enemyGenLevel ? SK.enemyGenLevel(genLvFrom, id) : 1;
         return Object.assign({}, g, { _lv: lv });
       })
       .filter(Boolean)
-      .slice(0, intercept ? 1 : 99);
+      .slice(0, 99);
     const enemies = [];
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
     const SUPPORT_CLS = { gunakdae: 1, muhui: 1, pungsusa: 1 };
@@ -165,7 +174,32 @@
       : (type === 'plain') ? 'plain'
       : (type === 'ford') ? 'ford'
       : 'siege';
-    for (let i = 0; i < enemyCount; i++) {
+    /* v5.33 — 요격전에서 살아남은 적 부대가 있으면 그 편성 그대로 수성전을 연다.
+       (죽인 부대는 나오지 않고, 살아남은 부대는 병종·장수·남은 병력이 유지된다) */
+    const surv = (defense && defense.survivingEnemies && defense.survivingEnemies.length)
+      ? defense.survivingEnemies.slice(0, 10) : null;
+    if (surv) {
+      surv.forEach((sp, i) => {
+        let u = null;
+        const base = sp.genId != null ? SK.GEN_BY_ID[sp.genId] : null;
+        if (base) u = makeNamedEnemy(Object.assign({}, base, { _lv: sp.lv || 1 }), per, i === 0 && !!sp.leader);
+        if (!u) {
+          u = makeEnemyCls(sp.cls || 'changbyung', i, 'defense', faction, per);
+          if (sp.name) u.name = sp.name;
+        }
+        if (!u) return;
+        u.cls = sp.cls || u.cls;
+        u.lv = sp.lv || u.lv;
+        u.hp = Math.max(80, Math.round(sp.hp || u.hp));
+        u.maxHp = Math.max(u.hp, Math.round(sp.maxHp || u.hp));
+        u.boss = !!sp.boss;
+        u.survivor = true;                       // 요격전에서 살아남아 그대로 이어진 부대
+        if (sp.portrait) u.portrait = sp.portrait;
+        if (sp.tier) u.tier = sp.tier;
+        enemies.push(u);
+      });
+    }
+    for (let i = 0; !surv && i < enemyCount; i++) {
       if (defGens[i]) { enemies.push(makeNamedEnemy(defGens[i], per, i === 0)); continue; }
       if (i === 0 && bossInfo && !defGens.length) { enemies.push(makeBoss(bossInfo, faction, per)); continue; }
       let cls = SK.enemyClassesFor(combatType, i);
@@ -303,7 +337,7 @@
     if (eLeader) {
       eLeader.leader = true;
       /* 무명 수비 부대가 총대장이 되면 이름을 붙여 준다 (적 성에 장수가 없을 때) */
-      if (!eLeader.genId && !eLeader.boss) {
+      if (!eLeader.genId && !eLeader.boss && !eLeader.survivor) {
         eLeader.boss = true;
         eLeader.name = `${SK.factionName(faction).replace(/군$/, '')} 수비대장`;
       }
@@ -318,8 +352,10 @@
     const eHQ = B.sites.find((x) => x.type === 'enemyHQ');
     B.units.filter((u) => u.side === 'enemy').forEach((u, i) => {
       if (type === 'defense') { u.role = 'assault'; return; }
-      if (type === 'siege' || type === 'fortress') { u.role = 'guard'; return; }
-      u.role = u.leader ? 'guard' : (i % 2 === 0 ? 'assault' : 'guard');
+      /* v5.33 — 총대장 격파 규칙이 사라졌으니 군주·총대장도 본진에 웅크리지 않고 함께 나선다.
+         (본진이 실제로 위급할 때만 aiGoalOf가 본진으로 돌려세운다) */
+      if (type === 'siege' || type === 'fortress') { u.role = u.leader ? 'assault' : 'guard'; return; }
+      u.role = (i % 2 === 0 ? 'assault' : 'guard');
     });
     B.units.forEach((u) => { if (u.tier == null) u.tier = SK.tierForLv(u.lv); });
     /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
@@ -367,6 +403,61 @@
     }
   };
 
+  /* v5.33 — 레벨 성장 배율 (1레벨마다 공·방 +1.8%, 전직 구간은 +6%) */
+  function growMul(lv) {
+    const L = Math.max(1, Number(lv) || 1);
+    return (1 + 0.06 * SK.tierForLv(L)) * (1 + LV_GROW * (L - 1));
+  }
+  SK.growMul = growMul;
+
+  /* v5.33 — 레벨이 오른 아군 부대의 공·방·MP·기술을 그 자리에서 다시 계산한다 */
+  function recalcAlly(u, h) {
+    if (!u || !u.grow || !h) return;
+    const g = u.grow;
+    u.atk = (g.atkFlat + (h.wu - g.wu0) * 0.17) * growMul(h.lv) * g.atkMulBase;
+    u.def = (g.defFlat + (h.tong - g.tong0) * 0.09) * growMul(h.lv) * g.defMulBase;
+    u.wu = h.wu; u.ji = h.ji; u.tong = h.tong;
+    u.lv = h.lv;
+    u.tier = SK.tierForLv(h.lv);
+    u.maxMp = SK.maxMpOf(h.cls, h.lv);
+    u.mp = Math.min(u.maxMp, Math.max(u.mp, h.mp || 0));
+    u.skills = SK.skillsFor(h.cls, h.lv);
+  }
+  SK.recalcAlly = recalcAlly;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.33 — 전투 중 실시간 경험치
+     예전에는 타격마다 u.expGain에 숫자만 쌓아 두고 전투가 끝날 때 한꺼번에
+     SK.gainExp로 정산해, 전투 중에는 EXP 바가 0에서 움직이지 않았다.
+     이제 맞히거나(9)·쓰러뜨리거나(42)·치유할 때마다 그 자리에서 장수 경험치로 넣고,
+     레벨이 오르면 부대 공·방·MP·기술을 바로 올린 뒤 `Lv.N!`을 띄운다.
+     전직 팝업은 SK.flushPromotions가 전장이 열려 있는 동안 미뤄 두므로 조작을 막지 않는다.
+     ══════════════════════════════════════════════════════════════ */
+  function battleExp(u, amount) {
+    if (!B || B.over || !u || u.side !== 'ally' || !u.uid) return null;
+    const n = Math.max(0, Math.round(Number(amount) || 0));
+    if (!n) return null;
+    const s = SK.state;
+    if (!s) return null;
+    const h = (s.heroes || []).find((x) => x.uid === u.uid);
+    if (!h) return null;
+    u.expGain = (u.expGain || 0) + n;
+    const lv0 = h.lv;
+    const ups = SK.gainExp(h, n) || [];
+    if (h.lv > lv0) {
+      recalcAlly(u, h);
+      const promo = ups.length && ups[ups.length - 1].promote ? ` · ${ups[ups.length - 1].title}` : '';
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.02) * TILE, `Lv.${h.lv}!`, '#ffe08a', { back: true });
+      addFx({ kind: 'ring', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 620, color: '255,226,120' });
+      feed(`${u.name} 레벨 업 — Lv.${h.lv}${promo}`, 'good');
+      SK.sfx.play('levelup');
+      B.levelUps = B.levelUps || [];
+      B.levelUps.push({ name: h.name, lv: h.lv, promote: !!promo, turn: B.turn });
+    }
+    return ups;
+  }
+  SK.battleExp = battleExp;
+
   /* 훈련도 — 부대의 숙련도 (레벨·등급이 높을수록 단단하다) */
   function trainOf(lv, tierKey) {
     const t = SK.TIER_LV[tierKey] || 3;
@@ -394,11 +485,18 @@
     const lvMul = 1 + LV_GROW * (Math.max(1, Number(h.lv) || 1) - 1);
     /* v5.11 — 관직 보정 (무관 공·방 / 문관 병력·내정) */
     const offB = SK.officeWarBonus ? SK.officeWarBonus(h) : { atk: 0, def: 0 };
+    /* v5.33 — 전투 중 실시간 레벨업을 위해 공·방 계산을 '고정값 × 성장 배율'로 나눠 둔다.
+       레벨이 오르면 grow 값만 다시 곱해 부대 능력치를 그 자리에서 올린다. */
+    const atkFlat = C.atk + (h.wu + eq.war - 60) * 0.17;
+    const defFlat = C.def + (h.tong + eq.leadership - 60) * 0.09;
+    const atkMulBase = techAtk * pMul * loyMul * (1 + offB.atk);
+    const defMulBase = techDef * pMul * loyMul * (1 + offB.def);
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
-      atk: (C.atk + (h.wu + eq.war - 60) * 0.17) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techAtk * pMul * loyMul * (1 + offB.atk),
-      def: (C.def + (h.tong + eq.leadership - 60) * 0.09) * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * techDef * pMul * loyMul * (1 + offB.def),
+      atk: atkFlat * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * atkMulBase,
+      def: defFlat * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * defMulBase,
+      grow: { atkFlat, defFlat, atkMulBase, defMulBase, lv0: h.lv, wu0: h.wu, tong0: h.tong },
       mov: Math.min(9, C.mov + eq.move), rng: C.rng + (C.rng > 1 ? (eq.rng || 0) : 0), minRng: C.minRng || 1,
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
@@ -689,6 +787,8 @@
       const focus = base ? [base.x, base.y - 1] : [cx, cy];
       cam.s = clamp(stage.clientWidth / (11 * TILE), 0.42, 0.8);
       centerCam(focus[0], focus[1]);
+      /* v5.33 — 미니맵 확대를 기억한 채 전투가 열리면 본성이 미니맵 뒤에 서지 않게 비킨다 */
+      if (mmBig) shiftCamForMinimap(true);
     }
     if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(loop); }
   }
@@ -1139,7 +1239,19 @@
   function mmPx() {
     if (!mmBig) return MM_SMALL;
     const vw = window.innerWidth || 390;
-    return Math.round(Math.min(168, Math.max(136, vw * 0.42)));
+    /* v5.33 — 32×32 대도시에서는 확대해도 성곽(본성·성문)을 덜 가리게 한 단계 작게 */
+    const cap = N >= 28 ? 148 : 168;
+    return Math.round(Math.min(cap, Math.max(136, vw * 0.42)));
+  }
+  /* v5.33 — 확대한 미니맵이 덮는 폭만큼 전장 초점을 왼쪽으로 비켜 준다 */
+  function shiftCamForMinimap(open) {
+    if (!canvas || !stage) return;
+    const box = document.getElementById('mm-box');
+    const mmW = box ? box.getBoundingClientRect().width : 0;
+    if (!mmW) return;
+    const dx = (open ? -1 : 1) * Math.round(mmW / 2);
+    cam.x += dx;
+    camClamp();
   }
   function buildMinimap() {
     const cv = mmEl();
@@ -1254,7 +1366,12 @@
       btn.setAttribute('aria-label', mmBig ? '미니맵 원래 크기로' : '미니맵 확대');
       btn.classList.toggle('on', mmBig);
     }
-    if (!silent) { buildMinimap(); drawMinimap(); SK.sfx.play('ui'); }
+    if (!silent) {
+      buildMinimap(); drawMinimap();
+      /* v5.33 — 확대하면 그만큼 전장을 왼쪽으로 비켜 본성·성곽이 미니맵 뒤에 숨지 않게 한다 */
+      shiftCamForMinimap(mmBig);
+      SK.sfx.play('ui');
+    } else if (!mmBig) { /* 기억된 '작게' 상태는 그대로 */ }
   }
   SK.mmSetBig = mmSetBig;
   function bindMinimap() {
@@ -1795,7 +1912,7 @@
     }
     if (mode === 'attack' || mode === 'skillTarget') {
       /* v5.14 — 표시 사거리도 실제 판정(effRng, 지형 보너스 포함)과 같은 값을 쓴다 */
-      const rng = pendingSkill ? (pendingSkill.range || pendingSkill.radius || effRng(u)) : effRng(u);
+      const rng = pendingSkill ? ((pendingSkill.range ? skRange(u, pendingSkill) : pendingSkill.radius || effRng(u))) : effRng(u);
       /* v5.13 — 회복·아군 버프는 자기 발밑(거리 0)도 대상 — 풍수사가 제 발밑을 치료한다 */
       const selfSkill = !!(pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly'));
       const minR = selfSkill ? 0 : (pendingSkill ? (pendingSkill.minRange || 1) : (u.minRng || 1));
@@ -1865,7 +1982,7 @@
       if (pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly')) {
         B.units.forEach((t) => {
           if (!t.alive || t.side !== u.side) return;
-          if (manh(u.x, u.y, t.x, t.y) > (pendingSkill.range || effRng(u))) return;
+          if (manh(u.x, u.y, t.x, t.y) > (pendingSkill.range ? skRange(u, pendingSkill) : effRng(u))) return;
           ctx.fillStyle = 'rgba(80,180,120,0.30)';
           ctx.fillRect(t.x * TILE + 3, t.y * TILE + 3, TILE - 6, TILE - 6);
           /* v5.13 — 시전자 자기 발밑은 초록 테두리까지 그려 '나도 치료 가능'을 분명히 */
@@ -2828,6 +2945,9 @@
   let duelTimer = 0;
   function duelCutin(a, d) {
     if (!B || !a || !d) return false;
+    /* v5.33 — 일기토는 '살아 있는 서로 다른 편'의 교전에서만.
+       혼란에 빠진 부대가 아군을 칠 때 관우 ↔ 유비 같은 컷인이 뜨던 문제(사용자 제보)를 막는다. */
+    if (a === d || a.side === d.side || !a.alive || !d.alive) return false;
     const el = document.getElementById('duel-cutin');
     if (!el) return false;
     /* v5.30 — '일기토'는 이름 있는 장수끼리만. 무명 수비대장(재야 수비대장 등)은 뺀다 */
@@ -3174,6 +3294,15 @@
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
     return u.rng + Math.min(1, aff.rng + wallRngBonus(u));
   }
+
+  /* v5.33 — 책사·풍수사·도사의 책략 사거리 +1 (사용자 '책사계 풍수 도사 책략사거리 1업').
+     스킬 표의 range를 직접 고치면 다른 병과까지 따라오므로, 시전자 병과로 한 번만 보정한다. */
+  const CASTER_RANGE_BONUS = { chaeksa: 1, pungsusa: 1, dosa: 1 };
+  function skRange(u, sk) {
+    const base = (sk && sk.range) || (u ? effRng(u) : 1);
+    return base + ((u && CASTER_RANGE_BONUS[u.cls]) ? 1 : 0);
+  }
+  SK.skRange = skRange;
   /* v5.15 — 수성전: 성벽·망루·안쪽 진지(C·T·K) 위에 선 원거리·공성 병과는 사거리 +1.
      산·성 지형 보너스(aff.rng)와 겹쳐도 최대 +1까지만 (effRng에서 합산해 자른다). */
   const WALL_RNG_CLS = { gungsu: 1, gunggi: 1, yeonnobyung: 1, pocha: 1, balseokcha: 1 };
@@ -3383,7 +3512,8 @@
       addFx({ kind: 'burst', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.45) * TILE, life: 520, color: '255,226,120' });
       shakeScreen(7);
     }
-    if (a.side === 'ally' && a.uid) a.expGain = (a.expGain || 0) + (d.hp <= 0 ? 42 : 9);
+    /* v5.33 — 타격 경험치를 그 자리에서 장수에게 넣는다 (적 처치 42 · 명중 9) */
+    if (a.side === 'ally' && a.uid) battleExp(a, wasAlive && d.hp <= 0 ? 42 : 9);
     if (d.hp <= 0) {
       downUnit(d);
       addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.2) * TILE, d.fate === '생포' ? '생포!' : '퇴각', d.fate === '생포' ? '#ffd166' : '#ff9a7a');
@@ -4040,8 +4170,51 @@
       return;
     }
     if (next) selectUnit(next);
-    else { B.sel = null; mode = 'idle'; B.reachCache = null; SKBattle.refreshUI(); $('#battle-tip').textContent = '모든 부대가 행동했습니다. [턴 종료]를 누르세요.'; }
+    else {
+      B.sel = null; mode = 'idle'; B.reachCache = null; SKBattle.refreshUI();
+      $('#battle-tip').textContent = '모든 부대가 행동했습니다 — 잠시 뒤 적군 차례로 넘어갑니다.';
+      scheduleAutoEndTurn();
+    }
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.33 — 아군 부대가 모두 행동을 마치면 [턴 종료]를 누르지 않아도 자동으로 넘어간다.
+     (사용자 제보: 마지막 부대까지 움직였는데 '턴 종료를 누르세요'에서 손이 멈춘다)
+     · 아군 페이즈이고, 살아 있는 아군 중 아직 행동하지 않은 부대가 하나도 없을 때만
+     · 마지막 연출이 끝나도록 400ms 기다렸다가 endTurn()
+     · 창(모달)이 떠 있거나 아직 연출 중이면 미루고 다시 예약한다 (최대 8회)
+     · 자동전투 중에는 autoStep이 진행하므로 끼어들지 않는다
+     ══════════════════════════════════════════════════════════════ */
+  let autoEndTimer = null;
+  let autoEndTries = 0;
+  function canActAlly() { return !!(B && B.units.some((u) => u.side === 'ally' && u.alive && !u.acted)); }
+  function scheduleAutoEndTurn(delay) {
+    if (!B || B.over || B.phase !== 'ally' || autoOn) return false;
+    if (canActAlly()) return false;
+    if (autoEndTimer) return true;
+    autoEndTries = 0;
+    const tick = (ms) => {
+      autoEndTimer = wait(() => {
+        autoEndTimer = null;
+        if (!B || B.over || B.phase !== 'ally') return;
+        if (canActAlly()) { autoEndTries = 0; return; }
+        if (autoEndTries++ > 8) return;
+        const modalOpen = !!document.querySelector('#modal-root .modal-layer');
+        if (busy || modalOpen) { scheduleRetry(320); return; }
+        endTurn();
+      }, ms);
+    };
+    const scheduleRetry = (ms) => { if (autoEndTimer) return; tick(ms); };
+    tick(delay == null ? 400 : delay);
+    return true;
+  }
+  SK.scheduleAutoEndTurn = scheduleAutoEndTurn;
+  /* 턴이 넘어가면 예약을 지운다 (적 페이즈·전투 종료·재시작에서 남지 않게) */
+  function clearAutoEnd() {
+    if (autoEndTimer) { clearTimeout(autoEndTimer); autoEndTimer = null; }
+    autoEndTries = 0;
+  }
+  SK.clearAutoEnd = clearAutoEnd;
 
   /* ───────────── 책략 ───────────── */
   function openSkillMenu() {
@@ -4053,7 +4226,7 @@
       const dis = u.mp < sk.mp;
       return `<button class="skill-row ${dis ? 'off' : ''}" data-k="${k}" ${dis ? 'disabled' : ''}>
         <span class="sk-mp">${sk.mp}</span>
-        <div><b>${sk.name}</b><span>${sk.desc}</span></div>
+        <div><b>${sk.name}<em class="sk-rng">사거리 ${skRange(u, sk)}</em></b><span>${sk.desc}</span></div>
       </button>`;
     }).join('');
     const m = SK.modal({
@@ -4086,6 +4259,7 @@
     castCircle(u, sk.kind === 'buffSelf' ? '150,210,255' : '255,215,120');
     SK.sfx.play(sk.kind === 'healArea' ? 'heal' : 'spell');
     if (sk.kind === 'healArea') {
+      battleExp(u, 8);                       // v5.33 — 치유 책략도 실시간 경험치
       const rad = sk.radius + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
       B.units.forEach((t) => {
         if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= rad) {
@@ -4135,7 +4309,7 @@
     /* v5.13 — 회복·아군 버프는 거리 0(자기 자신) 허용 */
     const selfSkill = sk.kind === 'heal' || sk.kind === 'buffAlly';
     if (!selfSkill && sk.minRange && dist < sk.minRange) { SK.toast(`최소 사거리 ${sk.minRange}칸입니다.`); return; }
-    if (dist > (sk.range || effRng(u))) { SK.toast('사거리 밖입니다.'); return; }
+    if (dist > skRange(u, sk)) { SK.toast(`사거리 밖입니다. (사거리 ${skRange(u, sk)})`); return; }
     const target = B.units.find((o) => o.alive && o.x === x && o.y === y);
     const finish = (delay) => {
       u.acted = true; pendingSkill = null; mode = 'idle';
@@ -4155,6 +4329,7 @@
       castCircle(u, sk.kind === 'heal' ? '150,240,180' : '255,215,120');
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
       if (sk.kind === 'heal') {
+        battleExp(u, 8);                     // v5.33 — 치유할 때도 경험치가 바로 쌓인다
         const heal = Math.round(healAmount(sk, target, u) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 420)));
         target.hp = Math.min(target.maxHp, target.hp + heal);
         addHeal(target, heal, u);
@@ -4337,9 +4512,13 @@
   /* ───────────── 턴 종료·AI ───────────── */
   function endTurn() {
     if (!B || B.over || B.phase !== 'ally' || busy) return;
+    clearAutoEnd();
     B.phase = 'enemy';
     B.sel = null; mode = 'idle'; B.reachCache = null;
     SKBattle.refreshUI();
+    /* v5.33 — 자동으로 넘어갔을 때 '턴 종료를 누르세요' 안내가 남지 않게 */
+    const tipEl = $('#battle-tip');
+    if (tipEl && /턴 종료|넘어갑니다/.test(tipEl.textContent || '')) tipEl.textContent = '적군 페이즈 — 적군이 움직입니다';
     banner('적군 페이즈', 'enemy');
     wait(enemyPhase, 650);
   }
@@ -4462,10 +4641,11 @@
       heals.forEach((sk) => {
         tiles.forEach((t) => {
           if (sk.kind === 'heal') {
-            const reach = sk.range || effRng(u);
+            const reach = skRange(u, sk);
             hurt.forEach((a) => {
               if (dTo(t, a.x, a.y) > reach) return;
-              const sc = (1 - a.hp / a.maxHp) * 130 - dTo(t, u.x, u.y) * 0.4;
+              /* v5.33 — 적에게 붙는 자리에서 시전하지 않는다 */
+              const sc = (1 - a.hp / a.maxHp) * 130 - dTo(t, u.x, u.y) * 0.4 - foeThreatAt(t.x, t.y, foes);
               if (!best || sc > best.score) best = { kind: 'skill', mode: 'heal', key: sk.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
             });
           } else {
@@ -4476,6 +4656,7 @@
             inRange.forEach((a) => { sc += (1 - a.hp / a.maxHp) * 90; });
             sc += inRange.length > 1 ? 30 : 0;
             sc -= dTo(t, u.x, u.y) * 0.4;
+            sc -= foeThreatAt(t.x, t.y, foes);
             if (!best || sc > best.score) best = { kind: 'skill', mode: 'heal', key: sk.key, x: t.x, y: t.y, tx: t.x, ty: t.y, target: inRange[0], score: sc };
           }
         });
@@ -4492,13 +4673,13 @@
       debs.forEach((sk) => {
         const bk = sk.kind === 'debuffDef' ? 'def' : 'atk';
         const rad = sk.radius || 1;
-        const range = sk.range || effRng(u);
+        const range = skRange(u, sk);
         tiles.forEach((t) => {
           core.forEach((f) => {
             if (f.buffs[bk] && f.buffs[bk].t > 0) return;
             if (dTo(t, f.x, f.y) > range) return;
             const hit = foes.filter((o) => !o.buffs[bk] && manh(f.x, f.y, o.x, o.y) <= rad).length;
-            const sc = 34 + hit * 16 + threat(f) / 9000 - dTo(t, u.x, u.y) * 0.3;
+            const sc = 34 + hit * 16 + threat(f) / 9000 - dTo(t, u.x, u.y) * 0.3 - foeThreatAt(t.x, t.y, foes) * 0.7;
             if (!best || sc > best.score) best = { kind: 'skill', mode: 'debuff', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
           });
         });
@@ -4515,7 +4696,7 @@
         const group = allies.filter((a) => dTo(t, a.x, a.y) <= rad);
         const need = group.filter((a) => !a.buffs.atk || a.buffs.atk.t <= 0).length;
         if (need < 2) return;
-        const sc = need * 24 + group.length * 5 - dTo(t, u.x, u.y) * 0.3;
+        const sc = need * 24 + group.length * 5 - dTo(t, u.x, u.y) * 0.3 - foeThreatAt(t.x, t.y, foes);
         if (!best || sc > best.score) best = { kind: 'skill', mode: 'instant', key: areaBuf.key, x: t.x, y: t.y, tx: t.x, ty: t.y, score: sc };
       });
       if (best) return best;
@@ -4535,7 +4716,7 @@
       });
       let best = null;
       dmgs.forEach((sk) => {
-        const range = sk.range || effRng(u);
+        const range = skRange(u, sk);
         const minR = sk.minRange || 1;
         if (sk.kind === 'magicArea') {
           tiles.forEach((t) => {
@@ -4572,7 +4753,7 @@
       tiles.forEach((t) => {
         allies.forEach((a) => {
           if (a.buffs.atk && a.buffs.atk.t > 0) return;
-          if (dTo(t, a.x, a.y) > (allyBuf.range || effRng(u))) return;
+          if (dTo(t, a.x, a.y) > skRange(u, allyBuf)) return;
           const sc = 22 + effAtk(a) * 0.5 + (1 - a.hp / a.maxHp) * 30 - dTo(t, u.x, u.y) * 0.3;
           if (!best || sc > best.score) best = { kind: 'skill', mode: 'buff', key: allyBuf.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
         });
@@ -4597,7 +4778,7 @@
     if (sk.kind === 'power' || sk.kind === 'magic') { if (!tgt || tgt.side === u.side) return false; }
     const dist = manh(u.x, u.y, x, y);
     if (sk.minRange && dist < sk.minRange) return false;
-    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && dist > (sk.range || effRng(u))) return false;
+    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && dist > skRange(u, sk)) return false;
     B.sel = u;
     mode = 'skillTarget';
     pendingSkill = Object.assign({ key: sk.key }, sk);
@@ -4655,6 +4836,25 @@
     const out = list.slice().sort((a, b) => (b.row || 0) - (a.row || 0))[0];
     return !!out && out.hp <= 0;
   }
+  /* v5.33 — 수성전 교착 판정: 적이 성 밖 원거리·공성 병과로만 버티거나,
+     적이 2부대 이하로 줄었거나, 아군 병력이 적의 두 배 이상이면 문을 열고 나가 섬멸한다.
+     (사용자 제보: 성문이 살아 있는 채 적 발석 1부대만 성 밖에 남아 자동전투가 12턴째 멈춤) */
+  function defenseSortieNeeded(home) {
+    if (!B || !home) return false;
+    const foes = B.units.filter((o) => o.alive && o.side !== 'ally');
+    if (!foes.length) return false;
+    if (foes.length <= 2) return true;
+    const mine = B.units.filter((o) => o.alive && o.side === 'ally');
+    const myHp = mine.reduce((a, o) => a + Math.max(0, o.hp), 0);
+    const foeHp = foes.reduce((a, o) => a + Math.max(0, o.hp), 0);
+    if (myHp >= foeHp * 2) return true;
+    const rangedCls = { pocha: 1, balseokcha: 1, gungsu: 1, gunggi: 1, yeonnobyung: 1, chaeksa: 1, dosa: 1 };
+    const allStandoff = foes.every((f) => (rangedCls[f.cls] || effRng(f) > 1) && f.y >= home.insideY);
+    if (allStandoff) return true;
+    return false;
+  }
+  SK.defenseSortieNeeded = defenseSortieNeeded;
+
   function defenseAllowed(u, role, home) {
     if (!home) return null;
     const inside = (x, y) => {
@@ -4663,7 +4863,17 @@
       if (row[x] === 'C' || row[x] === 'H') return false;
       return y <= home.insideY || row[x] === 'G';
     };
+    const sortie = defenseSortieNeeded(home);
+    const openField = (x, y) => {
+      const row = B.tiles[y];
+      if (!row || row[x] == null || row[x] === 'C' || row[x] === 'H') return false;
+      return true;
+    };
+    const uOut = !!(u && u.y > home.insideY);
+    const foesNear = (x, y) => B.units.some((o) => o.alive && o.side !== 'ally' && manh(x, y, o.x, o.y) <= 3);
     if (role === 'keep') {
+      /* 교착이면 보조도 문 밖으로 나가 출격한 아군을 받쳐 준다 */
+      if (sortie) return openField;
       /* v5.27 — 보조 부대(책사·풍수사·도사·군악대·무희)가 본진 6칸 안에 묶여
          성문 앞 아군에게 회복·버프가 닿지 않던 문제. 이제 성 안쪽 어디든
          적의 지금 사거리 밖(근접 +2·원거리 +1 여유)이면 전진해 지원한다. */
@@ -4671,8 +4881,10 @@
       return (x, y) => inside(x, y) && B.tiles[y][x] !== 'G' && (ring.none || ring.safe(x, y));
     }
     if (role === 'wall') return (x, y) => inside(x, y) && y >= home.insideY - 5;
-    /* 근접 — 문이 버티는 동안에는 성문 안쪽에서 막고, 문이 깨진 뒤에만 나가서 맞는다 */
-    if (outerGateBroken()) return () => true;
+    /* 근접 — 문이 버티는 동안에는 성문 안쪽에서 막고, 문이 깨지거나 교착이면 나가서 맞는다.
+       이미 문 밖에 있는 부대는 다시 안으로 들어가지 않고 적 곁에서 계속 싸울 수 있다. */
+    if (outerGateBroken() || sortie) return () => true;
+    if (uOut) return (x, y) => inside(x, y) || foesNear(x, y);
     return inside;
   }
 
@@ -4705,11 +4917,28 @@
     try {
       (skillListOf(u) || []).forEach((s) => {
         if (s.kind !== 'heal' && s.kind !== 'healArea' && s.kind !== 'buffAlly' && s.kind !== 'buffAreaAllies') return;
-        r = Math.max(r, Math.min(5, s.range || r));
+        r = Math.max(r, Math.min(6, (s.range || r) + ((CASTER_RANGE_BONUS[u.cls]) ? 1 : 0)));
       });
     } catch (e) { /* ignore */ }
     return r;
   }
+
+  /* v5.33 — 보조 부대가 서려는 칸이 적에게 얼마나 위험한가 (가까울수록 큰 값) */
+  function foeThreatAt(x, y, foes) {
+    if (!foes || !foes.length) return 0;
+    let pen = 0;
+    foes.forEach((f) => {
+      const d = manh(x, y, f.x, f.y);
+      const r = effRng(f) + (attackKind(f) === 'melee' ? 1 : 0);
+      if (d <= 1) pen = Math.max(pen, 42);
+      else if (d <= 2) pen = Math.max(pen, 26);
+      else if (d <= 3) pen = Math.max(pen, 12);
+      if (d <= r) pen = Math.max(pen, 32);          // 지금 적 사거리 안
+      else if (d === r + 1) pen = Math.max(pen, 16);
+    });
+    return pen;
+  }
+  SK.foeThreatAt = foeThreatAt;
 
   function defenseAllowFor(u) {
     const role = defenseRoleOf(u);
@@ -4761,7 +4990,9 @@
         if (d < minR || d > rng) return;
         if (wallBlocked({ x: t.x, y: t.y }, e) && !canShootOut({ x: t.x, y: t.y, cls: u.cls, side: u.side })) return;
         const est = calcDamage(u, e, {}).dmg;
-        const score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
+        let score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
+        /* v5.33 — 후방 문관·보조에게 3칸 안으로 붙은 적을 먼저 친다 (전투 병과만) */
+        if (!SUPPORT_CLS_SET[u.cls] && allies.some((a) => a !== u && SUPPORT_CLS_SET[a.cls] && manh(e.x, e.y, a.x, a.y) <= 3)) score += 24;
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
       });
       if (stormGate && gateIntact() && activeGate()) {
@@ -4780,6 +5011,37 @@
       const gy = (stormGate && gateIntact() && activeGate())
         ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) - 1 : 99;
       let score = -Math.min(d, gy);
+      /* v5.33 — 보조 병과(풍수사·군악대·무희·도사·책사)는 공성·요격·들판에서도 전방으로 돌진하지 않는다.
+         예전에는 home(수성전)이 없으면 점수가 '적과 가까울수록 높음'이라 풍수사가 1선으로 달려갔다.
+         이제 아군 전투 부대에 지원이 닿는 자리 중 적과 4칸 이상 떨어진 칸을 고른다. */
+      const isSupport = !!SUPPORT_CLS_SET[u.cls] || defRole === 'keep';
+      if (!home && isSupport) {
+        const reach = supportReach(u);
+        let cover = 0, near = 99;
+        allies.forEach((a) => {
+          if (a === u || SUPPORT_CLS_SET[a.cls]) return;
+          const dd = manh(t.x, t.y, a.x, a.y);
+          if (dd < near) near = dd;
+          if (dd <= reach) cover += 1 + (1 - a.hp / Math.max(1, a.maxHp)) * 1.6;
+        });
+        const fd = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
+        score = cover * 8.5 - Math.max(0, near - reach) * 2.2
+          + Math.min(fd, 8) * 0.9                       // 적과 적당히 떨어질수록 좋다
+          - (fd <= 2 ? (3 - fd) * 15 : 0)               // 적 바로 옆은 크게 깎는다
+          - foeThreatAt(t.x, t.y, foes) * 0.5;
+        if (fd >= 4) score += 4;                        // 4칸 이상 안전 거리 보너스
+      } else if (!home && !SUPPORT_CLS_SET[u.cls]) {
+        /* v5.33 — 전투 병과는 적과 우리 문관 사이 길목을 막는 자리에 선다 */
+        const sups = allies.filter((a) => a !== u && SUPPORT_CLS_SET[a.cls]);
+        let block = 0;
+        sups.forEach((a) => {
+          if (manh(t.x, t.y, a.x, a.y) > 4) return;
+          foes.forEach((f) => {
+            if (manh(t.x, t.y, f.x, f.y) < manh(a.x, a.y, f.x, f.y)) block = Math.max(block, 7);
+          });
+        });
+        score += block;
+      }
       /* 수비측은 망루·본성에 붙어 버티는 쪽을 조금 더 선호한다 (문을 부수는 진영 제외) */
       if (!stormGate && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'K')) score += 2.5;
       /* v5.22 — 역할별 자리 지키기 */
@@ -4811,7 +5073,8 @@
         /* 지원이 닿으면 그 자리, 안 닿으면 아군 쪽으로 다가간다 (적 사거리 밖은 allow가 지킨다) */
         score = cover * 9 - Math.max(0, near - reach) * 2.2 - Math.min(d, 14) * 0.7 - manh(t.x, t.y, hq.x, hq.y) * 0.1;
         if (B.tiles[t.y][t.x] === 'K') score += 1.5;
-      } else if (defRole === 'melee' && home && gateIntact()) {
+      } else if (defRole === 'melee' && home && gateIntact() && !defenseSortieNeeded(home)) {
+        /* v5.33 — 교착(적이 성 밖에서만 버팀)이면 이 '문 안에서 막기' 점수를 끄고 나가서 친다 */
         if (B.tiles[t.y][t.x] === 'G') score += 5;                     // 성문 안쪽에서 문을 막는다
         else if (t.y >= home.insideY - 2) score += 2;
         if (t.y > home.insideY && B.tiles[t.y][t.x] !== 'G') score -= 25;
@@ -4925,6 +5188,11 @@
         SKBattle.refreshUI();
         const first = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
         if (first) selectUnit(first);
+        else {
+          /* v5.33 — 턴 시작부터 전원이 행동 불가(기절·혼란 등)면 안내만 띄우고 멈추지 않는다 */
+          $('#battle-tip').textContent = '행동할 수 있는 부대가 없습니다 — 잠시 뒤 적군 차례로 넘어갑니다.';
+          scheduleAutoEndTurn(520);
+        }
         return;
       }
       const e = enemies[i++];
@@ -4939,6 +5207,15 @@
     if (!B || !B.sites) return null;
     const enemyHQ = B.sites.find((s) => s.type === 'enemyHQ');
     const allyHQ = B.sites.find((s) => s.type === 'allyHQ');
+    /* v5.33 — 군주(총대장)는 원래 role과 상관없이 적극 전진한다.
+       예외: 본진 3칸 안에 적이 들어왔는데 지킬 수비대가 곁에 없을 때만 본진으로 돌아간다. */
+    if (e.leader && enemyHQ) {
+      const threat = B.units.some((o) => o.alive && o.side !== e.side && manh(o.x, o.y, enemyHQ.x, enemyHQ.y) <= 3);
+      const guardNear = B.units.some((g) => g.alive && g !== e && g.side === e.side && g.role === 'guard'
+        && manh(g.x, g.y, enemyHQ.x, enemyHQ.y) <= 4);
+      if (threat && !guardNear) return enemyHQ;
+      e.role = e.role === 'guard' ? 'assault' : e.role;
+    }
     if (e.role === 'guard') return enemyHQ || null;
     const free = B.sites.filter((s) => s.type === 'village' && s.owner !== e.side);
     if (free.length) {
@@ -4958,9 +5235,12 @@
     if (e.x != null) trackTurn(e, true);
     const targets = B.units.filter((u) => u.side === 'ally' && u.alive);
     if (!targets.length) { done(); return; }
+    /* v5.33 — 적 전투 병과도 자기 문관을 노리는 아군을 먼저 친다 */
     let target = targets.reduce((best, t) => {
       const d = manh(e.x, e.y, t.x, t.y);
-      return !best || d < best.d ? { t, d } : best;
+      let sc = d;
+      if (!SUPPORT_CLS_SET[e.cls] && B.units.some((o) => o.alive && o.side === e.side && SUPPORT_CLS_SET[o.cls] && manh(t.x, t.y, o.x, o.y) <= 3)) sc -= 2;
+      return !best || sc < best.sc ? { t, d, sc } : best;
     }, null).t;
     const aiGoal = aiGoalOf(e);
     const rng = effRng(e);
@@ -5214,6 +5494,16 @@
     SK.sfx.play('defeat');
     const s = SK.state;
     const inv = B.intercept.invasion || {};
+    /* v5.33 — 한 침공에 요격 출진은 한 번뿐. 패배하면 곧바로 수성전으로 넘어간다
+       (사용자 제보: 요격에서 진 뒤 같은 침공의 요격 창이 또 떴다) */
+    inv.intercepted = true;
+    /* v5.33 — 요격전에서 살아남은 적 부대의 편성(병종·병력·레벨·장수)을 그대로 넘긴다.
+       예전에는 남은 총병력만 넘겨서 수성전에서 적 병종이 처음부터 다시 뽑혔다(사용자 제보). */
+    inv.survivingEnemies = B.units.filter((u) => u.side === 'enemy' && u.alive).map((u) => ({
+      name: u.name, cls: u.cls, lv: u.lv, hp: Math.round(u.hp), maxHp: Math.round(u.maxHp),
+      genId: u.genId != null ? u.genId : null, boss: !!u.boss, leader: !!u.leader,
+      portrait: u.portrait || null, tier: u.tier || null,
+    }));
     const st = inv.target ? s.cities[inv.target] : null;
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = Math.round(survivors.reduce((sum, u) => sum + Math.max(0, u.hp), 0));
@@ -5244,7 +5534,11 @@
       </div>`,
       actions: [{ label: '수성전으로', primary: true, onClick: () => {
         closeBattle();
-        setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 380);
+        /* 바로 수성전 배치로 — 선택 창을 다시 띄우지 않는다 */
+        setTimeout(() => {
+          if (SK.openDefenseDeploy) SK.openDefenseDeploy(inv);
+          else if (SK.openPendingInvasion) SK.openPendingInvasion();
+        }, 380);
       } }],
       dismissible: false,
     });
@@ -5683,7 +5977,8 @@
         h.mp = u.mp;
         h.marchId = null;
         if (u.alive) h.city = B.targetId;
-        const gain = (u.expGain || 0) + (u.alive ? 70 : 30) + (B.def.name === '공성전' ? 15 : 0);
+        /* v5.33 — 타격·치유 경험치는 전투 중에 이미 들어갔다. 여기서는 참전·승리 보너스만 준다 */
+        const gain = (u.alive ? 70 : 30) + (B.def.name === '공성전' ? 15 : 0);
         /* v5.10 — 승리·참전·격파의 공훈치 */
         const merit = 10 + defeatedNames.length * 3 + (u.alive ? 6 : 0);
         const ups = SK.gainExp(h, gain, merit);
@@ -6079,11 +6374,15 @@
         $('#uc-hp-txt').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-mp').style.width = Math.round(u.mp / u.maxMp * 100) + '%';
         $('#uc-mp-txt').textContent = `${u.mp}/${u.maxMp}`;
-        /* v5.0.3 — 경험치 바 */
-        const needExp = SK.expNeed ? SK.expNeed(u.lv) : 100;
+        /* v5.33 — 경험치 바: 전투 중에 쌓인 경험치를 장수 값에서 바로 읽는다.
+           예전에는 부대의 u.exp(늘 0)를 읽어 전투가 끝날 때까지 바가 멈춰 있었다. */
+        const hero = (u.side === 'ally' && u.uid && SK.state) ? (SK.state.heroes || []).find((x) => x.uid === u.uid) : null;
+        const exLv = hero ? hero.lv : u.lv;
+        const exVal = hero ? (hero.exp || 0) : 0;
+        const needExp = SK.expNeed ? SK.expNeed(exLv) : 100;
         const ex = $('#uc-exp'), exT = $('#uc-exp-txt');
-        if (ex) ex.style.width = Math.max(0, Math.min(100, Math.round((u.exp || 0) / needExp * 100))) + '%';
-        if (exT) exT.textContent = `EXP ${u.exp || 0}/${needExp}`;
+        if (ex) ex.style.width = Math.max(0, Math.min(100, Math.round(exVal / needExp * 100))) + '%';
+        if (exT) exT.textContent = `EXP ${exVal}/${needExp}`;
         $('#uc-troops').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-train').textContent = `${u.train == null ? trainOf(u.lv, u.tier) : u.train}`;
         $('#uc-atk').textContent = Math.round(effAtk(u));
@@ -6111,6 +6410,7 @@
             });
           }
           if (u.aboard) pills.push('<span class="bf good">조각배</span>');
+          if (u.expGain) pills.push(`<span class="bf exp">전투 경험 +${u.expGain}</span>`);   // v5.33
           bfBox.innerHTML = pills.join('');
         }
         $('#uc-mov').textContent = movOf(u);
@@ -6156,6 +6456,20 @@
       get fx() { return fx.map((f) => f.kind); },
       get floats() { return floats.map((f) => f.text); },
       get anims() { return anims.map((a) => a.kind); },
+      /* v5.33 — 실시간 경험치 검증: 아군 부대별 레벨·경험치·이번 전투 획득량 */
+      exp() {
+        if (!B) return [];
+        return B.units.filter((u) => u.side === 'ally' && u.uid).map((u) => {
+          const h = (SK.state.heroes || []).find((x) => x.uid === u.uid) || {};
+          return { name: u.name, lv: u.lv, heroLv: h.lv, exp: h.exp, need: SK.expNeed(h.lv || 1), gain: u.expGain || 0, atk: Math.round(u.atk) };
+        });
+      },
+      get levelUps() { return (B && B.levelUps) || []; },
+      /* v5.33 — 자동 턴 종료 검증: 지금 아군 중 행동할 부대가 남았는가 · 예약 상태 */
+      get allActed() { return B ? !B.units.some((u) => u.side === 'ally' && u.alive && !u.acted) : null; },
+      get autoEndPending() { return !!autoEndTimer; },
+      get phase() { return B ? B.phase : null; },
+      get turn() { return B ? B.turn : null; },
       tap(x, y) { onTileTap(x, y); },
       select(name) { const u = B.units.find((o) => o.name === name && o.alive); if (u) { selectUnit(u); return { x: u.x, y: u.y }; } return null; },
       endTurn,

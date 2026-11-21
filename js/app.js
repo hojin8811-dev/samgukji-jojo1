@@ -677,6 +677,26 @@
   }
   SK.enforceLordGovernor = enforceLordGovernor;
 
+  /* v5.33 — 군주가 있는 성이 곧 본성(사용자 제보 '군주가 있는 곳이 본성이 되도록 자동으로').
+     · 군주가 내 성에 주둔해 있으면 그 성을 s.playerCapital로 삼는다 (새 성 점령·전출·월말 정산)
+     · 군주가 행군·지원군 파견으로 성 밖에 있거나 포로라면 기존 본성을 그대로 둔다
+     본성은 자동 내정에서 빠지고(플레이어가 직접 지휘) [내 본성 ▶] 버튼이 가리키는 성이다. */
+  function syncPlayerCapital(st) {
+    st = st || SK.state;
+    if (!st || !st.factions || !st.cities) return false;
+    const f = st.factions[st.playerFaction] || {};
+    const lord = f.lord;
+    if (!lord) return false;
+    const hero = (st.heroes || []).find((h) => h.name === lord);
+    if (!hero || !hero.city || hero.marchId || hero.rfgTo) return false;
+    const cs = st.cities[hero.city];
+    if (!cs || cs.owner !== st.playerFaction) return false;
+    if (st.playerCapital === hero.city) return false;
+    st.playerCapital = hero.city;
+    return true;
+  }
+  SK.syncPlayerCapital = syncPlayerCapital;
+
   /* 인물 하나를 내정 장수로 — 모든 장수는 Lv.1에서 출발한다 */
   function makeHero(name, cityId, lv) {
     const g = SK.GEN_BY_NAME[SK.normName(name)];
@@ -802,9 +822,14 @@
       const grp = f && f.pool ? f.pool : poolGroupOf(k);
       /* v5.32 — 장부(f.generals)에 올라 있는 장수는 그 세력 소속이다. 예전에는 데이터상
          계열(진등·요화 = 촉)이 세력 풀(군웅)과 다르면 배치에서 빠져 주점으로 새어 나갔다.
-         이제 계열 일치는 '수도 앞자리 우선순위'로만 쓰고, 등장 연도만 실제 조건으로 본다. */
+         이제 계열 일치는 '수도 앞자리 우선순위'로만 쓴다.
+         v5.33 — 시나리오가 정한 시작 명부(startGenerals)는 등장 연도를 건너뛴다.
+         padStartRosters가 190년 1막 드림팀(제갈량·강유·손책·이순신 등)을 이미 명부에 넣어 두는데,
+         배치에서만 등장 연도로 다시 걸러 조선 10명·맹획군 11명이 성에서 통째로 빠졌다(빈 성).
+         명부에 적힌 이름은 그대로 성에 앉힌다 — 카드의 《장수 N》과 성 안 장수 수가 같아진다. */
+      const locked = new Set(((f && f.startGenerals) || []).map((n) => SK.normName(n)));
       const pool = ((f && f.generals) || []).map((n) => SK.GEN_BY_NAME[n]).filter(Boolean)
-        .filter((g) => SK.debutOk(g, year));
+        .filter((g) => locked.has(g.name) || SK.debutOk(g, year));
       const inPool = (g) => (genPoolGroup(g) === grp ? 1 : 0);
       pool.sort((a, b) => (inPool(b) - inPool(a)) || (rank[a.tier] - rank[b.tier]) || (b.war + b.intel) - (a.war + a.intel));
       byFaction[k] = pool;
@@ -878,6 +903,35 @@
         const fid = ownerOf[id];
         if (fid && fid !== cs.owner) out.push({ city: c.name, kind: 'garrison', gen: (SK.GEN_BY_ID[id] || {}).name, faction: fid, owner: cs.owner });
       });
+    });
+    return out;
+  };
+
+  /* v5.33 — QA: 1막 시작 시 세력마다 성에 실제로 선 장수 수를 전수 검사한다.
+     · AI 세력 = 그 세력 성들의 genIds 합
+     · 내 세력 = 그 세력 성에 있는 heroes (플레이어 장수는 genIds가 아니라 heroes로 산다)
+     명부(roster)와 주둔(stationed)이 다르거나 6명에 못 미치면 문제로 돌려준다. */
+  SK.rosterAudit = function (st) {
+    st = st || SK.state;
+    const out = [];
+    if (!st || !st.cities) return out;
+    Object.keys(st.factions || {}).forEach((fid) => {
+      if (fid === 'neutral') return;
+      const f = st.factions[fid];
+      const owned = SK.CITY_LIST.filter((c) => st.cities[c.id] && st.cities[c.id].owner === fid);
+      if (!owned.length) return;
+      let stationed = 0;
+      const rows = owned.map((c) => {
+        const n = fid === st.playerFaction
+          ? (st.heroes || []).filter((h) => h.city === c.id).length
+          : (st.cities[c.id].genIds || []).length;
+        stationed += n;
+        return c.name + ':' + n;
+      });
+      const roster = (f.generals || []).length;
+      if (stationed < SK.START_ROSTER_MIN || stationed !== roster) {
+        out.push({ fid: fid, name: f.name, roster: roster, stationed: stationed, cities: rows.join(' ') });
+      }
     });
     return out;
   };
@@ -1122,6 +1176,8 @@
   SK.state = null;
 
   SK.save = function () {
+    /* v5.33 — 군주가 옮겨 간 성을 본성으로 맞춘다 (점령·전출·월말 정산이 모두 저장을 거친다) */
+    if (SK.state && syncPlayerCapital) { try { syncPlayerCapital(SK.state); } catch (e) { /* ignore */ } }
     /* v5.16 — 저장할 때마다 도감 누적 기록을 지금 상태와 맞춘다 */
     if (SK.codexMerge) { try { SK.codexMerge(); } catch (e) { /* ignore */ } }
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(SK.state)); } catch (e) { /* ignore */ }
@@ -1129,6 +1185,7 @@
   SK.load = function () {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
+      /* v5.33 — 예전 저장도 군주 자리로 본성을 맞춘다 */
       if (!raw) return false;
       const s = JSON.parse(raw);
       if (!s || s.version !== 5) return false;
@@ -1234,6 +1291,8 @@
       try { pruneLandlessFactions(s); } catch (e) { /* ignore */ }
       /* v5.28 — 저장을 열었을 때 도착 대기열만 남아 있으면 첫 사건을 올린다 */
       if (!s.pendingMarch && s.marchQueue && s.marchQueue.length) promoteMarchQueue(s);
+      /* v5.33 — 군주가 있는 성을 본성으로 맞춰 둔다 */
+      try { syncPlayerCapital(s); } catch (e) { /* ignore */ }
       // v4.2 인재 분포 — 한국/중국 인재를 갈라 다시 놓는다
       if (s.talentsVersion !== 3 && SK.GENERALS.length) {
         s.talentsVersion = 3;
@@ -2613,6 +2672,12 @@
     const weights = pool.map((t) => {
       let b = t.grade === '전설' ? 1 : t.grade === '영웅' ? 2.2 : 3.5;
       if ((names || []).some((n) => n && t.dropHint.includes(n)) || (cityName && t.dropHint.includes(cityName))) b *= 12;
+      /* v5.33 — 장수 이름이 없어도 그 지역 성에서 싸우면 힌트대로 조금 더 잘 나온다 */
+      else if (SK.treasureWhere && cityName) {
+        const w = SK.treasureWhere(t);
+        const here = String(cityName).replace(' 요새', '').replace(' 관문', '');
+        if (w.regions.some((r) => r.cities.some((nm) => String(nm).replace(' 요새', '').replace(' 관문', '') === here))) b *= 4;
+      }
       return b;
     });
     let total = weights.reduce((a, b) => a + b, 0);
@@ -2869,6 +2934,7 @@
         const dest = b.dataset.c;
         g.city = dest;
         enforceLordGovernor(s);
+        syncPlayerCapital(s);
         SK.save();
         m.close();
         SK.toast(`${josa(g.name, 'i')} ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
@@ -2878,25 +2944,158 @@
   }
   SK.openTransfer = openTransfer;
 
-  /* v5.11 — 인사·탐색의 [장수 전출] 바로가기: 이 성 장수를 골라 다른 성으로 */
+  /* v5.11 — 인사·탐색의 [장수 전출] 바로가기: 이 성 장수를 골라 다른 성으로
+     v5.33 — 여러 명을 체크해 한 번에 옮긴다(사용자 제보 '장수이동도 복수선택 가능케').
+     · 전체 / 대기만 / 선택 해제 버튼, 고른 수가 버튼에 바로 뜬다
+     · 건물 담당·부장·연병장 수련·태수·군사 자리는 옮길 때 자동으로 비운다(releaseDuty + governor/advisor)
+     · 행군·지원군 파견 중인 장수는 목록에서 잠그고, 정원(99명)을 넘으면 남는 사람은 그대로 둔다 */
+  function canMoveHero(g) { return !!(g && !g.marchId && !g.rfgTo); }
+  function doTransferMany(fromId, destId, list) {
+    const s = SK.state;
+    const src = s.cities[fromId], dst = s.cities[destId];
+    if (!src || !dst) return { moved: [], stayed: [] };
+    const inDest = s.heroes.filter((h) => h.city === destId).length;
+    let room = Math.max(0, 99 - inDest);
+    const moved = [], stayed = [];
+    list.forEach((g) => {
+      if (!g || !canMoveHero(g)) { stayed.push(g && g.name); return; }
+      if (room <= 0) { stayed.push(g.name); return; }
+      releaseDuty(fromId, g.uid);
+      if (src.governor === g.uid) src.governor = null;
+      if (src.advisor === g.uid) src.advisor = null;
+      if (dst.governor === g.uid) dst.governor = null;
+      if (dst.advisor === g.uid) dst.advisor = null;
+      g.city = destId;
+      moved.push(g.name);
+      room -= 1;
+    });
+    if (moved.length) {
+      enforceLordGovernor(s);
+      syncPlayerCapital(s);
+      if (!dst.governor) {
+        const gens = s.heroes.filter((h) => h.city === destId);
+        const gov = gens.slice().sort((a, b) => (b.pol * 0.6 + b.tong * 0.4) - (a.pol * 0.6 + a.tong * 0.4))[0];
+        if (gov) dst.governor = gov.uid;
+      }
+      SK.save();
+    }
+    return { moved, stayed: stayed.filter(Boolean) };
+  }
+  SK.doTransferMany = doTransferMany;
+
+  function openTransferDest(fromId, uids) {
+    const s = SK.state;
+    const list = uids.map((uid) => s.heroes.find((h) => h.uid === uid)).filter(Boolean);
+    if (!list.length) { SK.toast('옮길 장수를 고르세요.'); return; }
+    const towns = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF() && c.id !== fromId);
+    if (!towns.length) { SK.toast('옮겨 갈 다른 성이 없습니다.'); return; }
+    const rows = towns.map((c) => {
+      const n = s.heroes.filter((h) => h.city === c.id).length;
+      const full = n >= 99;
+      return `<button class="target-card" data-c="${c.id}" ${full ? 'disabled' : ''}>
+      <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
+      <div class="tc-main"><b>${c.name}</b><span>${typeName(c.type)} · 주둔 ${n}명${full ? ' · 가득 참' : ` → ${Math.min(99, n + list.length)}명`}</span></div>
+      <span class="tc-troops"><span>수비병</span><b>${fmt(s.cities[c.id].troops)}</b></span>
+      <span class="tc-go">▸</span></button>`;
+    }).join('');
+    const names = list.map((g) => g.name).join(' · ');
+    const m = SK.modal({ kicker: `${CITY[fromId].name} 인사`, title: `${list.length}명을 어느 성으로 보낼까`,
+      body: `<p class="talent-note">${names}</p><div class="target-list">${rows}</div>`,
+      chest: true, actions: [{ label: '취소' }], wide: true });
+    m.el.querySelectorAll('.target-card').forEach((b) => {
+      b.onclick = () => {
+        if (b.disabled) return;
+        const dest = b.dataset.c;
+        const res = doTransferMany(fromId, dest, list);
+        m.close();
+        if (res.moved.length) {
+          SK.sfx.play('drum');
+          SK.toast(`${res.moved.length === 1 ? res.moved[0] : res.moved.join('·') + ' ' + res.moved.length + '명'} → ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
+        }
+        if (res.stayed.length) SK.toast(`${res.stayed.join(' · ')}은(는) 이번에 옮기지 못했습니다(행군 중이거나 정원 초과).`);
+        if (document.querySelector('#screen-city.active')) SK.openCity(s.lastCity);
+      };
+    });
+  }
+  SK.openTransferDest = openTransferDest;
+
   function openTransferPick(cityId) {
+    const s = SK.state;
     const gens = cityGens(cityId).slice().sort((a, b) => {
       const da = dutyLabelOf(cityId, a) ? 1 : 0, db = dutyLabelOf(cityId, b) ? 1 : 0;
       return da - db || (b.wu + b.ji + b.pol) - (a.wu + a.ji + a.pol);
     });
     if (!gens.length) { SK.toast('이 성에 옮길 장수가 없습니다.'); return; }
-    const rows = gens.map((g) => `<button class="target-card" data-u="${g.uid}">
-      <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
-      <div class="tc-main"><b>${g.name}</b><span>${SK.classTitle(g.cls, g.lv)} · 통 ${g.tong} 무 ${g.wu} 지 ${g.ji}${dutyLabelOf(cityId, g) ? ` · ${dutyLabelOf(cityId, g)}` : ''}</span></div>
-      <span class="tc-go">▸</span></button>`).join('');
-    const m = SK.modal({ kicker: `${CITY[cityId].name} 인사`, title: '누구를 전출할까', body: `<div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }] });
-    m.el.querySelectorAll('.target-card').forEach((b) => {
-      b.onclick = () => {
-        const g = SK.state.heroes.find((x) => x.uid === b.dataset.u);
+    const sel = new Set();
+    const rows = gens.map((h) => {
+      const locked = !canMoveHero(h);
+      const duty = dutyLabelOf(cityId, h);
+      const tags = [SK.classTitle(h.cls, h.lv), `Lv.${h.lv}`, duty || '', h.uid === s.cities[cityId].governor ? '태수' : '', h.uid === s.cities[cityId].advisor ? '군사' : '', locked ? '행군 중' : '']
+        .filter(Boolean).join(' · ');
+      return `<div class="crew-row" data-u="${h.uid}" ${locked ? 'data-locked="1"' : ''}>
+          <img src="${SK.ptSrc(h.portrait)}" alt="">
+          <div class="cw-main"><b>${h.name}</b><span>${tags}</span></div>
+          <button class="onoff" data-pick="${h.uid}" ${locked ? 'disabled' : ''}>고르기</button>
+        </div>`;
+    }).join('');
+    const m = SK.modal({
+      kicker: `${CITY[cityId].name} 인사`, title: '누구를 전출할까', wide: true,
+      body: `<p class="talent-note">여러 명을 한 번에 고를 수 있습니다. 고른 장수의 건물 담당·태수·군사 자리는 옮길 때 비워집니다.</p>
+        <div class="tr-bar"><button class="tr-mini" data-sel="all">전체</button><button class="tr-mini" data-sel="idle">대기만</button><button class="tr-mini" data-sel="none">선택 해제</button><span class="tr-count" id="tr-count">0명 선택</span></div>
+        <div class="crew-list" id="tr-list">${rows}</div>`,
+      actions: [{ label: '취소' }, { label: '0명 이동', primary: true, keepOpen: true, onClick: () => {
+        if (!sel.size) { SK.toast('옮길 장수를 고르세요.'); return; }
+        const uids = gens.filter((h) => sel.has(h.uid)).map((h) => h.uid);
         m.close();
-        if (g) setTimeout(() => openTransfer(g), 30);
+        openTransferDest(cityId, uids);
+      } }],
+    });
+    const primary = m.el.querySelector('.modal-actions .btn-primary');
+    const countEl = m.el.querySelector('#tr-count');
+    const paint = () => {
+      m.el.querySelectorAll('[data-pick]').forEach((b) => {
+        const on = sel.has(b.dataset.pick);
+        b.classList.toggle('on', on);
+        b.textContent = on ? '선택됨' : '고르기';
+      });
+      m.el.querySelectorAll('.crew-row').forEach((row) => row.classList.toggle('sel', sel.has(row.dataset.u)));
+      if (countEl) countEl.textContent = `${sel.size}명 선택`;
+      if (primary) {
+        primary.textContent = sel.size ? `${sel.size}명 이동` : '0명 이동';
+        primary.disabled = !sel.size;
+        primary.classList.toggle('off', !sel.size);
+      }
+    };
+    m.el.querySelectorAll('[data-pick]').forEach((b) => {
+      b.onclick = () => {
+        if (b.disabled) return;
+        const uid = b.dataset.pick;
+        if (sel.has(uid)) sel.delete(uid); else sel.add(uid);
+        paint();
       };
     });
+    m.el.querySelectorAll('[data-sel]').forEach((b) => {
+      b.onclick = () => {
+        const mode = b.dataset.sel;
+        sel.clear();
+        if (mode !== 'none') {
+          gens.forEach((h) => {
+            if (!canMoveHero(h)) return;
+            if (mode === 'idle' && dutyLabelOf(cityId, h)) return;
+            sel.add(h.uid);
+          });
+        }
+        paint();
+      };
+    });
+    m.el.querySelectorAll('.crew-row').forEach((row) => {
+      row.onclick = (e) => {
+        if (e.target.closest('[data-pick]')) return;
+        const btn = row.querySelector('[data-pick]');
+        if (btn && !btn.disabled) btn.click();
+      };
+    });
+    paint();
   }
   SK.openTransferPick = openTransferPick;
 
@@ -3733,7 +3932,17 @@
       s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => owned.add(id)));
       const pool = SK.TREASURES.filter((t) => !owned.has(t.id));
       if (pool.length) {
-        const weights = pool.map((t) => (t.grade === '전설' ? 1 : t.grade === '영웅' ? 2.4 : 4));
+        /* v5.33 — 도감 힌트의 지역이 실제로 통하게: 이 성·이 지역에서 나오는 보물은 잘 나온다 */
+      const hereName = String(c.name).replace(' 요새', '').replace(' 관문', '');
+      const weights = pool.map((t) => {
+        let b = (t.grade === '전설' ? 1 : t.grade === '영웅' ? 2.4 : 4);
+        const w = SK.treasureWhere ? SK.treasureWhere(t) : null;
+        if (w) {
+          if (w.cities.indexOf(cityId) >= 0) b *= 8;
+          else if (w.regions.some((r) => r.cities.some((nm) => String(nm).replace(' 요새', '').replace(' 관문', '') === hereName))) b *= 4;
+        }
+        return b;
+      });
         let total = weights.reduce((a, b) => a + b, 0), r = Math.random() * total, hit = pool[0];
         for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { hit = pool[i]; break; } }
         s.treasures.push(hit.id);
@@ -5151,14 +5360,8 @@
     for (let i = 0; i < banners; i++) {
       html += `<i class="sb-flag" style="left:${16 + i * (66 / banners)}%; animation-delay:${(i * 0.35).toFixed(2)}s"></i>`;
     }
-    if (lv >= 2) {
-      const n = lv * 6;
-      for (let i = 0; i < n; i++) {
-        const x = 30 + ((i * 37) % 42);
-        const y = 42 + ((i * 23) % 20);
-        html += `<i class="sb-crowd" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.13).toFixed(2)}s"></i>`;
-      }
-    }
+    /* v5.33 — 3px 갈색 점(.sb-crowd)은 지웠다. 성 안 사람은 아래 CityLife 캔버스가
+       도트 꼬마 인물(옷색 5종·모자·걸음·그림자)로 그린다(사용자 '돌아다니는 사람들 퀄리티 업'). */
     if (lv >= 3) {
       for (let i = 0; i < 6; i++) {
         html += `<i class="sb-lamp" style="left:${12 + i * 15}%;top:${54 + (i % 2) * 9}%;animation-delay:${(i * 0.5).toFixed(2)}s"></i>`;
@@ -5176,15 +5379,23 @@
      · 인구·민심·시설 수가 많을수록 사람이 늘고 거리가 활기차진다.
      ══════════════════════════════════════════════════════════════ */
   const CityLife = (function () {
+    /* v5.33 — 3px 점 대신 '도트 꼬마 인물'. 옷색 5종+·모자 형태·허리띠·발걸음이 다르다 */
     const ROLES = {
-      farmer: { body: '#6f8b3c', trim: '#cfe0a0', hat: 'straw' },
-      merchant: { body: '#b8862f', trim: '#f3dca8', hat: 'cap' },
-      soldier: { body: '#4a6d9c', trim: '#b4c8e2', spear: true },
-      patrol: { body: '#a8443a', trim: '#e8b3a4', spear: true },
-      worker: { body: '#7e6c4c', trim: '#dbcba6' },
-      kid: { body: '#c98c4e', trim: '#f4d9b0', small: true },
+      farmer: { body: '#6f8b3c', trim: '#d9e7a8', belt: '#4c5f27', hat: 'straw' },
+      merchant: { body: '#c08a2e', trim: '#f6e2b0', belt: '#7d5416', hat: 'cap' },
+      soldier: { body: '#3f6494', trim: '#b8cdec', belt: '#2b4668', hat: 'helmet', spear: true },
+      patrol: { body: '#a8443a', trim: '#f0c2b2', belt: '#71281f', hat: 'helmet', spear: true },
+      worker: { body: '#86744f', trim: '#e3d4ae', belt: '#5a4c2f', hat: 'band' },
+      scholar: { body: '#5b7d8a', trim: '#d5e8ee', belt: '#3b5560', hat: 'gat' },
+      noble: { body: '#7a4b8a', trim: '#e6cff0', belt: '#4f2f5c', hat: 'gat' },
+      kid: { body: '#cc9257', trim: '#f8dfb9', belt: '#946640', hat: 'none', small: true },
     };
     let cv = null, ctx = null, raf = 0, W = 0, H = 0, dpr = 1;
+    const cityLevelOf = (id) => {
+      const s = SK.state, cs = s && s.cities ? s.cities[id] : null;
+      if (!cs) return 1;
+      return (typeof cityLevel === 'function') ? cityLevel(cs) : 1;
+    };
     let people = [], cityId = null, last = 0, running = false;
 
     function spotsFor(id) {
@@ -5198,7 +5409,8 @@
         const role = sl.key === 'farm' ? 'farmer'
           : (sl.key === 'market' || sl.key === 'workshop') ? 'merchant'
           : (sl.key === 'barracks' || sl.key === 'training') ? 'soldier'
-          : sl.key === 'patrol' ? 'patrol' : 'worker';
+          : sl.key === 'patrol' ? 'patrol'
+          : (sl.key === 'office' || sl.key === 'research') ? 'scholar' : 'worker';
         out.push({ x: sp.x, y: sp.y, role: role, lv: sl.lv || 1 });
       });
       return out;
@@ -5224,19 +5436,23 @@
       const built = Math.max(1, spots.length);
       const pop = cs.pop || 0;
       const morale = cs.loyalty == null ? 50 : cs.loyalty;
-      const want = Math.round(4 + pop / 24000 + morale / 14 + built * 0.7);
-      const n = Math.max(3, Math.min(28, want));
+      /* v5.33 — 성 등급·시설 레벨·민심이 오를수록 사람이 늘고 거리가 활기차진다 */
+      const lv = cityLevelOf(cityId);
+      const slotLv = (cs.slots || []).reduce((a, sl) => a + (sl && sl.key ? (sl.lv || 1) : 0), 0);
+      const want = Math.round(4 + built * 0.85 + pop / 26000 + morale / 18 + (lv - 1) * 2 + slotLv * 0.2);
+      const n = Math.max(4, Math.min(24, want));
       for (let i = 0; i < n; i++) {
         const sp = spots[i % spots.length];
         const roll = Math.random();
         const role = (roll < 0.12 && n > 6) ? 'kid' : sp.role;
         const hx = sp.x / 100 * W;
-        const hy = sp.y / 100 * H + H * 0.045;
+        const hy = sp.y / 100 * H + H * 0.085;
         const rad = Math.min(W, H) * (0.07 + Math.random() * 0.16);
         people.push({
           role: role, hx: hx, hy: hy, x: hx + (Math.random() * 2 - 1) * rad * 0.5,
           y: hy + (Math.random() * 2 - 1) * rad * 0.4, tx: hx, ty: hy, rad: rad,
-          sp: (7 + Math.random() * 9), ph: Math.random() * Math.PI * 2, wait: Math.random() * 1.6, face: 1,
+          sp: (10 + Math.random() * 12), ph: Math.random() * Math.PI * 2, wait: Math.random() * 1.4, face: Math.random() < 0.5 ? -1 : 1,
+          vs: 0.88 + Math.random() * 0.26,
         });
         pickTarget(people[people.length - 1]);
       }
@@ -5250,84 +5466,161 @@
       p.ty = clamp(p.hy + Math.sin(a) * d * 0.7, H * 0.16, H - 14);
     }
 
+    /* ══════════════════════════════════════════════════════════════
+       v5.33 — 도트 꼬마 인물 (2등신)
+       · 큰 머리(전체의 40%) + 짧은 팔 + 도포·허리띠 + 두 다리 걸음 + 바닥 그림자
+       · 옷색 5종 이상(농부·상인·병사·순찰·일꾼·선비·귀족·아이)과 모자(삿갓·투구·갓·두건·상투)
+       · 걷는 방향으로 고개를 돌리고(dir), 걸음마다 살짝 통통 튄다(bob)
+       ══════════════════════════════════════════════════════════════ */
     function draw(p, sc) {
       const def = ROLES[p.role] || ROLES.worker;
-      const h = (def.small ? 9.5 : 13.5) * sc;
+      const h = (def.small ? 21 : 31) * sc * (p.vs || 1);
       const walking = p.wait <= 0;
-      const swing = walking ? Math.sin(p.ph) * 0.42 : 0;
-      const bob = walking ? Math.abs(Math.sin(p.ph)) * h * 0.06 : 0;
+      const swing = walking ? Math.sin(p.ph) : 0;
+      const bob = walking ? Math.abs(Math.sin(p.ph)) * h * 0.045 : 0;
+      const dir = p.face || 1;
       const x = p.x, y = p.y - bob;
-      /* 그림자 */
-      ctx.fillStyle = 'rgba(30, 20, 8, 0.22)';
+      const ink = 'rgba(30, 19, 8, 0.62)';
+      const bodyW = h * 0.50, bodyH = h * 0.42;
+      const hipY = y - h * 0.26;
+      const shoulderY = y - h * 0.66;
+      const headR = h * 0.235;
+      const headY = y - h * 0.83;
+      /* 바닥 그림자 */
+      ctx.fillStyle = 'rgba(24, 15, 5, 0.22)';
       ctx.beginPath();
-      ctx.ellipse(x, p.y + 0.6, h * 0.32, h * 0.11, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, p.y + h * 0.02, bodyW * 0.62, h * 0.075, 0, 0, Math.PI * 2);
       ctx.fill();
-      /* 다리 */
-      ctx.strokeStyle = '#4a3a24';
-      ctx.lineWidth = Math.max(0.8, h * 0.11);
+      /* 다리 — 걸음마다 앞뒤로 */
+      ctx.strokeStyle = '#4a3620';
+      ctx.lineWidth = Math.max(1.4, h * 0.115);
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(x - h * 0.1, y - h * 0.42);
-      ctx.lineTo(x - h * 0.1 + swing * h * 0.7, y);
-      ctx.moveTo(x + h * 0.1, y - h * 0.42);
-      ctx.lineTo(x + h * 0.1 - swing * h * 0.7, y);
+      ctx.moveTo(x - bodyW * 0.17, hipY);
+      ctx.lineTo(x - bodyW * 0.17 + swing * h * 0.26, y);
+      ctx.moveTo(x + bodyW * 0.17, hipY);
+      ctx.lineTo(x + bodyW * 0.17 - swing * h * 0.26, y);
       ctx.stroke();
-      /* 몸통 */
-      ctx.fillStyle = def.body;
-      const bw = h * 0.46, bh = h * 0.48;
+      /* 도포(몸통) — 어깨에서 아래로 퍼지는 사다리꼴 */
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x - bw / 2, y - h * 0.9, bw, bh, h * 0.16);
-      else ctx.rect(x - bw / 2, y - h * 0.9, bw, bh);
+      ctx.moveTo(x - bodyW * 0.42, shoulderY);
+      ctx.lineTo(x + bodyW * 0.42, shoulderY);
+      ctx.lineTo(x + bodyW * 0.50, hipY + h * 0.02);
+      ctx.lineTo(x - bodyW * 0.50, hipY + h * 0.02);
+      ctx.closePath();
+      ctx.fillStyle = def.body;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(38, 26, 12, 0.55)';
-      ctx.lineWidth = 0.7;
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = Math.max(0.9, h * 0.035);
       ctx.stroke();
+      /* 허리띠 */
+      if (def.belt) {
+        ctx.fillStyle = def.belt;
+        ctx.fillRect(x - bodyW * 0.47, hipY - h * 0.10, bodyW * 0.94, h * 0.065);
+      }
       /* 옷깃 */
       ctx.fillStyle = def.trim;
-      ctx.fillRect(x - bw * 0.16, y - h * 0.88, bw * 0.32, h * 0.14);
-      /* 팔 */
-      ctx.strokeStyle = def.body;
-      ctx.lineWidth = Math.max(0.7, h * 0.1);
       ctx.beginPath();
-      ctx.moveTo(x - bw * 0.48, y - h * 0.78);
-      ctx.lineTo(x - bw * 0.62 + swing * h * 0.5, y - h * 0.5);
-      ctx.moveTo(x + bw * 0.48, y - h * 0.78);
-      ctx.lineTo(x + bw * 0.62 - swing * h * 0.5, y - h * 0.5);
+      ctx.moveTo(x - bodyW * 0.22, shoulderY + h * 0.01);
+      ctx.lineTo(x + bodyW * 0.22, shoulderY + h * 0.01);
+      ctx.lineTo(x, shoulderY + h * 0.17);
+      ctx.closePath();
+      ctx.fill();
+      /* 팔 — 짧고 통통하게, 반대로 흔든다 */
+      ctx.strokeStyle = def.body;
+      ctx.lineWidth = Math.max(1.4, h * 0.105);
+      ctx.beginPath();
+      ctx.moveTo(x - bodyW * 0.40, shoulderY + h * 0.06);
+      ctx.lineTo(x - bodyW * 0.46 - swing * h * 0.10, hipY - h * 0.10);
+      ctx.moveTo(x + bodyW * 0.40, shoulderY + h * 0.06);
+      ctx.lineTo(x + bodyW * 0.46 + swing * h * 0.10, hipY - h * 0.10);
       ctx.stroke();
       /* 창 */
       if (def.spear) {
+        const sx = x + bodyW * 0.58 * dir;
         ctx.strokeStyle = '#6b5a3a';
-        ctx.lineWidth = Math.max(0.6, h * 0.075);
+        ctx.lineWidth = Math.max(0.9, h * 0.055);
         ctx.beginPath();
-        ctx.moveTo(x + bw * 0.5, y - h * 1.25);
-        ctx.lineTo(x + bw * 0.5, y - h * 0.1);
+        ctx.moveTo(sx, y - h * 1.02);
+        ctx.lineTo(sx, y - h * 0.02);
+        ctx.stroke();
+        ctx.strokeStyle = '#cdd2d8';
+        ctx.beginPath();
+        ctx.moveTo(sx, y - h * 1.02);
+        ctx.lineTo(sx, y - h * 1.14);
         ctx.stroke();
       }
       /* 머리 */
-      ctx.fillStyle = '#f2cda6';
+      ctx.fillStyle = '#f6d6ad';
       ctx.beginPath();
-      ctx.arc(x, y - h * 1.06, h * 0.24, 0, Math.PI * 2);
+      ctx.arc(x, headY, headR, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(38, 26, 12, 0.5)';
-      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = Math.max(0.8, h * 0.03);
       ctx.stroke();
-      /* 머리카락·삿갓 */
+      /* 눈 두 점 (걷는 쪽으로 조금) */
+      ctx.fillStyle = '#2e2318';
+      const eyeX = dir * headR * 0.34;
+      ctx.beginPath();
+      ctx.arc(x + eyeX, headY + headR * 0.08, Math.max(0.7, h * 0.028), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + eyeX + dir * headR * 0.42, headY + headR * 0.08, Math.max(0.7, h * 0.028), 0, Math.PI * 2);
+      ctx.fill();
+      /* 모자·머리카락 */
       if (def.hat === 'straw') {
-        ctx.fillStyle = '#d8bb74';
+        ctx.fillStyle = '#dcc07c';
         ctx.beginPath();
-        ctx.moveTo(x - h * 0.34, y - h * 1.12);
-        ctx.lineTo(x + h * 0.34, y - h * 1.12);
-        ctx.lineTo(x, y - h * 1.34);
-        ctx.closePath(); ctx.fill();
-      } else if (def.hat === 'cap') {
-        ctx.fillStyle = '#3c2f1c';
-        ctx.beginPath();
-        ctx.arc(x, y - h * 1.14, h * 0.22, Math.PI, Math.PI * 2);
+        ctx.moveTo(x - headR * 1.62, headY - headR * 0.22);
+        ctx.lineTo(x + headR * 1.62, headY - headR * 0.22);
+        ctx.lineTo(x, headY - headR * 1.42);
+        ctx.closePath();
         ctx.fill();
-      } else {
+        ctx.strokeStyle = 'rgba(92, 68, 26, 0.55)';
+        ctx.lineWidth = Math.max(0.6, h * 0.02);
+        ctx.stroke();
+      } else if (def.hat === 'helmet') {
+        ctx.fillStyle = '#8d939c';
+        ctx.beginPath();
+        ctx.arc(x, headY, headR * 1.06, Math.PI * 0.98, Math.PI * 2.02);
+        ctx.fill();
+        ctx.strokeStyle = ink; ctx.lineWidth = Math.max(0.7, h * 0.025); ctx.stroke();
+        ctx.fillStyle = '#9aa1aa';
+        ctx.fillRect(x - headR * 1.18, headY - headR * 0.20, headR * 2.36, headR * 0.26);
+        ctx.fillStyle = '#b8443a';
+        ctx.fillRect(x - headR * 0.13, headY - headR * 1.42, headR * 0.26, headR * 0.5);
+      } else if (def.hat === 'gat') {
+        ctx.fillStyle = '#2a2218';
+        ctx.beginPath();
+        ctx.ellipse(x, headY - headR * 0.42, headR * 1.55, headR * 0.36, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, headY - headR * 0.56, headR * 0.86, Math.PI, Math.PI * 2);
+        ctx.fill();
+      } else if (def.hat === 'cap') {
+        ctx.fillStyle = '#3a2f1c';
+        ctx.beginPath();
+        ctx.arc(x, headY - headR * 0.16, headR * 1.02, Math.PI * 1.02, Math.PI * 1.98);
+        ctx.fill();
+      } else if (def.hat === 'band') {
+        ctx.fillStyle = '#e8d9b4';
+        ctx.fillRect(x - headR * 1.02, headY - headR * 0.62, headR * 2.04, headR * 0.34);
         ctx.fillStyle = '#3a2a18';
         ctx.beginPath();
-        ctx.arc(x, y - h * 1.16, h * 0.19, Math.PI * 1.05, Math.PI * 1.95);
+        ctx.arc(x, headY - headR * 0.44, headR * 0.98, Math.PI, Math.PI * 2);
+        ctx.fill();
+      } else {
+        /* 아이 — 상투 하나, 발그레한 볼 */
+        ctx.fillStyle = '#3a2a18';
+        ctx.beginPath();
+        ctx.arc(x, headY - headR * 0.28, headR * 1.0, Math.PI * 0.96, Math.PI * 2.04);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + dir * headR * 0.1, headY - headR * 1.28, headR * 0.26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(230, 130, 116, 0.5)';
+        ctx.beginPath();
+        ctx.arc(x + dir * headR * 0.62, headY + headR * 0.34, headR * 0.2, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -5338,7 +5631,7 @@
       if (!scr || !scr.classList.contains('active')) { stop(); return; }
       const dt = Math.min(0.05, Math.max(0, (ts - last) / 1000));
       last = ts;
-      const sc = Math.max(0.7, Math.min(1.5, H / 380));
+      const sc = Math.max(0.85, Math.min(1.45, H / 300));
       ctx.clearRect(0, 0, W, H);
       for (let i = 0; i < people.length; i++) {
         const p = people[i];
@@ -6897,29 +7190,32 @@
 
   function codexGenCells(st) {
     const store = st.store;
-    const q = (cdx.q || '').trim();
+    const q = (cdx.q || '').trim().toLowerCase();
+    /* v5.33 — 이름 검색. 검색어가 있으면 아직 만나지 못한 장수도 '이름 + 미수집'으로 보여 준다.
+       (예전에는 모은 장수 안에서만 찾을 수 있어, 찾고 싶은 이름이 안 나오면 이유도 알 수 없었다) */
+    const hit = (g) => !q || String(g.name).toLowerCase().indexOf(q) >= 0
+      || String(g.faction || '').toLowerCase().indexOf(q) >= 0;
     let list = st.gens.filter((g) => {
       if (cdx.fac !== '전체' && String(g.faction || '재야') !== cdx.fac) return false;
       if (cdx.tier !== '전체' && String(g.tier) !== cdx.tier) return false;
-      return true;
+      return hit(g);
     });
-    if (q) {
-      const hit = (g) => store.g[String(g.id)] && String(g.name).indexOf(q) >= 0;
-      list = list.filter(hit);
-    }
     const order = { S: 0, A: 1, B: 2, C: 3 };
     /* v5.16 — 수집한 인물을 먼저 보여 준다 (모은 보람이 바로 보이게) */
     const gotOf = (g) => (store.g[String(g.id)] ? 0 : 1);
     list.sort((a, b) => (gotOf(a) - gotOf(b)) || ((order[a.tier] ?? 4) - (order[b.tier] ?? 4)) || String(a.name).localeCompare(String(b.name)));
+    cdx.lastCount = list.length;
     const shown = list.slice(0, cdx.limit);
     const cells = shown.map((g) => {
       const got = !!store.g[String(g.id)];
       const cls = SK.genClass(g);
       const cname = (SK.CLASSES[cls] && SK.CLASSES[cls].name) || g.job || '';
-      return `<button class="cdx-cell ${got ? 'got' : ''} t${g.tier}" data-gid="${g.id}" ${got ? '' : 'disabled'}>
+      const name = (got || q) ? g.name : '？？？';
+      const sub = got ? cname : (q ? '미수집 · ' + String(g.faction || '재야') : String(g.faction || '재야'));
+      return `<button class="cdx-cell ${got ? 'got' : ''} t${g.tier}" data-gid="${g.id}" ${got ? '' : 'disabled'} aria-label="${name}${got ? '' : ' 미수집'}">
         <span class="cdx-face">${got ? `<img src="${SK.ptSrc(SK.genPortrait(g))}" alt="" loading="lazy">` : '<em>?</em>'}<i class="cdx-tier">${g.tier}</i></span>
-        <b class="cdx-name">${got ? g.name : '？？？'}</b>
-        <small>${got ? cname : String(g.faction || '재야')}</small>
+        <b class="cdx-name">${name}</b>
+        <small>${sub}</small>
       </button>`;
     }).join('');
     const more = list.length > shown.length
@@ -6929,23 +7225,33 @@
 
   function codexTreRows(st) {
     const store = st.store;
+    const q = (cdx.q || '').trim().toLowerCase();
+    /* v5.33 — 보물도 이름·효과·획득 경로로 찾는다 ('기절' → 그 효과가 붙은 보물들) */
+    const hit = (t) => !q || String(t.name).toLowerCase().indexOf(q) >= 0
+      || String(t.effect || '').toLowerCase().indexOf(q) >= 0
+      || String(t.dropHint || '').toLowerCase().indexOf(q) >= 0;
     let list = st.tres.filter((t) => {
       if (cdx.type !== '전체' && String(t.type) !== cdx.type) return false;
       if (cdx.grade !== '전체' && String(t.grade) !== cdx.grade) return false;
-      return true;
+      return hit(t);
     });
     const order = { '전설': 0, '영웅': 1, '희귀': 2 };
     const gotOf = (t) => (store.t[String(t.id)] ? 0 : 1);
     list = list.slice().sort((a, b) => (gotOf(a) - gotOf(b)) || ((order[a.grade] ?? 3) - (order[b.grade] ?? 3)) || String(a.name).localeCompare(String(b.name)));
+    cdx.lastCount = list.length;
     const shown = list.slice(0, cdx.limit);
     const rows = shown.map((t) => {
       const got = !!store.t[String(t.id)];
       /* v5.32 — 얻지 못한 보물도 획득 경로(dropHint)를 보여 준다. 예전에는 도감에
-         이름·효과만 있고 '어디서 나오는지'가 어디에도 적히지 않았다. */
+         이름·효과만 있고 '어디서 나오는지'가 어디에도 적히지 않았다.
+         v5.33 — 검색으로 찾아낸 보물은 이름을 그대로 보여 준다. */
       const hint = t.dropHint ? `${got ? '획득' : '힌트'} — ${t.dropHint}` : '';
+      const where = SK.treasurePathText ? SK.treasurePathText(t) : '';
+      /* v5.33 — 힌트가 '지역·사건'만 말하던 72종도 어느 성·지역에서 노릴지 보인다 */
+      const name = (got || q) ? t.name : '？？？';
       return `<div class="cdx-row ${got ? 'got' : ''}" data-tid="${t.id}" role="button" tabindex="0" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">
         <span class="cdx-gd">${t.grade}</span>
-        <div><b>${got ? t.name : '？？？'}</b><small>${t.type}${got ? ` · ${t.effect || ''}` : ' · 아직 얻지 못했습니다'}</small>${hint ? `<em class="cdx-hint">${hint}</em>` : ''}</div>
+        <div><b>${name}</b><small>${t.type}${got ? ` · ${t.effect || ''}` : ' · 아직 얻지 못했습니다'}</small>${hint ? `<em class="cdx-hint">${hint}</em>` : ''}${where ? `<em class="cdx-where">노릴 곳 — ${where}</em>` : ''}</div>
         <em class="cdx-check">${got ? '✓' : '—'}</em>
       </div>`;
     }).join('');
@@ -6961,40 +7267,74 @@
   function codexChips(list, cur, kind) {
     return list.map((v) => `<button class="cdx-chip ${v === cur ? 'on' : ''}" data-f="${kind}" data-v="${v}">${v}</button>`).join('');
   }
+  /* v5.33 — 도감 검색창 (인물·보물 공통). 탭을 바꿀 때만 다시 그려 입력 중 포커스가 날아가지 않는다 */
+  function codexSearchBar() {
+    const ph = cdx.tab === 'tre'
+      ? '보물 이름·효과로 찾기 — 예: 청룡언월도, 기절'
+      : '장수 이름으로 찾기 — 예: 이순신, 조조';
+    return `<span class="cs-ico" aria-hidden="true">🔍</span>
+      <input id="cdx-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="${ph}" value="${String(cdx.q || '').replace(/"/g, '&quot;')}" aria-label="도감 검색">
+      <button id="cdx-q-clear" type="button" aria-label="검색어 지우기" ${cdx.q ? '' : 'hidden'}>✕</button>`;
+  }
   function codexRefresh(m) {
     const st = codexStats();
     const body = m.el.querySelector('#cdx-body');
     const tabs = m.el.querySelector('.cdx-tabs');
+    const info = m.el.querySelector('#cdx-qinfo');
     if (tabs) {
       tabs.innerHTML = `<button class="cdx-tab ${cdx.tab === 'gen' ? 'on' : ''}" data-ct="gen">인물 도감 <b>${st.gHave}/${st.gens.length}</b><em>${st.gPct.toFixed(1)}%</em></button>
         <button class="cdx-tab ${cdx.tab === 'tre' ? 'on' : ''}" data-ct="tre">보물 도감 <b>${st.tHave}/${st.tres.length}</b><em>${st.tPct.toFixed(1)}%</em></button>`;
       tabs.querySelectorAll('[data-ct]').forEach((b) => {
-        b.onclick = () => { cdx.tab = b.dataset.ct; cdx.limit = CDX_PAGE; codexRefresh(m); };
+        b.onclick = () => { cdx.tab = b.dataset.ct; cdx.q = ''; cdx.limit = CDX_PAGE; m._qTab = null; codexRefresh(m); };
       });
     }
-    if (!body) return;
-    if (cdx.tab === 'gen') {
-      body.innerHTML = `${codexBar('인물 수집', st.gHave, st.gens.length, st.gPct)}
-        <div class="cdx-filters"><div>${codexChips(GEN_FACS, cdx.fac, 'fac')}</div><div>${codexChips(TIERS, cdx.tier, 'tier')}</div></div>
-        ${codexGenCells(st)}`;
-    } else {
-      body.innerHTML = `${codexBar('보물 수집', st.tHave, st.tres.length, st.tPct)}
-        <div class="cdx-filters"><div>${codexChips(TRE_TYPES, cdx.type, 'type')}</div><div>${codexChips(TRE_GRADES, cdx.grade, 'grade')}</div></div>
-        ${codexTreRows(st)}`;
+    const bar = m.el.querySelector('#cdx-search');
+    if (bar && m._qTab !== cdx.tab) {
+      m._qTab = cdx.tab;
+      bar.innerHTML = codexSearchBar();
+      const inp = bar.querySelector('#cdx-q');
+      const clr = bar.querySelector('#cdx-q-clear');
+      const paint = () => { if (clr) clr.hidden = !(cdx.q || '').trim(); };
+      if (inp) {
+        inp.oninput = () => { cdx.q = inp.value; cdx.limit = CDX_PAGE; paint(); render(); };
+        inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } };
+      }
+      if (clr) clr.onclick = () => { cdx.q = ''; if (inp) inp.value = ''; cdx.limit = CDX_PAGE; paint(); render(); if (inp) inp.focus(); };
     }
-    body.querySelectorAll('[data-f]').forEach((b) => {
-      b.onclick = () => { cdx[b.dataset.f] = b.dataset.v; cdx.limit = CDX_PAGE; codexRefresh(m); };
-    });
-    const more = body.querySelector('[data-more]');
-    if (more) more.onclick = () => { cdx.limit += CDX_PAGE; codexRefresh(m); };
-    body.querySelectorAll('[data-gid]').forEach((b) => {
-      b.onclick = () => { if (!b.disabled) openCodexGen(Number(b.dataset.gid)); };
-    });
-    /* v5.32 — 보물 줄을 누르면 효과·획득 경로를 크게 본다 */
-    body.querySelectorAll('[data-tid]').forEach((row) => {
-      row.onclick = () => openCodexTre(Number(row.dataset.tid));
-    });
+    function render() {
+      if (!body) return;
+      if (cdx.tab === 'gen') {
+        body.innerHTML = `${codexBar('인물 수집', st.gHave, st.gens.length, st.gPct)}
+          <div class="cdx-filters"><div>${codexChips(GEN_FACS, cdx.fac, 'fac')}</div><div>${codexChips(TIERS, cdx.tier, 'tier')}</div></div>
+          ${codexGenCells(st)}`;
+      } else {
+        body.innerHTML = `${codexBar('보물 수집', st.tHave, st.tres.length, st.tPct)}
+          <div class="cdx-filters"><div>${codexChips(TRE_TYPES, cdx.type, 'type')}</div><div>${codexChips(TRE_GRADES, cdx.grade, 'grade')}</div></div>
+          ${codexTreRows(st)}`;
+      }
+      body.querySelectorAll('[data-f]').forEach((b) => {
+        b.onclick = () => { cdx[b.dataset.f] = b.dataset.v; cdx.limit = CDX_PAGE; render(); };
+      });
+      const more = body.querySelector('[data-more]');
+      if (more) more.onclick = () => { cdx.limit += CDX_PAGE; render(); };
+      body.querySelectorAll('[data-gid]').forEach((b) => {
+        b.onclick = () => { if (!b.disabled) openCodexGen(Number(b.dataset.gid)); };
+      });
+      /* v5.32 — 보물 줄을 누르면 효과·획득 경로를 크게 본다 */
+      body.querySelectorAll('[data-tid]').forEach((row) => {
+        row.onclick = () => openCodexTre(Number(row.dataset.tid));
+      });
+      if (info) {
+        const q = (cdx.q || '').trim();
+        const n = cdx.lastCount || 0;
+        const unit = cdx.tab === 'gen' ? '명' : '종';
+        info.textContent = q ? `‘${q}’ — ${fmt(n)}${unit}` : '';
+        info.hidden = !q;
+      }
+    }
+    render();
   }
+
 
   function openCodexGen(gid) {
     const g = SK.GEN_BY_ID[gid];
@@ -7053,6 +7393,9 @@
         <p class="cdx-tre-effect">${got ? (t.effect || '효과 없음') : '아직 얻지 못해 효과를 알 수 없습니다.'}</p>
         ${got && statTxt ? `<p class="cdx-tre-stat">능력치 ${statTxt}</p>` : ''}
         <p class="cdx-tre-hint"><b>획득 경로</b> ${t.dropHint || '어디서 나오는지 알려지지 않았습니다.'}</p>
+        <p class="cdx-tre-where"><b>노릴 곳</b> ${SK.treasurePathText ? SK.treasurePathText(t, true) : '전투·탐색'}<br><small>${((SK.treasureWhere ? SK.treasureWhere(t) : { regions: [], cities: [] }).regions.length || (SK.treasureWhere ? SK.treasureWhere(t) : { cities: [] }).cities.length)
+          ? '그 지역 성에서 [탐색]을 돌리거나 그곳 성을 공격해 이기면 나올 확률이 오릅니다(지역 일치 4~8배).'
+          : '지역 힌트가 따로 없는 보물입니다 — 어느 성에서든 [탐색]이나 전투 보상으로 나옵니다.'}</small></p>
       </div>`,
       actions: [{ label: '닫기', primary: true }],
     });
@@ -7066,6 +7409,8 @@
       kicker: '도감', title: '수집 기록', wide: true,
       body: `<p class="talent-note">내 장수로 맞이했거나 전장·주점에서 마주친 인물, 그리고 손에 넣은 보물을 기록합니다. <b>기록은 다음 회차에도 이어집니다.</b></p>
         <div class="cdx-tabs"></div>
+        <div class="cdx-search" id="cdx-search"></div>
+        <div class="cdx-qinfo" id="cdx-qinfo" hidden></div>
         <div class="cdx-body" id="cdx-body"></div>`,
       actions: [{ label: '닫기', primary: true }],
     });
@@ -8456,7 +8801,8 @@
           marchQueueDrop(s, m.id);
           SK.save();
           SK.startBattle({ origin: m.origin, targetId: m.target, type: itype, units: m.units,
-            intercept: { marchId: m.id, name: `${tc.name} 가는 길`, troops: raiders } });
+            intercept: { marchId: m.id, name: `${tc.name} 가는 길`, troops: raiders,
+              faction: s.cities[m.target] ? s.cities[m.target].owner : null } });
         } }],
         dismissible: false,
       });
@@ -8799,6 +9145,8 @@
         SK.pushInvasion(s, {
           from: w.from, target: w.target, faction: w.faction,
           troops: Math.max(1200, commit), turn: s.turn, helpers,
+          /* v5.33 — 침공군은 출발 성 장수를 최대 6명 데려온다 (수성전·요격전에 이름 있는 적장이 서게) */
+          genIds: (as.genIds || []).slice(0, 6),
         });
         news.push({ kind: 'invasion', text: `${SK.josa(SK.factionName(w.faction), 'i')} ${SK.josa(CITY[w.target].name, 'euro')} 진군했습니다 — 수성전` });
       });
@@ -9175,7 +9523,8 @@
       SK.save();
       SK.startBattle({
         origin: cid, targetId: cid, type: itype, units,
-        intercept: { name: `${SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적'} → ${c.name} 길목`, troops: inv.troops, invasion: inv },
+        intercept: { name: `${SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적'} → ${c.name} 길목`, troops: inv.troops,
+          faction: inv.faction, from: inv.from, genIds: inv.genIds || [], invasion: inv },
       });
     };
     const m = SK.modal({
@@ -9199,6 +9548,11 @@
     const c = CITY[inv.target];
     const f = SK.factionInfo(inv.faction);
     const gens = cityGens(inv.target);
+    /* v5.33 — 이미 요격 출진에서 진 침공이면 선택 창을 건너뛰고 수성전 배치로 바로 간다 */
+    if (inv.intercepted) {
+      setTimeout(() => { if (SK.openDefenseDeploy) SK.openDefenseDeploy(inv); }, 140);
+      return;
+    }
     /* v5.29 — 같은 달에 더 들어오는 침공이 있으면 미리 알린다 */
     const more = (s.invasionQueue || []).filter((q) => q && s.cities[q.target]);
     const moreLine = more.length ? `<div class="rfg-tip"><b>뒤이을 침공 ${more.length}곳</b><span>${more.map((q) => `${CITY[q.target].name}(${SK.factionName(q.faction)} ${fmt(q.troops)})`).join(' · ')} — 이 수성전을 마치면 이어서 벌어집니다</span></div>` : '';
@@ -9225,7 +9579,7 @@
         { label: '철수', onClick: () => surrenderCity(inv) },
         (s.marches || []).length ? { label: '긴급 회군', onClick: () => { setTimeout(() => SK.openRecall(inv.target), 120); } } : null,
         near.length || rfg ? { label: rfg ? '지원군 다시' : '지원군 파견', onClick: () => { if (rfg) { cancelReinforce(); } setTimeout(() => openReinforce(inv.target), 140); } } : null,
-        (gens.length && (ts.troops || 0) >= 1200) ? { label: '요격 출진', onClick: () => { setTimeout(() => openInterceptSortie(inv), 160); } } : null,
+        (gens.length && (ts.troops || 0) >= 1200 && !inv.intercepted) ? { label: '요격 출진', onClick: () => { setTimeout(() => openInterceptSortie(inv), 160); } } : null,
         { label: rfg ? '수성전 (원군 합류)' : '수성전', primary: true, onClick: () => { setTimeout(() => openDefenseDeploy(inv), 140); } },
       ].filter(Boolean),
       dismissible: false,
@@ -9249,7 +9603,9 @@
     SK.save();
     SK.startBattle({
       origin: inv.target, targetId: inv.target, type: 'defense', units: all,
-      defense: { faction: inv.faction, troops: inv.troops, from: inv.from, genIds: (from.genIds || []).slice(0, 1) },
+      /* v5.33 — 요격전에서 살아남은 적 부대 편성을 그대로 넘긴다 (병종이 새로 뽑히지 않게) */
+      defense: { faction: inv.faction, troops: inv.troops, from: inv.from, genIds: (inv.genIds && inv.genIds.length ? inv.genIds : ((from.genIds || []).length > 1 ? (from.genIds || []).slice(0, Math.min(6, (from.genIds || []).length - 1)) : (from.genIds || []).slice(0, 1))),
+        survivingEnemies: inv.survivingEnemies || null },
       reinforce: rfg,
       /* v5.21 — 고르지 않아 성에 남긴 예비 병력 (이기면 성에 그대로 남는다) */
       reserve: (plan && plan.reserve) || 0,
@@ -9692,6 +10048,9 @@
     SK.CITY_LIST.forEach((c) => {
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
+      /* v5.33 — 위임성(본성이 아니고 태수가 앉은 자동 내정 성)은 태수가 알아서 굴린다.
+         그 성의 '대기' 장수까지 세어 [다음 달]마다 경고를 띄우지 않는다(사용자 제보). */
+      if (c.id !== s.playerCapital && cs.governor && cs.auto !== false) return;
       const slots = cs.slots || [];
       s.heroes.forEach((h) => {
         if (h.city !== c.id) return;

@@ -1,6 +1,29 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=45`
+기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=47`
+
+## ✅ v5.33 — 9라운드: 조선·맹획군 주둔 0명, 도감 검색·보물 지역, 전투 중 EXP, 자동 턴 종료 (2026-11-22 · `?v=47`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 190 주둔 0명 | `startGenerals` 명부를 `assignGarrisons`가 등장 연도로 재필터 → 조선·맹획군 0명. 명부는 연도 검사 생략, `SK.rosterAudit()` 28세력 전수(0명 0·빈 성 0) | `js/app.js` `assignGarrisons`·`rosterAudit` |
+| 도감 검색 | 인물·보물 검색창(미수집은 이름+`미수집`), 보물은 효과·경로로도 검색 | `js/app.js` `codexRefresh`·`codexSearchBar` |
+| 보물 지역 경로 | 151종 '노릴 곳' 표기 + 전투/탐색 지역 가중치(4~8배) 실제 적용 | `js/data.js` `TREASURE_REGIONS`·`treasurePathText` |
+| 실시간 EXP | 명중 9·처치 42·치유 8 즉시 반영, 전투 중 레벨업(공·방·MP·기술, `Lv.N!`) | `js/battle.js` `battleExp`·`recalcAlly` |
+| 자동 턴 종료 | 아군 전원 행동 시 400ms 뒤 자동 `endTurn()`(모달·연출 중 재예약) | `js/battle.js` `scheduleAutoEndTurn` |
+| 공성 수비대 | 바깥 성문 밖 밴드 제거 → 1·2·3중성 수비대 전원 성 안 | `js/data.js` `SK.enemySlots` |
+| 장수 복수 전출 | 전체/대기만·복수 선택·목적지 선택, 담당·태수 자동 해제 | `js/app.js` `openTransferPick`·`doTransferMany` |
+| 본성=군주 | `syncPlayerCapital` — 점령·전출·월말·불러오기에서 군주가 있는 성이 본성 | `js/app.js` `syncPlayerCapital` |
+| 요격 흐름 | 적 세력 이름표 정상화, 패배 후 재요격 창 없이 수성전, 생존 적 편성 유지, 침공 장수 최대 6명 | `js/battle.js` `invasionInterceptDefeat`·`startBattle`, `js/app.js` `startDefense` |
+| AI | 보조 병과 후방 지원·군주 적극 전진·문관 엄호·책략 사거리 +1·수성전 교착 시 출격 | `js/battle.js` `planAuto`·`defenseAllowed`·`skRange` |
+| 연출 | 미니맵 확대 시 성곽 가림 0, 내정 화면 도트 꼬마 인물, 일기토 같은 편 가드 | `js/battle.js` `mmPx`·`duelCutin`, `js/app.js` `CityLife` |
+
+## 🧩 다음 과제 메모 (2026-11-22 사용자 제보)
+
+- **일기토 미니게임화** — 지금 일기토는 좌우 초상 컷인 + 숙적 표시까지. 사용자: "일기토를 미니게임처럼 키긴 할 건데". 무력 대결 선택(정면 승부·기습·회피 등)과 연출, 승패에 따른 사기·부상 결과를 붙이는 방향. (v5.33에서 같은 편끼리 컷인이 뜨던 버그는 `duelCutin` 가드로 막았다)
+- **적 침공 장수 활용** — 침공군이 데려온 장수를 격파했을 때 포로·보물 확률을 조금 더 주는 보상 설계 검토.
+- 도감 검색에 초성 검색(ㄱㅇ 등)·병과 필터 추가 검토.
+
 
 ## ✅ v5.31 — 7라운드: 보물 사기·상태이상·내정·외교 연결, 수전 조각배, 원정 3턴·회군 (2026-11-22 · `?v=45`)
 
