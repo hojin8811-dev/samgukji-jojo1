@@ -3247,11 +3247,12 @@
     btn.setAttribute('aria-label', `전투 배속 ${speedLabel()}`);
   }
   function toggleSpeed() {
-    autoSpeed = autoSpeed === 2 ? 1 : 2;
+    /* v5.17 — 대형 전장(24·28·32칸)에서는 전투가 길어 ×3 단계를 더한다 */
+    autoSpeed = autoSpeed === 3 ? 1 : autoSpeed + 1;
     paintSpeedBtn();
     SK.sfx.play('ui');
-    SK.toast(autoSpeed === 2
-      ? '전투 배속 ×2 — 빠르게 진행합니다.'
+    SK.toast(autoSpeed === 3 ? '전투 배속 ×3 — 아주 빠르게 진행합니다.'
+      : autoSpeed === 2 ? '전투 배속 ×2 — 빠르게 진행합니다.'
       : '전투 배속 ×1 — 기본 속도(절반)로 돌아갑니다.');
     if (autoOn) { autoClear(); autoTimer = wait(autoStep, 240); }
     return autoSpeed;

@@ -1948,8 +1948,30 @@ SK.enemySlots = function (type, rings, cols) {
     for (let dy = 0; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) out.push([Math.floor(n / 2) + dx, outerRow - dy]);
     return out;
   }
+  /* v5.17 — 공성 수비대는 성벽 마당마다 나눠 선다(바깥 마당 → 안쪽 → 본진).
+     한 곳에 뭉치면 회복 거점과 겹쳐 전투가 끝나지 않는다. */
+  if (type === 'siege' && m) {
+    const rows2 = m.rows, cx2 = Math.floor(n / 2);
+    const gateRows = [];
+    (SK.MAPS[key] || []).forEach((line, y) => { if (line.indexOf('G') >= 0) gateRows.push(y); });
+    gateRows.sort((a, b) => a - b);
+    const bands = [];
+    let y0 = 1;
+    gateRows.forEach((gy) => { if (gy - 1 >= y0) bands.push([y0, gy - 1]); y0 = gy + 2; });
+    if (y0 <= rows2 - 4) bands.push([y0, rows2 - 4]);
+    const out = [];
+    bands.slice().reverse().forEach((b) => {
+      const yA = b[1] - 1, yB = Math.max(b[0], b[1] - 3);
+      [[0, yA], [-2, yA], [2, yA], [0, yB], [-2, yB], [2, yB]].forEach(([dx, y]) => {
+        out.push([clampX(cx2 + dx, n), y]);
+      });
+    });
+    const near = slotsAround(m.enemyBase, n, 10);
+    return out.concat(near).slice(0, 10);
+  }
   return slotsAround(m && m.enemyBase, n, 10);
 };
+function clampX(x, n) { return Math.max(0, Math.min(n - 1, x)); }
 SK.allySlots = function (type, rings, cols) {
   const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
   const m = SK.MAP_META[key];
