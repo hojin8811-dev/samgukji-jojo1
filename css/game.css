@@ -812,11 +812,12 @@ b { font-weight: 700; }
 .gen-pick.off { opacity: .45; }
 .gen-pick:active { background: #fff6e2; }
 .gen-pick img { width: 34px; height: 34px; border-radius: 7px; object-fit: cover; object-position: 50% 18%; border: 1px solid #c3a568; }
-.tier { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-family: var(--serif); font-size: 10px; font-weight: 900; color: #fff7e2; }
-.tier.tS { background: #a8443a; }
-.tier.tA { background: #b8862f; }
-.tier.tB { background: #6a7f8f; }
-.tier.tC { background: #8a8a7a; }
+/* v5.24 — 장수 등급 4색 통일: S 빨강 · A 보라 · B 파랑 · C 초록 (밝은 흰 글씨) */
+.tier { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-family: var(--serif); font-size: 10px; font-weight: 900; color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, .4); border: 1px solid rgba(255, 255, 255, .55); }
+.tier.tS { background: linear-gradient(180deg, #e03c2d 0%, #bd2a1d 55%, #a81d13 100%); border-color: #ff9384; }
+.tier.tA { background: linear-gradient(180deg, #9248cc 0%, #7a35b0 55%, #632599 100%); border-color: #d9b3f7; }
+.tier.tB { background: linear-gradient(180deg, #3274d9 0%, #2558b5 55%, #1c4d9e 100%); border-color: #a9c9ff; }
+.tier.tC { background: linear-gradient(180deg, #32945c 0%, #26774a 55%, #1e663d 100%); border-color: #a3e3bf; }
 .gp-main { flex: 1; min-width: 0; }
 .gp-main b { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #2e2510; }
 .gp-main span { display: block; font-size: 9px; color: #7b6538; }
@@ -1901,12 +1902,17 @@ b { font-weight: 700; }
 .fx-tier {
   position: absolute; right: -5px; top: -5px; min-width: 16px; height: 16px; padding: 0 3px;
   display: grid; place-items: center; border-radius: 8px; font-style: normal;
-  font-family: var(--serif); font-size: 9.5px; font-weight: 900; color: #4a2c05;
-  background: linear-gradient(180deg, #ffe9a8 0%, #e8b84a 58%, #c68f24 100%);
-  border: 1.2px solid #fff3cf;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(120, 80, 10, 0.25);
+  font-family: var(--serif); font-size: 9.5px; font-weight: 900; color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .45);
+  background: linear-gradient(180deg, #8b8677 0%, #6f6a5c 58%, #565246 100%);
+  border: 1.2px solid rgba(255, 255, 255, .7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
-.fx-tier.t-A { color: #23303f; background: linear-gradient(180deg, #e6f0fb 0%, #b7cde6 58%, #8ba9c9 100%); border-color: #f2f8ff; }
+/* v5.24 — 군주 등급 4색: S 빨강 · A 보라 · B 파랑 · C 초록 */
+.fx-tier.t-S { background: linear-gradient(180deg, #e03c2d 0%, #bd2a1d 55%, #a81d13 100%); border-color: #ff9384; box-shadow: 0 1px 4px rgba(120, 15, 8, .6), inset 0 0 0 1px rgba(255, 255, 255, .3); }
+.fx-tier.t-A { background: linear-gradient(180deg, #9248cc 0%, #7a35b0 55%, #632599 100%); border-color: #d9b3f7; box-shadow: 0 1px 4px rgba(70, 20, 110, .6), inset 0 0 0 1px rgba(255, 255, 255, .3); }
+.fx-tier.t-B { background: linear-gradient(180deg, #3274d9 0%, #2558b5 55%, #1c4d9e 100%); border-color: #a9c9ff; box-shadow: 0 1px 4px rgba(15, 45, 110, .6), inset 0 0 0 1px rgba(255, 255, 255, .3); }
+.fx-tier.t-C { background: linear-gradient(180deg, #32945c 0%, #26774a 55%, #1e663d 100%); border-color: #a3e3bf; box-shadow: 0 1px 4px rgba(15, 70, 45, .6), inset 0 0 0 1px rgba(255, 255, 255, .3); }
 .fx-main { min-width: 0; display: flex; flex-direction: column; gap: 0; }
 .fx-name {
   font-family: var(--serif); font-size: 13px; font-weight: 900; line-height: 1.22; color: #2c1d0c;
@@ -3174,9 +3180,10 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .prison-row .pr-main span { font-size: 9px; color: #6d5a34; }
 .prison-row .pr-esc { font-size: 8.5px; color: #3f6b32; font-style: normal; }
 .prison-row .pr-esc.hot { color: #a8443a; }
-.pr-tier { font-size: 8px; font-style: normal; padding: 0 4px; border-radius: 5px; color: #fff; vertical-align: 1px; }
-.pr-tier.tS { background: #b8862f; } .pr-tier.tA { background: #7a3fa0; }
-.pr-tier.tB { background: #3f6fb5; } .pr-tier.tC { background: #8a8678; }
+.pr-tier { font-size: 8px; font-style: normal; padding: 0 4px; border-radius: 5px; color: #fff; vertical-align: 1px; border: 1px solid rgba(255, 255, 255, .5); }
+/* v5.24 — 포로 등급 4색 통일 */
+.pr-tier.tS { background: #c93024; } .pr-tier.tA { background: #7b38b5; }
+.pr-tier.tB { background: #2962ba; } .pr-tier.tC { background: #2b7d4e; }
 .prison-row .pr-btns { display: flex; flex-direction: column; gap: 3px; flex: 0 0 auto; }
 .prison-row .pr-btns button { padding: 5px 8px; border-radius: 7px; font-size: 8.5px; font-weight: 800;
   border: 1px solid #c9ae7c; background: #fffaf0; color: #6b4a12; }
@@ -3378,6 +3385,15 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   background: #fbf4e3; color: #6b5324; font-size: 10.5px; font-weight: 800;
 }
 .cdx-chip.on { background: #5a3f14; border-color: #3d2a0c; color: #ffe9b8; }
+/* v5.24 — 등급 필터 칩도 S·A·B·C 4색으로 통일 */
+.cdx-chip[data-f="tier"][data-v="S"] { border-color: #e8877c; color: #a81d13; }
+.cdx-chip[data-f="tier"][data-v="A"] { border-color: #bd93e2; color: #632599; }
+.cdx-chip[data-f="tier"][data-v="B"] { border-color: #8fb4ea; color: #1c4d9e; }
+.cdx-chip[data-f="tier"][data-v="C"] { border-color: #84c9a3; color: #1e663d; }
+.cdx-chip[data-f="tier"][data-v="S"].on { background: #c93024; border-color: #ff9384; color: #fff; }
+.cdx-chip[data-f="tier"][data-v="A"].on { background: #7b38b5; border-color: #d9b3f7; color: #fff; }
+.cdx-chip[data-f="tier"][data-v="B"].on { background: #2962ba; border-color: #a9c9ff; color: #fff; }
+.cdx-chip[data-f="tier"][data-v="C"].on { background: #2b7d4e; border-color: #a3e3bf; color: #fff; }
 .cdx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .cdx-cell {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px;
@@ -3391,12 +3407,14 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .cdx-face em { font-style: normal; font-size: 17px; font-weight: 900; color: #c3b28a; }
 .cdx-tier {
   position: absolute; top: -1px; right: -2px; font-style: normal; font-size: 8px; font-weight: 900;
-  color: #fff8e8; background: #8a7448; border-radius: 6px; padding: 0 4px; line-height: 12px;
+  color: #fff; background: #7c7466; border-radius: 6px; padding: 0 4px; line-height: 12px;
+  border: 1px solid rgba(255, 255, 255, .55);
 }
-.cdx-cell.tS .cdx-tier { background: #a8443a; }
-.cdx-cell.tA .cdx-tier { background: #7a5aa8; }
-.cdx-cell.tB .cdx-tier { background: #3f7a5a; }
-.cdx-cell.tC .cdx-tier { background: #6b6b5a; }
+/* v5.24 — 도감 등급 4색 통일 */
+.cdx-cell.tS .cdx-tier { background: #c93024; }
+.cdx-cell.tA .cdx-tier { background: #7b38b5; }
+.cdx-cell.tB .cdx-tier { background: #2962ba; }
+.cdx-cell.tC .cdx-tier { background: #2b7d4e; }
 .cdx-name { font-size: 9.5px; font-weight: 800; color: #3a2c10; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdx-cell small { font-size: 8px; color: #9a875e; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdx-more {
