@@ -2147,8 +2147,9 @@
       if (!gens) need.push('장수 없음');
       else if (!cs.governor) need.push('태수 없음');
       if (wound > 0) need.push(`부상병 ${fmt(wound)}`);
-      if (cap && (cs.troops || 0) < cap * 0.35) need.push('병력 부족');
-      if ((cs.food || 0) < 1200) need.push('군량 부족');
+      /* 전방 성만 병력을 따진다 — 후방 성이 비어 있는 것은 정상이다 */
+      if (front && cap && (cs.troops || 0) < cap * 0.25) need.push('병력 부족');
+      if ((cs.food || 0) < 600) need.push('군량 부족');
       return { cs, gens, built, front, need };
     };
     const totals = list.reduce((a, c) => {
