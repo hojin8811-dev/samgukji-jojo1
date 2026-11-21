@@ -764,11 +764,14 @@
     st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
     SK.CITY_LIST.forEach((c) => (st.cities[c.id].genIds || []).forEach((id) => used.add(id)));
     const lordName = (st.factions[st.playerFaction] || {}).lord;
+    /* v5.20 — 다른 세력의 군주·왕은 주점 인재 줄에 앉지 않는다 */
+    const lordSet = SK.lordNameSet(st);
     const groups = ['위', '촉', '오', '군웅', '한국'];
     const buckets = {};
     groups.forEach((grp) => { buckets[grp] = { S: [], A: [], B: [], C: [] }; });
     SK.GENERALS.forEach((g) => {
       if (used.has(g.id) || g.name === lordName) return;
+      if (SK.isLordOnly(g, lordSet)) return;
       if (!SK.debutOk(g, year)) return;          // 아직 나오지 않은 인물은 주점에도 없다
       const grp = genPoolGroup(g);
       (buckets[grp][g.tier] || buckets[grp].C).push(g);
@@ -821,6 +824,7 @@
   /* 해가 바뀔 때 — 새로 성년이 된 명장을 각지 주점에 풀어 놓는다 (v5) */
   SK.refreshDebut = function (st) {
     const yr = eraYearOf(st);
+    const lordSet = SK.lordNameSet(st);
     const used = new Set();
     st.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
     SK.CITY_LIST.forEach((c) => {
@@ -828,7 +832,7 @@
       (cs.talents || []).forEach((id) => used.add(id));
       (cs.genIds || []).forEach((id) => used.add(id));
     });
-    const fresh = SK.GENERALS.filter((g) => Number(g.debutYear) === yr && !used.has(g.id));
+    const fresh = SK.GENERALS.filter((g) => Number(g.debutYear) === yr && !used.has(g.id) && !SK.isLordOnly(g, lordSet));
     const out = [];
     fresh.forEach((g) => {
       const grp = genPoolGroup(g);
@@ -1755,7 +1759,7 @@
       eh.textContent = s.month === ECON.harvestMonth ? '🌾 대수확 거뒀음' : `🌾 대수확 ${m}개월`;
       eh.classList.toggle('soon', m <= 2);
       eh.classList.toggle('done', s.month === ECON.harvestMonth);
-      eh.title = `10월 가을 대수확 예상 미 +${fmt(harv)}`;
+      eh.title = `10월 가을 대수확 예상 군량 +${fmt(harv)}`;
     }
     $('#map-hint').textContent = owned >= SK.CITY_LIST.length ? `천하통일! 모든 거점이 ${fname}의 깃발 아래 있습니다.` :
       `${fname} 거점 ${owned} / ${SK.CITY_LIST.length} · 다음 달에 세수·봉급·군량 유지비가 정산됩니다.`;
@@ -3374,10 +3378,11 @@
     }
     if (kind === 'talent') {
       const grp = tavernGroupOf(s, cityId);
+      const lordSet = SK.lordNameSet(s);
       const used = new Set();
       s.heroes.forEach((h) => { if (h.genId) used.add(h.genId); });
       SK.CITY_LIST.forEach((x) => (s.cities[x.id].talents || []).forEach((id) => used.add(id)));
-      const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, eraYearOf(s)) && !SK.isDead(g.id, g.name));
+      const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, eraYearOf(s)) && !SK.isDead(g.id, g.name) && !SK.isLordOnly(g, lordSet));
       if (pool.length) {
         const g2 = pool[Math.floor(Math.random() * pool.length)];
         cs.talents = cs.talents || [];
@@ -5313,9 +5318,11 @@
     const seen = new Set();
     const st = SK.state;
     const grp = tavernGroupOf(st, cityId);
+    const lordSet = SK.lordNameSet(st);
     const take = (g, fromId, here) => {
       if (!g || seen.has(g.id)) return;
       if (genPoolGroup(g) !== grp) return;
+      if (SK.isLordOnly(g, lordSet)) return;   // v5.20 — 군주·왕은 재야 인재가 아니다
       if (!SK.debutOk(g, eraYearOf(st))) return;
       if (SK.isDead(g.id, g.name)) return;          // v5.8 — 처형한 장수는 다시 나오지 않는다
       seen.add(g.id);
@@ -5349,7 +5356,8 @@
     });
     const grp = tavernGroupOf(s, cityId);
     const yr = eraYearOf(s);
-    const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, yr) && !SK.isDead(g.id, g.name))
+    const lordSet = SK.lordNameSet(s);
+    const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, yr) && !SK.isDead(g.id, g.name) && !SK.isLordOnly(g, lordSet))
       .sort((a, b) => SK.genScore(b) - SK.genScore(a));
     const start = Math.max(0, Math.min(pool.length - 1, Math.floor(pool.length * 0.5)));
     cs.talents = pool.slice(start, start + 3).map((g) => g.id);
@@ -7039,7 +7047,7 @@
         <div><span>보유 병력</span><b id="dp-avail">${fmt(avail)}</b></div>
         <div><span>출진 병력</span><b id="dp-cost" class="hot">0</b></div>
         <div><span>남는 병력</span><b id="dp-left">0</b></div>
-        <div><span>출진 보급</span><b id="dp-supply">미 -0</b></div>
+        <div><span>출진 보급</span><b id="dp-supply">군량 0</b></div>
         <div><span>부대</span><b id="dp-units">0 / ${MAX_UNITS}</b></div>
       </div>
       <p class="deploy-tip">${SK.BATTLE_TYPES[bt].skill} 병력이 곧 부대의 HP입니다. 장수 줄을 눌러 출진을 켜고 끄고, −／＋로 병력을 1명씩 조절하세요(길게 누르면 빠르게 오릅니다).</p>
@@ -7104,7 +7112,7 @@
       m.el.querySelector('#dp-left').classList.toggle('bad', left() < 0);
       const sup = Math.ceil(totalCost() / 1000 * 5);
       const supEl = m.el.querySelector('#dp-supply');
-      if (supEl) { supEl.textContent = `미 -${fmt(sup)}`; supEl.classList.toggle('bad', (s.cities[origin].food || 0) < sup); }
+      if (supEl) { supEl.textContent = `군량 ${sup > 0 ? '−' : ''}${fmt(sup)}`; supEl.classList.toggle('bad', (s.cities[origin].food || 0) < sup); }
       m.el.querySelector('#dp-units').textContent = `${unitCount()} / ${MAX_UNITS}`;
       m.el.querySelector('#deploy-count').textContent = unitCount();
       m.el.querySelectorAll('.hero-pick').forEach((el) => {
@@ -8585,6 +8593,9 @@
       const mo = m.origin || m.from; if (mo) marchUpBy[mo] = (marchUpBy[mo] || 0) + t;
     });
     let upkeep = 0, foodNet = 0, famine = null;
+    /* v5.20 — 목록의 '군량 순'은 농원 비축(runSlots가 이미 각 성 창고에 넣은 양)까지 더한 값이어야
+       상단 '월 군량'과 실제 창고 증감이 맞는다. (예전에는 유지비만 빠져 −193처럼 보였다) */
+    foodNet += farmGain;
     SK.CITY_LIST.forEach((c) => {
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
@@ -8676,11 +8687,11 @@
         <div class="mr-row total"><span>순금</span><b class="${goldNet >= 0 ? 'plus' : 'minus'}">${goldNet >= 0 ? '+' : '−'}${fmt(Math.abs(goldNet))}<em>전체 금고 ${fmt(SK.totalGold(s))}</em></b></div>
         ${goldShort ? `<div class="mr-row famine"><span>금고가 비었습니다</span><b class="minus">봉급 ${fmt(goldShort)} 미지급</b></div>` : ''}
         <div class="mr-sec"><span>군량</span><em>${s.month === ECON.harvestMonth ? '가을 대수확' : `대수확까지 ${monthsUntilHarvest(s)}개월`}</em></div>
-        <div class="mr-row"><span>병력 유지 <em>${fmt(troopsNow)}명 · 1,000명당 ${ECON.upkeepPer1000}</em></span><b class="minus">미 −${fmt(upkeep)}</b></div>
-        ${farmGain ? `<div class="mr-row"><span>농원 비축</span><b class="plus">미 +${fmt(farmGain)}</b></div>` : ''}
+        <div class="mr-row"><span>병력 유지 <em>${fmt(troopsNow)}명 · 1,000명당 ${ECON.upkeepPer1000}</em></span><b class="minus">군량 −${fmt(upkeep)}</b></div>
+        ${farmGain ? `<div class="mr-row"><span>농원 비축</span><b class="plus">군량 +${fmt(farmGain)}</b></div>` : ''}
         ${isHarvest && harvest.total ? `<div class="mr-harvest"><span class="mh-ic">🌾</span>
           <div class="mh-main"><b>10월 가을 대수확!</b><span>${harvest.rows.slice(0, 6).map((r) => `${r.city} +${fmt(r.food)}`).join(' · ')}${harvest.rows.length > 6 ? ' 외' : ''}</span></div>
-          <em>미 +${fmt(harvest.total)}</em></div>` : ''}
+          <em>군량 +${fmt(harvest.total)}</em></div>` : ''}
         <div class="mr-row total"><span>군량 순</span><b class="${foodNet >= 0 ? 'plus' : 'minus'}">${foodNet >= 0 ? '+' : '−'}${fmt(Math.abs(foodNet))}<em>전체 창고 ${fmt(SK.totalFood(s))}</em></b></div>
         ${famine ? `<div class="mr-row famine"><span>군량이 바닥났습니다!</span><b class="minus">민심 −${ECON.famineLoyalty} · 병력 −${fmt(famine.lost)} 이탈</b></div>` : ''}
         ${supplyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">이웃 성 자동 보급</p>

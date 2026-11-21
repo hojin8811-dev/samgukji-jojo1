@@ -346,6 +346,26 @@ SK.FACTION_COLOR = {
   joseon: '#991B1B', goryeo: '#6B21A8',
 };
 
+/* v5.20 — 군주·왕은 재야 인재로 등용되지 않는다.
+   조선 완산 주점에 고구려 왕 광개토대왕·금관가야 김수로가 '은거 인재'로 앉는 것을 막는다.
+   (이미 다른 세력을 이끄는 사람을 신하로 데려오면 판도가 우스워진다) */
+SK.lordNameSet = function (st) {
+  const s = st || SK.state;
+  const out = new Set();
+  if (!s || !s.factions) return out;
+  Object.keys(s.factions).forEach((k) => {
+    if (k === 'neutral') return;
+    const f = s.factions[k];
+    const n = f && f.lord ? SK.normName(f.lord) : '';
+    if (n) out.add(n);
+  });
+  return out;
+};
+SK.isLordOnly = function (g, lordSet) {
+  if (!g) return true;
+  if (g.job === '군주') return true;
+  return !!(lordSet && lordSet.has(g.name));
+};
 SK.factionInfo = function (key) {
   const st = SK.state;
   if (st && st.factions && st.factions[key]) return st.factions[key];

@@ -862,6 +862,7 @@ b { font-weight: 700; }
 .ev-main h4 { margin: 3px 0 2px; font-family: var(--serif); font-size: 16px; color: #2c2412; }
 .ev-dialogue { margin: 2px 0 4px; font-size: 12px; line-height: 1.5; color: #4a3a1a; }
 .ev-reward { margin: 0; font-size: 9.5px; color: #8a5f2a; }
+.ev-enemy { display: block; margin-top: 4px; font-style: normal; font-size: 9px; font-weight: 800; color: #9a3412; }
 .event-card .ic-tap { display: block; text-align: right; font-size: 9px; color: #8a7448; margin-top: 4px; animation: blink 1.4s infinite; }
 .rm-event { margin: 4px 0 0; font-size: 10px; color: #8a2f22; font-weight: 700; }
 

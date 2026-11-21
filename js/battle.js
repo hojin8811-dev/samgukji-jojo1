@@ -4249,7 +4249,7 @@
       body: `<div class="result-modal win">
         <div class="rm-seal">승</div>
         ${B.winReason ? `<p class="rm-reason">${B.winReason}${B.winReason.indexOf('전멸') >= 0 ? '' : ' — 적 진영이 무너졌습니다'}!</p>` : ''}
-        <p class="rm-line">${SK.factionName(prevOwner)}을(를) 무찌르고 <b>${c.name}</b>을(를) 차지했습니다.</p>
+        <p class="rm-line">${SK.josa(SK.factionName(prevOwner), 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -4529,12 +4529,17 @@
       const L = B.introLines[i];
       if (L.event) {
         const ev = L.event;
+        /* v5.20 — 이 이벤트는 적 성의 장수(defGens)에게서 골라지므로, 보상 문구의 '아군'은
+           플레이어가 아니라 적군을 가리킨다. 그대로 두면 김유신의 '아군 사기 +15'가 우리 군에
+           붙는 줄 알고 수성전에 들어가게 된다. */
+        const evReward = String(ev.reward || '').replace(/아군/g, '적군');
         ov.innerHTML = `<div class="event-card">
           <div class="ev-seal">연</div>
-          <div class="ev-main"><span class="ev-type">${ev.type || '특별 이벤트'}</span>
+          <div class="ev-main"><span class="ev-type">${ev.type || '특별 이벤트'} · 적 장수</span>
             <h4>${ev.title}</h4>
             <p class="ev-dialogue">“${ev.dialogue}”</p>
-            <p class="ev-reward">${ev.reward || ''}</p>
+            <p class="ev-reward">${evReward}</p>
+            <em class="ev-enemy">적 장수 효과 — 우리 군에는 적용되지 않습니다</em>
             <span class="ic-tap">터치하여 계속 ▸</span></div>
         </div>`;
         ov.onclick = () => { i += 1; render(); };

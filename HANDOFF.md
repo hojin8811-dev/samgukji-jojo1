@@ -21,6 +21,23 @@
 
 ---
 
+## 0.0 v5.20 — 조선·고려·사섭군·공손강군 28세력 · 신규 아트 6인 · 실플레이 버그 5종 (2026-11-21 · `?v=34`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 세력 수 | 1막 24 → **28**. `joseon`(조선, **완산**, mark `조`, `#991B1B`) · `goryeo`(고려, **개성**, mark `려`, `#6B21A8`) · `shi_xie`(사섭군, **남해**, mark `사`) · `gongsunkang`(공손강군, **요동**, mark `강`) | `historical_scenarios.json`, `data.js` |
+| 한국 5국 | `SK.KOREAN_FACTIONS`에 `joseon`·`goryeo` 추가 → 완산·개성 주점 풀·세력 계열·`MAJOR_FACTIONS`가 3국과 같다 | `data.js`, `app.js` |
+| 명부 | 조선 10(이성계·세종대왕·이순신·정도전·정몽주·권율·김시민·정약용·김종서·곽재우) · 고려 10(왕건·강감찬·서희·윤관·양규·최영·척준경·신숭겸·배현경·박서) · 사섭 7 · 공손강 6 | `historical_scenarios.json`, `EARLY_RETAINERS`, `EXTRA_GENERALS`(사광·환린·유의) |
+| 중복 0 | 공손찬군에서 `공손공`을 빼고 `공손속`으로 채움. 28세력 도시·수도·장수 중복 0 | `historical_scenarios.json` |
+| 소세력 보충 | `padStartRosters`에서 군주급(`job === '군주'`)·시나리오 군주 제외 | `data.js` |
+| 신규 아트 | 서서·사섭·공손강·한현·이각·이유 초상+SD 12장 (256×256 투명 WebP) | `assets/portraits/v520/`, `assets/units/v520/`, `data/v58_art_manifest.json` |
+| 버그 1 | 주점·탐색에 타 세력 군주·왕이 재야 인재로 등장(완산 탐색에서 광개토대왕) → `SK.lordNameSet`·`SK.isLordOnly`로 시드·신규 등장·주점·탐색·성 보충에서 제외 | `data.js`, `app.js` |
+| 버그 2 | 월정산 '군량 순'이 농원 비축 누락 → `foodNet += farmGain` | `app.js` |
+| 버그 3 | 수성전 적장 이벤트를 '아군' 버프로 표시 → `적군` 치환·안내 문구 | `battle.js`, `css/game.css` |
+| 버그 4 | 승리 결산 조사 《청주을(를)》 → `SK.josa` | `battle.js` |
+| 버그 5 | 군량 단위 `미 −193` → `군량 −193` | `app.js` |
+| 검증 | 28세력 중복 0·명부 일치·아트 200·콘솔 0건(390×800), 조선으로 공성 승리·수성 패배·12개월 진행까지 실플레이 | `tools/v520_*.py` (gitignore) |
+
 ## 0.0 v5.19 — 1막 주 세력 드림팀 · 한현군·맹획군 24세력 (2026-11-21 · `?v=33`)
 
 | 갈래 | 내용 | 코드 |

@@ -1,6 +1,25 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=33`
+기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=34`
+
+## ✅ v5.20 — 조선·고려·사섭군·공손강군 28세력 · 신규 아트 6인 · 실플레이 버그 5종 (2026-11-21 · `?v=34`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 세력 수 | 1막 24 → **28세력**. `joseon`(조선, 완산 중도시, mark `조`, `#991B1B`) · `goryeo`(고려, 개성 소도시, mark `려`, `#6B21A8`) · `shi_xie`(사섭군, 남해 소도시, mark `사`, `#A16207`) · `gongsunkang`(공손강군, 요동 중도시, mark `강`, `#78350F`) | `data/historical_scenarios.json`, `data.js` `FACTIONS`·`FACTION_MARK`·`FACTION_COLOR` |
+| 조선 | 이성계(군주)·세종대왕·이순신·정도전·정몽주·권율·김시민·정약용·김종서·곽재우 **10명** | `historical_scenarios.json`, `EARLY_RETAINERS` |
+| 고려 | 왕건(군주)·강감찬·서희·윤관·양규·최영·척준경·신숭겸·배현경·박서 **10명** | 같음 |
+| 사섭군 | 사섭(군주)·사휘·사일·사광·환린·여대 **6명**(+초기 식구 사흠, 인게임 7명) | `EXTRA_GENERALS`(사광·환린) |
+| 공손강군 | 공손강(군주)·공손도·공손공·비연·유의·양조 **6명**. 공손찬군의 공손공은 빼고 북평은 공손속으로 | `EXTRA_GENERALS`(유의) |
+| 한국 계열 | `KOREAN_FACTIONS`에 `joseon`·`goryeo` 추가, `MAJOR_FACTIONS`에도 등록 — 완산·개성 주점이 한국 인재 풀만 받는다 | `data.js`, `app.js` |
+| 소세력 보충 | `padStartRosters` 풀 보충에서 `job === '군주'`·시나리오 군주 제외 | `data.js` |
+| 신규 아트 | 서서·사섭·공손강·한현·이각·이유 **초상+SD 12장**, 투명 256×256 WebP | `assets/portraits/v520/`·`assets/units/v520/`, `data/v58_art_manifest.json` |
+| 버그 1 | 주점·탐색에 다른 세력 군주·왕 등장 → `SK.lordNameSet`·`SK.isLordOnly`로 주점 시드·해마다 등장·탐색·성 보충에서 제외 | `data.js`, `app.js` `seedTalents`·`refreshDebut`·`tavernPool`·`refillTalents`·`explore` |
+| 버그 2 | 월정산 '군량 순'이 농원 비축을 빼고 계산 → `foodNet += farmGain` | `app.js` |
+| 버그 3 | 수성전 적장 이벤트를 '아군' 버프로 표시 → `적군` 치환 + `적 장수 효과` 안내 | `battle.js` `showIntro`, `css/game.css` |
+| 버그 4 | 승리 결산 《청주을(를)》 조사 오류 → `SK.josa` | `battle.js` |
+| 버그 5 | 군량 단위 `미 −193` → `군량 −193` | `app.js` 월정산·출진·대수확 |
+| 검증 | 28세력 도시·수도·장수 중복 0, 조선 10·고려 10·사섭 7·공손강 6 인게임 명부 일치, 아트 HTTP 200, 콘솔·pageerror 0건(390×800) | `tools/v520_local_check.py`·`v520_ui_check.py`·`v520_play3.py` (gitignore) |
 
 ## ✅ v5.19 — 1막 주 세력 드림팀 · 한현군(장사)/맹획군(운남) 24세력 (2026-11-21 · `?v=33`)
 
