@@ -44,12 +44,14 @@
   let autoOn = false;           // v5.2 — 아군 턴 자동 진행
   let autoTimer = null;
   let autoPending = null;
-  /* v5.10 — 자동전투 배속. 기본 1x = 예전 속도의 절반(2배 느리게), 2x = 예전 속도 */
+  /* v5.10 — 자동전투 배속. 기본 1x = 예전 속도의 절반(2배 느리게), 2x = 예전 속도
+     v5.26 — ×4 단계 추가. 한 판에서 고른 배속은 세션 동안 다음 전투에도 이어진다. */
   let autoSpeed = 1;
+  let speedPref = 1;
   const LV_GROW = 0.018;        // 1레벨마다 공·방 +1.8% (아군·적군 공통)
   /* v5.10 — 전투 배속: ×1이면 전장의 모든 대기·연출이 2배 느려지고 ×2면 예전 그대로.
      수동 조작 중(autoOn=false)에는 아무 영향이 없다. */
-  function paceMs(ms) { return autoOn ? Math.round((Number(ms) || 0) * (2 / autoSpeed)) : (Number(ms) || 0); }
+  function paceMs(ms) { return autoOn ? Math.round((Number(ms) || 0) * (2 / autoSpeed) * (autoSpeed >= 4 ? 0.85 : 1)) : (Number(ms) || 0); }
   function wait(fn, ms) { return setTimeout(fn, paceMs(ms)); }
   SK.battlePace = paceMs;
   const anims = [];            // 타일 단위 이동 · 돌격 애니메이션
@@ -220,7 +222,7 @@
     const gateInit = gates[0] || null;   // B.gate는 가장 바깥에 남은 성문을 가리킨다
 
     B = {
-      type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name} · ${def.name}` : `${target.name} ${def.name}`),
+      type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name}` : `${target.name} ${def.name}`),
       targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null,
       cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey,
@@ -290,7 +292,7 @@
     /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
     if (SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
     B.objective = defense ? SK.BATTLE_TYPES.defense.objective : def.objective;
-    if (B.sites && B.sites.length) B.objective = '적 총대장 격파 또는 적 본진 점령 — 아군 총대장·본진을 지켜라';
+    if (B.sites && B.sites.length) B.objective = '적 총대장 격파 · 적 본진 점령';
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
     anims.length = 0;
@@ -299,7 +301,7 @@
     shakeT = 0;
     autoStop();
     autoPending = null;
-    autoSpeed = 1;          // v5.10 — 전투마다 기본 ×1로 시작
+    autoSpeed = speedPref || 1;   // v5.26 — 지난 전투에서 고른 배속을 이어 쓴다 (처음엔 ×1)
     paintSpeedBtn();
     SK.show('screen-battle');
     if (window.JojoBGM) {
@@ -1884,48 +1886,76 @@
     }
     // 배지(아/적) + 병력 숫자 + 병력 바 — 화면 배율과 무관하게 읽히도록
     const k = clamp(1 / Math.max(0.5, cam.s), 1, 1.55);
-    const num = Math.round(u.hp).toLocaleString('ko-KR');
+    /* v5.26 — 부대가 밀집하면 숫자를 '1.4k'로 줄이고 아/적 칩과 병과 배지를 생략해
+       이웃 부대 라벨과 겹치는 문제를 완화한다. (성벽 2×2 대형·성문 앞 난전에서 심했다) */
+    let crowd = 0;
+    for (let ci = 0; ci < B.units.length; ci++) {
+      const o = B.units[ci];
+      if (!o.alive || o === u) continue;
+      if (Math.max(Math.abs(o.x - u.x), Math.abs(o.y - u.y)) <= 1) crowd += 1;
+    }
+    const dense = crowd >= 2, veryDense = crowd >= 4;
+    const shortNum = (v) => {
+      const n = Math.max(0, Math.round(v));
+      if (n >= 10000) return Math.round(n / 1000) + 'k';
+      if (n >= 1000) return (Math.round(n / 100) / 10).toFixed(1) + 'k';
+      return String(n);
+    };
+    const num = dense ? shortNum(u.hp) : Math.round(u.hp).toLocaleString('ko-KR');
     const bh = 6;
     const bw = Math.max(TILE * 0.66, 0);
-    const barY = topY - 8 - bh;
-    const fsz = Math.round(9 * k);
+    /* 밀집 시 반 칸씩 엇갈려 세로로도 덜 부딪히게 */
+    const stair = dense && (((u.x * 2 + u.y) % 3) === 1) ? Math.round(4 * k) : 0;
+    const barY = topY - 8 - bh - stair;
+    const fsz = Math.round(9 * k * (veryDense ? 0.84 : dense ? 0.93 : 1));
     ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
     const numW = ctx.measureText(num).width;
-    const chipW = Math.round(11 * k);
+    const showChip = !veryDense;
+    const chipW = showChip ? Math.round(11 * k) : 0;
     const pillW = chipW + numW + Math.round(9 * k);
-    const pillH = Math.round(13 * k);
+    const pillH = Math.round((dense ? 12 : 13) * k);
     const pillX = bx - pillW / 2;
     const pillY = barY - pillH - Math.round(2 * k);
     ctx.save();
-    ctx.fillStyle = 'rgba(24,19,11,0.86)';
+    ctx.fillStyle = dense ? 'rgba(24,19,11,0.8)' : 'rgba(24,19,11,0.86)';
     ctx.strokeStyle = u.side === 'ally' ? 'rgba(130,180,255,0.75)' : 'rgba(255,150,130,0.7)';
     ctx.lineWidth = 1;
     if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill(); ctx.stroke(); }
     else { ctx.fillRect(pillX, pillY, pillW, pillH); ctx.strokeRect(pillX, pillY, pillW, pillH); }
-    ctx.fillStyle = tint.chip;
-    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX + 1, pillY + 1, chipW, pillH - 2, (pillH - 2) / 2); ctx.fill(); }
-    else ctx.fillRect(pillX + 1, pillY + 1, chipW, pillH - 2);
-    ctx.fillStyle = '#fff6e2';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `800 ${Math.round(fsz * 0.82)}px "Noto Sans CJK KR", sans-serif`;
-    ctx.fillText(tint.label, pillX + 1 + chipW / 2, pillY + pillH / 2 + 0.5);
+    if (showChip) {
+      ctx.fillStyle = tint.chip;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pillX + 1, pillY + 1, chipW, pillH - 2, (pillH - 2) / 2); ctx.fill(); }
+      else ctx.fillRect(pillX + 1, pillY + 1, chipW, pillH - 2);
+      ctx.fillStyle = '#fff6e2';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${Math.round(fsz * 0.82)}px "Noto Sans CJK KR", sans-serif`;
+      ctx.fillText(tint.label, pillX + 1 + chipW / 2, pillY + pillH / 2 + 0.5);
+    }
     ctx.font = `800 ${fsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
-    ctx.textAlign = 'left';
+    ctx.textAlign = showChip ? 'left' : 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fffaf0';
-    ctx.fillText(num, pillX + chipW + Math.round(4 * k), pillY + pillH / 2 + 0.5);
+    ctx.fillText(num, showChip ? pillX + chipW + Math.round(4 * k) : pillX + pillW / 2, pillY + pillH / 2 + 0.5);
     ctx.restore();
-    // 병과 배지 — [🐎 기병] 형태의 작은 칩을 HP 배지 왼쪽에 붙인다
+    // 병과 배지 — [🐎 기병] 형태의 작은 칩을 HP 배지 왼쪽에 붙인다 (밀집하면 생략)
     const badge = CLASS_BADGE[u.cls] || ['', SK.CLASSES[u.cls] ? SK.CLASSES[u.cls].name.slice(0, 2) : ''];
-    if (badge[1]) {
+    /* v5.26 — 옆 칸에 부대가 서 있으면 그쪽 라벨을 가리므로 반대쪽으로 보내고, 둘 다 막히면 생략 */
+    const occ = (dx) => B.units.some((o) => o.alive && o !== u && o.x === u.x + dx && o.y === u.y);
+    const preferRight = u.side === 'enemy';
+    let badgeRight = preferRight;
+    if (preferRight && occ(1) && !occ(-1)) badgeRight = false;
+    else if (!preferRight && occ(-1) && !occ(1)) badgeRight = true;
+    const badgeSkip = (badgeRight && occ(1)) || (!badgeRight && occ(-1));
+    if (badge[1] && !dense && !badgeSkip) {
       const bsz = Math.max(7, Math.round(7.4 * k));
       ctx.save();
       ctx.font = `800 ${bsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
       const btxt = badge[1];
       const bw2 = ctx.measureText(btxt).width + Math.round(8 * k);
       const bh2 = Math.round(12 * k);
-      // HP 배지 같은 줄 왼쪽(적군은 오른쪽)에 작게 붙여 이웃 부대와 겹치지 않게 한다
-      const bx2 = u.side === 'enemy' ? pillX + pillW + Math.round(3 * k) : pillX - bw2 - Math.round(3 * k);
+      // HP 배지 같은 줄 왼쪽(적군·왼쪽이 막혔을 땐 오른쪽)에 작게 붙인다
+      const bx2 = badgeRight ? pillX + pillW + Math.round(3 * k) : pillX - bw2 - Math.round(3 * k);
       const by2 = pillY + (pillH - bh2) / 2;
       ctx.fillStyle = BADGE_BG[u.side] || BADGE_BG.enemy;
       ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.55)' : 'rgba(255,170,150,0.5)';
@@ -2170,7 +2200,9 @@
       const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38;
       ctx.save();
       ctx.globalAlpha = 1 - p * 0.85;
-      ctx.font = 'bold 17px "Noto Serif CJK KR", serif';
+      /* v5.26 — 고유 특기 이름(「…」)은 숫자보다 작게 그린다. 17px 고정이라 전장 한가운데를 크게 가렸다 */
+      const isName = f.text.indexOf('「') >= 0;
+      ctx.font = isName ? 'bold 11.5px "Noto Serif CJK KR", serif' : 'bold 17px "Noto Serif CJK KR", serif';
       ctx.textAlign = 'center';
       ctx.lineWidth = 4.5;
       ctx.strokeStyle = 'rgba(24,18,8,0.92)';
@@ -3379,17 +3411,21 @@
   function paintSpeedBtn() {
     const btn = document.querySelector('#btn-speed, .act.speed');
     if (!btn) return;
-    btn.classList.toggle('fast', autoSpeed === 2);
+    btn.classList.toggle('fast', autoSpeed >= 2);
+    if (btn) btn.title = `자동전투 배속 — 누를 때마다 ×1 → ×2 → ×3 → ×4 (지금 ×${autoSpeed})`;
     const sp = btn.querySelector('span');
     if (sp) sp.textContent = speedLabel();
     btn.setAttribute('aria-label', `전투 배속 ${speedLabel()}`);
   }
   function toggleSpeed() {
-    /* v5.17 — 대형 전장(24·28·32칸)에서는 전투가 길어 ×3 단계를 더한다 */
-    autoSpeed = autoSpeed === 3 ? 1 : autoSpeed + 1;
+    /* v5.17 — 대형 전장(24·28·32칸)에서는 전투가 길어 ×3 단계를 더한다
+       v5.26 — ×4까지. ×3·×4는 한 판에 몇 분씩 걸리는 대형 수성전·32×32 전장용 */
+    autoSpeed = autoSpeed >= 4 ? 1 : autoSpeed + 1;
+    speedPref = autoSpeed;
     paintSpeedBtn();
     SK.sfx.play('ui');
-    SK.toast(autoSpeed === 3 ? '전투 배속 ×3 — 아주 빠르게 진행합니다.'
+    SK.toast(autoSpeed === 4 ? '전투 배속 ×4 — 연출을 줄여 가장 빠르게 돌립니다.'
+      : autoSpeed === 3 ? '전투 배속 ×3 — 아주 빠르게 진행합니다.'
       : autoSpeed === 2 ? '전투 배속 ×2 — 빠르게 진행합니다.'
       : '전투 배속 ×1 — 기본 속도(절반)로 돌아갑니다.');
     if (autoOn) { autoClear(); autoTimer = wait(autoStep, 240); }
@@ -3769,7 +3805,11 @@
       /* v5.22 — 역할별 자리 지키기 */
       if (defRole === 'wall' && home) {
         const ch = B.tiles[t.y][t.x];
-        if (ch === 'T') score += 12;                                   // 망루 위가 최선 (사거리 +1·방어 +45%)
+        /* v5.26 — 망루 보너스는 사거리 안에 적이 있을 때만. 예전에는 적이 성문 반대편에 있어도
+           망루(+12)에 붙어 있어 사거리 밖에서 7턴을 허비하는 부대가 있었다. */
+        const foeD = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
+        if (ch === 'T' && foeD <= rng + 1) score += 12;                 // 망루 위가 최선 (사거리 +1·방어 +45%)
+        else if (ch === 'T') score += 1;                                // 사거리 밖이면 미련 없이 이동
         else if (t.y >= home.insideY - 3) score += 4;                   // 성문 바로 안쪽 성벽
         if (ch === 'G') score -= 3;                                    // 문통에 서면 뚫린 뒤 그대로 맞는다
         if (t.y > home.insideY && ch !== 'G') score -= 20;

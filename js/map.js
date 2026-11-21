@@ -1136,6 +1136,20 @@
   }
 
   /* 라벨 겹침 해소 — 아이콘·이름이 서로 겹치지 않게 자리를 고르고, 자리가 없으면 잠시 감춘다 */
+  /* v5.26 — 지도 위에 떠 있는 UI(오른쪽 조작 버튼·범례)는 라벨이 비켜 간다. */
+  function mapObstacles() {
+    if (!vp) return [];
+    const v = vp.getBoundingClientRect();
+    const out = [];
+    ['.map-controls', '#map-legend'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el || el.hidden || !el.offsetParent) return;
+      const b = el.getBoundingClientRect();
+      if (b.width < 2 || b.height < 2) return;
+      out.push([b.left - v.left - 3, b.top - v.top - 3, b.width + 6, b.height + 6, 1]);
+    });
+    return out;
+  }
   function layoutAnchors(fs, s) {
     const prio = { capital: 0, pass: 1, fortress: 2, town: 3 };
     const cx0 = cam.tx, cy0 = cam.ty;
@@ -1165,6 +1179,9 @@
     icons.forEach((o) => { iconOf[o.m.id] = o; });
     const placedIcons = [];
     const pf = playerFaction();
+    const obstacles = mapObstacles();
+    const vw = (vp && vp.getBoundingClientRect().width) || 0;
+    const vh = (vp && vp.getBoundingClientRect().height) || 0;
     order.forEach((m) => {
       const o = iconOf[m.id];
       const iw = o.iw, ih = o.ih;
@@ -1212,7 +1229,20 @@
           const ov = overlap(rect, boxes[bi]);
           if (ov) score += ov * (boxes[bi][4] === 1 ? 1.15 : 1.0);
         }
-        /* 화면 아래 조작 버튼 · 상단 바와 겹치지 않게 */
+        /* v5.26 — 조작 버튼·범례 밑으로는 이름을 두지 않는다 (거의 금지) */
+        for (let oi = 0; oi < obstacles.length; oi++) {
+          const ov = overlap(rect, obstacles[oi]);
+          if (ov) score += 6000 + ov * 4;
+        }
+        /* 화면 밖으로 잘려 나가는 자리도 피한다 */
+        if (vw) {
+          if (rect[0] < 2) score += (2 - rect[0]) * 60 + 900;
+          if (rect[0] + rect[2] > vw - 2) score += (rect[0] + rect[2] - vw + 2) * 60 + 900;
+        }
+        if (vh) {
+          if (rect[1] < 2) score += 900;
+          if (rect[1] + rect[3] > vh - 2) score += (rect[1] + rect[3] - vh + 2) * 40 + 500;
+        }
         if (score < bestScore) { bestScore = score; best = { a: cand.a, rect, al: cand.al, dx: cand.dx, dy: cand.dy }; }
         if (score <= 0.5) break;
       }
