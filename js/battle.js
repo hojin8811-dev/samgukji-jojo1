@@ -525,19 +525,18 @@
     });
     const base = meta && meta.enemyBase ? meta.enemyBase : { x: cx, y: Math.max(1, outer - 4) };
     const keep = slotsAround(base, cols, 14).filter(([x, y]) => free(x, y));
-    /* v5.28 — 후방 지원선: 바깥 성벽 안쪽 4~6칸. 보조 병과가 1턴부터 성벽·망루의
-       아군에게 회복·버프를 넣을 수 있는 자리 (외성 슬롯과 겹치지 않게 뒤로 잡는다). */
+    /* v5.28 — 후방 지원선: 바깥 성벽 안쪽 3~5칸. 보조 병과가 1턴부터 성벽·망루의
+       아군에게 회복·버프를 넣을 수 있는 자리. 외성 슬롯과 자리가 겹쳐도
+       placeSide가 이미 선 부대를 피해 잡으므로 문제없다. */
     const rear = [];
     if (outer >= 0) {
-      for (let dy = 4; dy <= 6; dy++) {
+      for (let dy = 3; dy <= 5; dy++) {
         const y = outer - dy;
         if (y < 0) continue;
         for (let dx = 0; dx <= 4; dx++) {
           const xs = dx === 0 ? [cx - 1, cx] : [cx - dx, cx + dx - 1];
           xs.forEach((x) => {
             if (!free(x, y)) return;
-            if (wall.some(([wx, wy]) => wx === x && wy === y)) return;
-            if (tower.some(([tx, ty]) => tx === x && ty === y)) return;
             if (rear.some(([rx, ry]) => rx === x && ry === y)) return;
             rear.push([x, y]);
           });

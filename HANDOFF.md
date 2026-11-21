@@ -28,7 +28,7 @@
 | 갈래 | 내용 | 코드 |
 | --- | --- | --- |
 | 연쇄 도착 | 같은 달 두 부대가 도착하면 `pendingMarch` 하나때문에 두 번째가 다음 달로 밀리던 문제. `marchQueue`에 도착·요격을 쌓고 결산 뒤 같은 달 안에서 다음 창을 연다. 같은 성이면 앞 부대가 차지한 뒤 두 번째는 합류(병력 합산) | `js/app.js` `stepMarches`·`promoteMarchQueue`·`chainPendingEvents`·`openPendingMarch`, `js/battle.js` `closeBattle`·`clearMarchFlags` |
-| 수성 후방 지원 | 32×32 3중성에서 보조(책사·풍수사·도사·군악대·무희)가 본진(y≈9)에 서 성문(y≈24)까지 2~3턴을 걷던 문제 → '내성' 선택 시 **바깥 성벽 안쪽 4~6칸 후방 지원선**(`rear`)에 배치. 1·2·3중성 모두 첫 턴 거리 2~3 | `js/battle.js` `defenseZoneSlots`·`placeSide`, `js/app.js` `DEF_ZONES` |
+| 수성 후방 지원 | 32×32 3중성에서 보조(책사·풍수사·도사·군악대·무희)가 본진(y≈9)에 서 성문(y≈24)까지 2~3턴을 걷던 문제 → '내성' 선택 시 **바깥 성벽 안쪽 3~5칸 후방 지원선**(`rear`)에 배치. 1·2·3중성 모두 첫 턴 거리 1~2 | `js/battle.js` `defenseZoneSlots`·`placeSide`, `js/app.js` `DEF_ZONES` |
 | 줌아웃 정보 | cam.s<0.30에서 미니맵 점 1.9→2.9px·어두운 테두리·선택 흰 링·총대장 금테, 미니맵 아래 `● 아군 ● 적군 ○ 위태` 범례, 병력 35% 이하 부대는 숫자 유지 | `js/battle.js` `drawMinimap`·`bindMinimap`·`drawUnit`, `index.html`·`css/game.css` `.mm-legend` |
 | 선택 모달 보호 | 돌발 사건 결과창·천하 소식 카드를 `dismissible:false`로 잠그고, 필수 선택에서 뒤로가기를 누르면 `선택을 마쳐야 넘어갈 수 있습니다` 안내 | `js/app.js` `showChoiceEvent`·`showTimelineCard`, `js/backguard.js` |
 | 유령 세력 | AI 전쟁으로 0성이 된 세력이 명부·몸값 제안에 남던 문제 → `pruneLandlessFactions`로 달마다 정리, 월정산 소식·몸값 취소·사로잡힌 아군 석방. `offerFactionAlive`도 성 0개면 거짓 | `js/app.js` `pruneLandlessFactions`·`advanceMonth`·`offerFactionAlive`·`openPrison`, `js/battle.js` `victory` |
