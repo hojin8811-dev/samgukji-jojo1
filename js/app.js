@@ -5582,11 +5582,19 @@
     }
 
     function pickTarget(p) {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 10; i++) {
         const tx = p.lx0 + Math.random() * Math.max(1, p.lx1 - p.lx0);
         const ty = p.ly0 + Math.random() * Math.max(1, p.ly1 - p.ly0);
         if (feetHit(tx, ty, p.h)) continue;
         if (Math.hypot(tx - p.x, ty - p.y) < 12) continue;
+        /* 다른 사람이 서 있는 자리로는 가지 않는다 (한 곳에 몰려 보이지 않게) */
+        let taken = false;
+        for (let k = 0; k < people.length; k++) {
+          const q = people[k];
+          if (q === p) continue;
+          if (Math.hypot(q.x - tx, q.y - ty) < 17) { taken = true; break; }
+        }
+        if (taken) continue;
         p.tx = tx; p.ty = ty;
         return;
       }
