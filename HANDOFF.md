@@ -27,7 +27,7 @@
 
 | 갈래 | 내용 | 코드 |
 | --- | --- | --- |
-| 보물 사기·상태이상 | **사기**를 새 시스템으로 넣었습니다(0~110, 100 기준, 공격 ±16/18%, 큰 타격·아군 붕괴로 감소·턴 회복). **상태이상** 6종(기절·혼란·위축·중독·화상·둔화)을 넣고 보물의 부여·면역·저항·해제 확률을 붙였습니다. 병과 책략의 `기절 확률 N%`·`혼란`·`위축`·`사기 +N`도 같은 판정을 씁니다. **미적용 70절 → 0절**(적용 199절). | `js/data.js` `TREASURE_FX_KEYS`·`TREASURE_FX_RULES`·`FX_DEFAULT`, `js/battle.js` `AIL`·`initStatus`·`moraleMul`·`moraleShift`·`ailApply`·`ailPhase`·`onHitAil`·`skillAilOf`·`skillAilApply`·`skillMoraleOf`·`pursuitStrike`·`confusedStrike` |
+| 보물 사기·상태이상 | **사기**를 새 시스템으로 넣었습니다(0~110, 100 기준, 공격 ±16/18%, 큰 타격·아군 붕괴로 감소·턴 회복). **상태이상** 6종(기절·혼란·위축·중독·화상·둔화)을 넣고 보물의 부여·면역·저항·해제 확률을 붙였습니다. 병과 책략의 `기절 확률 N%`·`혼란`·`위축`·`사기 +N`도 같은 판정을 씁니다. **미적용 70절 → 0절**(보물 150종에 전장·내정 수치). | `js/data.js` `TREASURE_FX_KEYS`·`TREASURE_FX_RULES`·`FX_DEFAULT`, `js/battle.js` `AIL`·`initStatus`·`moraleMul`·`moraleShift`·`ailApply`·`ailPhase`·`onHitAil`·`skillAilOf`·`skillAilApply`·`skillMoraleOf`·`pursuitStrike`·`confusedStrike` |
 | 사기·상태이상 UI | 병력 바 아래 사기 바(초록/노랑/빨강), 부대 위 상태이상 배지(기·혼·위·독·화·둔), 부대 카드에 `사기 N`·`혼란 2`·`조각배` 알약 | `js/battle.js` `drawUnit`·`refreshUI` |
 | 수전 조각배 | 수전·도하전에서 **수적이 아닌 부대도 물에 들면 조각배**를 탑니다(물 1칸 2, 승선 첫 칸 2). 승선/하선에 물보라·글자·소식, 물결에 흔들림·V자 물길, 물 칸 잔물결 애니메이션. 물 위 공 −18%·방 −12%(수적 제외). 해자는 그대로 막힘 | `js/battle.js` `unitImgFor`·`moveCostBase`·`syncBoat`·`waterTileAt`·`drawWaterWaves`·`drawUnit`, `B.boatable` |
 | 추격·전장 유틸 | 근접 처치 뒤 추격 확률로 65% 추가 공격, 근접 받는 피해·성문 피해·사거리 +1·책략 범위 +1·고유특기 재발동·패전 병력 손실 감소·이동 후 사격 −12% | `js/battle.js` `pursuitStrike`·`calcDamage`·`calcGateDamage`·`triggerPassive`·`maxLossCut`, `js/data.js` |
