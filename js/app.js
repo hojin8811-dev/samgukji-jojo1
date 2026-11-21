@@ -11265,6 +11265,34 @@
     if (!dbg.auto) dbg.toggleAuto(true);
     if (dbg.speed < 4) dbg.toggleSpeed();
     try { dbg.setTimeScale(4); } catch (e) { /* ignore */ }
+    devObsStallWatch(B, dbg);
+  }
+
+  /* v5.37 — 전투가 멈춘 채로 관전이 서지 않게 지켜본다.
+     같은 턴·같은 페이즈에 연출(anims) 변화 없이 20초가 지나면 한 번 재촉하고,
+     그래도 8초 더 멈춰 있으면 그 전투만 닫고 다음 달로 넘어간다(로그에 남긴다). */
+  function devObsStallWatch(B, dbg) {
+    const st = (dbg && dbg.state) ? dbg.state() : null;
+    const now = Date.now();
+    const key = B.turn + '|' + B.phase;
+    const anims = st ? st.anims : 0;
+    if (!OBS.watch || OBS.watch.B !== B || OBS.watch.key !== key || OBS.watch.anims !== anims) {
+      OBS.watch = { B: B, key: key, anims: anims, since: now, nudged: false };
+      return;
+    }
+    const idle = now - OBS.watch.since;
+    if (idle > 20000 && !OBS.watch.nudged) {
+      OBS.watch.nudged = true;
+      OBS.watch.nudgedAt = now;
+      obsLog('⚠ ' + (B.name || '전투') + ' ' + B.turn + '턴 ' + (B.phase === 'ally' ? '아군' : '적군') + ' — 흐름을 재촉합니다');
+      try { if (dbg.finish) dbg.finish(); } catch (e) { /* ignore */ }
+      if (st) obsLog('   (아군 ' + st.ally + ' · 적 ' + st.enemy + ' · 연출 ' + st.anims + (st.busy ? ' · 대기중' : '') + ')');
+    } else if (OBS.watch.nudged && now - (OBS.watch.nudgedAt || now) > 8000) {
+      obsLog('⚠ 멈춘 전투를 닫고 지도로 돌아갑니다');
+      OBS.watch = null;
+      try { dbg.closeBattle(); } catch (e) { /* ignore */ }
+      if (SK.chainPendingEvents) setTimeout(() => { if (OBS.on) SK.chainPendingEvents(); }, 420);
+    }
   }
 
   /* ── 모달 자동 처리 ───────────────────────────────────────── */

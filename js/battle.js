@@ -6491,6 +6491,15 @@
     retreat,
     debug: {
       get battle() { return B; },
+      /* v5.37 — 관전 QA: 전투가 멈춘 것인지(페이즈·연출·행동 플래그) 한 번에 본다 */
+      state() {
+        if (!B) return null;
+        return { phase: B.phase, turn: B.turn, over: !!B.over, busy: busy, anims: anims.length, fx: fx.length,
+          ally: B.units.filter((u) => u.side === 'ally' && u.alive).length,
+          enemy: B.units.filter((u) => u.side === 'enemy' && u.alive).length,
+          allyDone: B.units.filter((u) => u.side === 'ally' && u.alive && u.acted).length,
+          enemyDone: B.units.filter((u) => u.side === 'enemy' && u.alive && u.acted).length };
+      },
       get mode() { return mode; },
       get busy() { return busy; },
       get pending() { return pendingSkill; },
