@@ -764,16 +764,84 @@
     }
     return s;
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.30 — 영토 칠하기 캐시
+     달이 바뀔 때마다 세력이 바뀌면 영토를 다시 칠한다. 예전에는 칸마다 80거점까지 거리를
+     매번 계산해(426,000 × 80 ≈ 3,400만 회) 21성 후반월 전환이 180ms까지 느려졌다.
+     거점 위치·종류는 게임 중 거의 바뀌지 않으므로, 칸마다 '가장 가까운 거점 2곳'과
+     반경·잡음·경계 번짐만 미리 계산해 두고, 다시 칠할 때는 세력 색만 입힌다.
+     ══════════════════════════════════════════════════════════════ */
+  let terrGeo = null;
+  function territoryGeoKey() {
+    let s = SK.CITY_LIST.length + '|';
+    for (let i = 0; i < SK.CITY_LIST.length; i++) s += SK.CITY_LIST[i].id + ',';
+    return s;
+  }
+  const RAD_OF = { capital: 132, town: 98, pass: 92, fortress: 96 };
+  const BLEND = 34;                       /* world px — 두 세력 색이 번지는 폭 (기존과 같은 눈금) */
+  function buildTerritoryGeo() {
+    const G = GRID_W * GRID_H;
+    const n1 = new Uint8Array(G).fill(255), n2 = new Uint8Array(G).fill(255);
+    const d1 = new Uint16Array(G), d2 = new Uint16Array(G);   /* world px × 4 로 저장 (최대 16,383px) */
+    const fade = new Uint8Array(G), wob = new Uint8Array(G);
+    const visArr = [];
+    const list = SK.CITY_LIST.map((c) => ({ u: c.u * MAPW, v: c.v * MAPH, rr: RAD_OF[c.type] || 118 }));
+    const unit = MAPW / GRID_W;
+    const Q = 4;
+    const lim = 65535 / Q;
+    /* v5.30 — 경계 잡음은 4칸 간격으로만 계산해 보간한다. 칸마다 fbm을 두 번씩 돌리던
+       첫 지도 그리기(150ms대)가 40ms 안쪽으로 줄어든다. */
+    const NS = 4;
+    const NW = Math.ceil(GRID_W / NS) + 1, NH = Math.ceil(GRID_H / NS) + 1;
+    const nz = new Float32Array(NW * NH);
+    for (let j = 0; j < NH; j++) {
+      const wy = (j * NS + 0.5) * unit;
+      for (let i = 0; i < NW; i++) {
+        const wx = (i * NS + 0.5) * unit;
+        nz[j * NW + i] = (fbm(wx * 0.008, wy * 0.008, 3) - 0.5) * 58 + (fbm(wx * 0.028, wy * 0.028, 2) - 0.5) * 16;
+      }
+    }
+    for (let gy = 0; gy < GRID_H; gy++) {
+      const wy = (gy + 0.5) * unit;
+      for (let gx = 0; gx < GRID_W; gx++) {
+        const wx = (gx + 0.5) * unit;
+        const i0 = gy * GRID_W + gx;
+        let a1 = 1e12, a2 = 1e12, ia = 255, ib = 255;
+        for (let i = 0; i < list.length; i++) {
+          const dx = wx - list[i].u, dy = wy - list[i].v;
+          const d = dx * dx + dy * dy;
+          if (d < a1) { a2 = a1; ib = ia; a1 = d; ia = i; }
+          else if (d < a2) { a2 = d; ib = i; }
+        }
+        if (ia === 255) continue;
+        const dist = Math.sqrt(a1);
+        const rr = list[ia].rr;
+        if (dist > rr) continue;
+        fade[i0] = dist <= rr - 44 ? 255 : Math.round((rr - dist) / 44 * 255);
+        if (fade[i0] > 0) visArr.push(i0);
+        n1[i0] = ia; d1[i0] = Math.min(lim, Math.round(dist * Q));
+        if (ib !== 255) { n2[i0] = ib; d2[i0] = Math.min(lim, Math.round(Math.sqrt(a2) * Q)); }
+        /* 경계에서 경계선이 자로 그은 듯 곧지 않도록 섞는 잡음 — 위치가 고정이라 한 번만 */
+        const fx0 = gx / NS, fy0 = gy / NS;
+        const ix = fx0 | 0, iy = fy0 | 0, tx = fx0 - ix, ty = fy0 - iy;
+        const za = nz[iy * NW + ix], zb = nz[iy * NW + ix + 1];
+        const zc = nz[(iy + 1) * NW + ix], zd = nz[(iy + 1) * NW + ix + 1];
+        const w = za * (1 - tx) * (1 - ty) + zb * tx * (1 - ty) + zc * (1 - tx) * ty + zd * tx * ty;
+        wob[i0] = Math.max(0, Math.min(255, Math.round((w + 37) / 74 * 255)));
+      }
+    }
+    const visList = Int32Array.from(visArr);
+    return { key: territoryGeoKey(), n1, n2, d1, d2, fade, wob, vis: visList };
+  }
+
   function drawTerritory() {
     if (!terrCanvas || !SK.state) return;
     const list = SK.CITY_LIST.map((c) => {
       const t = SK.state.cities[c.id];
       return { id: c.id, u: c.u * MAPW, v: c.v * MAPH, type: c.type, owner: t ? t.owner : 'neutral' };
     });
-    const rad = { capital: 132, town: 98, pass: 92, fortress: 96 };
-    /* 격자마다 어느 세력 칸인지 기억해 두었다가, 이웃과 다룬 칸에 테두리를 두른다 */
     const ownGrid = new Int16Array(GRID_W * GRID_H).fill(-1);
-    const unit = MAPW / GRID_W;            /* 격자 한 칸 = 2.5 world px */
     const img = new ImageData(GRID_W, GRID_H);
     const dat = img.data;
     const colors = {};
@@ -794,59 +862,48 @@
       }
       return colors[o].rgb;
     };
-    /* 부드러운 경계 — 보로노이 칸을 그대로 칠하지 않고, 이웃 세력과의 거리 차이로 색을 섞는다.
-       경계에서 14 world px 폭으로 두 세력 색이 자연스럽게 번지므로 계단 현상이 사라진다. */
-    const BLEND = 34;                      /* 격자 칸 수 (약 70 world px) — 물감이 번지는 폭 */
+    if (!terrGeo || terrGeo.key !== territoryGeoKey()) terrGeo = buildTerritoryGeo();
+    const { n1, n2, d1, d2, fade, wob, vis } = terrGeo;
     const invB = 1 / BLEND;
-    for (let gy = 0; gy < GRID_H; gy++) {
-      const wy = (gy + 0.5) * unit;
-      for (let gx = 0; gx < GRID_W; gx++) {
-        const wx = (gx + 0.5) * unit;
-        const i0 = gy * GRID_W + gx, o = i0 * 4;
-        dat[o + 3] = 0;
-        let d1 = 1e12, d2 = 1e12, i1 = -1, i2 = -1;
-        for (let i = 0; i < list.length; i++) {
-          const c = list[i];
-          const dx = wx - c.u, dy = wy - c.v;
-          const d = dx * dx + dy * dy;
-          if (d < d1) { d1 = d; i1 = i; }
-          else if (d < d2) { d2 = d; i2 = i; }
+    const nearLimit = 300 * 4;            /* 이보다 먼 두 번째 거점은 경계 번짐에 닿지 않는다 */
+    /* v5.30 — 영토가 칠해지는 칸만 모아 둔 목록(vis)을 돌린다. 426,000칸 전부를 매달
+       훑지 않으므로 달 넘김의 지도 갱신이 가벼워진다. */
+    for (let vi = 0; vi < vis.length; vi++) {
+      const i0 = vis[vi];
+      const gx = i0 % GRID_W, gy = (i0 / GRID_W) | 0;
+      {
+        const fv = fade[i0];
+        const ia = n1[i0];
+        const o = i0 * 4;
+        const rgb1 = colorOf(list[ia].owner);
+        if (!rgb1) { dat[o + 3] = 0; continue; }
+        let ib = n2[i0];
+        let d2v = d2[i0];
+        if (ib !== 255 && list[ib].owner === list[ia].owner) {
+          /* 두 번째로 가까운 거점이 같은 세력이면, 가까운 편일 때만 다른 세력을 다시 찾는다 */
+          if (d2v - d1[i0] < nearLimit) {
+            let best = 1e12, bi = -1;
+            for (let i = 0; i < list.length; i++) {
+              if (list[i].owner === list[ia].owner) continue;
+              const dx = (gx + 0.5) * (MAPW / GRID_W) - list[i].u, dy = (gy + 0.5) * (MAPH / GRID_W) - list[i].v;
+              const dd = Math.sqrt(dx * dx + dy * dy);
+              if (dd < best) { best = dd; bi = i; }
+            }
+            ib = bi;
+            if (ib >= 0) d2v = Math.min(65535, Math.round(best * 4)); else d2v = 65535;
+          } else ib = 255;
         }
-        if (i1 < 0) continue;
-        /* 가장 가까운 이웃이 같은 세력이면 두 번째 이웃을 다른 세력 하나로 다시 찾는다 */
-        if (i2 >= 0 && list[i2].owner === list[i1].owner) {
-          d2 = 1e12;
-          for (let i = 0; i < list.length; i++) {
-            if (list[i].owner === list[i1].owner) continue;
-            const dx = wx - list[i].u, dy = wy - list[i].v;
-            const d = dx * dx + dy * dy;
-            if (d < d2) { d2 = d; i2 = i; }
-          }
-        }
-        const c1 = list[i1];
-        const rgb1 = colorOf(c1.owner);
-        if (!rgb1) {
-          dat[o + 3] = 0;
-          continue;
-        }
-        const d = Math.sqrt(d1);
-        const rr = rad[c1.type] || 118;
-        if (d > rr) continue;
-        const fade = d <= rr - 44 ? 1 : (rr - d) / 44;
-        /* 이웃 세력과의 거리 차이 → 경계에서 반반으로 섞는다.
-           경계선이 자로 그은 듯 곧지 않도록 잡음을 섞어 손으로 칠한 느낌을 낸다. */
         let b = 0, rgb2 = null, seam = 1;
-        if (i2 >= 0 && d2 < 1e11) {
-          const wobble = (fbm(wx * 0.008, wy * 0.008, 3) - 0.5) * 58 + (fbm(wx * 0.028, wy * 0.028, 2) - 0.5) * 16;
-          const gap = Math.sqrt(d2) - d + wobble;
+        if (ib !== 255 && ib >= 0) {
+          const wv = (wob[i0] / 255) * 74 - 37;
+          const gap = (d2v - d1[i0]) / 4 + wv;
           if (gap < BLEND) {
             let t = gap * invB;
             if (t < 0) t = 0; else if (t > 1) t = 1;
             t = t * t * (3 - 2 * t);
-            /* 경계로 갈수록 옅게 — 두 물감 사이에 종이가 비치는 자리 */
             seam = 0.14 + 0.86 * t;
             b = 0.30 * (1 - t);
-            rgb2 = colorOf(list[i2].owner) || PAPER;
+            rgb2 = colorOf(list[ib].owner) || PAPER;
           }
         }
         let r = rgb1[0], gg = rgb1[1], bb = rgb1[2];
@@ -856,15 +913,16 @@
           bb = Math.round(bb * (1 - b) + rgb2[2] * b);
         }
         dat[o] = r; dat[o + 1] = gg; dat[o + 2] = bb;
-        dat[o + 3] = Math.round(255 * 0.30 * fade * seam);
-        ownGrid[i0] = i1;
+        dat[o + 3] = Math.round(255 * 0.30 * (fv / 255) * seam);
+        ownGrid[i0] = ia;
       }
     }
 
     /* ── 영토 테두리 — 이웃 칸이 다른 세력이면 그 세력 색을 진하게 둘러 경계를 읽게 한다 ── */
-    for (let gy = 0; gy < GRID_H; gy++) {
-      for (let gx = 0; gx < GRID_W; gx++) {
-        const i0 = gy * GRID_W + gx;
+    for (let vi = 0; vi < vis.length; vi++) {
+      const i0 = vis[vi];
+      const gx = i0 % GRID_W, gy = (i0 / GRID_W) | 0;
+      {
         const me = ownGrid[i0];
         if (me < 0) continue;
         let edge = false;
@@ -1547,6 +1605,20 @@
     debug() {
       return {
         built, scale: cam.s, tx: cam.tx, ty: cam.ty, marks: marks.length,
+        /* v5.30 — 영토 다시 칠하기·캐시 만들기 시간 측정 */
+        terrRedraw() {
+          const t0 = performance.now();
+          terrSig = '';               // 시그니처를 비워 강제로 다시 칠하게
+          drawTerritory();
+          return +(performance.now() - t0).toFixed(1);
+        },
+        terrBuild() {
+          terrGeo = null; terrSig = '';
+          const t0 = performance.now();
+          drawTerritory();
+          return +(performance.now() - t0).toFixed(1);
+        },
+        terrCells() { return terrGeo ? terrGeo.vis.length : 0; },
         renderScale, labelCount: document.querySelectorAll('.m-label').length,
         labelsHidden: marks.filter((m) => m.hidden).length,
         trees: trees.length, peaks: peaks.length, fields: fields.length,

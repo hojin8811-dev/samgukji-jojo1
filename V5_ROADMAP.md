@@ -1,6 +1,17 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-21 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=35`
+기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=44`
+
+## ✅ v5.30 — 6라운드: 보물 전투 규칙·일기토 컷인·야간 전장·영토 캐시 (2026-11-22 · `?v=44`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 보물 전투 규칙 | 연격 확률·연속 사격·한 턴 2회(3턴 쿨타임)·주변/관통 추가 피해·수전·산악·야간 지형 보정·반사 피해·돌격·측면 추가 피해를 실제 전투 판정에 연결. 전장 적용 97→**108종**, 미적용 81→69절. 숫자 없는 문구는 기본값으로 옮기고 UI에 밝힘 | `js/data.js` `TREASURE_FX_*`·`parseTreasureFx`, `js/battle.js` `extraKindOf`·`extraStrike`·`areaStrike`·`counter`·`doAttack`·`calcDamage` |
+| 일기토 | 이름 있는 장수 근접 교전에 좌우 초상 컷인, 숙적 붉은 표시, 한 판 3회·상대별 1회, ×4에서 180ms 안쪽 | `js/battle.js` `duelCutin`, `css/game.css` `.duel-cutin` |
+| 타격감 | 불티 이펙트·베기 두 갈래·짧은 진동, 크리티컬 화면 번쩍임, 예고 창에 연격·광역·관통·한 턴 2회 표시 | `js/battle.js` `impactAt`·`critFlash`·`drawFx`·`openAttackPreview` |
+| 야간 전장 | 야영 기습전 = 밤 전투. 화면 밤색 multiply + 횃불 빛, 제목 `야간 ·`. 흑갑·해동병법이 실제로 붙음 | `js/battle.js` `drawNight`·`terrFxPct` |
+| 영토 캐시 | 칸별 80거점 거리 재계산을 없애고 최근접 2거점·반경·잡음을 1회 캐시(잡음 4칸 보간). 21성 달 넘김 중앙값 112→43.5ms, 영토 다시 칠하기 15.2ms | `js/map.js` `buildTerritoryGeo`·`drawTerritory` |
+| 검증 | 8종 전장 배경·배치 정상(통행불가 타일 위 부대 0), ×4 자동 공성전 승리·콘솔 0, 연격 10회 중 5회·연속 사격 8회·반사 315·한 턴 2회 동작 | `preview/v530/` |
 
 ## ✅ v5.21 — 징병·요격·수성배치·성문 파괴 연출·점프 침공·탐라·상단바·소세력 부하 (2026-11-21 · `?v=35`)
 

@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.29** 5라운드 실플레이 점검 — 보물 효과 실제화·동시 침공 큐·전직 최종 이름·후반 다성 UX · 2026-11-22 · 라이브 `?v=43`
+> 기준: **v5.30** 6라운드 실플레이 점검 — 보물 전투 규칙·일기토 컷인·야간 전장·영토 캐시 · 2026-11-22 · 라이브 `?v=44`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,26 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=43`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=44`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
-| 다음 목표 | 5라운드까지 실플레이로 다듬음(보물 효과 실계산·동시 침공 큐·후반 다성 UX). 다음 후보는 연격·광역 추가 피해 같은 전투 규칙, 실기기 검증, 전장 임팩트·일기토·수전 연출 |
+| 다음 목표 | 6라운드까지 실플레이로 다듬음(보물 전투 규칙·일기토·야간 전장·영토 캐시). 다음 후보는 실기기 검증, 사기·상태이상 계열 보물, 수전 탑승 연출, 전원 열전·보물 도감 |
 
 ---
+
+## 0.0 v5.30 — 6라운드 실플레이에서 잡은 수정 (2026-11-22 · `?v=44`)
+
+390×844 실제 브라우저에서 진류(조조군)로 보물을 장착해 8종 전장(수전·도하·산전·밀림·협곡·야영·요새·평야)을 돌리고, 자동 ×4로 공성전을 끝까지 치른 결과입니다.
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 보물 전투 규칙 | 새 훅 13가지(`combo` 연격·`volley` 연속 사격·`doubleAct` 한 턴 2회·`pierce` 연격 방어 무시·`splash` 주변·`line` 관통·`water`/`mountain`/`night` 지형·`nightTaken` 야간 감소·`reflect` 반사·`charge` 돌격·`flank` 측면). 전장 적용 97→**108종**, 미적용 81→69절. 숫자 없는 문구는 `SK.TREASURE_FX_DEFAULT`로 옮기고 카드에 `(숫자 없는 N절은 기본값)` 표시 | `js/data.js` `TREASURE_FX_KEYS`·`TREASURE_FX_RULES`·`parseTreasureFx`·`fxSumLine`·`treasureFxDefaults`, `js/battle.js` `terrFxPct`·`calcDamage`·`extraKindOf`·`extraStrike`·`areaStrike`·`counter`·`doAttack` |
+| 일기토 컷인 | 이름 있는 장수 근접 교전에서 좌우 초상이 들어오고 `일기토`가 찍히는 컷인. 숙적이면 붉은 표시. 한 판 3회·상대별 1회, ×4에서 180ms 안쪽. 컷인 중 목표 알약·미니맵 숨김. 무명 수비대장 제외 | `js/battle.js` `duelCutin`·`attackUnit`(`opts.duel`)·`doAttack`, `index.html` `.duel-cutin`, `css/game.css` `.dc-*`·`.battle-stage.dueling` |
+| 타격감 | `spark` 불티 이펙트, 베기 두 갈래, 타격마다 짧은 진동, 크리티컬 금빛 화면 번쩍임(`#crit-flash`)과 큰 진동, 전투 예고에 연격·광역·관통·한 턴 2회·야간 감소 표시 | `js/battle.js` `impactAt`·`applyDamage`·`critFlash`·`drawFx`·`openAttackPreview`, `index.html` `#crit-flash`, `css/game.css` `.crit-flash` |
+| 야간 전장 | 야영 기습전을 `B.night`로 정의. 화면 전체 밤색 multiply + 횃불 빛, 제목에 `야간 ·`. 흑갑(야간 피해 −15%)·해동병법(수전·산악 +10%)이 실제로 붙음 | `js/battle.js` `drawNight`·`terrFxPct`·`calcDamage`, `B.night` |
+| 영토 칠하기 캐시 | 칸마다 80거점 거리 재계산(3,400만 회)을 없애고, 칸별 최근접 2거점·반경·경계 잡음을 한 번만 계산. 잡음은 4칸 간격 계산 후 보간. 달 넘김 중앙값 112→43.5ms, 영토 다시 칠하기 15.2ms | `js/map.js` `buildTerritoryGeo`·`drawTerritory`·`SKMap.debug().terrRedraw/terrBuild` |
+
+**검증 메모** — ① 연격: 조조(장팔사모·방천화극) 1회 공격에 본타 878 + 연격 420 + 주변 2명 105씩, 확률 50%에서 10회 중 5회 발동. ② 연속 사격: 하후연(연노천궁) 10회 중 8회 2발. ③ 한 턴 2회(하후돈 일월쌍도): 공격 뒤 `acted=false`·`dblCd=3`·`dblUsed=true`, 두 번째 공격 정상. ④ 반사(현무방패): 적 공격 → 반격 629 → 반사 315. ⑤ 일기토: `{n:2, seen:{고순|조조, 고순|하후돈}}`로 상대별 1회 제한 확인, ×4 자동 공성전 21.9초 승리·콘솔 0. ⑥ 8종 전장: 배경 9종 로드, 통행 불가 타일 위 부대 0, 수전 강물 140칸·다리 28칸·조각배 표시 정상. ⑦ 성능: 21성에서 `SKMap.debug().terrRedraw()` 20회 중앙값 15.2ms, `SK.advanceMonth()` 10회 중앙값 43.5ms, 콘솔 0.
 
 ## 0.0 v5.29 — 5라운드 실플레이에서 잡은 수정 (2026-11-22 · `?v=43`)
 

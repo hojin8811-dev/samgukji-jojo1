@@ -233,6 +233,10 @@
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense, lastStand: !!opts.lastStand,
+      /* v5.30 — 야간 전장: 야영 기습전은 밤에 습격하는 전투로 친다.
+         흑갑·혼천의모형 같은 '야간' 보물이 여기서만 실제로 붙는다. */
+      night: (type === 'camp'),
+      duels: { n: 0, last: 0, seen: {} },
       reinforce: opts.reinforce || null, supportNames: supportNames,
       /* v5.21 — 수성전에서 고르지 않아 성에 남긴 예비 병력 */
       reserve: Math.max(0, Math.round(opts.reserve || 0)),
@@ -1260,8 +1264,36 @@
     drawUnits();
     drawFx();
     ctx.restore();
+    /* v5.30 — 야간 전장(야영 기습전): 화면 전체를 한 번 어둡게 깔고 횃불 빛을 더한다.
+       제목에만 '야간'이라 적고 낮그림을 그대로 두면 어색해서, 실제 밤으로 보이게 했다. */
+    if (B.night) drawNight(w, h);
     drawFloats();
     drawMinimap();
+  }
+
+  function drawNight(w, h) {
+    if (!ctx) return;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = '#6e7bac';
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(cam.x, cam.y);
+    ctx.scale(cam.s, cam.s);
+    ctx.globalCompositeOperation = 'lighter';
+    const fires = [[3, 3], [17, 3], [3, 17], [17, 17], [12, 21], [12, 4]];
+    fires.forEach(([fx0, fy0]) => {
+      const gx = (fx0 + 0.5) * TILE, gy = (fy0 + 0.5) * TILE, rad = TILE * 3.4;
+      const g = ctx.createRadialGradient(gx, gy, TILE * 0.2, gx, gy, rad);
+      g.addColorStop(0, 'rgba(255,196,110,0.42)');
+      g.addColorStop(0.5, 'rgba(255,160,80,0.16)');
+      g.addColorStop(1, 'rgba(255,150,70,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(gx, gy, rad, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
   }
 
   /* v5.11 — assets/battle/ 추출 에셋을 격자 좌표에 맞춰 얹는다.
@@ -2132,6 +2164,7 @@
       const p = f.t / f.life;
       ctx.save();
       if (f.kind === 'slash') {
+        /* v5.30 — 베기: 두 갈래 궤적 + 튀는 불티로 손맛을 살린다 */
         ctx.strokeStyle = `rgba(255,240,190,${1 - p})`;
         ctx.lineWidth = 5 * (1 - p) + 1;
         ctx.beginPath();
@@ -2140,6 +2173,21 @@
         ctx.strokeStyle = `rgba(255,120,80,${0.7 * (1 - p)})`;
         ctx.lineWidth = 2;
         ctx.stroke();
+        ctx.strokeStyle = `rgba(255,236,190,${0.55 * (1 - p)})`;
+        ctx.lineWidth = 2.4 * (1 - p) + 0.6;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, TILE * 0.38, 2.5, 4.4 + p * 0.7);
+        ctx.stroke();
+      } else if (f.kind === 'spark') {
+        /* v5.30 — 타격 순간 튀는 불티 */
+        for (let i = 0; i < 7; i++) {
+          const a = i * 0.9 + f.x * 0.01;
+          const d = TILE * (0.08 + p * 0.42) * (i % 2 ? 1 : 0.72);
+          ctx.fillStyle = `rgba(${f.color || '255,220,150'},${(1 - p) * 0.9})`;
+          ctx.beginPath();
+          ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.7, 2.2 * (1 - p) + 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (f.kind === 'arrow') {
         const tx = f.x + (f.tx - f.x) * p, ty = f.y + (f.ty - f.y) * p;
         ctx.strokeStyle = 'rgba(255,245,210,0.9)';
@@ -2561,6 +2609,59 @@
 
   function shakeScreen(amp) { shakeAmp = amp || 5; shakeT = 240; }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.30 — 조조전식 일기토 컷인
+     · 이름 있는 장수(아군 장수·적 명장/적장)끼리 근접으로 맞붙을 때만
+     · 한 판에 3번까지, 같은 상대와는 한 번만 — 남발하지 않는다
+     · 배속 ×4에서는 180ms 안쪽으로 줄어 템포를 깨지 않는다
+     ══════════════════════════════════════════════════════════════ */
+  let duelTimer = 0;
+  function duelCutin(a, d) {
+    if (!B || !a || !d) return false;
+    const el = document.getElementById('duel-cutin');
+    if (!el) return false;
+    /* v5.30 — '일기토'는 이름 있는 장수끼리만. 무명 수비대장(재야 수비대장 등)은 뺀다 */
+    const isNamed = (u) => !!u && (!!u.uid || !!u.genId || (!!u.boss && !/대장$/.test(String(u.name || ''))));
+    const aNamed = isNamed(a);
+    const dNamed = isNamed(d);
+    if (!aNamed || !dNamed) return false;
+    const now = performance.now();
+    B.duels = B.duels || { n: 0, last: 0, seen: {} };
+    const key = [a.name, d.name].sort().join('|');
+    if (B.duels.n >= 3 || now - B.duels.last < 1000 || B.duels.seen[key]) return false;
+    B.duels.seen[key] = 1; B.duels.n += 1; B.duels.last = now;
+    const bond = SK.bondBetween ? SK.bondBetween(a.name, d.name) : null;
+    const rival = !!(bond && bond.relation === '숙적');
+    const imgA = el.querySelector('#dc-img-a'), imgB = el.querySelector('#dc-img-b');
+    const nmA = el.querySelector('#dc-name-a'), nmB = el.querySelector('#dc-name-b');
+    const subEl = el.querySelector('#dc-sub');
+    imgA.src = SK.ptSrc ? SK.ptSrc(a.portrait) : a.portrait;
+    imgB.src = SK.ptSrc ? SK.ptSrc(d.portrait) : d.portrait;
+    nmA.textContent = a.name; nmB.textContent = d.name;
+    if (subEl) subEl.textContent = rival ? `숙적 · ${bond.title}` : '장수 맞대결';
+    el.classList.toggle('rival', rival);
+    const dur = Math.max(180, paceMs(720));
+    el.style.setProperty('--dcs', (dur / 720).toFixed(2));
+    el.hidden = false;
+    const stageEl = document.getElementById('battle-stage');
+    if (stageEl) stageEl.classList.add('dueling');
+    el.classList.remove('out', 'show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(duelTimer);
+    duelTimer = wait(() => {
+      el.classList.add('out');
+      wait(() => {
+        el.classList.remove('show', 'out'); el.hidden = true;
+        if (stageEl) stageEl.classList.remove('dueling');
+      }, Math.max(80, paceMs(200)));
+    }, dur);
+    SK.sfx.play('drum');
+    shakeScreen(4);
+    feed(`${a.name} ↔ ${d.name} — 일기토`, 'rival');
+    return true;
+  }
+
   function rivalClash(bond, a, d) {
     B.rivalSeen = B.rivalSeen || {};
     const key = bond.id + ':' + [a.name, d.name].sort().join('|');
@@ -2613,6 +2714,17 @@
     const f = u && u.tfx;
     return f && f[k] ? f[k] / 100 : 0;
   }
+  /* v5.30 — 지형·야간 조건 보정. 해동병법처럼 '수전·산악 지형에서 능력치 보정'인 보물은
+     해당 지형에 설 때만 공·방에 붙는다. 야간(야영 기습전)은 B.night로 표시한다. */
+  function terrFxPct(u) {
+    if (!B || !u) return 0;
+    const ch = B.tiles[u.y] && B.tiles[u.y][u.x];
+    let v = 0;
+    if (ch === 'W' || ch === 'S') v += fxPct(u, 'water');
+    if (ch === 'M') v += fxPct(u, 'mountain');
+    if (B.night) v += fxPct(u, 'night');
+    return v;
+  }
   /* v5.29 — 보물 '책략 소비 기력 -N%' (백우선). 최소 1은 든다. */
   function mpCostOf(u, sk) {
     const base = (sk && sk.mp) || 0;
@@ -2623,7 +2735,7 @@
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
     const tb = fxPct(u, 'atk');
-    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb) * bondAllyMul(u);
+    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb + terrFxPct(u)) * bondAllyMul(u);
   }
   function effDef(u) {
     const ch = B.tiles[u.y][u.x];
@@ -2637,7 +2749,7 @@
     const sit = site ? site.def : 1;
     /* v5.29 — 보물 방어력, 성벽·망루·본진 위에서는 '성벽 위 방어력'까지 */
     const wall = (ch === 'C' || ch === 'T' || ch === 'K' || ch === 'G') ? fxPct(u, 'defWall') : 0;
-    const tdef = fxPct(u, 'def') + wall;
+    const tdef = fxPct(u, 'def') + wall + terrFxPct(u);
     return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef) * mul * hold * sit;
   }
   function effRng(u) {
@@ -2704,7 +2816,8 @@
   function calcDamage(a, d, opts) {
     let atk = effAtk(a);
     if (opts && opts.mult) atk *= opts.mult;
-    const def = opts && opts.ignoreTerrain ? d.def : effDef(d);
+    /* v5.30 — 신검지휘도: 연격의 두 번째 타격은 대상 방어력을 무시한다 */
+    const def = (opts && opts.pierce) ? 0 : (opts && opts.ignoreTerrain ? d.def : effDef(d));
     /* v5.15 — 병과 삼각 상성 (보병↔궁병↔기병↔창병) */
     const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
     /* v5.15 — 등갑병 '4딜 벽' 완화: 방어 계수 0.62 → 0.52 */
@@ -2715,12 +2828,28 @@
     /* v5.29 — 보물: 주는 피해(+), 받는 피해 감소(−), 첫 공격(선제) 피해 */
     const bonusDeal = fxPct(a, 'dmg');
     if (bonusDeal) base *= Math.max(0.4, 1 + bonusDeal);
+    /* v5.30 — 측면·배후 추가 피해(비도단검): 대상이 바라보는 쪽의 반대에서 치면 붙는다 */
+    const flank = fxPct(a, 'flank');
+    if (flank && attackKind(a, opts) === 'melee' && !(opts && opts.counterHit)) {
+      const behind = (d.face > 0) ? (a.x < d.x) : (a.x > d.x);
+      if (behind) base *= 1 + flank;
+    }
+    /* v5.30 — 돌격 추가 피해(호표기창·청룡연월도): 이번 턴 2칸 이상 움직였을 때, 이동 거리에 비례 */
+    const chg = fxPct(a, 'charge');
+    if (chg && attackKind(a, opts) === 'melee' && (a.movedTiles || 0) >= 2 && !(opts && opts.counterHit)) {
+      base *= 1 + chg * Math.min(2, (a.movedTiles || 0) / 2);
+    }
     if (opts && opts.firstStrike) {
       const f = fxPct(a, 'first');
       if (f) base *= Math.max(0.4, 1 + f);
     }
     const cutTaken = Math.max(-0.5, Math.min(0.55, fxPct(d, 'taken')));
     if (cutTaken) base *= 1 - cutTaken;
+    /* v5.30 — 흑갑 같은 '야간 전투 시 피해 −N%'는 밤 전장에서만 */
+    if (B && B.night) {
+      const ncut = Math.max(0, Math.min(0.5, fxPct(d, 'nightTaken')));
+      if (ncut) base *= 1 - ncut;
+    }
     /* v5.2 — 투석차·발석차는 일반 부대에 약하고 성문·성벽에 강하다 */
     const kind = attackKind(a, opts);
     if (kind === 'rock') base *= 0.55;
@@ -2758,8 +2887,22 @@
 
   function impactAt(d, color) {
     addFx({ kind: 'burst', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.5) * TILE, life: 430, color });
+    /* v5.30 — 타격감: 맞은 자리에서 튀는 불티와 짧은 화면 진동 */
+    addFx({ kind: 'spark', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.42) * TILE, life: 260, color });
     d.flash = 1;
     d.shake = 240;
+    shakeScreen(2.6);
+  }
+
+  /* v5.30 — 크리티컬 한 방: 화면 가장자리 금빛 번쩍임 + 더 큰 진동 */
+  function critFlash() {
+    const el = document.getElementById('crit-flash');
+    if (!el) return;
+    el.classList.remove('on');
+    void el.offsetWidth;
+    el.classList.add('on');
+    const t = wait(() => el.classList.remove('on'), 220);
+    return t;
   }
 
   /* v5.11 — 장수별 결산(딜·탱·힐·처치) 기록 */
@@ -2791,9 +2934,21 @@
     d.hp = Math.max(0, d.hp - dmg);
     if (a) statOf(a).dealt += dmg;
     statOf(d).taken += dmg;
+    /* v5.30 — 검증용 마지막 타격 기록 (연격·광역·반사가 실제로 들어갔는지 확인) */
+    if (B) {
+      B.lastHits = B.lastHits || [];
+      B.lastHits.push({ a: a && a.name, d: d.name, dmg: dmg, crit: !!crit });
+      if (B.lastHits.length > 14) B.lastHits.shift();
+    }
     if (wasAlive && d.hp <= 0 && a) statOf(a).kills += 1;
     addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.4) * TILE, (crit ? '회심! ' : '') + dmg,
       crit ? '#ffd166' : (bond ? '#ffd0c0' : '#ffe9d0'));
+    if (crit) {
+      /* v5.30 — 크리티컬은 숫자·번쩍임·진동으로 확실히 구분된다 */
+      critFlash();
+      addFx({ kind: 'burst', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.45) * TILE, life: 520, color: '255,226,120' });
+      shakeScreen(7);
+    }
     if (a.side === 'ally' && a.uid) a.expGain = (a.expGain || 0) + (d.hp <= 0 ? 42 : 9);
     if (d.hp <= 0) {
       downUnit(d);
@@ -2817,6 +2972,8 @@
     const bond = (res.bond && res.bond.relation === '숙적') ? res.bond : null;
     if (bond) rivalClash(bond, a, d);
     const kind = attackKind(a, opts);
+    /* v5.30 — 조조전식 일기토 컷인: 이름 있는 장수끼리의 근접 교전에서만, 한 판에 몇 번만 */
+    if (opts && opts.duel && kind === 'melee' && !dodged) duelCutin(a, d);
     const land = () => {
       if (dodged) {
         addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.4) * TILE, '회피!', '#9fd8ff');
@@ -2827,6 +2984,7 @@
       applyDamage(a, d, res.dmg, res.crit, bond);
       impactAt(d, bond ? '255,140,110' : '255,214,120');
       if (kind !== 'melee') addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.55) * TILE, life: 350 });
+      if (opts && opts.onDamage) opts.onDamage(res.dmg, res.crit);
       SK.sfx.play('hit');
       if (onDone) onDone();
     };
@@ -2858,7 +3016,20 @@
     const mul = counterMulOf(a);
     wait(() => {
       if (!B || !a.alive || !d.alive || B.over) return;   // v5.16 — 전투가 닫힌 뒤(B=null) 콜백 보호
-      attackUnit(a, d, { mult: mul }, () => finishCheck());
+      const before = d.hp;
+      attackUnit(a, d, { mult: mul, counterHit: true }, () => {
+        /* v5.30 — 현무방패 등 '반격 시 반사 피해': 반격으로 준 피해의 일부를 공격자에게 되돌린다 */
+        const rf = fxPct(a, 'reflect');
+        const dealt = Math.max(0, before - d.hp);
+        if (rf > 0 && dealt > 0 && d.alive && B && !B.over) {
+          const back = Math.max(1, Math.round(dealt * Math.min(0.6, rf)));
+          addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.2) * TILE, '반사 ' + back, '#cdb6ff');
+          addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.55) * TILE, life: 340, color: '190,160,255' });
+          applyDamage(a, d, back, false, null);
+          feed(`${a.name}의 반사 피해 ${back}`, 'good');
+        }
+        finishCheck();
+      });
     }, 240);
   }
 
@@ -2960,6 +3131,8 @@
     busy = true;
     mode = 'idle';
     B.reachCache = null;
+    /* v5.30 — 돌격 보정(호표기창·청룡연월도)을 위해 이번 턴에 걸은 칸 수를 센다 */
+    u.movedTiles = Math.max(0, path.length - 1);
     animatePath(u, path, { cam: true, step: path.length > 6 ? 92 : 108, onDone: () => {
       busy = false;
       mode = 'act';
@@ -2992,6 +3165,27 @@
     const bondHtml = bond
       ? `<div class="ap-bond ${bond.relation === '숙적' ? 'rival' : 'friend'}">${bond.relation} · ${bond.title}<em>${bond.relation === '숙적' ? '피해 +20%' : '공격 +15%'}</em></div>`
       : '';
+    /* v5.30 — 연격·연속 사격·광역·관통·한 턴 2회도 예고 창에 보여 준다 */
+    const fxTags = (u) => {
+      if (!u || !u.tfx) return [];
+      const t = u.tfx, out = [];
+      if (t.dmg) out.push(`공격 피해 +${t.dmg}%`);
+      if (t.first) out.push(`첫 공격 +${t.first}%`);
+      if (t.combo) out.push(`연격 ${Math.min(50, t.combo)}%`);
+      if (t.volley) out.push(`연속 사격 ${Math.min(50, t.volley)}%`);
+      if (t.splash) out.push(`주변 ${t.splash}%`);
+      if (t.line) out.push(`관통 ${t.line}%`);
+      if (t.pierce) out.push('연격 시 방어 무시');
+      if (t.doubleAct) out.push('한 턴 2회');
+      if (t.evade) out.push(`회피 ${Math.min(40, t.evade)}%`);
+      if (t.taken) out.push(`받는 피해 −${t.taken}%`);
+      if (B.night && t.nightTaken) out.push(`야간 피해 −${t.nightTaken}%`);
+      return out;
+    };
+    const aTags = fxTags(a), dTags = fxTags(d);
+    const fxRow = (aTags.length || dTags.length)
+      ? `<div class="ap-row"><span>보물</span><b>${[...aTags, ...dTags.map((x) => `${d.name} ${x}`)].slice(0, 4).join(' · ')}</b><em>장착 보물</em></div>`
+      : '';
     const triName = tri.label ? tri.label.replace(/\s*\+\d+%$/, '') : '';
     const triHtml = tri.mul > 1
       ? `<div class="ap-row tri"><span>병과 상성</span><b>+${Math.round((tri.mul - 1) * 100)}%</b><em>${triName} 상성</em></div>`
@@ -3007,7 +3201,7 @@
           ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격 ${Math.round(cntMul * 100)}%${triBack.mul > 1 ? ` · ${triBack.label}` : ''}</em></div>`
           : `<div class="ap-row"><span>반격</span><b>없음</b><em>${dMin > 1 ? `${SK.josa(d.name, 'eun')} ${dMin}칸 안쪽을 못 쏩니다` : '사거리 밖'}</em></div>`}
         <div class="ap-row"><span>지형</span><b>${tr.name}</b><em>방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</em></div>
-        ${(a.tfx && (a.tfx.dmg || a.tfx.first)) || (d.tfx && (d.tfx.taken || d.tfx.evade)) ? `<div class="ap-row"><span>보물</span><b>${[a.tfx && a.tfx.dmg ? `공격 피해 +${a.tfx.dmg}%` : '', a.tfx && a.tfx.first ? `첫 공격 +${a.tfx.first}%` : '', d.tfx && d.tfx.taken ? `${d.name} 받는 피해 −${d.tfx.taken}%` : '', d.tfx && d.tfx.evade ? `${d.name} 회피 ${Math.min(40, d.tfx.evade)}%` : ''].filter(Boolean).join(' · ')}</b><em>장착 보물</em></div>` : ''}
+        ${fxRow}
         ${bondHtml}
         <p class="ap-note">${d.name} 병력 ${Math.round(d.hp).toLocaleString('ko-KR')} / ${Math.round(d.maxHp).toLocaleString('ko-KR')}</p>
       </div>`,
@@ -3239,21 +3433,91 @@
     });
   }
 
+  /* v5.30 — 연격·연속 사격: 한 번 더 친다 (연격 62% · 연속 사격 55% 피해) */
+  function extraKindOf(a, kind) {
+    if (!a || !a.tfx) return null;
+    if (kind === 'melee') return (fxPct(a, 'combo') > 0 && Math.random() < Math.min(0.5, fxPct(a, 'combo'))) ? 'combo' : null;
+    return (fxPct(a, 'volley') > 0 && Math.random() < Math.min(0.5, fxPct(a, 'volley'))) ? 'volley' : null;
+  }
+  function extraStrike(a, d, kind, done) {
+    const pierce = kind === 'combo' && !!(a.tfx && a.tfx.pierce);
+    const mult = kind === 'combo' ? 0.62 : 0.55;
+    addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.1) * TILE, kind === 'combo' ? '연격!' : '연속 사격!', '#ffe6a8', { back: true });
+    feed(`${a.name} — ${kind === 'combo' ? '연격' : '연속 사격'}${pierce ? ' · 방어 무시' : ''}`, 'good');
+    wait(() => {
+      if (!B || B.over || !a.alive || !d.alive) { done(); return; }
+      attackUnit(a, d, { mult, pierce, noStrike: true, noDuel: true }, () => {
+        wait(() => { if (B && !B.over) done(); }, 160);
+      });
+    }, 120);
+  }
+  /* v5.30 — 광역·관통 추가 피해: 주 대상에 붙은 적(주변 1칸)과 같은 줄 뒤쪽 적도 함께 벤다 */
+  function areaStrike(a, d, mainDmg) {
+    if (!B || B.over || !a || !d || mainDmg <= 0) return 0;
+    const splash = fxPct(a, 'splash'), line = fxPct(a, 'line');
+    if (!splash && !line) return 0;
+    const hitSet = new Set();
+    const rows = [];
+    if (splash) {
+      B.units.forEach((o) => {
+        if (!o.alive || o.side === a.side || o === d) return;
+        if (manh(o.x, o.y, d.x, d.y) <= 1) { hitSet.add(o); rows.push([o, splash, '광역']); }
+      });
+    }
+    if (line) {
+      const dx = Math.sign(d.x - a.x), dy = Math.sign(d.y - a.y);
+      B.units.forEach((o) => {
+        if (!o.alive || o.side === a.side || o === d || hitSet.has(o)) return;
+        const onLine = (dx === 0 && o.x === d.x && Math.sign(o.y - d.y) === dy)
+          || (dy === 0 && o.y === d.y && Math.sign(o.x - d.x) === dx);
+        if (onLine && manh(o.x, o.y, d.x, d.y) <= 2) { hitSet.add(o); rows.push([o, line, '관통']); }
+      });
+    }
+    rows.forEach(([o, pct, label]) => {
+      const amount = Math.max(1, Math.round(mainDmg * Math.min(0.6, pct)));
+      addFloat((rxOf(o) + 0.5) * TILE, (ryOf(o) + 0.35) * TILE, `${label} ${amount}`, '#ffc98a');
+      addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.55) * TILE, life: 320, color: '255,200,140' });
+      applyDamage(a, o, amount, false, null);
+    });
+    if (rows.length) { shakeScreen(3.4); SK.sfx.play('hit'); }
+    return rows.length;
+  }
+
   function doAttack(a, d) {
     if (!a || !d || !a.alive || !d.alive) return;
     busy = true;
     mode = 'idle';
     a.acted = true;
     B.reachCache = null;
-    attackUnit(a, d, { mult: 1 }, () => {
+    const kind = attackKind(a, {});
+    const extra = extraKindOf(a, kind);
+    /* v5.30 — 한 턴 2회 공격(일월쌍도·쌍고검): 근접 공격만, 3턴 쿨타임 */
+    const dblReady = !!(kind === 'melee' && a.tfx && a.tfx.doubleAct && !a.dblUsed && (a.dblCd || 0) <= 0);
+    let dealt = 0;
+    attackUnit(a, d, { mult: 1, duel: true, onDamage: (n) => { dealt = n; } }, () => {
       const wasAlive = d.alive && d.hp > 0;
       triggerPassive(a, 'on_attack');
       wait(() => {
         if (!B || B.over) { busy = false; return; }
-        if (wasAlive && d.alive && !B.over) counter(d, a);
-        busy = false;
-        finishCheck();
-        if (!B.over) wait(() => { if (B && !B.over) nextUnitOrWait(); }, 300);
+        const after = () => {
+          areaStrike(a, d, dealt);
+          if (wasAlive && d.alive && !B.over) counter(d, a);
+          busy = false;
+          finishCheck();
+          if (!B || B.over) return;
+          if (dblReady && a.alive) {
+            a.dblUsed = true; a.dblCd = 3;
+            a.acted = false;
+            B.reachCache = reachSet(a);
+            selectUnit(a);
+            showCallout('한 번 더 — 쌍검', 'duel');
+            feed(`${a.name} — 한 턴 2회 공격 (3턴 쿨타임)`, 'good');
+            return;
+          }
+          wait(() => { if (B && !B.over) nextUnitOrWait(); }, 300);
+        };
+        if (extra && d.alive) extraStrike(a, d, extra, after);
+        else after();
       }, 320);
     });
     SKBattle.refreshUI();
@@ -4115,6 +4379,10 @@
         B.units.forEach((u) => {
           if (!u.alive) return;
           u.acted = false;
+          /* v5.30 — 한 턴 2회 공격(일월쌍도·쌍고검) 쿨타임과 돌격 이동 거리 초기화 */
+          u.dblUsed = false;
+          if (u.dblCd > 0) u.dblCd -= 1;
+          u.movedTiles = 0;
           Object.keys(u.buffs).forEach((k) => { u.buffs[k].t -= 1; if (u.buffs[k].t <= 0) delete u.buffs[k]; });
           if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3 + Math.max(0, (u.tfx && u.tfx.mp) || 0));
           else u.mp = Math.min(u.maxMp, u.mp + 2);
@@ -4268,7 +4536,7 @@
           if (!B || B.over) { done(); return; }
           const dist = manh(e.x, e.y, target.x, target.y);
           if (dist >= (e.minRng || 1) && dist <= rng && !wallBlocked(e, target)) {
-            attackUnit(e, target, {}, () => {
+            attackUnit(e, target, { duel: true }, () => {
               if (!B || B.over) { done(); return; }
               if (target.alive && manh(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
                 wait(() => {
@@ -5112,7 +5380,7 @@
       const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
       const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
       $('#battle-name').textContent = B.name;
-      $('#battle-kind').textContent = `${B.def.name} · ${B.def.desc}`;
+      $('#battle-kind').textContent = `${B.night ? '야간 · ' : ''}${B.def.name} · ${B.def.desc}`;
       /* v5.2 — 성문 내구도는 화면 위 칩에 숫자로 크게 보인다 */
       const goalChip = $('#battle-objective');
       if (goalChip) {
@@ -5367,8 +5635,30 @@
       eff(name) {
         const u = B.units.find((o) => o.name === name);
         return u ? { atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), matk: Math.round(magicAtk(u)),
-          mdef: Math.round(magicDef(u)), rng: effRng(u), bond: bondAllyMul(u),
+          mdef: Math.round(magicDef(u)), rng: effRng(u), bond: bondAllyMul(u), hp: Math.round(u.hp), maxHp: Math.round(u.maxHp),
           buffs: JSON.parse(JSON.stringify(u.buffs || {})) } : null;
+      },
+      /* v5.30 — 전투 규칙 검증용: 예상 피해·보물 훅·일기토 횟수 */
+      calc(aName, dName, opts) {
+        const a = B.units.find((o) => o.name === aName), d = B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        const r = calcDamage(a, d, Object.assign({ noCrit: true }, opts || {}));
+        return { dmg: r.dmg, tri: r.tri, atk: Math.round(effAtk(a)), def: Math.round(effDef(d)), tfx: a.tfx, dtfx: d.tfx };
+      },
+      duels() { return B ? Object.assign({}, B.duels || {}) : null; },
+      night() { return !!(B && B.night); },
+      /* v5.30 — 공격/반격 한 번을 직접 실행해 보는 검증 훅 */
+      strike(aName, dName, opts) {
+        const a = B.units.find((o) => o.name === aName), d = B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        attackUnit(a, d, Object.assign({ noStrike: true, noDuel: true }, opts || {}), () => {});
+        return { a: a.name, d: d.name };
+      },
+      counterOf(aName, dName) {
+        const a = B.units.find((o) => o.name === aName), d = B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        counter(a, d);
+        return { counter: a.name, attacker: d.name };
       },
       place(unitName, x, y) { const u = B.units.find((o) => o.name === unitName); if (u) { u.x = x; u.y = y; u.rx = x; u.ry = y; } return u ? { x: u.x, y: u.y } : null; },
       attack(targetId) { const u = B.sel; const t = B.units.find((o) => o.id === targetId); if (u && t) doAttack(u, t); },

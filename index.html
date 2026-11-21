@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=43" />
+<link rel="stylesheet" href="css/game.css?v=44" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -335,6 +335,13 @@
       <div class="battle-tip" id="battle-tip">화면을 끌어 이동 · 부대를 눌러 선택</div>
       <div class="battle-feed" id="battle-feed"></div>
       <div class="battle-callout" id="battle-callout"></div>
+      <!-- v5.30 — 조조전식 일기토 컷인 · 크리티컬 번쩍임 -->
+      <div class="duel-cutin" id="duel-cutin" hidden aria-hidden="true">
+        <div class="dc-side a"><span class="dc-card"><img id="dc-img-a" alt="" /></span><b id="dc-name-a"></b></div>
+        <div class="dc-mid"><span>⚔</span><b>일기토</b><em id="dc-sub"></em></div>
+        <div class="dc-side b"><span class="dc-card"><img id="dc-img-b" alt="" /></span><b id="dc-name-b"></b></div>
+      </div>
+      <div class="crit-flash" id="crit-flash"></div>
       <div class="turn-banner" id="turn-banner"></div>
     </div>
 
@@ -388,15 +395,15 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=43"></script>
-<script src="js/mapmask.js?v=43"></script>
-<script src="js/city_geo.js?v=43"></script>
-<script src="js/data.js?v=43"></script>
-<script src="js/bgm.js?v=43"></script>
-<script src="js/sfx.js?v=43"></script>
-<script src="js/app.js?v=43"></script>
-<script src="js/map.js?v=43"></script>
-<script src="js/battle.js?v=43"></script>
-<script src="js/backguard.js?v=43"></script>
+<script src="js/mapgeo.js?v=44"></script>
+<script src="js/mapmask.js?v=44"></script>
+<script src="js/city_geo.js?v=44"></script>
+<script src="js/data.js?v=44"></script>
+<script src="js/bgm.js?v=44"></script>
+<script src="js/sfx.js?v=44"></script>
+<script src="js/app.js?v=44"></script>
+<script src="js/map.js?v=44"></script>
+<script src="js/battle.js?v=44"></script>
+<script src="js/backguard.js?v=44"></script>
 </body>
 </html>

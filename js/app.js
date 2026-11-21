@@ -2408,12 +2408,14 @@
         if (st.rng) b.push(`사거리+${st.rng}`);
         return b.join(' · ');
       };
-      /* v5.29 — 문구 → 전장 적용/미적용을 같은 파서 결과로 보여 준다 */
+      /* v5.29 — 문구 → 전장 적용/미적용을 같은 파서 결과로 보여 준다
+         v5.30 — 숫자가 없어 기본값으로 옮긴 절도 밝힌다 */
       const fxLine = (t, cls) => {
         const line = SK.treasureFxLine(t);
         const notes = SK.treasureFxNotes(t);
+        const dflt = SK.treasureFxDefaults(t);
         if (!line && !notes.length) return '';
-        return `<span class="${cls}">${line ? `<b>전장 적용</b> ${line}` : ''}${notes.length ? `${line ? ' · ' : ''}<i>미적용: ${notes.join(' / ')}</i>` : ''}</span>`;
+        return `<span class="${cls}">${line ? `<b>전장 적용</b> ${line}` : ''}${dflt.length ? ` <em class="tr-dflt">(숫자 없는 ${dflt.length}절은 기본값)</em>` : ''}${notes.length ? `${line ? ' · ' : ''}<i>미적용: ${notes.join(' / ')}</i>` : ''}</span>`;
       };
       const slots = Object.keys(SK.SLOT_NAMES).map((sl) => {
         const id = hero.equip[sl];
@@ -2441,7 +2443,7 @@
         <div class="tr-inv-head"><span>보유 ${SK.SLOT_NAMES[slot]}</span>${cur}</div>
         <div class="tr-list">${list}</div>
         <p class="tr-note">보물은 무기·방어구·명마·병법서 한 자리씩 장착됩니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>
-        <p class="tr-note tr-fxnote"><b>전장 적용</b>은 공격·피해·방어·책략·치명·회피·반격·회복 계산에 실제로 들어가는 값입니다. 게임에 그 판정이 없는 문구는 같은 눈금으로 옮겼습니다 — 명중률→주는 피해, 책략 명중률→책략 위력, 적 방어력 −N%→주는 피해, 받는 치명타 피해 −N%→치명타 저항, 아군 사기 +N→공격력 +(N/2)%, 반사→반격 피해. <b>미적용</b>으로 표시된 문구는 아직 수치화하지 않아 전투에 영향을 주지 않습니다.</p>`;
+        <p class="tr-note tr-fxnote"><b>전장 적용</b>은 공격·피해·방어·책략·치명·회피·반격·회복 계산에 실제로 들어가는 값입니다. 게임에 그 판정이 없는 문구는 같은 눈금으로 옮겼습니다 — 명중률→주는 피해, 책략 명중률→책략 위력, 적 방어력 −N%→주는 피해, 받는 치명타 피해 −N%→치명타 저항, 아군 사기 +N→공격력 +(N/2)%, 반사→반격 피해. <b>v5.30</b>부터는 전투 규칙도 실제로 붙습니다 — 연격·연속 사격 확률(한 번 더 때림), 한 턴 2회 공격(3턴 쿨타임), 주변·관통 추가 피해, 수전·산악·야간 지형 보정, 반사 피해, 돌격·측면 추가 피해. 숫자가 없는 문구는 <b>기본값</b>으로 옮겼고 카드에 그 절 수를 적었습니다. <b>미적용</b>으로 표시된 문구는 아직 수치화하지 않아 전투에 영향을 주지 않습니다.</p>`;
       m.el.querySelectorAll('.tr-slot').forEach((b) => { b.onclick = () => { slot = b.dataset.slot; render(); }; });
       m.el.querySelectorAll('.tr-item').forEach((b) => {
         b.onclick = () => {

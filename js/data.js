@@ -1416,15 +1416,43 @@ SK.equipBonus = function (h) {
      반사 피해 → 반격 피해 +N%, 피해 경감/감소 → 받는 피해 -(N)%
    · 원문에 숫자가 없는 문구는 값을 지어내지 않고 fxNotes(미적용)로 남겨 UI에 그대로 보여 준다. */
 SK.TREASURE_FX_KEYS = ['atk', 'def', 'defWall', 'dmg', 'taken', 'magic', 'magicTaken',
-  'crit', 'critDmg', 'critRes', 'evade', 'counter', 'heal', 'first', 'mp', 'mpCost', 'exp'];
+  'crit', 'critDmg', 'critRes', 'evade', 'counter', 'heal', 'first', 'mp', 'mpCost', 'exp',
+  /* v5.30 — 전투 규칙 계열: 연격·연속 사격·한 턴 2회·광역·관통·지형·야간·반사·돌격·측면 */
+  'combo', 'volley', 'doubleAct', 'pierce', 'splash', 'line',
+  'water', 'mountain', 'night', 'nightTaken', 'reflect', 'charge', 'flank'];
 SK.TREASURE_FX_LABEL = {
   atk: '공격력', def: '방어력', defWall: '성벽 위 방어력', dmg: '주는 피해', taken: '받는 피해',
   magic: '책략 위력', magicTaken: '받는 책략 피해', crit: '치명타 확률', critDmg: '치명타 피해',
   critRes: '치명타 저항', evade: '회피', counter: '반격 피해', heal: '회복량',
   first: '첫 공격 피해', mp: '턴당 기력', mpCost: '책략 기력 소모', exp: '경험치 획득',
   rough: '험지 이동',
+  combo: '연격 확률', volley: '연속 사격 확률', doubleAct: '한 턴 2회 공격', pierce: '연격 시 방어 무시',
+  splash: '주변 추가 피해', line: '관통 추가 피해', water: '수전 지형 공·방', mountain: '산악 지형 공·방',
+  night: '야간 공·방', nightTaken: '야간 받는 피해', reflect: '반사 피해', charge: '돌격 추가 피해', flank: '측면·후면 추가 피해',
 };
+/* v5.30 — 문구에 숫자가 없는 전투 규칙은 지어내지 않고, 이 기본값으로 옮긴 값을 UI에 '기본값'으로 밝힌다. */
+SK.TREASURE_FX_DEFAULT = {
+  combo: 15, volley: 15, doubleAct: 1, pierce: 1, splash: 12, line: 12,
+  water: 10, mountain: 10, terrainAny: 10, night: 10, nightTaken: 15, reflect: 15, charge: 8, flank: 12,
+};
+SK.TREASURE_FX_FLAGS = { doubleAct: 1, pierce: 1 };   // 수치가 아니라 '가능/무시' 여부만 보는 효과
 SK.TREASURE_FX_RULES = [
+  /* v5.30 — 전투 규칙 계열을 일반 수치 규칙보다 먼저 잡는다 ("연속 사격"이 사격 피해로, "야간 피해"가
+     상시 피해 감소로 새지 않게). */
+  [/연격\s*시\s*대상\s*방어력\s*무시/, 'pierce'],
+  [/연격\s*확률|단일\s*대상\s*연격|연격\s*발동/, 'combo'],
+  [/연속\s*사격|연사\s*확률|연속\s*투사체/, 'volley'],
+  [/1턴\s*2회|한\s*턴\s*(?:에\s*)?두\s*번|2회\s*근접\s*공격|두\s*번\s*벤다|쌍검으로\s*두/, 'doubleAct'],
+  [/주변\s*\d?\s*칸?\s*범위|광역\s*(?:베기|피해)|주변\s*추가\s*피해|범위\s*추가\s*피해/, 'splash'],
+  [/횡일선|관통\s*베기|전열\s*관통/, 'line'],
+  [/산악\s*[·,]?\s*수전|수전\s*[·,]?\s*산악/, 'terrainAny'],
+  [/수전\s*지형|수상\s*전투/, 'water'],
+  [/산악\s*지형|산지\s*지형/, 'mountain'],
+  [/야간\s*전투\s*시[^,]*피해|밤\s*전투[^,]*피해/, 'nightTaken'],
+  [/야간\s*전투|밤\s*전투/, 'night'],
+  [/반사\s*피해/, 'reflect'],
+  [/돌격\s*시|돌파\s*시/, 'charge'],
+  [/측면\s*공격|후면\s*공격|배후\s*공격/, 'flank'],
   [/^(무력|지력|통솔|매력|정치|이동력|사거리|사정거리)\s*\+\s*\d+/, 'stat'],
   [/험지\s*이동\s*페널티\s*무효|지형\s*제약\s*경감|이동\s*페널티\s*경감|지형\s*이동\s*페널티/, 'rough'],
   [/사기\s*회복/, 'heal'],
@@ -1463,6 +1491,7 @@ SK.parseTreasureFx = function (effect) {
   const fx = { rough: false };
   SK.TREASURE_FX_KEYS.forEach((k) => { fx[k] = 0; });
   const used = [], notes = [];
+  const clampV0 = (x) => Math.max(-60, Math.min(60, x));
   String(effect || '').split(/,|\s·\s/).forEach((raw) => {
     const cl = raw.trim();
     if (!cl) return;
@@ -1475,14 +1504,32 @@ SK.parseTreasureFx = function (effect) {
     if (hook === 'stat') return;
     if (hook === 'note' || !hook) { notes.push(cl); return; }
     if (hook === 'rough') { fx.rough = true; used.push({ cl, hook, v: null }); return; }
-    if (v == null) { notes.push(cl); return; }
+    /* v5.30 — 숫자가 없는 전투 규칙 문구는 기본값으로 옮기되, 기본값임을 표시해 둔다 */
+    if (v == null) {
+      const dflt = SK.TREASURE_FX_DEFAULT[hook];
+      if (dflt == null) { notes.push(cl); return; }
+      if (hook === 'terrainAny') {
+        fx.water += dflt; fx.mountain += dflt;
+        used.push({ cl, hook: 'water', v: dflt, d: true }, { cl, hook: 'mountain', v: dflt, d: true });
+        return;
+      }
+      fx[hook] = SK.TREASURE_FX_FLAGS[hook] ? 1 : clampV0(fx[hook] + dflt);
+      used.push({ cl, hook, v: dflt, d: true });
+      return;
+    }
+    if (hook === 'terrainAny') {
+      fx.water += v; fx.mountain += v;
+      used.push({ cl, hook: 'water', v }, { cl, hook: 'mountain', v });
+      return;
+    }
+    if (SK.TREASURE_FX_FLAGS[hook]) { fx[hook] = 1; used.push({ cl, hook, v }); return; }
     if (hook === 'magicPenalty') { fx.magicTaken -= Math.abs(v); used.push({ cl, hook: 'magicTaken', v: -Math.abs(v) }); return; }
     if (hook === 'bothTaken') { fx.taken += Math.abs(v); fx.magicTaken += Math.abs(v); used.push({ cl, hook: 'both', v }); return; }
     if (hook === 'atkDef') { fx.atk += v; fx.def += v; used.push({ cl, hook: 'atkDef', v }); return; }
     if (hook === 'atkHalf') { fx.atk += Math.round(v / 2); used.push({ cl, hook: 'atk', v: Math.round(v / 2) }); return; }
     if (hook === 'mpCostAbs') { fx.mpCost = Math.max(-60, Math.min(60, fx.mpCost + Math.abs(v))); used.push({ cl, hook: 'mpCost', v: Math.abs(v) }); return; }
     const clampV = (x) => Math.max(-60, Math.min(60, x));
-    if (hook === 'taken' || hook === 'magicTaken' || hook === 'critRes') {
+    if (hook === 'taken' || hook === 'magicTaken' || hook === 'critRes' || hook === 'nightTaken') {
       fx[hook] = clampV(fx[hook] + Math.abs(v));
     } else if (hook === 'dmgAbs') {
       fx.dmg = clampV(fx.dmg + Math.abs(v));
@@ -1523,7 +1570,9 @@ SK.fxSumLine = function (fx, asArray) {
       const v = fx[k] || 0;
       if (!v) return;
       const lab = SK.TREASURE_FX_LABEL[k];
-      if (k === 'taken' || k === 'magicTaken' || k === 'mpCost') parts.push(v > 0 ? `${lab} −${v}%` : `${lab} +${-v}%`);
+      if (k === 'doubleAct') { parts.push(lab); return; }
+      if (k === 'pierce') { parts.push(lab); return; }
+      if (k === 'taken' || k === 'magicTaken' || k === 'mpCost' || k === 'nightTaken') parts.push(v > 0 ? `${lab} −${v}%` : `${lab} +${-v}%`);
       else if (k === 'crit' || k === 'critDmg') parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%p`);
       else if (k === 'mp') parts.push(`${lab} +${v}`);
       else parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%`);
@@ -1540,6 +1589,10 @@ SK.treasureFxApplied = function (t) {
   return SK.treasureFxLine(t) || '';
 };
 SK.treasureFxNotes = function (t) { return SK.treasureFx(t).notes || []; };
+/* v5.30 — 문구에 숫자가 없어 기본값으로 옮긴 절 (UI에 '기본값'으로 밝힌다) */
+SK.treasureFxDefaults = function (t) {
+  return (SK.treasureFx(t).used || []).filter((u) => u.d).map((u) => u.cl);
+};
 
 /* ───────────── 76 거점 ─────────────
    [id, 이름, 한자, u, v, 유형, 세력, 지역] */
