@@ -134,7 +134,15 @@
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
     const SUPPORT_CLS = { gunakdae: 1, muhui: 1, pungsusa: 1 };
     let supportUsed = 0;
-    const combatType = type === 'naval' ? 'naval' : (type === 'mountain' ? 'mountain' : 'siege');
+    /* v5.15 — 요격전 8종의 적 편성표를 그대로 쓴다 */
+    const combatType = (type === 'naval') ? 'naval'
+      : (type === 'mountain') ? 'mountain'
+      : (type === 'forest' || type === 'ambush') ? 'forest'
+      : (type === 'gorge') ? 'gorge'
+      : (type === 'camp') ? 'camp'
+      : (type === 'plain') ? 'plain'
+      : (type === 'ford') ? 'ford'
+      : 'siege';
     for (let i = 0; i < enemyCount; i++) {
       if (defGens[i]) { enemies.push(makeNamedEnemy(defGens[i], per, i === 0)); continue; }
       if (i === 0 && bossInfo && !defGens.length) { enemies.push(makeBoss(bossInfo, faction, per)); continue; }
@@ -198,7 +206,15 @@
       reinforce: opts.reinforce || null, supportNames: supportNames,
     };
     /* v5.11 — 공성 진영 장식 (assets/battle). 격자 뒤에 깔려 부대를 가리지 않는다 */
-    if (type === 'siege' || type === 'defense' || type === 'fortress') {
+    if (type === 'camp') {
+      /* v5.15 — 야영 기습전: 막사·보급품·목책이 늘어선 적 진영 */
+      B.props = [
+        { k: 'camp', x: 2, y: 2, s: 1.0 }, { k: 'camp', x: 15, y: 2, s: 1.0 },
+        { k: 'supply', x: 1, y: 6, s: 0.9 }, { k: 'supply', x: 16, y: 11, s: 0.9 },
+        { k: 'barricade', x: 2, y: 10, s: 0.88 }, { k: 'barricade', x: 15, y: 7, s: 0.88 },
+        { k: 'camp', x: 2, y: 16, s: 1.0 }, { k: 'camp', x: 15, y: 16, s: 1.0 },
+      ];
+    } else if (type === 'siege' || type === 'defense' || type === 'fortress') {
       B.props = [
         { k: 'camp', x: 2, y: 15, s: 1.0 }, { k: 'camp', x: 15, y: 15, s: 1.0 },
         { k: 'supply', x: 2, y: 16, s: 0.88 }, { k: 'supply', x: 15, y: 16, s: 0.88 },
@@ -958,7 +974,7 @@
 
   function drawBattleProps() {
     if (!B || !B.tiles) return;
-    if (B.type !== 'siege' && B.type !== 'defense' && B.type !== 'fortress') return;
+    if (B.type !== 'siege' && B.type !== 'defense' && B.type !== 'fortress' && B.type !== 'camp') return;
     const img = (n) => loadImg(`assets/battle/${n}.webp`);
     const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 'P' : B.tiles[y][x]);
     const wallAt = (x, y) => { const c = at(x, y); return c === 'C' || c === 'G'; };
@@ -1082,6 +1098,19 @@
     ctx.restore();
   }
 
+  /* v5.15 — 야수병: 숲·산지에 서 있거나 산전·밀림전이면 이동력 +1 (실효 6급).
+     평지 이동 6은 기병 전용으로 남긴다. */
+  const BEAST_TERRAIN_TYPES = { mountain: 1, forest: 1, ambush: 1, gorge: 1 };
+  function movOf(u) {
+    if (!u) return 0;
+    let m = Number(u.mov) || 0;
+    if (u.cls === 'yasubyung') {
+      const ch = B && B.tiles && B.tiles[u.y] ? B.tiles[u.y][u.x] : 'P';
+      if (ch === 'F' || ch === 'M' || (B && BEAST_TERRAIN_TYPES[B.type])) m += 1;
+    }
+    return Math.min(10, m);
+  }
+
   function moveCost(cls, ch, x, y) {
     if (ch === 'G') return gateTileAt(x, y) ? 99 : 1;   // v5.2 — 그 성문이 살아 있으면 통행 불가
     if (ch === 'W') return cls === 'sujeok' ? 1 : 99;
@@ -1096,6 +1125,7 @@
     if (!u) return new Set();
     const seen = new Map();
     const key = (x, y) => x + ',' + y;
+    const cap = movOf(u);
     const start = key(u.x, u.y);
     seen.set(start, 0);
     const q = [[u.x, u.y, 0]];
@@ -1112,7 +1142,7 @@
         if (cost >= 90) continue;
         if (B.units.some((o) => o.alive && o.x === nx && o.y === ny)) continue;
         const nc = c + cost;
-        if (nc > u.mov) continue;
+        if (nc > cap) continue;
         const k = key(nx, ny);
         if (seen.has(k) && seen.get(k) <= nc) continue;
         seen.set(k, nc);
@@ -1995,7 +2025,15 @@
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
-    return u.rng + aff.rng;
+    return u.rng + Math.min(1, aff.rng + wallRngBonus(u));
+  }
+  /* v5.15 — 수성전: 성벽·망루·안쪽 진지(C·T·K) 위에 선 원거리·공성 병과는 사거리 +1.
+     산·성 지형 보너스(aff.rng)와 겹쳐도 최대 +1까지만 (effRng에서 합산해 자른다). */
+  const WALL_RNG_CLS = { gungsu: 1, gunggi: 1, yeonnobyung: 1, pocha: 1, balseokcha: 1 };
+  function wallRngBonus(u) {
+    if (!B || !B.defense || !u || !WALL_RNG_CLS[u.cls]) return 0;
+    const ch = B.tiles[u.y] && B.tiles[u.y][u.x];
+    return (ch === 'C' || ch === 'T' || ch === 'K') ? 1 : 0;
   }
   /* v5.0.3 — 책략 공격력(책공)과 책략 방어력(책방/정신력).
      지력이 책공의 바탕이고, 지력+통솔이 책방의 바탕이다. 병력이 줄면 함께 약해진다. */
@@ -2032,20 +2070,30 @@
     let atk = effAtk(a);
     if (opts && opts.mult) atk *= opts.mult;
     const def = opts && opts.ignoreTerrain ? d.def : effDef(d);
-    let base = (atk * 0.92 - def * 0.62) * 16;
+    /* v5.15 — 병과 삼각 상성 (보병↔궁병↔기병↔창병) */
+    const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
+    /* v5.15 — 등갑병 '4딜 벽' 완화: 방어 계수 0.62 → 0.52 */
+    let base = (atk * 0.92 - def * 0.52) * 16;
+    base *= tri.mul;
     base *= sizeScale(d) * atkScale(a);
     base *= rnd(0.92, 1.08);
     /* v5.2 — 투석차·발석차는 일반 부대에 약하고 성문·성벽에 강하다 */
     const kind = attackKind(a, opts);
     if (kind === 'rock') base *= 0.55;
+    /* v5.15 — 무희 오라의 회피(받는 피해 −8%) */
+    const ev = buffVal(d, 'evade');
+    if (ev > 0) base *= Math.max(0.6, 1 - ev);
     let crit = false;
-    const cc = 0.05 + (a.wu - 60) * 0.0011 + (a.cls === 'sanjeok' ? 0.06 : 0);
+    const cc = 0.05 + (a.wu - 60) * 0.0011 + (a.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(a, 'crit'));
     if (!opts || !opts.noCrit) {
       if (Math.random() < cc) { crit = true; base *= 1.55; }
     }
     const bond = SK.bondBetween ? SK.bondBetween(a.name, d.name) : null;
     if (bond && bond.relation === '숙적') base *= 1.2;
-    return { dmg: Math.max(4, Math.round(base)), crit, bond };
+    /* v5.15 — 최소 피해 하한: 방어 버프·지형이 겹쳐도 한 대는 들어간다 */
+    let floor = Math.max(4, Math.round(atk * 2.2 * sizeScale(d) * (kind === 'rock' ? 0.55 : 1)));
+    if (bond && bond.relation === '숙적') floor = Math.round(floor * 1.2);
+    return { dmg: Math.max(floor, Math.round(base)), crit, bond, tri };
   }
 
   function rxOf(u) { return u.rx == null ? u.x : u.rx; }
@@ -2124,15 +2172,24 @@
     }
   }
 
+  /* v5.15 — 반격: 방어자의 최소 사거리(minRng) 안쪽이면 반격하지 못한다.
+     반격 피해는 일반 병과 75%, 검병은 방패 맞다이 특화로 90%. */
+  const COUNTER_MUL = 0.75, COUNTER_MUL_SHIELD = 0.90;
+  function counterMulOf(u) { return u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL; }
+  function canCounterAt(a, d) {
+    if (!a || !d || !a.alive || !d.alive) return false;
+    const dist = manh(a.x, a.y, d.x, d.y);
+    const min = a.minRng || 1;
+    return dist >= min && dist <= effRng(a);
+  }
   function counter(a, d) {
     // a = 반격하는 방어자, d = 공격자
-    if (!d.alive || !a.alive) return;
-    if (manh(a.x, a.y, d.x, d.y) <= effRng(a)) {
-      wait(() => {
-        if (!a.alive || !d.alive || B.over) return;
-        attackUnit(a, d, {}, () => finishCheck());
-      }, 240);
-    }
+    if (!canCounterAt(a, d)) return;
+    const mul = counterMulOf(a);
+    wait(() => {
+      if (!a.alive || !d.alive || B.over) return;
+      attackUnit(a, d, { mult: mul }, () => finishCheck());
+    }, 240);
   }
 
   /* ───────────── 조작 ───────────── */
@@ -2206,7 +2263,7 @@
     pendingSkill = null;
     SKBattle.refreshUI();
     const t = SK.TERRAIN[B.tiles[u.y][u.x]];
-    $('#battle-tip').textContent = `${u.name} · ${SK.CLASSES[u.cls].name} · 이동 ${u.mov} · ${t.name} 방어 ${Math.round(t.def * 100)}%`;
+    $('#battle-tip').textContent = `${u.name} · ${SK.CLASSES[u.cls].name} · 이동 ${movOf(u)} · ${t.name} 방어 ${Math.round(t.def * 100)}%`;
   }
 
   function clearSel() {
@@ -2242,21 +2299,31 @@
     if (busy || !a || !d || !a.alive || !d.alive) return;
     const atk = calcDamage(a, d, {});
     const bond = SK.bondBetween ? SK.bondBetween(a.name, d.name) : null;
-    const canCounter = d.alive && manh(a.x, a.y, d.x, d.y) <= effRng(d);
-    const cnt = canCounter ? calcDamage(d, a, {}) : null;
+    /* v5.15 — 반격은 방어자의 최소 사거리 안쪽이면 불가, 피해는 75%(검병 90%) */
+    const canCounter = canCounterAt(d, a);
+    const cntMul = counterMulOf(d);
+    const cnt = canCounter ? calcDamage(d, a, { mult: cntMul, noCrit: true }) : null;
+    const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
+    const triBack = SK.triangleMul ? SK.triangleMul(d.cls, a.cls) : { mul: 1, label: '' };
     const tr = SK.TERRAIN[B.tiles[d.y][d.x]] || SK.TERRAIN.P;
-    const critChance = Math.round((0.05 + (a.wu - 60) * 0.0022 + (a.cls === 'sanjeok' ? 0.06 : 0)) * 100);
+    const critChance = Math.round((0.05 + (a.wu - 60) * 0.0022 + (a.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(a, 'crit'))) * 100);
     const bondHtml = bond
       ? `<div class="ap-bond ${bond.relation === '숙적' ? 'rival' : 'friend'}">${bond.relation} · ${bond.title}<em>${bond.relation === '숙적' ? '피해 +20%' : '공격 +15%'}</em></div>`
       : '';
+    const triName = tri.label ? tri.label.replace(/\s*\+\d+%$/, '') : '';
+    const triHtml = tri.mul > 1
+      ? `<div class="ap-row tri"><span>병과 상성</span><b>+${Math.round((tri.mul - 1) * 100)}%</b><em>${triName} 상성</em></div>`
+      : '<div class="ap-row"><span>병과 상성</span><b>없음</b><em>기본 피해</em></div>';
+    const dMin = d.minRng || 1;
     const m = SK.modal({
       kicker: '전투 예고',
       title: `${a.name} → ${d.name}`,
       body: `<div class="atk-preview">
         <div class="ap-row"><span>예상 피해</span><b>${atk.dmg}</b><em>치명타 ${critChance}%</em></div>
+        ${triHtml}
         ${canCounter
-          ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격</em></div>`
-          : '<div class="ap-row"><span>반격</span><b>없음</b><em>사거리 밖</em></div>'}
+          ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격 ${Math.round(cntMul * 100)}%${triBack.mul > 1 ? ` · ${triBack.label}` : ''}</em></div>`
+          : `<div class="ap-row"><span>반격</span><b>없음</b><em>${dMin > 1 ? `${d.name}은(는) ${dMin}칸 안쪽을 못 쏩니다` : '사거리 밖'}</em></div>`}
         <div class="ap-row"><span>지형</span><b>${tr.name}</b><em>방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</em></div>
         ${bondHtml}
         <p class="ap-note">${d.name} 병력 ${Math.round(d.hp).toLocaleString('ko-KR')} / ${Math.round(d.maxHp).toLocaleString('ko-KR')}</p>
@@ -2452,6 +2519,41 @@
     });
     addFloat(cx, cy - 10, `「${p.title}」`, '#ffe08a');
     feed(`${u.name}의 고유 특기 「${p.title}」 — 아군 사기 상승`, 'good');
+  }
+
+  /* v5.15 — 군악대·무희의 전장 출진 오라 (병과 고유, 매 턴 시작).
+     군악대: 마름모 2칸 아군 MP +4 · 공격 +8%(1턴)
+     무희: 마름모 2칸 아군 회피·치명 +8%(1턴), 마름모 2칸 적 공격 −8%(1턴)
+     한 부대가 여러 번 겹쳐도 한 번만 발동한다(같은 값으로 덮어쓴다). */
+  function classAuraPhase(side) {
+    if (!B || B.over) return;
+    const band = B.units.filter((u) => u.alive && u.side === side && u.cls === 'gunakdae');
+    const dancers = B.units.filter((u) => u.alive && u.side === side && u.cls === 'muhui');
+    const inDia = (o, u) => o.alive && manh(o.x, o.y, u.x, u.y) <= 2;
+    band.forEach((u) => {
+      const list = B.units.filter((o) => o.side === side && inDia(o, u));
+      list.forEach((o) => {
+        o.mp = Math.min(o.maxMp, o.mp + 4);
+        o.buffs.atk = { v: Math.max(0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
+        addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (rxOf(o) + 0.5) * TILE, life: 360, color: '255,214,140' });
+      });
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 MP+4 · 공+8%', '#ffe08a');
+      feed(`${u.name}의 군악 — 주변 아군 MP +4 · 공격 +8%`, side === 'ally' ? 'good' : 'bad');
+    });
+    dancers.forEach((u) => {
+      const allies = B.units.filter((o) => o.side === side && inDia(o, u));
+      allies.forEach((o) => {
+        o.buffs.crit = { v: 0.08, t: 1 };
+        o.buffs.evade = { v: 0.08, t: 1 };
+        addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 360, color: '240,170,220' });
+      });
+      const foes = B.units.filter((o) => o.side !== side && inDia(o, u));
+      foes.forEach((o) => {
+        o.buffs.atk = { v: Math.min(-0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
+      });
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 회피·치명 +8%', '#f0b8e0');
+      feed(`${u.name}의 춤 — 아군 회피·치명 +8%, 적 공격 −8%`, side === 'ally' ? 'good' : 'bad');
+    });
   }
 
   function doAttack(a, d) {
@@ -2751,7 +2853,7 @@
         <div class="bi-main">
           <p class="bi-cls">${C.name} · Lv.${t.lv} ${t.boss ? '· 적장' : ''}${t.tier ? ` · ${t.tier}급` : ''}</p>${t.skillName ? `<p class="bi-skill">특기 — ${t.skillName}</p>` : ''}
           <div class="bi-hp"><i style="width:${Math.round(t.hp / t.maxHp * 100)}%"></i><span>병력 ${Math.round(t.hp).toLocaleString('ko-KR')} / ${Math.round(t.maxHp).toLocaleString('ko-KR')}</span></div>
-          <p class="bi-train">훈련도 ${t.train == null ? trainOf(t.lv, t.tier) : t.train}</p><div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>책공 ${Math.round(magicAtk(t))}</span><span>책방 ${Math.round(magicDef(t))}</span><span>이동 ${t.mov}</span><span>사거리 ${effRng(t)}</span></div>
+          <p class="bi-train">훈련도 ${t.train == null ? trainOf(t.lv, t.tier) : t.train}</p><div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>책공 ${Math.round(magicAtk(t))}</span><span>책방 ${Math.round(magicDef(t))}</span><span>이동 ${movOf(t)}</span><span>사거리 ${effRng(t)}</span></div>
           <p class="bi-terr">지형 ${tr.name} · 방어 ${Math.round(tr.def * 100)}%${bondAllyMul(t) > 1 ? ' · 인연 공격 +15%' : ''}</p>
         </div>
       </div>${bonds ? `<div class="hi-bonds">${bonds}</div>` : ''}`,
@@ -2839,16 +2941,18 @@
 
   function estBasicDmg(u, f) {
     const def = effDef(f);
-    let base = (effAtk(u) * 0.92 - def * 0.62) * 16 * sizeScale(f) * atkScale(u);
+    const tri = SK.triangleMul ? SK.triangleMul(u.cls, f.cls) : { mul: 1 };
+    let base = (effAtk(u) * 0.92 - def * 0.52) * 16 * sizeScale(f) * atkScale(u) * tri.mul;
     if (attackKind(u) === 'rock') base *= 0.55;
     return Math.max(4, Math.round(base));
   }
 
   function estSkillDmg(u, f, sk) {
+    const tri = SK.triangleMul ? SK.triangleMul(u.cls, f.cls) : { mul: 1 };
     if (sk.kind === 'power') {
       let mult = sk.power || 1.4;
       if (sk.vsMount && (f.cls === 'gibi' || (SK.CLASSES[f.cls] && SK.CLASSES[f.cls].mount))) mult += sk.vsMount;
-      let base = (effAtk(u) * mult * 0.92 - effDef(f) * 0.62) * 16 * sizeScale(f) * atkScale(u);
+      let base = (effAtk(u) * mult * 0.92 - effDef(f) * 0.52) * 16 * sizeScale(f) * atkScale(u) * tri.mul;
       if (attackKind(u) === 'rock') base *= 0.55;
       return Math.max(4, Math.round(base)) * (sk.hits || 1);
     }
@@ -3125,6 +3229,7 @@
 
   function enemyPhase() {
     if (B.over) return;
+    classAuraPhase('enemy');
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
     let i = 0;
     const step = () => {
@@ -3151,6 +3256,7 @@
         });
         B.phase = 'ally';
         B.units.forEach((u) => { if (u.side === 'ally' && u.alive) triggerPassive(u, 'turn_start'); });
+        classAuraPhase('ally');
         banner('아군 페이즈', 'ally');
         SKBattle.refreshUI();
         const first = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
@@ -3973,7 +4079,7 @@
     ov.hidden = false;
     const render = () => {
       if (!B) return;
-      if (i >= B.introLines.length) { ov.hidden = true; ov.onclick = null; B.introDone = true; banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
+      if (i >= B.introLines.length) { ov.hidden = true; ov.onclick = null; B.introDone = true; classAuraPhase('ally'); banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
       const L = B.introLines[i];
       if (L.event) {
         const ev = L.event;
@@ -4068,7 +4174,7 @@
           });
           bfBox.innerHTML = pills.join('');
         }
-        $('#uc-mov').textContent = u.mov;
+        $('#uc-mov').textContent = movOf(u);
         $('#uc-rng').textContent = effRng(u);
         const canAct = u.side === 'ally' && !u.acted;
         document.querySelectorAll('.act').forEach((b) => b.classList.toggle('off', !canAct));
@@ -4137,6 +4243,25 @@
       setMode(m) { mode = m; if (m !== 'skillTarget') pendingSkill = null; SKBattle.refreshUI(); return mode; },
       /* v5.14 — 마름모 사거리·성문 공격 진영 점검용 */
       manh(x1, y1, x2, y2) { return manh(x1, y1, x2, y2); },
+      /* v5.15 — 상성·반격·이동·오라 점검용 */
+      dmg(aName, dName, opts) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        const r = calcDamage(a, d, opts || {});
+        return { dmg: r.dmg, crit: r.crit, tri: r.tri ? r.tri.label : '', mul: r.tri ? r.tri.mul : 1 };
+      },
+      counterInfo(aName, dName) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        return { can: canCounterAt(a, d), mul: counterMulOf(a), minRng: a.minRng || 1, rng: effRng(a), dist: manh(a.x, a.y, d.x, d.y) };
+      },
+      mov(name) { const u = B && B.units.find((o) => o.name === name); return u ? { base: u.mov, eff: movOf(u), cls: u.cls } : null; },
+      /* v5.15 — 군악대·무희 오라를 그 자리에서 돌려 본다 (턴 시작과 같은 함수) */
+      runAura(side) { classAuraPhase(side || 'ally'); return this.auras(); },
+      auras() {
+        return B.units.filter((u) => u.alive).map((u) => ({ name: u.name, cls: u.cls, mp: Math.round(u.mp),
+          atk: u.buffs.atk || null, crit: u.buffs.crit || null, evade: u.buffs.evade || null }));
+      },
       gateAttackerSide() { return gateAttackerSide(); },
       isGateAttacker(name) { const u = B && B.units.find((o) => o.name === name); return u ? isGateAttacker(u) : null; },
       effRng(name) { const u = B && B.units.find((o) => o.name === name); return u ? effRng(u) : null; },

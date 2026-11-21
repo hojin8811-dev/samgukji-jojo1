@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.12** 코믹·올스타 리브랜딩·개그 한마디·내정 확장 · 2026-11-21 · 라이브 `?v=26`
+> 기준: **v5.15** 조조전식 밸런스 대수술·8종 요격전·1막 판도 정리 · 2026-11-21 · 라이브 `?v=29`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,30 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=26`) |
-| 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 585장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=29`) |
+| 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · 590장수 · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 내정·전장 기반(v5.5~v5.10) → 전장·액션 임팩트 → 초상화/열전/도감 순서(사용자 지정). 다음 후보는 AI 방어·후퇴 판단과 포로 몸값 거래 |
 
 ---
+
+## 0.1 v5.15에서 바뀐 것 — 조조전식 밸런스·8종 요격전·1막 판도 (2026-11-21 · `?v=29`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 삼각 상성 | 보병(검병·등갑병·무도가)→궁병 **+20%** / 궁병(궁수·연노·궁기)→기병·야수·책략계(기병·야수·책사·도사·풍수사·무희·군악대) **+18%**, 창병 **+20%** / 기병·야수→보병 **+18%** / 창병→기병·야수 **+35%** | `js/data.js` `SK.TRIANGLE`·`SK.triangleMul` |
+| 반격 | 방어자 최소 사거리(`minRng`) 안쪽이면 반격 불가 · 피해 **75%**, 검병만 **90%** · 예고 창에 배율 표시 | `js/battle.js` `canCounterAt`·`counterMulOf`·`counter`·`openAttackPreview` |
+| 등갑병 4딜 벽 | 피해식 방어 계수 **0.52**(이전 0.62) + 최소 피해 하한 `max(4, atk×2.2×sizeScale(d))` | `js/battle.js` `calcDamage` |
+| 야수병 | 기본 이동 **5**(`data.js`·`classes.json` 양쪽) · 숲·산 진입 1 · 숲·산 위/산전·밀림전이면 **+1** → `movOf(u)` | `js/battle.js` `movOf`·`reachSet`·`:uc-mov` 표시 |
+| 수성전 사거리 | 성벽·망루·본성(`C`·`T`·`K`) 위 궁수·궁기·연노·포차·발석차 **+1**, 지형 보너스와 합산해 **최대 +1** | `js/battle.js` `effRng`·`wallRngBonus` |
+| 군악대·무희 오라 | 턴 시작 마름모 2칸 — 군악대 아군 **MP+4·공+8%(1턴)**, 무희 아군 **crit·evade 8%** + 적 **atk −8%** | `js/battle.js` `classAuraPhase`, `buffs.crit`·`buffs.evade` |
+| 병과 재분배 | 책사 85→40 · 군악대 43→21 · 연노 11→25 · 등갑 14→22 · 무도가 16→25 · 포차 17→23 · 궁기 23→28 · 궁수 29→42 · 검병 36→48 · 공융→군주, 왕랑·성충→책사 | `data/generals.json` |
+| 1막 판도 | 동탁=낙양+호로관 · 유표=양양 · 원소=남피. 시작 인원 동탁·원소·조조·손견·유표 **12명**, 유비 **7명**, 나머지 **최소 6명** | `data/historical_scenarios.json`(`cityCaps` 190 = 2/1/1), `js/data.js` `SK.ACT1_ROSTER_TARGET`·`padStartRosters` |
+| 행군 | `MARCH_MIN = 2` — 모든 성 공격이 **2일 행군**(첫날 요격) | `js/app.js` |
+| 요격전 8종 | 평야·도하·산전·**밀림**·**협곡**·**야영**·수전·요새. `interceptTypeFor`가 바다·강·관문·요새·육로 가중치로 고름 | `js/data.js` `SK.MAPS`·`SK.BATTLE_TYPES`·`enemyClassesFor`·`enemySlots/allySlots`, `js/app.js` `interceptTypeFor` |
+| 새 맵 그림 | `assets/maps/v2/battle_forest.webp`·`battle_gorge.webp`·`battle_camp.webp`(1400×1400 WebP) · 야영은 `assets/battle/` 프랍도 함께 | `js/battle.js` `draw()`·`drawBattleProps` |
+| 옛 저장 | `interceptType: 'ambush'`는 밀림전(`forest`)으로 이어지고 `SK.MAPS.ambush`도 남겨 둠 | `js/app.js` `openPendingMarch` |
+| 검증 | `tools/v515_verify.py`·`v515_autobattle.py`·`v515_def.py` | `preview/v515_local/` |
 
 ## 0.1 v5.12에서 바뀐 것 — 코믹·올스타 리브랜딩 (2026-11-21)
 
@@ -375,7 +393,7 @@ assets/icons/             # 지도용 아이콘 4장
 2. **UI에 한자를 쓰지 않는다.** 코드에 `hanja` 필드가 남아 있지만 `js/data.js` 끝부분에서 병과·스킬·인물·전장 유형의 `hanja`를 전부 `''`로 비웁니다. 새 데이터를 넣을 때도 한자를 화면에 내보내지 마세요.
 3. **날짜는 아라비아 숫자 월.** `190년 1월` 형식(`SK.dateLabel`). `정월`·`건안 5년` 같은 표기 금지.
 4. **군주는 언제나 자기가 있는 성의 태수.** `enforceLordGovernor()`가 강제하고, `appointDefaults()`는 군주를 태수·군사 자동 임명에서 뺍니다. 관아 문구도 `대기 장수 N명` 기준.
-5. **계열(위·촉·오·군웅·한국)을 섞지 않는다.** `SK.EARLY_RETAINERS`(30세력·255명) 밖 인물을 `enrichFactions`가 끌어오면 고증 오류로 취급됩니다. 예: 190 유비 평원 = 유비·관우·장비·간옹·손건·미축·미방·유염·진도 9명.
+5. **계열(위·촉·오·군웅·한국)을 섞지 않는다.** `SK.EARLY_RETAINERS`(30세력·255명) 밖 인물을 `enrichFactions`가 끌어오면 고증 오류로 취급됩니다. 예: 190 유비 평원 = 유비·관우·장비·손건·미축·간옹·미방 **7명**(v5.15 확정).
 6. **길은 자동 생성하지 않는다.** `SK.ROAD_EDGES`(손으로 고친 102개)가 진실이고, 자동 최소신장트리는 금지입니다. 바다를 건너는 육로 금지(`SK.SEA_ONLY_PAIRS`), 섬은 같은 섬끼리만(`SK.ISLAND_GROUP`), 해안 우회는 `SK.ROAD_VIA` 꺾은점. 수정 후 **`SK.roadIssues()`가 `[]`인지 확인**하세요.
 7. **병과 수치는 두 곳에 있다.** `js/data.js`의 `SK.CLASSES`(atk/def/mp 등)와 `data/classes.json`(이동·사거리·지형보정·승급 이름·스킬). 런타임에 `SK.applyClassData()`가 후자로 전자를 덮어쓰므로, **한쪽만 고치면 화면과 실제가 어긋납니다.**
 8. **SD 그림 경로는 `SK.CLASS_UNIT` → `SK.JOB_UNIT` → `assets/units/job_*.webp`.** 상위 100명은 `assets/units/top100/{id}.webp` 전용 경로가 우선입니다.

@@ -27,13 +27,13 @@ SK.CLASSES = {
   gunwoong: { name: '군주', hanja: '君主', role: '지휘·균형', atk: 31, def: 21, mov: 4, rng: 1, mp: 46,
     skills: ['jihwi'], weapon: 'sword', desc: '군 전체를 이끄는 군주. 지휘로 아군을 강화한다.' },
   gibi: { name: '기병', hanja: '騎兵', role: '돌격·기동', atk: 34, def: 17, mov: 6, rng: 1, mp: 20,
-    skills: ['dolpa'], weapon: 'spear', mount: true, desc: '이동 6의 돌격 병과. 평지·도로에서 공격 +15%, 산지 통행 불가.' },
+    skills: ['dolpa'], weapon: 'spear', mount: true, desc: '이동 6의 돌격 병과. 평지·도로에서 공격 +15%, 보병에게 +18%, 산지 통행 불가.' },
   gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 3, mp: 26,
     skills: ['jipsajung'], weapon: 'bow', mount: true, desc: '이동 5의 말탄 궁수. 3칸(◇ 마름모) 사격, 산이나 성 위에서 사거리 +1.' },
   changbyung: { name: '창병', hanja: '槍兵', role: '대기병·성문', atk: 28, def: 21, mov: 4, rng: 2, mp: 18,
-    skills: ['gwantung'], weapon: 'spear', desc: '긴 창으로 2칸(◇ 마름모, 대각선 포함)을 찌른다. 기병에게 +40%, 성문에서 방어 +20%.' },
+    skills: ['gwantung'], weapon: 'spear', desc: '긴 창으로 2칸(◇ 마름모, 대각선 포함)을 찌른다. 기병·야수에게 +35%, 성문에서 방어 +20%.' },
   geombyung: { name: '검병', hanja: '劍兵', role: '방어·근접', atk: 30, def: 24, mov: 4, rng: 1, mp: 16,
-    skills: ['bangpae'], weapon: 'sword', desc: '튼튼한 방패 검병. 성문·마당에서 방어 +20%.' },
+    skills: ['bangpae'], weapon: 'sword', desc: '튼튼한 방패 검병. 궁병에게 +20%, 성문·마당에서 방어 +20%. 반격 피해 90%로 방패 맞다이에 강하다.' },
   sanjeok: { name: '산적', hanja: '山賊', role: '산지·숲 특화', atk: 34, def: 14, mov: 5, rng: 1, mp: 16,
     skills: ['sangang'], weapon: 'axe', desc: '산지·숲에서 공격 +30%. 산전의 주인공.' },
   sujeok: { name: '수적', hanja: '水賊', role: '수전 특화', atk: 31, def: 17, mov: 5, rng: 1, mp: 20,
@@ -45,17 +45,17 @@ SK.CLASSES = {
   dosa: { name: '도사', hanja: '道士', role: '저주·회복', atk: 18, def: 12, mov: 4, rng: 3, mp: 64,
     skills: ['yosul', 'sobogeup'], weapon: 'staff', desc: '요술로 적의 공격을 약화시키고 부상병을 회복한다.' },
   gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 3, minRng: 2, mp: 16,
-    skills: ['jipsajung'], weapon: 'bow', desc: '2칸 밖에서 3칸(◇ 마름모)까지 일방적으로 사격. 산·성 위에서 사거리 +1.' },
+    skills: ['jipsajung'], weapon: 'bow', desc: '2칸 밖에서 3칸(◇ 마름모)까지 일방적으로 사격. 기병·책략계에 +18%, 창병에 +20%. 산·성 위에서 사거리 +1.' },
   mudoga: { name: '무도가', hanja: '武道家', role: '연격·기동', atk: 33, def: 15, mov: 5, rng: 1, mp: 20,
-    skills: ['yeongyeok'], weapon: 'fist', desc: '맨몸의 연격으로 두 번 때린다. 평지에서 공격 +10%.' },
-  yasubyung: { name: '야수병', hanja: '野獸兵', role: '숲·산 추격', atk: 36, def: 16, mov: 6, rng: 1, mp: 18,
-    skills: ['yaseup'], weapon: 'claw', desc: '호랑이 부대. 숲·산지에서 공격 +20%, 이동 6.' },
+    skills: ['yeongyeok'], weapon: 'fist', desc: '맨몸의 연격으로 두 번 때린다. 평지에서 공격 +10%, 궁병에게 +20%로 파고든다.' },
+  yasubyung: { name: '야수병', hanja: '野獸兵', role: '숲·산 추격', atk: 36, def: 16, mov: 5, rng: 1, mp: 18,
+    skills: ['yaseup'], weapon: 'claw', desc: '호랑이 부대. 보병에게 +18%, 숲·산지에서 공격 +20%, 숲·산에서는 이동력 +1(6급)에 진입 비용 1.' },
   muhui: { name: '무희', hanja: '舞姬', role: '유혹·교란', atk: 20, def: 10, mov: 5, rng: 2, mp: 48,
     skills: ['yuhok'], weapon: 'ribbon', desc: '춤으로 적의 공격을 크게 떨어뜨린다. 사거리 2(◇ 마름모).' },
   yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 4, minRng: 2, mp: 18,
-    skills: ['yeonno'], weapon: 'crossbow', desc: '연발 쇠뇌로 2~4칸(◇ 마름모)을 두 번 쏜다. 느리지만 화력이 뛰어나다.' },
+    skills: ['yeonno'], weapon: 'crossbow', desc: '연발 쇠뇌로 2~4칸(◇ 마름모)을 두 번 쏜다. 기병·책략계에 +18%, 창병에 +20%. 느리지만 화력이 뛰어나다.' },
   deunggabyung: { name: '등갑병', hanja: '藤甲兵', role: '철벽 방어', atk: 28, def: 31, mov: 3, rng: 1, mp: 12,
-    skills: ['bangpae'], weapon: 'sword', desc: '등나무 갑옷의 중장 보병. 느리지만 좀처럼 뚫리지 않는다.' },
+    skills: ['bangpae'], weapon: 'sword', desc: '등나무 갑옷의 중장 보병. 궁병에게 +20%, 느리지만 좀처럼 뚫리지 않는다.' },
   gunakdae: { name: '군악대', hanja: '軍樂隊', role: '사기·지원', atk: 12, def: 12, mov: 4, rng: 2, mp: 60,
     skills: ['gomu', 'jihwi'], weapon: 'drum', desc: '북과 나팔로 아군의 사기를 올린다. 직접 싸움은 약하다.' },
   pocha: { name: '포차', hanja: '砲車', role: '공성 병기', atk: 46, def: 26, mov: 2, rng: 5, minRng: 2, mp: 10,
@@ -181,6 +181,36 @@ SK.affinity = function (cls, ch) {
   if ((cls === 'gungsu' || cls === 'gunggi') && (ch === 'M' || ch === 'G')) { rng = 1; label = '고지 사격 +1'; }
   if ((cls === 'pocha' || cls === 'balseokcha') && (ch === 'G' || ch === 'D')) { def = 0.15; label = '공성 진지'; }
   return { atk, def, rng, label };
+};
+
+/* ───────────── 병과 삼각 상성 (v5.15)
+   조조전식 상성: 보병은 활을 든 궁병에게 달라붙고, 궁병은 느린 기병·책략계를 저격하고,
+   기병·야수는 보병을 덮치고, 창병은 기병·야수를 말째로 받아넣는다.
+   창병은 궁병에게 약하다(궁병→창병 +20%).
+   반환: { mul, label } — 배율 1.0이면 상성 없음. */
+SK.CLASS_GROUPS = {
+  보병: ['geombyung', 'deunggabyung', 'mudoga'],
+  궁병: ['gungsu', 'yeonnobyung', 'gunggi'],
+  기병: ['gibi', 'yasubyung'],
+  창병: ['changbyung'],
+  책략: ['chaeksa', 'dosa', 'pungsusa', 'muhui', 'gunakdae'],
+};
+SK.TRIANGLE = {
+  geombyung: { gungsu: 1.2, yeonnobyung: 1.2, label: '보병→궁병' },
+  deunggabyung: { gungsu: 1.2, yeonnobyung: 1.2, label: '보병→궁병' },
+  mudoga: { gungsu: 1.2, yeonnobyung: 1.2, label: '보병→궁병' },
+  gungsu: { gibi: 1.18, yasubyung: 1.18, changbyung: 1.2, chaeksa: 1.18, dosa: 1.18, pungsusa: 1.18, muhui: 1.18, gunakdae: 1.18, label: '궁병→기병·책략' },
+  yeonnobyung: { gibi: 1.18, yasubyung: 1.18, changbyung: 1.2, chaeksa: 1.18, dosa: 1.18, pungsusa: 1.18, muhui: 1.18, gunakdae: 1.18, label: '궁병→기병·책략' },
+  gunggi: { gibi: 1.18, yasubyung: 1.18, changbyung: 1.2, chaeksa: 1.18, dosa: 1.18, pungsusa: 1.18, muhui: 1.18, gunakdae: 1.18, label: '궁병→기병·책략' },
+  gibi: { geombyung: 1.18, deunggabyung: 1.18, mudoga: 1.18, label: '기병→보병' },
+  yasubyung: { geombyung: 1.18, deunggabyung: 1.18, mudoga: 1.18, label: '기병→보병' },
+  changbyung: { gibi: 1.35, yasubyung: 1.35, label: '창병→기병' },
+};
+SK.triangleMul = function (aCls, dCls) {
+  const row = SK.TRIANGLE[aCls];
+  const mul = row && row[dCls];
+  if (!mul) return { mul: 1, label: '' };
+  return { mul, label: `${row.label} +${Math.round((mul - 1) * 100)}%` };
 };
 
 /* ───────────── 지역 구분 (v4.2) ─────────────
@@ -823,15 +853,20 @@ SK.genPoolGroupOf = function (g) {
    · 6명에 못 미치는 소세력은 같은 인물 풀에서 채워 초반 내정 5칸을 굴릴 수 있게 한다
    · 결과는 f.startGenerals 에 남겨 두고, 시나리오 카드·인게임이 같은 수를 쓴다 */
 SK.START_ROSTER_MIN = 6;
+/* v5.15 — 1막(190) 시작 인원. 동탁·원소·조조·손견·유표는 12명,
+   유비는 유비·관우·장비·손건·미축·간옹·미방 7명 그대로, 나머지 세력은 최소 6명. */
+SK.ACT1_ROSTER_TARGET = { dongzhuo: 12, yuanshao: 12, caocao: 12, sunjian: 12, liubiao: 12, liubei: 7 };
 SK.padStartRosters = function (facs, year) {
   if (!facs || !SK.GENERALS.length) return facs;
   const MIN = SK.START_ROSTER_MIN;
+  const TARGET = Number(year) === 190 ? (SK.ACT1_ROSTER_TARGET || {}) : {};
   const used = new Set();
   const order = Object.keys(facs).filter((k) => k !== 'neutral');
   const rankOf = { S: 0, A: 1, B: 2, C: 3 };
   order.forEach((fid) => {
     const f = facs[fid];
     const names = [];
+    const cap = TARGET[fid] || 14;
     const add = (n, first) => {
       const nm = SK.normName(n);
       const g = nm ? SK.GEN_BY_NAME[nm] : null;
@@ -842,14 +877,17 @@ SK.padStartRosters = function (facs, year) {
       names.push(nm); used.add(g.id);
     };
     if (f.lord) add(f.lord, true);
-    (f.generals || []).forEach((n) => add(n));
-    ((SK.EARLY_RETAINERS || {})[fid] || []).forEach((n) => { if (names.length < 14) add(n); });
+    (f.generals || []).forEach((n) => { if (names.length < cap) add(n); });
+    ((SK.EARLY_RETAINERS || {})[fid] || []).forEach((n) => { if (names.length < cap) add(n); });
     f._start = names;
+    f._want = TARGET[fid] || MIN;
   });
-  order.slice().sort((a, b) => facs[a]._start.length - facs[b]._start.length).forEach((fid) => {
+  /* 모자란 세력을 먼저 채운다 (부족분이 큰 순서) */
+  order.slice().sort((a, b) => (facs[b]._want - facs[b]._start.length) - (facs[a]._want - facs[a]._start.length)).forEach((fid) => {
     const f = facs[fid];
     const names = f._start;
-    if (names.length >= MIN) return;
+    const want = f._want || MIN;
+    if (names.length >= want) return;
     const grp = SK.factionGroup(fid);
     const pool = SK.GENERALS.filter((g) => SK.genPoolGroupOf(g) === grp && !used.has(g.id))
       .sort((a, b) => {
@@ -862,7 +900,7 @@ SK.padStartRosters = function (facs, year) {
         if (ra !== rb) return ra - rb;
         return (b.war + b.intel) - (a.war + a.intel);
       });
-    for (let i = 0; i < pool.length && names.length < MIN; i++) {
+    for (let i = 0; i < pool.length && names.length < want; i++) {
       names.push(pool[i].name); used.add(pool[i].id);
     }
   });
@@ -871,6 +909,7 @@ SK.padStartRosters = function (facs, year) {
     f.startGenerals = (f._start || []).slice();
     f.generals = f.startGenerals.slice();
     delete f._start;
+    delete f._want;
   });
   return facs;
 };
@@ -1606,25 +1645,64 @@ function fordMap() {
   return g2s(g);
 }
 
-function ambushMap() {
+/* v5.15 — 밀림 매복전: 숲이 판을 덮고 오솔길 하나만 뚫려 있다.
+   야수병·산적이 길목을 끊으면 보병은 걷기만 해도 지친다. */
+function forestMap() {
   const g = blankGrid();
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) if ((x * 7 + y * 13) % 5 < 3) g[y][x] = 'F';
-  const path = [[16, 3], [14, 4], [13, 6], [11, 7], [10, 9], [8, 10], [7, 12], [5, 13], [3, 15]];
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = 'F';
+  const path = [[8, 17], [9, 15], [7, 14], [8, 12], [10, 10], [9, 8], [7, 7], [8, 5], [10, 4], [9, 2], [9, 0]];
   let prev = path[0];
-  const carve = (y, x) => {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const ny = y + dy, nx = x + dx;
-      if (ny >= 0 && ny < 18 && nx >= 0 && nx < 18) g[ny][nx] = (dx === 0 && dy === 0) ? 'R' : 'P';
-    }
+  const carve = (y, x, ch) => {
+    if (y < 0 || y > 17 || x < 0 || x > 17) return;
+    g[y][x] = ch || 'R';
   };
   carve(prev[0], prev[1]);
   path.slice(1).forEach((p) => {
     const steps = Math.max(Math.abs(p[0] - prev[0]), Math.abs(p[1] - prev[1]));
-    for (let i = 1; i <= steps; i++) carve(Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps));
+    for (let i = 1; i <= steps; i++) {
+      carve(Math.round(prev[0] + ((p[0] - prev[0]) * i) / steps), Math.round(prev[1] + ((p[1] - prev[1]) * i) / steps));
+    }
     prev = p;
   });
-  paint(g, [[2, 2], [2, 3], [3, 2], [2, 4], [14, 2], [15, 2], [14, 3], [6, 6], [7, 6], [6, 7], [12, 12], [13, 12], [12, 13]], 'F');
-  paint(g, [[0, 0], [0, 1], [1, 0], [17, 17], [17, 16], [16, 17], [0, 17], [0, 16]], 'M');
+  /* 오솔길 옆 작은 공터 — 진형을 펼 수 있는 몇 안 되는 자리 */
+  paint(g, [[3, 15], [4, 15], [3, 14], [13, 13], [14, 13], [13, 12], [4, 8], [3, 8], [14, 6], [15, 6], [4, 3], [5, 3], [13, 2], [14, 2]], 'P');
+  /* 숲속 바위지대 */
+  paint(g, [[0, 0], [1, 0], [0, 1], [17, 17], [16, 17], [17, 16], [0, 17], [1, 17], [0, 16], [17, 0], [16, 0], [17, 1]], 'M');
+  return g2s(g);
+}
+
+/* v5.15 — 협곡·잔도전: 양쪽 절벽 사이 외길 하나. 창병·등갑병이 길목을 막고
+   궁수·연노가 절벽 그늘에서 쏜다. 가운데는 잔도(다리) 하나뿐이다. */
+function gorgeMap() {
+  const g = blankGrid();
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = (x < 6 || x > 11) ? 'M' : 'P';
+  /* 계곡 바닥의 외길 */
+  for (let y = 0; y < 18; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
+  for (let x = 7; x <= 10; x++) { g[15][x] = 'R'; g[2][x] = 'R'; }
+  /* 가운데 협곡(건널 수 없는 급류) + 잔도 하나 */
+  for (let y = 8; y <= 9; y++) { for (let x = 6; x <= 11; x++) g[y][x] = 'W'; }
+  g[8][8] = 'B'; g[9][8] = 'B'; g[8][9] = 'B'; g[9][9] = 'B';
+  g[8][6] = 'S'; g[9][6] = 'S'; g[8][11] = 'S'; g[9][11] = 'S';
+  /* 절벽 그늘의 숲 — 궁병이 앉을 자리 */
+  paint(g, [[3, 4], [4, 4], [3, 5], [13, 12], [14, 12], [13, 13], [2, 13], [3, 13], [14, 4], [15, 4], [2, 6], [15, 11]], 'F');
+  /* 바깥쪽 벽은 더 높은 산 */
+  paint(g, [[0, 0], [1, 0], [0, 1], [17, 17], [16, 17], [17, 16], [0, 17], [0, 16], [17, 0], [17, 1], [1, 17], [16, 0]], 'M');
+  return g2s(g);
+}
+
+/* v5.15 — 야영 기습전: 목책과 막사·보급품이 늘어선 적 진영을 기습한다.
+   막사 사이 좁은 통로와 군량 더미가 엄폐물 노릇을 한다. */
+function campMap() {
+  const g = blankGrid();
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) g[y][x] = 'P';
+  /* 진영 안길 */
+  for (let y = 0; y < 18; y++) { g[y][8] = 'R'; g[y][9] = 'R'; }
+  for (let x = 2; x <= 15; x++) { g[4][x] = 'R'; g[12][x] = 'R'; }
+  /* 진영 밖 숲·언덕 */
+  paint(g, [[0, 0], [1, 0], [0, 1], [0, 17], [1, 17], [0, 16], [17, 0], [16, 0], [17, 1], [17, 17], [16, 17], [17, 16], [2, 16], [3, 16], [14, 16], [15, 16]], 'F');
+  paint(g, [[0, 8], [1, 8], [0, 9], [17, 8], [16, 8], [17, 9], [0, 10], [17, 10]], 'M');
+  /* 막사 자리를 막는 목책 줄 (지나갈 수 없는 장애물 대신 진입 비용 2의 숲으로 표현) */
+  paint(g, [[5, 2], [6, 2], [11, 2], [12, 2], [5, 7], [6, 7], [11, 7], [12, 7], [5, 14], [6, 14], [11, 14], [12, 14]], 'F');
   return g2s(g);
 }
 
@@ -1637,7 +1715,10 @@ SK.MAPS = {
   fortress: fortressMap(),
   plain: plainMap(),
   ford: fordMap(),
-  ambush: ambushMap(),
+  forest: forestMap(),
+  ambush: forestMap(),   /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
+  gorge: gorgeMap(),
+  camp: campMap(),
 };
 
 /* v5.11 — 성 등급별 성벽 겹수 (소도시 1중 · 중도시 2중 · 대도시 3중) */
@@ -1656,19 +1737,23 @@ SK.siegeMapKey = function (rings) { return rings >= 3 ? 'siege3' : (rings === 2 
 SK.BATTLE_TYPES = {
   siege: { name: '공성전', hanja: '攻城戰', map: 'siege', desc: '성벽과 성문을 뚫어라',
     objective: '성문을 넘어 적을 전멸시켜라', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
-  naval: { name: '수전', hanja: '水戰', map: 'naval', desc: '강을 건너 적선을 무찔러라',
-    objective: '다리와 물길을 이용해 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
-  mountain: { name: '산전', hanja: '山戰', map: 'mountain', desc: '협곡의 길목을 점령하라',
-    objective: '허리 길을 따라 올라가 적을 전멸시켜라', skill: '산적은 산지·숲에서 강해집니다.' },
   fortress: { name: '요새전', hanja: '要塞戰', map: 'fortress', desc: '목책과 망루를 함락하라',
     objective: '목책의 성문을 부수고 적을 전멸시켜라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
-  /* v5.3 — 행군 요격전 5종 */
+  /* v5.3 — 행군 요격전 8종 (v5.15에서 밀림·협곡·야영 3종 추가) */
   plain: { name: '평야전', hanja: '', map: 'plain', img: 'plain', desc: '넓은 들에서 적 요격대와 맞붙는다',
     objective: '평야에서 적 요격대를 전멸시켜라', skill: '기병·무도가는 평지에서 강합니다.' },
   ford: { name: '도하전', hanja: '', map: 'ford', img: 'ford', desc: '강 건널목을 사이에 두고 맞선다',
     objective: '여울과 다리를 건너 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
-  ambush: { name: '매복전', hanja: '', map: 'ambush', img: 'mountain', desc: '숲길에서 기습을 받았다',
-    objective: '숲길 매복을 뚫고 적을 전멸시켜라', skill: '산적·야수병은 숲에서 강해집니다.' },
+  mountain: { name: '산전', hanja: '', map: 'mountain', img: 'mountain', desc: '산길을 사이에 두고 맞선다',
+    objective: '산허리 길을 따라 올라가 적을 전멸시켜라', skill: '산적·야수병은 산지에서 이동력이 +1입니다.' },
+  forest: { name: '밀림 매복전', hanja: '', map: 'forest', img: 'forest', desc: '숲길에서 기습을 받았다',
+    objective: '오솔길을 뚫고 복병을 전멸시켜라', skill: '산적·야수병은 숲에서 강하고 야수병은 숲에서 이동력 6급입니다.' },
+  gorge: { name: '협곡 잔도전', hanja: '', map: 'gorge', img: 'gorge', desc: '절벽 사이 외길에서 길목을 다툰다',
+    objective: '잔도를 건너 적을 전멸시켜라', skill: '창병·등갑병이 길목을 막고 궁수·연노가 절벽 그늘에서 쏩니다.' },
+  camp: { name: '야영 기습전', hanja: '', map: 'camp', img: 'camp', desc: '적 야영지를 기습했다',
+    objective: '막사와 보급로를 끊고 적을 전멸시켜라', skill: '기병·야수병의 돌격이 막사 사이에서 힘을 냅니다.' },
+  naval: { name: '수전', hanja: '', map: 'naval', img: 'naval', desc: '강을 건너 적선을 무찌르라',
+    objective: '다리와 물길을 이용해 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   /* v5.7 — 수성전: 아군이 성 안에서 적 침공군을 맞는다 (지도는 공성전을 뒤집어 쓴다) */
   defense: { name: '수성전', hanja: '', map: 'siege', desc: '성을 지켜 적을 물리쳐라',
     objective: '성을 지켜라 — 적을 전멸시켜라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
@@ -1699,6 +1784,9 @@ SK.enemyClassesFor = function (type, idx) {
     plain:    ['gibi', 'changbyung', 'geombyung', 'gungsu', 'mudoga', 'chaeksa', 'gibi', 'gungsu'],
     ford:     ['sujeok', 'gungsu', 'changbyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'geombyung', 'sujeok'],
     ambush:   ['sanjeok', 'yasubyung', 'mudoga', 'sanjeok', 'gungsu', 'chaeksa', 'yasubyung', 'sanjeok'],
+    forest:   ['sanjeok', 'yasubyung', 'yasubyung', 'sanjeok', 'mudoga', 'gungsu', 'chaeksa', 'sanjeok'],
+    gorge:    ['changbyung', 'deunggabyung', 'yeonnobyung', 'gungsu', 'changbyung', 'chaeksa', 'deunggabyung', 'balseokcha'],
+    camp:     ['gibi', 'geombyung', 'changbyung', 'gungsu', 'yasubyung', 'chaeksa', 'mudoga', 'yeonnobyung'],
   };
   const t = tables[type] || tables.siege;
   return t[idx % t.length];
@@ -1720,7 +1808,9 @@ SK.enemySlots = function (type, rings) {
   if (type === 'mountain') return [[16, 2], [14, 4], [11, 7], [10, 9], [8, 10], [13, 5], [15, 3], [9, 11]];
   if (type === 'plain') return [[4, 2], [8, 2], [12, 2], [6, 3], [10, 3], [13, 3], [3, 3], [15, 3]];
   if (type === 'ford') return [[5, 1], [8, 1], [11, 1], [6, 2], [9, 2], [12, 2], [7, 3], [13, 2]];
-  if (type === 'ambush') return [[14, 4], [12, 6], [10, 8], [8, 10], [6, 12], [13, 5], [11, 7], [9, 9]];
+  if (type === 'forest' || type === 'ambush') return [[9, 1], [8, 2], [10, 2], [7, 3], [10, 4], [9, 3], [8, 4], [11, 2]];
+  if (type === 'gorge') return [[8, 1], [9, 1], [8, 2], [9, 3], [8, 4], [10, 3], [7, 2], [10, 5]];
+  if (type === 'camp') return [[4, 3], [8, 3], [13, 3], [6, 5], [11, 5], [9, 2], [12, 6], [5, 6]];
   return [[12, 4], [15, 4], [13, 6], [16, 7], [11, 7], [12, 9], [14, 5], [16, 3]];
 };
 SK.allySlots = function (type, rings) {
@@ -1730,7 +1820,9 @@ SK.allySlots = function (type, rings) {
   if (type === 'mountain') return [[2, 16], [3, 15], [4, 14], [5, 13], [6, 12], [7, 12], [3, 16], [4, 16], [5, 14], [6, 13]];
   if (type === 'plain') return [[4, 15], [8, 15], [12, 15], [6, 16], [10, 16], [14, 16], [3, 16], [16, 15], [7, 14], [11, 14]];
   if (type === 'ford') return [[4, 15], [7, 15], [10, 15], [13, 15], [5, 16], [8, 16], [11, 16], [6, 14], [12, 14], [14, 16]];
-  if (type === 'ambush') return [[3, 15], [5, 14], [7, 13], [9, 12], [11, 13], [4, 16], [6, 15], [8, 14], [10, 13], [12, 14]];
+  if (type === 'forest' || type === 'ambush') return [[8, 16], [9, 14], [7, 15], [10, 16], [6, 16], [8, 13], [11, 15], [5, 15], [9, 16], [7, 17]];
+  if (type === 'gorge') return [[8, 16], [9, 16], [8, 14], [9, 13], [8, 12], [10, 14], [7, 15], [10, 16], [9, 15], [7, 14]];
+  if (type === 'camp') return [[4, 16], [8, 16], [13, 16], [6, 14], [11, 14], [9, 15], [5, 13], [12, 13], [7, 16], [10, 16]];
   return [[3, 15], [5, 16], [7, 15], [9, 16], [4, 13], [6, 14], [8, 16], [2, 14], [10, 16], [5, 14]];
 };
 

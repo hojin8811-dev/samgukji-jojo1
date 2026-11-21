@@ -6883,10 +6883,10 @@
 
   SK.openDeploy = openDeploy;
 
-  /* ───────────── v5.6 — 행군 1~2일 · 도중 요격전 ─────────────
-     기준은 하비 ↔ 낭야 거리(가까운 이웃 성 한 칸)다. 그 거리(여유 5%)까지는 하루,
-     그보다 길면 이틀 — 이틀 길은 중간에 적 요격대(평야·산악·도하·수전·매복)를 만난다. */
-  const MARCH_MIN = 1, MARCH_MAX = 2;
+  /* ───────────── v5.6 — 행군 · 도중 요격전 ─────────────
+     v5.15 — 모든 성 공격은 무조건 2일(2턴) 행군. 첫날 길에서 요격전/대비를 거친다.
+     2일이 되는 순간 매 공격에 1일차 요격 기회가 생긴다. */
+  const MARCH_MIN = 2, MARCH_MAX = 2;
   const MARCH_REF = ['xiapi', 'langya'];
   function marchRefDist() {
     const A = CITY[MARCH_REF[0]], B = CITY[MARCH_REF[1]];
@@ -7033,17 +7033,29 @@
     return false;
   }
 
+  /* v5.15 — 요격전 8종을 지형에 맞게 고르되 전부 고르게 등장시킨다.
+     바다 = 수전 / 강 건너 = 도하전 / 관문·산길 = 산전·협곡 / 요새 = 요새전 /
+     그 밖의 육로 = 평야·밀림·야영. */
+  const INTERCEPT_POOL = ['plain', 'forest', 'camp', 'gorge', 'mountain', 'ford'];
+  function pickFrom(tbl, r) {
+    let acc = 0;
+    for (let i = 0; i < tbl.length; i++) { acc += tbl[i][1]; if (r < acc) return tbl[i][0]; }
+    return tbl[0][0];
+  }
   function interceptTypeFor(m) {
     const A = SK.CITY[m.origin], B = SK.CITY[m.target];
     if (A && (A.sea || []).indexOf(m.target) >= 0) return 'naval';
     const r = Math.random();
-    if (pathCrossesRiver(m.origin, m.target)) return r < 0.6 ? 'ford' : (r < 0.8 ? 'plain' : 'ambush');
-    if (B && B.type === 'pass') return r < 0.55 ? 'mountain' : 'ambush';
-    if (B && B.type === 'fortress') return r < 0.45 ? 'plain' : 'mountain';
-    if (r < 0.36) return 'plain';
-    if (r < 0.62) return 'ambush';
-    if (r < 0.84) return 'mountain';
-    return 'ford';
+    if (pathCrossesRiver(m.origin, m.target)) {
+      return pickFrom([['ford', 0.5], ['plain', 0.2], ['forest', 0.12], ['gorge', 0.08], ['camp', 0.1]], r);
+    }
+    if (B && B.type === 'pass') {
+      return pickFrom([['mountain', 0.4], ['gorge', 0.4], ['forest', 0.2]], r);
+    }
+    if (B && B.type === 'fortress') {
+      return pickFrom([['fortress', 0.3], ['plain', 0.25], ['camp', 0.25], ['mountain', 0.2]], r);
+    }
+    return pickFrom(INTERCEPT_POOL.map((k) => [k, k === 'plain' ? 0.24 : k === 'forest' ? 0.22 : k === 'camp' ? 0.2 : k === 'gorge' ? 0.14 : k === 'mountain' ? 0.12 : 0.08]), r);
   }
   SK.interceptTypeFor = interceptTypeFor;
 
@@ -7087,8 +7099,10 @@
     const f = SK.factionInfo(ts.owner);
     const troops = marchUnitTroops(m.units);
     if (s.pendingMarch.kind === 'intercept') {
-      const itype = m.interceptType || 'plain';
-      const idef = SK.BATTLE_TYPES[itype];
+      /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
+      let itype = m.interceptType || 'plain';
+      if (itype === 'ambush') itype = 'forest';
+      const idef = SK.BATTLE_TYPES[itype] || SK.BATTLE_TYPES.plain;
       const raiders = m.raiders || 2400;
       SK.modal({
         kicker: `행군 ${m.total - m.left}/${m.total}일 · ${SK.CITY[m.origin].name} → ${tc.name}`,
@@ -8373,6 +8387,9 @@
         <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
         <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. 화면을 끌면 18×18 전장을 넓게 볼 수 있습니다.</p></div>
         <div class="help-item"><b>책략과 군량</b><p>[책략]으로 병과별 기술을 쓰고, [군량]으로 HP를 회복합니다. [대기] 후 다음 부대로 넘어갑니다.</p></div>
+        <div class="help-item"><b>병과 상성</b><p>창병 → 기병·야수 <b>+35%</b> · 기병·야수 → 보병 <b>+18%</b> · 보병(검병·등갑병·무도가) → 궁병 <b>+20%</b> · 궁병 → 기병·책략계 <b>+18%</b>, 창병 <b>+20%</b>. 공격 전에 뜨는 [전투 예고]에 상성 배율과 반격 피해가 그대로 찍힙니다.</p></div>
+        <div class="help-item"><b>반격</b><p>맞은 쪽이 사거리 안이면 반격합니다. 피해는 <b>75%</b>(검병만 방패 맞다이 <b>90%</b>). 궁수·연노·포차처럼 최소 사거리가 있는 병과는 붙으면 반격하지 못합니다.</p></div>
+        <div class="help-item"><b>군악대·무희</b><p>매 턴 시작에 마름모 2칸 아군을 돕습니다 — 군악대는 <b>MP +4 · 공격 +8%</b>, 무희는 아군 <b>회피·치명 +8%</b>에 적 공격 <b>−8%</b>. 세워 두기만 해도 밥값을 합니다.</p></div>
         <div class="help-item"><b>소리</b><p>상단 ♪ 버튼으로 효과음을 끄고 켜고 할 수 있습니다. 첫 터치 때 소리가 준비됩니다.</p></div>
         <div class="help-item"><b>승리</b><p>적을 모두 쓰러뜨리면 성을 차지합니다. 성문·다리·숲의 지형 보정을 활용하세요.</p></div>
       </div>`,
