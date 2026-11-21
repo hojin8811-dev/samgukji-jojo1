@@ -139,5 +139,35 @@
     "id": 70,
     "unit": "assets/units/korea/ondal.webp",
     "portrait": "assets/portraits/korea/ondal.webp"
+  },
+  "서서": {
+    "id": 701,
+    "portrait": "assets/portraits/v520/seoseo.webp",
+    "unit": "assets/units/v520/seoseo.webp"
+  },
+  "사섭": {
+    "id": 702,
+    "portrait": "assets/portraits/v520/saseop.webp",
+    "unit": "assets/units/v520/saseop.webp"
+  },
+  "공손강": {
+    "id": 703,
+    "portrait": "assets/portraits/v520/gongsunkang.webp",
+    "unit": "assets/units/v520/gongsunkang.webp"
+  },
+  "한현": {
+    "id": 704,
+    "portrait": "assets/portraits/v520/hanhyeon.webp",
+    "unit": "assets/units/v520/hanhyeon.webp"
+  },
+  "이각": {
+    "id": 705,
+    "portrait": "assets/portraits/v520/igak.webp",
+    "unit": "assets/units/v520/igak.webp"
+  },
+  "이유": {
+    "id": 706,
+    "portrait": "assets/portraits/v520/iyu.webp",
+    "unit": "assets/units/v520/iyu.webp"
   }
 }

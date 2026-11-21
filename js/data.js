@@ -220,7 +220,9 @@ SK.triangleMul = function (aCls, dCls) {
 /* ───────────── 지역 구분 (v4.2) ─────────────
    한국 장수는 한국 세력·한국 성 주점에만, 중국(위·촉·오·군웅) 장수는 중국 세력·중국 성에만 쓴다.
    인물이 섞이면 삼국지와 삼한이 한 주점에 서는 꼴이 되므로 철저히 나눈다. */
-SK.KOREAN_FACTIONS = ['goguryeo', 'baekje', 'silla'];
+/* v5.20 — 조선(joseon)·고려(goryeo)도 한국 세력으로 묶는다.
+   그래야 완산·개성 주점에 한국 인재만 서고, 세력 계열(한국)이 3국과 같아진다. */
+SK.KOREAN_FACTIONS = ['goguryeo', 'baekje', 'silla', 'joseon', 'goryeo'];
 SK.FACTION_GROUP = {
   caocao: '위', cao_wei_pre: '위', cao_wei: '위',
   liubei: '촉', shu_han: '촉',
@@ -286,6 +288,11 @@ SK.FACTIONS = {
   /* v5.19 — 190년 1막 형남·남만 세력. 22 → 24세력 */
   hanxuan: { name: '한현군', mark: '현', color: '#A21CAF', light: '#f2d6f6', lord: '한현' },
   meng_huo: { name: '맹획군', mark: '맹', color: '#C2410C', light: '#f8dccb', lord: '맹획' },
+  /* v5.20 — 1막 시공초월 한국 5세력: 조선(완산)·고려(개성)·사섭군(남해)·공손강군(요동) */
+  joseon: { name: '조선', mark: '조', color: '#991B1B', light: '#f6d4d4', lord: '이성계' },
+  goryeo: { name: '고려', mark: '려', color: '#6B21A8', light: '#e7d7f3', lord: '왕건' },
+  shi_xie: { name: '사섭군', mark: '사', color: '#A16207', light: '#efe1bd', lord: '사섭' },
+  gongsunkang: { name: '공손강군', mark: '강', color: '#78350F', light: '#eadbc9', lord: '공손강' },
 };
 
 /* 세력 id → 한 글자 한국어 표식 (깃발·배지에 쓴다, 없으면 이름 첫 글자) */
@@ -299,6 +306,8 @@ SK.FACTION_MARK = {
   lvbu: '여', zhangjiao: '황',
   /* v5.19 — 한현군 '현'(한수군 '한'과 겹치지 않게) · 남만 맹획군 '맹' · 4막 남중 호족 '중' */
   hanxuan: '현', nanjung: '중',
+  /* v5.20 — 조선 '조' · 고려 '려' (사섭군 '사'·공손강군 '강'은 기존 표식 그대로) */
+  joseon: '조', goryeo: '려',
 };
 
 /* 세력 표식 — 한 글자 한국어 (data에 mark가 없으면 이름 첫 글자) */
@@ -332,6 +341,9 @@ SK.FACTION_COLOR = {
      4막 남중 호족(meng_huo → nanjung)은 기존 올리브를 그대로 쓴다. */
   hanxuan: '#A21CAF', meng_huo: '#C2410C', nanjung: '#4D7C0F',
   kongrong: '#475569', liuyao: '#0891B2', yanbaihu: '#1E40AF', wanglang: '#4D7C0F',
+  /* v5.20 — 1막 한국 5세력 색: 조선 진홍(#991B1B), 고려 보라(#6B21A8).
+     완산·개성에서 이웃한 백제(자주빛)·신라(청록)·고구려(남보라)와 ΔE 30 이상으로 갈린다. */
+  joseon: '#991B1B', goryeo: '#6B21A8',
 };
 
 SK.factionInfo = function (key) {
@@ -459,6 +471,10 @@ SK.EXTRA_GENERALS = {
   '동도나': { job: '창병', tier: 'B', war: 73, intel: 40, lead: 55, birth: 170, debut: 195 },
   '금환삼결': { job: '창병', tier: 'B', war: 78, intel: 30, lead: 56, birth: 170, debut: 195 },
   '망아장': { job: '야수병', tier: 'C', war: 70, intel: 28, lead: 52, birth: 172, debut: 195 },
+  /* v5.20 — 사섭군(남해)·공손강군(요동) 보강 인물 (generals.json에 없는 이름만) */
+  '사광': { job: '창병', tier: 'B', war: 63, intel: 58, lead: 58, birth: 168, debut: 190 },
+  '환린': { job: '검병', tier: 'B', war: 72, intel: 52, lead: 60, birth: 165, debut: 190 },
+  '유의': { job: '궁수', tier: 'B', war: 64, intel: 62, lead: 59, birth: 158, debut: 184 },
 };
 
 /* 한자 인명 → 한국어 표기 */
@@ -482,6 +498,7 @@ SK.EARLY_RETAINERS = {
   liubiao: ['유표', '괴량', '괴월', '괴도', '변희', '채모', '황조', '문빙', '장윤', '유벽', '유훈', '유종'],
   liuyan: ['유언', '번민', '장임', '엄안', '황권', '법정', '이엄', '곽준', '맹달', '오의', '오란'],
   mateng: ['마등', '마초', '마대', '방덕', '마휴', '마철', '성의'],
+  /* v5.20 — 공손공은 요동 공손강군으로 옮기고 북평은 공손속으로 채운다 */
   gongsunzan: ['공손찬', '엄강', '선우보', '전해', '공손속', '관정'],
   taoqian: ['도겸', '미축', '미방', '진규', '조표'],
   hansui: ['한수', '염행', '양추', '이감'],
@@ -506,6 +523,9 @@ SK.EARLY_RETAINERS = {
   liuzhang: ['유장', '장임', '엄안', '황권', '법정', '맹달', '오의', '오란', '이엄'],
   gongsunkang: ['공손강', '공손도', '공손공'],
   shi_xie: ['사섭', '사흠', '사휘', '사일'],
+  /* v5.20 — 1막 조선·고려 (f.generals로 고정되지만, 시나리오 없이 시작할 때도 같은 식구가 서게) */
+  joseon: ['이성계', '세종대왕', '이순신', '정도전', '정몽주', '권율', '김시민', '정약용', '김종서', '곽재우'],
+  goryeo: ['왕건', '강감찬', '서희', '윤관', '양규', '최영', '척준경', '신숭겸', '배현경', '박서'],
   /* v5.19 — 4막 남중 호족은 id를 nanjung으로 옮겼다(1막 남만 맹획군과 이름이 겹치지 않게) */
   nanjung: ['남중 호족', '옹개', '고정', '주포'],
   /* v5.19 — 190년 1막 형남 한현군(장사) · 남만 맹획군(운남) */
@@ -903,6 +923,9 @@ SK.padStartRosters = function (facs, year) {
   const used = new Set();
   const order = Object.keys(facs).filter((k) => k !== 'neutral');
   const rankOf = { S: 0, A: 1, B: 2, C: 3 };
+  /* v5.20 — 군주급은 소세력 보충 풀에서 뺀다.
+     (왕랑군에 사섭, 엄백호군에 공손도가 끌려오던 문제 — 남의 나라 군주가 남의 성에 눌러앉는 꼴) */
+  const lordNames = new Set(order.map((fid) => SK.normName(facs[fid].lord)).filter(Boolean));
   order.forEach((fid) => {
     const f = facs[fid];
     const names = [];
@@ -931,7 +954,8 @@ SK.padStartRosters = function (facs, year) {
     const want = f._want || MIN;
     if (names.length >= want) return;
     const grp = SK.factionGroup(fid);
-    const pool = SK.GENERALS.filter((g) => SK.genPoolGroupOf(g) === grp && !used.has(g.id))
+    const pool = SK.GENERALS.filter((g) => SK.genPoolGroupOf(g) === grp && !used.has(g.id)
+      && g.job !== '군주' && !lordNames.has(g.name))
       .sort((a, b) => {
         const da = Number(a.debutYear) || 0, db = Number(b.debutYear) || 0;
         const ta = da <= year ? 0 : da <= year + 15 ? 1 : 2;

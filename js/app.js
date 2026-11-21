@@ -483,7 +483,7 @@
   /* 세력 하나가 거느릴 장수 수 — 큰 세력은 12~25명, 작은 군웅은 6~10명 */
   const MAJOR_FACTIONS = ['dongzhuo', 'yuanshao', 'caocao', 'liubei', 'sunjian', 'sunquan', 'yuanshu',
     'liubiao', 'liuyan', 'mateng', 'gongsunzan', 'taoqian', 'liuzhang', 'liuzong',
-    'cao_wei_pre', 'cao_wei', 'shu_han', 'sun_wu', 'goguryeo', 'baekje', 'silla'];
+    'cao_wei_pre', 'cao_wei', 'shu_han', 'sun_wu', 'goguryeo', 'baekje', 'silla', 'joseon', 'goryeo'];
   function rosterTarget(fid, nCities) {
     const base = 10 + nCities * 2;
     if (MAJOR_FACTIONS.indexOf(fid) >= 0) return Math.max(12, Math.min(25, base));
