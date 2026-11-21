@@ -343,9 +343,10 @@
     "grade": "전설",
     "statBonus": {
       "intel": 14,
-      "leadership": 4
+      "leadership": 4,
+      "rng": 1
     },
-    "effect": "지력 +14, 책략 명중률 +18%, 사정거리 +1",
+    "effect": "지력 +14, 책략 명중률 +18%, 사거리 +1(원거리 병과 한정)",
     "dropHint": "제갈량·오장원 또는 남만 정벌"
   },
   {

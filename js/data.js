@@ -823,7 +823,14 @@ SK.applyClassData = function (list) {
     SK.TB[cls] = Object.assign({ siege: 0, naval: 0, mountain: 0, fortress: 0 }, d.terrainBonus || {});
     if (d.promotions && d.promotions.length) {
       SK.PROMO[cls] = SK.PROMO[cls] || { names: [], at: [10, 20, 30], skills: [] };
-      SK.PROMO[cls].names = [C.name].concat(d.promotions.slice(0, 3));
+      /* v5.29 — classes.json의 승급 이름은 '기본 병과명을 뺀' 목록이다.
+         예전에는 4개 중 앞 3개만 셌기 때문에 마지막 이름(천하제왕·철갑기병 등)이
+         Lv.30에도 닿지 못하고 데이터에만 남았다. 이제 3단계(Lv.10/20/30)가
+         마지막 이름까지 닿게 매긴다 — 4개가 오면 1·2·최종을 쓴다. */
+      const pn = d.promotions.slice(0, 4);
+      const three = pn.length >= 4 ? [pn[0], pn[1], pn[3]] : pn.slice(0, 3);
+      SK.PROMO[cls].names = [C.name].concat(three);
+      SK.PROMO[cls].at = [10, 20, 30];
     }
     C.skills = (d.skills || []).map((sk, i) => {
       const key = 'c_' + cls + '_' + i;
@@ -1379,9 +1386,9 @@ SK.setTreasures = function (list) {
 };
 SK.treasureSlot = function (t) { return SK.TREASURE_SLOTS[t.type] || 'manual'; };
 SK.treasureStats = function (t) {
-  return { war: t.statBonus.war || 0, intel: t.statBonus.intel || 0, leadership: t.statBonus.leadership || 0,
-    charm: t.statBonus.charm || 0, politics: t.statBonus.politics || 0, move: t.statBonus.move || 0,
-    rng: t.statBonus.rng || 0 };
+  return { war: (t.statBonus || {}).war || 0, intel: (t.statBonus || {}).intel || 0, leadership: (t.statBonus || {}).leadership || 0,
+    charm: (t.statBonus || {}).charm || 0, politics: (t.statBonus || {}).politics || 0, move: (t.statBonus || {}).move || 0,
+    rng: (t.statBonus || {}).rng || 0 };
 };
 SK.equipBonus = function (h) {
   const out = { war: 0, intel: 0, leadership: 0, charm: 0, politics: 0, move: 0, rng: 0 };
@@ -1394,6 +1401,145 @@ SK.equipBonus = function (h) {
   });
   return out;
 };
+
+/* ───────────── v5.29 — 보물 효과 문구 → 전장 수치 ─────────────
+   지금까지 151종 보물의 effect 문구 중 실제로 쓰인 것은 무력·통솔·지력·정치·매력·이동·사거리
+   뿐이고, "돌파 피해 +15%" 같은 정성 효과는 화면 글자로만 남아 있었다.
+   여기서 effect 문구를 절(쉼표) 단위로 나눠 전장 계산이 쓰는 값으로 바꾼다.
+   · 적용 훅: atk 공격력 / def 방어력 / defWall 성벽 위 방어력 / dmg 주는 피해 /
+     taken 받는 피해 / magic 책략 위력 / magicTaken 받는 책략 피해 /
+     crit 치명타 확률 / critDmg 치명타 피해 / critRes 치명타 저항 / evade 회피 /
+     counter 반격 피해 / heal 회복량 / first 첫 공격(선제) / mp 턴당 기력 / rough 험지 이동
+   · 환산(게임에 그 판정이 없어 같은 눈금으로 옮긴 것 — UI에도 그대로 적는다):
+     명중률 → 주는 피해 %, 책략 명중률 → 책략 위력 %, 적 방어력 -N% → 주는 피해 +N%,
+     받는 치명타 피해 -N% → 치명타 저항 +N%, 아군 사기 +N → 공격력 +(N/2)%,
+     반사 피해 → 반격 피해 +N%, 피해 경감/감소 → 받는 피해 -(N)%
+   · 원문에 숫자가 없는 문구는 값을 지어내지 않고 fxNotes(미적용)로 남겨 UI에 그대로 보여 준다. */
+SK.TREASURE_FX_KEYS = ['atk', 'def', 'defWall', 'dmg', 'taken', 'magic', 'magicTaken',
+  'crit', 'critDmg', 'critRes', 'evade', 'counter', 'heal', 'first', 'mp', 'mpCost', 'exp'];
+SK.TREASURE_FX_LABEL = {
+  atk: '공격력', def: '방어력', defWall: '성벽 위 방어력', dmg: '주는 피해', taken: '받는 피해',
+  magic: '책략 위력', magicTaken: '받는 책략 피해', crit: '치명타 확률', critDmg: '치명타 피해',
+  critRes: '치명타 저항', evade: '회피', counter: '반격 피해', heal: '회복량',
+  first: '첫 공격 피해', mp: '턴당 기력', mpCost: '책략 기력 소모', exp: '경험치 획득',
+  rough: '험지 이동',
+};
+SK.TREASURE_FX_RULES = [
+  [/^(무력|지력|통솔|매력|정치|이동력|사거리|사정거리)\s*\+\s*\d+/, 'stat'],
+  [/험지\s*이동\s*페널티\s*무효|지형\s*제약\s*경감|이동\s*페널티\s*경감|지형\s*이동\s*페널티/, 'rough'],
+  [/사기\s*회복/, 'heal'],
+  [/기력\s*회복/, 'mp'],
+  [/기력\s*소모|책략\s*소비/, 'mpCostAbs'],
+  [/경험치\s*획득|부대\s*경험치/, 'exp'],
+  [/회복량|병력.*회복/, 'heal'],
+  [/사기\s*감소|사기\s*저하|사기\s*유지|사기\s*안정|사기\s*최대치/, 'note'],
+  [/(아군|전군|세력\s*전체)[^,]*사기\s*\+\s*\d+|사기\s*\+\s*\d+/, 'atkHalf'],
+  [/물리·책략\s*피해/, 'bothTaken'],
+  [/책략\s*역풍|책략\s*저항|저주.*저항|받는\s*책략\s*피해|화공.*불길\s*피해|책략\s*피해\s*-/, 'magicTaken'],
+  [/^화계\s*피해\s*\+/, 'magicPenalty'],
+  [/치명타\s*저항|치명타\s*피해\s*-\s*\d+|헤드샷/, 'critRes'],
+  [/치명타\s*확률|치명타율|회심|치명타·책략/, 'crit'],
+  [/치명타\s*피해/, 'critDmg'],
+  [/회피/, 'evade'],
+  [/반사/, 'counter'],
+  [/반격/, 'counter'],
+  [/선제|기습\s*성공률/, 'first'],
+  [/투사체\s*방어|창병·보병\s*돌격\s*방어/, 'def'],
+  [/성벽·주둔지\s*방어력/, 'defWall'],
+  [/공격력·방어력\s*\+\s*\d+/, 'atkDef'],
+  [/방어력\s*\+\s*\d+|방어\s*\+\s*\d+/, 'def'],
+  [/무기\s*해제|방어력\s*약화/, 'note'],
+  [/책략\s*명중|책략\s*크리|책략\s*위력|화계·풍계|도술·기상|안개·화계|기상·바람|야간·기상|고대\s*설화/, 'magic'],
+  [/명중률/, 'dmg'],
+  [/관통|방어력\s*무시|방어력\s*-\s*\d+/, 'dmgAbs'],
+  [/공격력\s*[+\-]\s*\d+/, 'atk'],
+  [/피해\s*경감|피해\s*감소/, 'taken'],
+  [/물리\s*피해\s*-\s*\d+|받는\s*(물리|원거리|투사체|화살|낙석|근접|돌격|충격|기습)?\s*피해|전면\s*(물리|근접)\s*피해|화살·투석\s*피해|투사체·낙석\s*피해|측면·후면/, 'taken'],
+  [/방어력/, 'def'],
+  [/피해\s*-/, 'taken'],
+  [/피해\s*\+/, 'dmg'],
+];
+SK.parseTreasureFx = function (effect) {
+  const fx = { rough: false };
+  SK.TREASURE_FX_KEYS.forEach((k) => { fx[k] = 0; });
+  const used = [], notes = [];
+  String(effect || '').split(/,|\s·\s/).forEach((raw) => {
+    const cl = raw.trim();
+    if (!cl) return;
+    let hook = null;
+    for (let i = 0; i < SK.TREASURE_FX_RULES.length; i++) {
+      if (SK.TREASURE_FX_RULES[i][0].test(cl)) { hook = SK.TREASURE_FX_RULES[i][1]; break; }
+    }
+    const m = cl.match(/([+\-])\s*(\d+)/);
+    const v = m ? (m[1] === '+' ? 1 : -1) * Number(m[2]) : null;
+    if (hook === 'stat') return;
+    if (hook === 'note' || !hook) { notes.push(cl); return; }
+    if (hook === 'rough') { fx.rough = true; used.push({ cl, hook, v: null }); return; }
+    if (v == null) { notes.push(cl); return; }
+    if (hook === 'magicPenalty') { fx.magicTaken -= Math.abs(v); used.push({ cl, hook: 'magicTaken', v: -Math.abs(v) }); return; }
+    if (hook === 'bothTaken') { fx.taken += Math.abs(v); fx.magicTaken += Math.abs(v); used.push({ cl, hook: 'both', v }); return; }
+    if (hook === 'atkDef') { fx.atk += v; fx.def += v; used.push({ cl, hook: 'atkDef', v }); return; }
+    if (hook === 'atkHalf') { fx.atk += Math.round(v / 2); used.push({ cl, hook: 'atk', v: Math.round(v / 2) }); return; }
+    if (hook === 'mpCostAbs') { fx.mpCost = Math.max(-60, Math.min(60, fx.mpCost + Math.abs(v))); used.push({ cl, hook: 'mpCost', v: Math.abs(v) }); return; }
+    const clampV = (x) => Math.max(-60, Math.min(60, x));
+    if (hook === 'taken' || hook === 'magicTaken' || hook === 'critRes') {
+      fx[hook] = clampV(fx[hook] + Math.abs(v));
+    } else if (hook === 'dmgAbs') {
+      fx.dmg = clampV(fx.dmg + Math.abs(v));
+    } else if (fx[hook] != null) {
+      fx[hook] = clampV(fx[hook] + v);
+    } else { notes.push(cl); }
+    used.push({ cl, hook, v });
+  });
+  return { fx, used, notes };
+};
+SK.TREASURE_FX_CACHE = {};
+SK.treasureFx = function (t) {
+  if (!t) return { fx: {}, used: [], notes: [] };
+  const key = t.id + ':' + t.effect;
+  if (!SK.TREASURE_FX_CACHE[key]) SK.TREASURE_FX_CACHE[key] = SK.parseTreasureFx(t.effect);
+  return SK.TREASURE_FX_CACHE[key];
+};
+/* 장수가 장착한 보물의 전장 수치를 합산한다 (battle.js makeAlly가 부대에 넘긴다) */
+SK.heroTreasureFx = function (h) {
+  const out = { rough: false };
+  SK.TREASURE_FX_KEYS.forEach((k) => { out[k] = 0; });
+  if (!h || !h.equip) return out;
+  Object.values(h.equip).forEach((id) => {
+    const t = SK.TREASURE_BY_ID[id];
+    if (!t) return;
+    const fx = SK.treasureFx(t).fx;
+    SK.TREASURE_FX_KEYS.forEach((k) => { out[k] += fx[k] || 0; });
+    if (fx.rough) out.rough = true;
+  });
+  SK.TREASURE_FX_KEYS.forEach((k) => { out[k] = Math.max(-60, Math.min(80, out[k])); });
+  return out;
+};
+/* 한 보물의 전장 적용 문구 — 보물 화면·장수 정보가 같은 함수를 쓴다 */
+SK.fxSumLine = function (fx, asArray) {
+  const parts = [];
+  if (fx) {
+    SK.TREASURE_FX_KEYS.forEach((k) => {
+      const v = fx[k] || 0;
+      if (!v) return;
+      const lab = SK.TREASURE_FX_LABEL[k];
+      if (k === 'taken' || k === 'magicTaken' || k === 'mpCost') parts.push(v > 0 ? `${lab} −${v}%` : `${lab} +${-v}%`);
+      else if (k === 'crit' || k === 'critDmg') parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%p`);
+      else if (k === 'mp') parts.push(`${lab} +${v}`);
+      else parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%`);
+    });
+    if (fx.rough) parts.push('험지 이동 페널티 무효');
+  }
+  return asArray ? parts : parts.join(' · ');
+};
+SK.treasureFxLine = function (t) {
+  const { fx } = SK.treasureFx(t);
+  return SK.fxSumLine(fx);
+};
+SK.treasureFxApplied = function (t) {
+  return SK.treasureFxLine(t) || '';
+};
+SK.treasureFxNotes = function (t) { return SK.treasureFx(t).notes || []; };
 
 /* ───────────── 76 거점 ─────────────
    [id, 이름, 한자, u, v, 유형, 세력, 지역] */

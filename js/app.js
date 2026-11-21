@@ -919,6 +919,9 @@
 
   SK.gainExp = function (h, amount, merit) {
     if (!h) return [];
+    /* v5.29 — 보물 '부대 경험치 획득량 +N%' (삼략육도 등) */
+    const expFx = (SK.heroTreasureFx ? SK.heroTreasureFx(h).exp : 0) || 0;
+    if (expFx) amount = Math.round((Number(amount) || 0) * (1 + Math.max(-0.6, Math.min(1.0, expFx / 100))));
     /* v5.10 — 따로 적지 않으면 경험치의 1/12이 공훈치로 따라온다 (전투·탐색·등용이 자연히 쌓인다) */
     const m = merit == null ? Math.max(1, Math.round((Number(amount) || 0) / 12)) : merit;
     if (m) SK.gainMerit(h, m);
@@ -1007,6 +1010,12 @@
       if (!s || s.version !== 5) return false;
       s.treasures = s.treasures || [];
       (s.heroes || []).forEach((h) => { h.equip = h.equip || {}; });
+      /* v5.29 — 옛 저장의 단일 침공 경고(invasionWarn)를 배열로 옮기고, 대기열도 정리한다 */
+      s.invasionQueue = (s.invasionQueue || []).filter((q) => q && s.cities && s.cities[q.target]);
+      if (s.invasionWarn && !Array.isArray(s.invasionWarn)) s.invasionWarns = [s.invasionWarn];
+      s.invasionWarns = (s.invasionWarns || []).filter((w) => w && s.cities && s.cities[w.target]);
+      s.invasionWarn = null;
+      if (s.pendingInvasion && (!s.cities[s.pendingInvasion.target] || s.cities[s.pendingInvasion.target].owner !== s.playerFaction)) s.pendingInvasion = null;
       // v4.2 저장 이관 — 훈련도·태수·군사·자동 내정 자리 만들기
       SK.CITY_LIST.forEach((c) => {
         const cs = s.cities && s.cities[c.id];
@@ -1325,6 +1334,8 @@
         if (left-- > 0) pendingWatch = setTimeout(tick, 700);
         return;
       }
+      /* v5.29 — 같은 달에 여러 성이 침공받으면 침공 대기열도 이어서 연다 */
+      if (SK.promoteInvasionQueue && SK.promoteInvasionQueue(s)) { if (left-- > 0) pendingWatch = setTimeout(tick, 220); return; }
       if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
       if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
       /* v5.28 — 같은 달 도착 대기열이 남아 있으면 다음 사건을 올린다 */
@@ -1347,7 +1358,8 @@
     SK.refreshHud();
     if (window.SKMap) { SKMap.init(); SKMap.refresh(); setTimeout(() => SKMap.relayout && SKMap.relayout(), 30); }
     /* v5.3 — 저장을 다시 열었을 때 남아 있는 행군·침공 사건을 이어서 보여 준다 */
-    if (SK.state && (SK.state.pendingMarch || SK.state.pendingInvasion)) armPendingWatch();
+    if (SK.state && (SK.state.pendingMarch || SK.state.pendingInvasion
+      || (SK.state.invasionQueue || []).length)) armPendingWatch();
     /* v5.16 — 모든 거점을 손에 넣었으면 천하통일 엔딩으로 */
     if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 620);
   };
@@ -2122,26 +2134,72 @@
   function openCityPicker() {
     const s = SK.state;
     const list = ownedCityList();
-    const rows = list.map((c) => {
+    /* v5.29 — 후반(20성 이상)에는 목록이 길어져 "어느 성을 먼저 봐야 하나"가 병목이 된다.
+       머리에 총계를 올리고, [전방 / 손볼 곳]으로 걸러 볼 수 있게 한다. */
+    const info = (c) => {
       const cs = s.cities[c.id];
       const gens = s.heroes.filter((h) => h.city === c.id && !h.marchId).length;
       const built = (cs.slots || []).filter((sl) => sl.key).length;
-      return `<button class="city-pick-row ${c.id === s.lastCity ? 'on' : ''}" data-c="${c.id}">
-        <span class="cp-lv" style="background:${SK.factionColor(PF())}">${cityLevel(cs)}</span>
-        <span class="cp-main"><b>${c.name}${c.id === s.playerCapital ? ' <em style="font-style:normal;font-size:8.5px;color:#8a5f2a">본성</em>' : ''}</b>
-          <span>${typeName(c.type)} · 병력 ${fmt(cs.troops)}/${fmt(cityCap(cs))} · 민심 ${Math.round(cs.loyalty)} · 장수 ${gens}명</span></span>
-        <span class="cp-cap">${built}시설</span>
-        <span class="cp-go">▸</span>
-      </button>`;
-    }).join('');
+      const front = (SK.allNeighbors(c.id) || []).some((n) => s.cities[n] && s.cities[n].owner !== PF() && s.cities[n].owner !== 'neutral');
+      const cap = cityCap(cs);
+      const wound = Math.round(cs.wounded || 0);
+      const need = [];
+      if (!gens) need.push('장수 없음');
+      else if (!cs.governor) need.push('태수 없음');
+      if (wound > 0) need.push(`부상병 ${fmt(wound)}`);
+      if (cap && (cs.troops || 0) < cap * 0.35) need.push('병력 부족');
+      if ((cs.food || 0) < 1200) need.push('군량 부족');
+      return { cs, gens, built, front, need };
+    };
+    const totals = list.reduce((a, c) => {
+      const cs = s.cities[c.id];
+      a.troops += Math.round(cs.troops || 0); a.food += Math.round(cs.food || 0); a.gold += Math.round(cs.gold || 0);
+      if (info(c).front) a.front += 1;
+      if (info(c).need.length) a.need += 1;
+      return a;
+    }, { troops: 0, food: 0, gold: 0, front: 0, need: 0 });
+    let mode = 'all';
     const m = SK.modal({
       kicker: '내 거점', title: `보유 ${list.length}곳`,
-      body: `<p class="talent-note">성을 누르면 그 성으로 바로 넘어갑니다. 성 이름을 눌러도 이 목록이 열립니다.</p><div class="city-pick">${rows}</div>`,
+      body: `<p class="talent-note">성을 누르면 그 성으로 바로 넘어갑니다. 성 이름을 눌러도 이 목록이 열립니다.</p>
+        <div class="cp-sum"><span>총 병력 <b>${fmt(totals.troops)}</b></span><span>금고 <b>${fmt(s.gold)}</b></span><span>창고 <b>${fmt(totals.food)}</b></span><span>전방 <b>${totals.front}</b>곳</span></div>
+        <div class="cp-chips"><button data-f="all" class="on">전체 ${list.length}</button><button data-f="front">전방 ${totals.front}</button><button data-f="need">손볼 곳 ${totals.need}</button></div>
+        <div class="city-pick" id="cp-list"></div>`,
       wide: true, actions: [{ label: '닫기' }],
     });
-    m.el.querySelectorAll('.city-pick-row').forEach((b) => {
-      b.onclick = () => { m.close(); SK.openCity(b.dataset.c); };
+    const draw = () => {
+      const rows = list.filter((c) => {
+        const it = info(c);
+        if (mode === 'front') return it.front;
+        if (mode === 'need') return it.need.length > 0;
+        return true;
+      }).sort((a, b) => {
+        const ia = info(a), ib = info(b);
+        return (ib.need.length - ia.need.length) || (Number(ib.front) - Number(ia.front)) || (a.id === s.playerCapital ? -1 : b.id === s.playerCapital ? 1 : 0);
+      }).map((c) => {
+        const it = info(c);
+        return `<button class="city-pick-row ${c.id === s.lastCity ? 'on' : ''}" data-c="${c.id}">
+        <span class="cp-lv" style="background:${SK.factionColor(PF())}">${cityLevel(it.cs)}</span>
+        <span class="cp-main"><b>${c.name}${c.id === s.playerCapital ? ' <em style="font-style:normal;font-size:8.5px;color:#8a5f2a">본성</em>' : ''}${it.front ? ' <em class="cp-front">전방</em>' : ''}</b>
+          <span>${typeName(c.type)} · 병력 ${fmt(it.cs.troops)}/${fmt(cityCap(it.cs))} · 민심 ${Math.round(it.cs.loyalty)} · 장수 ${it.gens}명</span>
+          ${it.need.length ? `<span class="cp-need">${it.need.join(' · ')}</span>` : ''}</span>
+        <span class="cp-cap">${it.built}시설</span>
+        <span class="cp-go">▸</span>
+      </button>`;
+      }).join('');
+      const box = m.el.querySelector('#cp-list');
+      if (!box) return;
+      box.innerHTML = rows || `<p class="tr-empty">${mode === 'front' ? '전방(적과 접한) 성이 없습니다.' : '지금 손볼 성이 없습니다.'}</p>`;
+      box.querySelectorAll('.city-pick-row').forEach((b) => { b.onclick = () => { m.close(); SK.openCity(b.dataset.c); }; });
+    };
+    m.el.querySelectorAll('[data-f]').forEach((b) => {
+      b.onclick = () => {
+        mode = b.dataset.f;
+        m.el.querySelectorAll('[data-f]').forEach((x) => x.classList.toggle('on', x === b));
+        draw();
+      };
     });
+    draw();
   }
   SK.openCityPicker = openCityPicker;
 
@@ -2314,7 +2372,11 @@
     if (eq.charm) bonus.push(`매력+${eq.charm}`);
     if (eq.move) bonus.push(`이동+${eq.move}`);
     if (eq.rng) bonus.push(`사거리+${eq.rng}`);
-    return `<div class="hi-equip">${rows}</div>${bonus.length ? `<p class="hi-bonus">보물 보정 — ${bonus.join(' · ')}</p>` : '<p class="hi-bonus">보물 보정 — 없음</p>'}`;
+    /* v5.29 — 보물 문구가 전장 계산에 실제로 넣는 값 (같은 파서를 쓴다) */
+    const fx = SK.heroTreasureFx ? SK.heroTreasureFx(g) : null;
+    const parts = fx ? SK.fxSumLine(fx, true) : [];
+    return `<div class="hi-equip">${rows}</div>${bonus.length ? `<p class="hi-bonus">보물 보정 — ${bonus.join(' · ')}</p>` : '<p class="hi-bonus">보물 보정 — 없음</p>'}
+      ${parts.length ? `<p class="hi-bonus hi-fx">전장 적용 — ${parts.join(' · ')}</p>` : ''}`;
   }
 
   function openTreasures(hero) {
@@ -2345,13 +2407,20 @@
         if (st.rng) b.push(`사거리+${st.rng}`);
         return b.join(' · ');
       };
+      /* v5.29 — 문구 → 전장 적용/미적용을 같은 파서 결과로 보여 준다 */
+      const fxLine = (t, cls) => {
+        const line = SK.treasureFxLine(t);
+        const notes = SK.treasureFxNotes(t);
+        if (!line && !notes.length) return '';
+        return `<span class="${cls}">${line ? `<b>전장 적용</b> ${line}` : ''}${notes.length ? `${line ? ' · ' : ''}<i>미적용: ${notes.join(' / ')}</i>` : ''}</span>`;
+      };
       const slots = Object.keys(SK.SLOT_NAMES).map((sl) => {
         const id = hero.equip[sl];
         const t = id ? SK.TREASURE_BY_ID[id] : null;
         return `<button class="tr-slot ${slot === sl ? 'sel' : ''}" data-slot="${sl}" style="--gc:${t ? SK.GRADE_COLOR[t.grade] : '#9a8a66'}">
           <span class="ts-type">${SK.SLOT_NAMES[sl]}</span>
           <b style="color:${t ? SK.GRADE_COLOR[t.grade] : '#9a8a66'}">${t ? t.name : '비어 있음'}</b>
-          ${t ? `<em class="ts-grade">${t.grade}</em><span class="ts-bonus">${bonusLine(t)}</span><span class="ts-effect">${t.effect}</span>` : ''}
+          ${t ? `<em class="ts-grade">${t.grade}</em><span class="ts-bonus">${bonusLine(t)}</span><span class="ts-effect">${t.effect}</span>${fxLine(t, 'ts-fx')}` : ''}
         </button>`;
       }).join('');
       const owned = new Set();
@@ -2359,15 +2428,19 @@
       const inv = s.treasures.map((id) => SK.TREASURE_BY_ID[id]).filter((t) => t && SK.treasureSlot(t) === slot);
       const list = inv.length ? inv.map((t) => `<button class="tr-item" data-id="${t.id}" style="--gc:${SK.GRADE_COLOR[t.grade]}">
           <span class="tr-grade">${t.grade}</span>
-          <div><b>${t.name}</b><span class="tr-bonus">${bonusLine(t)}</span><span class="tr-eff">${t.effect}</span></div>
+          <div><b>${t.name}</b><span class="tr-bonus">${bonusLine(t)}</span><span class="tr-eff">${t.effect}</span>${fxLine(t, 'tr-fx')}</div>
           <em>장착</em>
         </button>`).join('') : `<p class="tr-empty">${SK.SLOT_NAMES[slot]} 보물이 없습니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>`;
       const cur = hero.equip[slot] ? `<button class="btn btn-paper tr-unequip" id="tr-unequip">${SK.SLOT_NAMES[slot]} 해제</button>` : '';
+      const sum = SK.heroTreasureFx(hero);
+      const sumLine = SK.fxSumLine(sum);
       m.el.querySelector('#tr-body').innerHTML = `
         <div class="tr-slots">${slots}</div>
+        ${sumLine ? `<div class="tr-sum"><span>${hero.name}의 전장 적용 합계</span><b>${sumLine}</b></div>` : ''}
         <div class="tr-inv-head"><span>보유 ${SK.SLOT_NAMES[slot]}</span>${cur}</div>
         <div class="tr-list">${list}</div>
-        <p class="tr-note">보물은 무기·방어구·명마·병법서 한 자리씩 장착됩니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>`;
+        <p class="tr-note">보물은 무기·방어구·명마·병법서 한 자리씩 장착됩니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>
+        <p class="tr-note tr-fxnote"><b>전장 적용</b>은 공격·피해·방어·책략·치명·회피·반격·회복 계산에 실제로 들어가는 값입니다. 게임에 그 판정이 없는 문구는 같은 눈금으로 옮겼습니다 — 명중률→주는 피해, 책략 명중률→책략 위력, 적 방어력 −N%→주는 피해, 받는 치명타 피해 −N%→치명타 저항, 아군 사기 +N→공격력 +(N/2)%, 반사→반격 피해. <b>미적용</b>으로 표시된 문구는 아직 수치화하지 않아 전투에 영향을 주지 않습니다.</p>`;
       m.el.querySelectorAll('.tr-slot').forEach((b) => { b.onclick = () => { slot = b.dataset.slot; render(); }; });
       m.el.querySelectorAll('.tr-item').forEach((b) => {
         b.onclick = () => {
@@ -4417,18 +4490,29 @@
   function openTransport(cityId) {
     SK.setPurse(cityId);
     const s = SK.state;
-    const dests = SK.CITY_LIST.filter((c) => c.id !== cityId && s.cities[c.id].owner === PF());
+    const land = new Set(SK.neighbors(cityId) || []);
+    const sea = new Set(SK.seaNeighbors(cityId) || []);
+    const dests = SK.CITY_LIST.filter((c) => c.id !== cityId && s.cities[c.id].owner === PF())
+      /* v5.29 — 성이 20곳을 넘으면 목록이 길다. 바로 이어진 성을 먼저 보여 준다. */
+      .sort((a, b) => {
+        const va = land.has(a.id) ? 0 : sea.has(a.id) ? 1 : 2;
+        const vb = land.has(b.id) ? 0 : sea.has(b.id) ? 1 : 2;
+        if (va !== vb) return va - vb;
+        return (a.id === s.playerCapital ? -1 : b.id === s.playerCapital ? 1 : 0);
+      });
     if (!dests.length) { SK.toast('수송할 다른 아군 성이 없습니다.'); return; }
     const rows = dests.map((c) => {
       const st = s.cities[c.id];
+      const via = land.has(c.id) ? '육로' : sea.has(c.id) ? '해로' : '멀리';
+      const fill = cityCap(st) ? Math.round((st.troops || 0) / cityCap(st) * 100) : 0;
       return `<button class="target-card" data-c="${c.id}">
         <span class="tc-flag" style="background:${SK.factionColor(PF())}">${SK.markOf(SK.factionInfo(PF()))}</span>
-        <div class="tc-main"><b>${c.name}</b><span>${typeName(c.type)} · 병력 ${fmt(st.troops)} / ${fmt(cityCap(st))} · 장수 ${s.heroes.filter((h) => h.city === c.id).length}명</span></div>
+        <div class="tc-main"><b>${c.name}${c.id === s.playerCapital ? ' · 본성' : ''} <i class="tp-via">${via}</i></b><span>${typeName(c.type)} · 병력 ${fmt(st.troops)} / ${fmt(cityCap(st))} (${fill}%) · 장수 ${s.heroes.filter((h) => h.city === c.id).length}명</span></div>
         <span class="tc-go">▸</span></button>`;
     }).join('');
     const src = s.cities[cityId];
     const m = SK.modal({ kicker: `${CITY[cityId].name} 수송`, title: '어디로 보낼까',
-      body: `<p class="talent-note">이 성의 병력 ${fmt(src.troops)} / ${fmt(cityCap(src))} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 병력·금·군량을 보내고, 장수도 함께 전출시킬 수 있습니다.</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">이 성의 병력 ${fmt(src.troops)} / ${fmt(cityCap(src))} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 병력·금·군량을 보내고, 장수도 함께 전출시킬 수 있습니다.</p><p class="talent-note">보유 ${dests.length}성 — 가까운(육로·해로로 이어진) 성이 위에 옵니다.</p><div class="target-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }] });
     m.el.querySelectorAll('.target-card').forEach((b) => {
       b.onclick = () => { m.close(); openTransportAmount(cityId, b.dataset.c); };
@@ -6309,12 +6393,17 @@
           const t = SK.TREASURES[Math.floor(Math.random() * SK.TREASURES.length)];
           offer.treasure = { id: t.id, name: t.name };
         }
-        /* 적이 사로잡은 아군이 있으면 '포로 교환'을 제안해 온다 */
-        const hold = (s.captured || [])[0];
+        /* 적이 사로잡은 아군이 있으면 '포로 교환'을 제안해 온다
+           v5.29 — 제안자는 포로의 원 소속 세력(rec.by)이므로, 그 세력이 사로잡고 있는
+           아군이어야 맞바꿀 수 있다. 예전에는 s.captured[0]를 무조건 골라
+           다른 세력에 잡힌 아군을 교환 조건으로 내세우는 일이 있었다. */
+        const captorId = rec.by || '';
+        const hold = (s.captured || []).find((x) => x && x.uid && (!captorId || x.by === captorId));
         if (hold && Math.random() < 0.45) {
           offer.type = 'exchange';
           offer.exchangeUid = hold.uid;
           offer.exchangeName = hold.name;
+          offer.exchangeBy = hold.by;
         }
         /* v5.17 — 제안자는 포로의 "원 소속 세력". 그 세력이 멸망했으면 제안이 끊긴다. */
         offer.from = offerFromOf(rec, g);
@@ -6376,7 +6465,8 @@
     const m = SK.modal({
       kicker: `포로 관리 · ${s.prisoners.length}명`, title: '포로를 어떻게 할까', wide: true,
       body: `<p class="talent-note">억류한 포로는 <b>가둔 지 2개월까지는 탈출하지 못하고</b>, 3개월째부터 매달 기본 10%로 탈출합니다. 성의 <b>순찰소 Lv·치안</b>이 높으면 2~3%까지 떨어집니다. 매달 충성이 4~6씩 내려가고, 달마다 [설득]으로 등용을 시도할 수 있습니다. 상대 세력이 몸값을 제안하면 금·군량·보물을 받고 풀어 줄 수 있습니다.</p>
-        ${(s.captured || []).length ? `<p class="talent-note">적에게 사로잡힌 아군 — ${s.captured.map((c) => c.name).join(' · ')} (포로 교환으로 되찾을 수 있습니다)</p>` : ''}
+        ${(s.captured || []).length ? `<div class="cap-box"><p class="talent-note cap-head"><b>적에게 사로잡힌 아군 ${s.captured.length}명</b> — 그 세력이 낸 포로 교환 제안에 응하면 돌아옵니다.</p>
+          <div class="cap-list">${s.captured.map((c) => `<span class="cap-row"><b>${c.name}</b><em>${SK.factionName(c.by) || '알 수 없는 세력'}에 억류</em></span>`).join('')}</div></div>` : ''}
         <div class="prison-list">${rows || '<p class="tr-empty">포로가 없습니다. 전투에서 이기면 적 장수를 억류할 수 있습니다.</p>'}</div>`,
       actions: [{ label: '닫기' }],
     });
@@ -6426,6 +6516,14 @@
           if (!h || !(s.captured || []).some((x) => x.uid === offer.exchangeUid)) {
             rec.offer = null; SK.save();
             SK.toast('교환할 아군이 이미 없습니다 — 제안이 취소되었습니다.');
+            refresh();
+            return;
+          }
+          /* v5.29 — 제안한 세력이 그 아군을 아직 붙잡고 있는지 다시 본다 */
+          const capRec = (s.captured || []).find((x) => x.uid === offer.exchangeUid);
+          if (capRec && offer.exchangeBy && capRec.by !== offer.exchangeBy) {
+            rec.offer = null; SK.save();
+            SK.toast('그 아군은 다른 세력이 데려갔습니다 — 교환이 성립하지 않습니다.');
             refresh();
             return;
           }
@@ -7798,9 +7896,49 @@
     const battleLive = !!(window.SKBattle && SKBattle.debug && SKBattle.debug.battle);
     if (battleLive || (document.querySelector('#screen-battle.active') && btl && !btl.hidden)) return;
     if (promoteMarchQueue(s)) { setTimeout(() => { if (SK.openPendingMarch) SK.openPendingMarch(); }, 320); return; }
+    if (promoteInvasionQueue(s)) { setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320); return; }
     if (s.pendingInvasion && SK.openPendingInvasion) setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320);
   }
   SK.chainPendingEvents = chainPendingEvents;
+
+  /* ───────────── v5.29 — 침공 대기열 ─────────────
+     한 달에 두 성이 동시에 침공받거나, 수성전이 끝난 같은 달에 행군 도착이 겹칠 때
+     예전에는 pendingInvasion 하나가 덮어써져 뒤 침공이 사라졌다.
+     이제 침공은 invasionQueue에 쌓고 pendingInvasion 하나씩 순서대로 연다. */
+  function pushInvasion(s, inv) {
+    s = s || SK.state;
+    if (!s || !inv) return null;
+    s.invasionQueue = s.invasionQueue || [];
+    if (!s.pendingInvasion && !s.invasionQueue.length) { s.pendingInvasion = inv; return inv; }
+    s.invasionQueue.push(inv);
+    return inv;
+  }
+  SK.pushInvasion = pushInvasion;
+  function promoteInvasionQueue(s) {
+    s = s || SK.state;
+    if (!s || s.over || s.pendingInvasion || s.pendingMarch) return false;
+    if (window.SKBattle && SKBattle.debug && SKBattle.debug.battle) return false;
+    s.invasionQueue = s.invasionQueue || [];
+    /* 이미 내 성이 아닌 곳을 노리는 침공은 버리고 다음을 고른다 */
+    while (s.invasionQueue.length) {
+      const inv = s.invasionQueue.shift();
+      const ts = inv && s.cities[inv.target];
+      if (!ts || ts.owner !== PF()) continue;
+      s.pendingInvasion = inv;
+      SK.save();
+      return true;
+    }
+    SK.save();
+    return false;
+  }
+  SK.promoteInvasionQueue = promoteInvasionQueue;
+  /* 대기 중인 침공 수 (화면 표시용) */
+  function pendingInvasionCount(s) {
+    s = s || SK.state;
+    if (!s) return 0;
+    return (s.pendingInvasion ? 1 : 0) + ((s.invasionQueue || []).length);
+  }
+  SK.pendingInvasionCount = pendingInvasionCount;
 
   /* 한 달에 한 사건만 — 도착이 먼저, 없으면 요격. 같은 달 사건은 큐에 쌓아 차례로 연다 */
   function stepMarches(s) {
@@ -8018,6 +8156,31 @@
       }
     });
     if (gone.length) syncFactionCities(s);
+    /* v5.29 — 아군 포로(s.captured) 잔여 기록 정리.
+       이미 풀려났거나 더 이상 존재하지 않는 장수의 기록, 세력이 사라졌는데 남은 기록을 지우고,
+       기록 없이 captured 표시만 남은 장수는 성으로 되돌린다. */
+    if (s.captured && s.captured.length) {
+      s.captured = s.captured.filter((cap) => {
+        if (!cap || !cap.uid) return false;
+        const h = (s.heroes || []).find((x) => x.uid === cap.uid);
+        if (!h || !h.captured) return false;
+        const by = cap.by || '';
+        if (by && by !== 'neutral' && !s.factions[by]) return false;   // 사라진 세력
+        return true;
+      });
+    }
+    (s.heroes || []).forEach((h) => {
+      if (!h.captured) return;
+      if ((s.captured || []).some((c) => c.uid === h.uid)) return;
+      /* 기록 없는 captured 표식 — 풀려난 것으로 보고 성으로 돌린다 */
+      h.captured = false;
+      if (!h.city || !s.cities[h.city] || s.cities[h.city].owner !== s.playerFaction) {
+        const home = (s.playerCapital && s.cities[s.playerCapital] && s.cities[s.playerCapital].owner === s.playerFaction)
+          ? s.playerCapital
+          : (SK.CITY_LIST.find((c) => s.cities[c.id] && s.cities[c.id].owner === s.playerFaction) || {}).id || null;
+        if (home) h.city = home;
+      }
+    });
     return gone;
   }
   SK.pruneLandlessFactions = pruneLandlessFactions;
@@ -8129,13 +8292,28 @@
      길이 이어지지 않은 남의 성을 건너뛰어 치는 '점프 침공'이 나왔다.
      이제 같은 세력이라도 직접 도로·해로로 이어진 인접 성(adj)에서만 출진한다. */
   const INVASION_RATIO = 1.20;
+  /* v5.29 — 한 달에 성 두 곳까지 동시에 침공받을 수 있다.
+     예전에는 invasionWarn·pendingInvasion이 하나뿐이라 두 번째 침공이 아예 생기지 않았고,
+     행군 도착과 겹치면 늦은 쪽이 다음 달로 밀렸다.
+     이제 경고는 s.invasionWarns(배열)에 쌓고, 실제 침공은 s.invasionQueue로 차례로 처리한다. */
+  function invasionWarnList(s) {
+    const list = [];
+    if (Array.isArray(s.invasionWarns)) list.push(...s.invasionWarns);
+    if (s.invasionWarn && !Array.isArray(s.invasionWarn)) list.push(s.invasionWarn);   // 옛 저장 호환
+    return list.filter(Boolean);
+  }
+  SK.invasionWarnList = invasionWarnList;
   function planPlayerInvasion(s) {
-    if ((s.turn || 1) <= graceOf(s)) return null;
-    if (s.invasionWarn || s.pendingInvasion) return null;
+    if ((s.turn || 1) <= graceOf(s)) return [];
+    const pendingTargets = new Set((invasionWarnList(s) || []).map((w) => w.target));
+    if (s.pendingInvasion) pendingTargets.add(s.pendingInvasion.target);
+    const MAX_WARN = 2;
+    if (pendingTargets.size >= MAX_WARN) return [];
     const turn = s.turn || 0;
-    let best = null;
+    const found = [];
     SK.CITY_LIST.forEach((pc) => {
       if (s.cities[pc.id].owner !== PF()) return;
+      if (pendingTargets.has(pc.id)) return;
       const adj = SK.allNeighbors(pc.id);
       const byF = {};
       adj.forEach((aid) => {
@@ -8152,29 +8330,34 @@
         const sum = crew.reduce((a, c) => a + c.strength, 0);
         const ratio = sum / cityPower(s.cities[pc.id]);
         if (ratio < INVASION_RATIO) return;
-        if (!best || ratio > best.ratio) {
-          best = {
-            from: lead.id, target: pc.id, faction: fid, ratio,
-            troops: Math.round(sum * 0.7),
-            helpers: crew.filter((c) => c.id !== lead.id).slice(0, 2).map((c) => c.id),
-          };
-        }
+        found.push({
+          from: lead.id, target: pc.id, faction: fid, ratio,
+          troops: Math.round(sum * 0.7),
+          helpers: crew.filter((c) => c.id !== lead.id).slice(0, 2).map((c) => c.id),
+        });
       });
     });
-    if (!best) return null;
-    s.invasionWarn = { from: best.from, target: best.target, faction: best.faction,
-      troops: best.troops, helpers: best.helpers || [], turn: s.turn };
+    /* 성 하나당 가장 센 세력 하나씩, 비율이 높은 순서로 남은 자리만큼 */
+    const byTarget = {};
+    found.forEach((f) => { if (!byTarget[f.target] || f.ratio > byTarget[f.target].ratio) byTarget[f.target] = f; });
+    const best = Object.values(byTarget).sort((a, b) => b.ratio - a.ratio)
+      .slice(0, Math.max(0, MAX_WARN - pendingTargets.size));
+    if (!best.length) return [];
+    const list = invasionWarnList(s).concat(best.map((b) => Object.assign({ turn: s.turn }, b)));
+    s.invasionWarns = list;
+    s.invasionWarn = null;
     return best;
   }
 
   function runAiCampaigns(s) {
     const news = [];
     if (!s) return news;
-    /* 1) 지난달 경고는 이번 달 실제 침공으로 이어진다 */
-    if (s.invasionWarn) {
-      const w = s.invasionWarn;
-      const ts = s.cities[w.target], as = s.cities[w.from];
-      if (ts && as && ts.owner === PF() && as.owner === w.faction) {
+    /* 1) 지난달 경고는 이번 달 실제 침공으로 이어진다 (여러 성이면 대기열에 차례로) */
+    const warns = invasionWarnList(s);
+    if (warns.length) {
+      warns.forEach((w) => {
+        const ts = s.cities[w.target], as = s.cities[w.from];
+        if (!(ts && as && ts.owner === PF() && as.owner === w.faction)) return;
         /* v5.13 — 예고한 인접+주변 성이 함께 출진한다 (경고 병력과 실제 병력이 어긋나지 않게) */
         const helpers = (w.helpers || []).filter((id) => { const hs = s.cities[id]; return hs && hs.owner === w.faction; });
         let commit = Math.round((as.troops || 0) * 0.55);
@@ -8185,13 +8368,14 @@
           hs.troops = Math.max(AI_CITY_RESERVE, (hs.troops || 0) - part);
           commit += part;
         });
-        s.pendingInvasion = {
+        SK.pushInvasion(s, {
           from: w.from, target: w.target, faction: w.faction,
           troops: Math.max(1200, commit), turn: s.turn, helpers,
-        };
+        });
         news.push({ kind: 'invasion', text: `${SK.josa(SK.factionName(w.faction), 'i')} ${SK.josa(CITY[w.target].name, 'euro')} 진군했습니다 — 수성전` });
-      }
+      });
       s.invasionWarn = null;
+      s.invasionWarns = [];
     }
     if ((s.turn || 1) <= graceOf(s)) return news;
     /* 2) 다른 세력·중립 성 침공 — 한 달 최대 2건 */
@@ -8211,11 +8395,11 @@
           : `${SK.factionName(fid)}의 공격을 ${SK.josa(CITY[r.target].name, 'i')} 막아냈습니다`,
       });
     });
-    /* 3) 플레이어 접경 성에 대한 첩보 경고 */
+    /* 3) 플레이어 접경 성에 대한 첩보 경고 (한 달 두 곳까지) */
     const warned = planPlayerInvasion(s);
-    if (warned) {
-      news.push({ kind: 'warn', text: `첩보 — ${SK.josa(SK.factionName(warned.faction), 'i')} ${CITY[warned.from].name}에 병력을 모읍니다. ${SK.josa(CITY[warned.target].name, 'eul')} 노립니다` });
-    }
+    (warned || []).forEach((w) => {
+      news.push({ kind: 'warn', text: `첩보 — ${SK.josa(SK.factionName(w.faction), 'i')} ${CITY[w.from].name}에 병력을 모읍니다. ${SK.josa(CITY[w.target].name, 'eul')} 노립니다` });
+    });
     if (news.length) s.aiNews = (s.aiNews || []).concat(news).slice(-6);
     return news;
   }
@@ -8501,10 +8685,13 @@
     if (document.querySelector('#modal-root .modal-layer')) return;
     const inv = s.pendingInvasion;
     const ts = s.cities[inv.target];
-    if (!ts || ts.owner !== PF()) { s.pendingInvasion = null; SK.save(); return; }
+    if (!ts || ts.owner !== PF()) { s.pendingInvasion = null; SK.save(); setTimeout(() => { if (SK.chainPendingEvents) SK.chainPendingEvents(); }, 160); return; }
     const c = CITY[inv.target];
     const f = SK.factionInfo(inv.faction);
     const gens = cityGens(inv.target);
+    /* v5.29 — 같은 달에 더 들어오는 침공이 있으면 미리 알린다 */
+    const more = (s.invasionQueue || []).filter((q) => q && s.cities[q.target]);
+    const moreLine = more.length ? `<div class="rfg-tip"><b>뒤이을 침공 ${more.length}곳</b><span>${more.map((q) => `${CITY[q.target].name}(${SK.factionName(q.faction)} ${fmt(q.troops)})`).join(' · ')} — 이 수성전을 마치면 이어서 벌어집니다</span></div>` : '';
     /* v5.9 — 옆 성에서 원군을 보낼 수 있는가 */
     const near = reinforceNeighbors(inv.target);
     const rfg = (s.reinforce && s.reinforce.target === inv.target) ? s.reinforce : null;
@@ -8516,6 +8703,7 @@
       body: `<div class="invasion-card">
         <h4>${SK.josa(f.name, 'i')} ${SK.josa(c.name, 'euro')} 진군했습니다</h4>
         <p>한 달 전 첩보대로 적이 움직였습니다. 성을 지킬지, 병력을 빼고 성을 내줄지 정하십시오. 강제로 성을 잃지는 않습니다.</p>
+        ${moreLine}
         <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(ts.troops)}</b></span><span>성벽 <b>${Math.round(ts.def)}</b></span><span>주둔 장수 <b>${gens.length}명</b></span>${woundNow ? `<span>부상병 <b>${fmt(woundNow)}</b></span>` : ''}</div>
         ${rfg ? `<div class="rfg-ready"><b>${CITY[rfg.from].name} 원군 대기</b><span>병력 ${fmt(rfgTroops)}${rfgGens ? ` · 장수 ${rfgGens}명` : ''} — 수성전에 함께 들어갑니다</span></div>`
           : (near.length ? `<div class="rfg-tip"><b>지원군을 보낼 수 있습니다</b><span>${near.map((o) => `${o.name}(${o.via}·${fmt(o.troops)})`).join(' · ')}</span></div>` : '')}
@@ -8735,6 +8923,8 @@
     SK.refreshHud();
     SK.showMap();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    /* v5.29 — 철수로 한 침공을 닫았으면 대기 중인 다음 침공을 이어서 연다 */
+    setTimeout(() => { if (SK.chainPendingEvents) SK.chainPendingEvents(); }, 700);
     /* v5.20 — 마지막 성을 '철수'로 내주면 도시 0·수도 null인 채로 게임이 계속 돌던 문제.
        남은 원정대가 있으면 배수진을, 없으면 패망을 바로 연다. */
     const left = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === PF()).length;

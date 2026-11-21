@@ -89,10 +89,12 @@
   }
 
   /* 회복량 — 대상 최대 병력의 12~22%만. 표준 공격 피해를 넘지 않게 상한을 둔다 (v4.2) */
-  function healAmount(sk, target) {
+  function healAmount(sk, target, src) {
     const maxHp = target && target.maxHp ? target.maxHp : 0;
     const pct = clamp(sk && sk.healPct != null ? sk.healPct : 0.16, 0.12, 0.22);
-    return Math.max(1, Math.min(Math.round(maxHp * pct), Math.round(maxHp * 0.22)));
+    /* v5.29 — 보물 회복량 보정 (최대 병력의 22% → 25%까지만) */
+    const bonus = 1 + fxPct(src, 'heal');
+    return Math.max(1, Math.min(Math.round(maxHp * pct * bonus), Math.round(maxHp * 0.25)));
   }
   SK.healAmount = healAmount;
   SK.startBattle = function (opts) {
@@ -340,6 +342,9 @@
 
   function makeAlly(spec, i, origin) {
     const h = SK.state.heroes.find((x) => x.uid === spec.uid);
+    /* v5.29 — 장착한 보물의 정성 효과(주는 피해·받는 피해·책략·치명·회피·반격·회복 등)를
+       부대에 그대로 넘긴다. 보물이 없으면 모든 값이 0이다. */
+    const tfx = SK.heroTreasureFx ? SK.heroTreasureFx(h) : null;
     const C = SK.CLASSES[h.cls];
     const eq = SK.equipBonus(h);
     const troops = spec.troops || SK.troopForNamed(h.lv);
@@ -364,6 +369,7 @@
       wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
       passive, pUsed: {}, x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
+      tfx,
       stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
       train: allyTrain(origin, h),
     };
@@ -1507,7 +1513,7 @@
       const b = siteBonusOf(u);
       if (!b) return;
       if (u.hp < u.maxHp) {
-        const hh = Math.max(1, Math.round(u.maxHp * b.heal));
+        const hh = Math.max(1, Math.round(u.maxHp * b.heal * (1 + fxPct(u, 'heal'))));
         u.hp = Math.min(u.maxHp, u.hp + hh);
         addHeal(u, hh, u);
         addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.34) * TILE, '+' + hh, '#a8f0b8');
@@ -1566,7 +1572,13 @@
     return Math.min(10, m);
   }
 
-  function moveCost(cls, ch, x, y, side) {
+  function moveCost(cls, ch, x, y, side, u) {
+    const base = moveCostBase(cls, ch, x, y, side);
+    /* v5.29 — 보물 '험지 이동 페널티 무효' (천리마·대동여지도첩·청풍도포) */
+    if (u && u.tfx && u.tfx.rough && base > 1 && base < 90) return 1;
+    return base;
+  }
+  function moveCostBase(cls, ch, x, y, side) {
     if (ch === 'G') {
       if (!gateTileAt(x, y)) return 1;
       /* v5.21 — 성 주인(수성전 아군)은 살아 있는 자기 성문을 그냥 지난다.
@@ -1599,7 +1611,7 @@
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
         const ch = B.tiles[ny][nx];
-        const cost = moveCost(u.cls, ch, nx, ny, u.side);
+        const cost = moveCost(u.cls, ch, nx, ny, u.side, u);
         if (cost >= 90) continue;
         if (B.units.some((o) => o.alive && o.x === nx && o.y === ny)) continue;
         const nc = c + cost;
@@ -2337,7 +2349,7 @@
           if (!dx && !dy) continue;
           const nx = cur.x + dx, ny = cur.y + dy;
           if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
-          const cost = moveCost(u.cls, B.tiles[ny][nx], nx, ny, u.side);
+          const cost = moveCost(u.cls, B.tiles[ny][nx], nx, ny, u.side, u);
           if (cost >= 90) continue;
           if (blocked(nx, ny)) continue;
           const nc = cur.c + cost;
@@ -2596,10 +2608,22 @@
     const ratio = Math.max(0, u.hp) / Math.max(1, u.maxHp);
     return 0.7 + 0.3 * ratio;
   }
+  /* v5.29 — 보물 효과 훅. u.tfx에는 장수가 장착한 보물의 합산 수치가 들어 있다(단위 %). */
+  function fxPct(u, k) {
+    const f = u && u.tfx;
+    return f && f[k] ? f[k] / 100 : 0;
+  }
+  /* v5.29 — 보물 '책략 소비 기력 -N%' (백우선). 최소 1은 든다. */
+  function mpCostOf(u, sk) {
+    const base = (sk && sk.mp) || 0;
+    const cut = Math.min(0.6, Math.max(0, fxPct(u, 'mpCost')));
+    return Math.max(1, Math.round(base * (1 - cut)));
+  }
   function effAtk(u) {
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
-    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25) * bondAllyMul(u);
+    const tb = fxPct(u, 'atk');
+    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb) * bondAllyMul(u);
   }
   function effDef(u) {
     const ch = B.tiles[u.y][u.x];
@@ -2611,7 +2635,10 @@
     /* v5.17 — 본진 위 +25% · 점령한 마을 위 +15% */
     const site = siteBonusOf(u);
     const sit = site ? site.def : 1;
-    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6) * mul * hold * sit;
+    /* v5.29 — 보물 방어력, 성벽·망루·본진 위에서는 '성벽 위 방어력'까지 */
+    const wall = (ch === 'C' || ch === 'T' || ch === 'K' || ch === 'G') ? fxPct(u, 'defWall') : 0;
+    const tdef = fxPct(u, 'def') + wall;
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef) * mul * hold * sit;
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -2685,6 +2712,15 @@
     base *= tri.mul;
     base *= sizeScale(d) * atkScale(a);
     base *= rnd(0.92, 1.08);
+    /* v5.29 — 보물: 주는 피해(+), 받는 피해 감소(−), 첫 공격(선제) 피해 */
+    const bonusDeal = fxPct(a, 'dmg');
+    if (bonusDeal) base *= Math.max(0.4, 1 + bonusDeal);
+    if (opts && opts.firstStrike) {
+      const f = fxPct(a, 'first');
+      if (f) base *= Math.max(0.4, 1 + f);
+    }
+    const cutTaken = Math.max(-0.5, Math.min(0.55, fxPct(d, 'taken')));
+    if (cutTaken) base *= 1 - cutTaken;
     /* v5.2 — 투석차·발석차는 일반 부대에 약하고 성문·성벽에 강하다 */
     const kind = attackKind(a, opts);
     if (kind === 'rock') base *= 0.55;
@@ -2692,9 +2728,13 @@
     const ev = buffVal(d, 'evade');
     if (ev > 0) base *= Math.max(0.6, 1 - ev);
     let crit = false;
-    const cc = 0.05 + (a.wu - 60) * 0.0011 + (a.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(a, 'crit'));
+    const cc = critChanceOf(a);
     if (!opts || !opts.noCrit) {
-      if (Math.random() < cc) { crit = true; base *= 1.55; }
+      if (Math.random() < cc) {
+        crit = true;
+        /* v5.29 — 보물 치명타 피해(+), 방어자의 치명타 저항(−) */
+        base *= Math.max(1.15, 1.55 + fxPct(a, 'critDmg') - fxPct(d, 'critRes'));
+      }
     }
     const bond = SK.bondBetween ? SK.bondBetween(a.name, d.name) : null;
     if (bond && bond.relation === '숙적') base *= 1.2;
@@ -2766,11 +2806,24 @@
   /* melee: 돌진 후 베기 / 원거리: 화살·노·석탄 비행 후 폭발 */
   function attackUnit(a, d, opts, onDone) {
     if (!a || !d) { if (onDone) onDone(); return; }
-    const res = calcDamage(a, d, opts);
-    const bond = res.bond && res.bond.relation === '숙적' ? res.bond : null;
+    /* v5.29 — 보물 회피: 방어자가 회피하면 피해 없이 '회피!' (최대 40%) */
+    const dodged = !(opts && opts.noDodge) && fxPct(d, 'evade') > 0 && Math.random() < Math.min(0.4, fxPct(d, 'evade'));
+    /* v5.29 — 선제 타격: 그 전투에서 이 부대의 첫 공격에만 붙는다 */
+    if (!(opts && opts.noStrike) && !a.struckOnce) {
+      opts = Object.assign({}, opts, { firstStrike: true });
+      a.struckOnce = true;
+    }
+    const res = dodged ? { dmg: 0 } : calcDamage(a, d, opts);
+    const bond = (res.bond && res.bond.relation === '숙적') ? res.bond : null;
     if (bond) rivalClash(bond, a, d);
     const kind = attackKind(a, opts);
     const land = () => {
+      if (dodged) {
+        addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.4) * TILE, '회피!', '#9fd8ff');
+        SK.sfx.play('deny');
+        if (onDone) onDone();
+        return;
+      }
       applyDamage(a, d, res.dmg, res.crit, bond);
       impactAt(d, bond ? '255,140,110' : '255,214,120');
       if (kind !== 'melee') addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.55) * TILE, life: 350 });
@@ -2791,7 +2844,8 @@
   /* v5.15 — 반격: 방어자의 최소 사거리(minRng) 안쪽이면 반격하지 못한다.
      반격 피해는 일반 병과 75%, 검병은 방패 맞다이 특화로 90%. */
   const COUNTER_MUL = 0.75, COUNTER_MUL_SHIELD = 0.90;
-  function counterMulOf(u) { return u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL; }
+  /* v5.29 — 보물 반격 피해 보정 (검병 90% · 일반 75% + 보물 %) */
+  function counterMulOf(u) { return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter'); }
   function canCounterAt(a, d) {
     if (!a || !d || !a.alive || !d.alive) return false;
     const dist = manh(a.x, a.y, d.x, d.y);
@@ -2918,6 +2972,10 @@
     } });
   }
 
+  /* v5.29 — 치명타 확률은 한 곳에서만 계산한다 (예고·실제 전투가 같은 값을 쓰도록) */
+  function critChanceOf(u) {
+    return 0.05 + (u.wu - 60) * 0.0011 + (u.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(u, 'crit')) + fxPct(u, 'crit');
+  }
   /* 조조전식 전투 예고 — 피해·반격·지형·인연 배지를 먼저 보여준다 */
   function openAttackPreview(a, d) {
     if (busy || !a || !d || !a.alive || !d.alive) return;
@@ -2930,7 +2988,7 @@
     const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
     const triBack = SK.triangleMul ? SK.triangleMul(d.cls, a.cls) : { mul: 1, label: '' };
     const tr = SK.TERRAIN[B.tiles[d.y][d.x]] || SK.TERRAIN.P;
-    const critChance = Math.round((0.05 + (a.wu - 60) * 0.0022 + (a.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(a, 'crit'))) * 100);
+    const critChance = Math.round(critChanceOf(a) * 100);
     const bondHtml = bond
       ? `<div class="ap-bond ${bond.relation === '숙적' ? 'rival' : 'friend'}">${bond.relation} · ${bond.title}<em>${bond.relation === '숙적' ? '피해 +20%' : '공격 +15%'}</em></div>`
       : '';
@@ -2949,6 +3007,7 @@
           ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격 ${Math.round(cntMul * 100)}%${triBack.mul > 1 ? ` · ${triBack.label}` : ''}</em></div>`
           : `<div class="ap-row"><span>반격</span><b>없음</b><em>${dMin > 1 ? `${SK.josa(d.name, 'eun')} ${dMin}칸 안쪽을 못 쏩니다` : '사거리 밖'}</em></div>`}
         <div class="ap-row"><span>지형</span><b>${tr.name}</b><em>방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</em></div>
+        ${(a.tfx && (a.tfx.dmg || a.tfx.first)) || (d.tfx && (d.tfx.taken || d.tfx.evade)) ? `<div class="ap-row"><span>보물</span><b>${[a.tfx && a.tfx.dmg ? `공격 피해 +${a.tfx.dmg}%` : '', a.tfx && a.tfx.first ? `첫 공격 +${a.tfx.first}%` : '', d.tfx && d.tfx.taken ? `${d.name} 받는 피해 −${d.tfx.taken}%` : '', d.tfx && d.tfx.evade ? `${d.name} 회피 ${Math.min(40, d.tfx.evade)}%` : ''].filter(Boolean).join(' · ')}</b><em>장착 보물</em></div>` : ''}
         ${bondHtml}
         <p class="ap-note">${d.name} 병력 ${Math.round(d.hp).toLocaleString('ko-KR')} / ${Math.round(d.maxHp).toLocaleString('ko-KR')}</p>
       </div>`,
@@ -3265,13 +3324,13 @@
 
   function castInstant(u, sk) {
     busy = true;
-    u.mp -= sk.mp;
+    u.mp -= mpCostOf(u, sk);
     castCircle(u, sk.kind === 'buffSelf' ? '150,210,255' : '255,215,120');
     SK.sfx.play(sk.kind === 'healArea' ? 'heal' : 'spell');
     if (sk.kind === 'healArea') {
       B.units.forEach((t) => {
         if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= sk.radius) {
-          const heal = healAmount(sk, t);
+          const heal = healAmount(sk, t, u);
           t.hp = Math.min(t.maxHp, t.hp + heal);
           addHeal(t, heal, u);
           addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, '+' + heal, '#a8f0b8');
@@ -3327,11 +3386,11 @@
     if (sk.kind === 'heal' || sk.kind === 'buffAlly') {
       if (!target || target.side !== u.side) { SK.toast('아군을 선택하세요.'); return; }
       busy = true;
-      u.mp -= sk.mp;
+      u.mp -= mpCostOf(u, sk);
       castCircle(u, sk.kind === 'heal' ? '150,240,180' : '255,215,120');
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
       if (sk.kind === 'heal') {
-        const heal = Math.round(healAmount(sk, target) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 420)));
+        const heal = Math.round(healAmount(sk, target, u) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 420)));
         target.hp = Math.min(target.maxHp, target.hp + heal);
         addHeal(target, heal, u);
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + heal, '#a8f0b8');
@@ -3347,7 +3406,7 @@
 
     if (sk.kind === 'debuffDef' || sk.kind === 'debuffAtk') {
       busy = true;
-      u.mp -= sk.mp;
+      u.mp -= mpCostOf(u, sk);
       castCircle(u, sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215');
       SK.sfx.play('spell');
       const rad = sk.radius || 1;
@@ -3372,7 +3431,7 @@
 
     if (sk.kind === 'magicArea') {
       busy = true;
-      u.mp -= sk.mp;
+      u.mp -= mpCostOf(u, sk);
       castCircle(u, u.cls === 'balseokcha' ? '230,200,150' : '255,170,120');
       SK.sfx.play(u.cls === 'balseokcha' ? 'rock' : 'spell');
       const rad = sk.radius || 1;
@@ -3382,7 +3441,8 @@
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
-            const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80) * sizeScale(t) * 0.8));
+            const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80) * sizeScale(t) * 0.8
+              * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken'))))));
             t.hp = Math.max(0, t.hp - dmg);
             addMagicDamage(u, t, dmg);
             t.flash = 1; t.shake = 240;
@@ -3399,13 +3459,14 @@
 
     if (!target || target.side === u.side) { SK.toast('적을 선택하세요.'); return; }
     busy = true;
-    u.mp -= sk.mp;
+    u.mp -= mpCostOf(u, sk);
     if (sk.kind === 'magic') {
       castCircle(u, '255,170,120');
       SK.sfx.play('spell');
       wait(() => {
         if (!B || B.over) { finish(0); return; }
-        const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90) * sizeScale(target) * 0.8));
+        const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90) * sizeScale(target) * 0.8
+          * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(target, 'magicTaken'))))));
         target.hp = Math.max(0, target.hp - dmg);
         addMagicDamage(u, target, dmg);
         target.flash = 1; target.shake = 240;
@@ -3453,7 +3514,7 @@
     if (!u || u.acted) { SK.toast('부대를 먼저 선택하세요.'); return; }
     if (u.items <= 0) { SK.toast('군량이 없습니다.'); return; }
     u.items -= 1;
-    const heal = Math.round(u.maxHp * 0.32);
+    const heal = Math.round(u.maxHp * 0.32 * (1 + fxPct(u, 'heal')));
     u.hp = Math.min(u.maxHp, u.hp + heal);
     addHeal(u, heal, u);
     addFloat((u.x + 0.5) * TILE, (u.y + 0.4) * TILE, '+' + heal, '#a8f0b8');
@@ -4055,12 +4116,12 @@
           if (!u.alive) return;
           u.acted = false;
           Object.keys(u.buffs).forEach((k) => { u.buffs[k].t -= 1; if (u.buffs[k].t <= 0) delete u.buffs[k]; });
-          if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3);
+          if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3 + Math.max(0, (u.tfx && u.tfx.mp) || 0));
           else u.mp = Math.min(u.maxMp, u.mp + 2);
           /* v5.3 — 망루·본성에 선 부대는 턴마다 병력 15% 회복 */
           const holdCh = B.tiles[u.y][u.x];
           if ((holdCh === 'T' || holdCh === 'K') && u.hp < u.maxHp) {
-            const hh = Math.max(1, Math.round(u.maxHp * 0.15));
+            const hh = Math.max(1, Math.round(u.maxHp * 0.15 * (1 + fxPct(u, 'heal'))));
             u.hp = Math.min(u.maxHp, u.hp + hh);
             addHeal(u, hh, u);
             addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.4) * TILE, '+' + hh, '#a8f0b8');
@@ -4155,7 +4216,8 @@
       SK.sfx.play('spell');
       wait(() => {
         if (!B || B.over) { done(); return; }
-        const dmg = Math.max(6, Math.round((20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04) * sizeScale(target) * 0.9));
+        const dmg = Math.max(6, Math.round((20 + e.ji * 0.1 + Math.min(200, e.hp * 0.01) - target.ji * 0.04) * sizeScale(target) * 0.9
+          * (1 - Math.min(0.5, Math.max(-0.5, fxPct(target, 'magicTaken'))))));
         target.hp = Math.max(0, target.hp - dmg);
         addMagicDamage(e, target, dmg);
         addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');

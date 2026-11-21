@@ -360,6 +360,18 @@ b { font-weight: 700; }
 .city-pick-row .cp-main b { display: block; font-family: var(--serif); font-size: 13px; color: #2e2510; }
 .city-pick-row .cp-main span { font-size: 9px; color: #7b6538; }
 .city-pick-row .cp-cap { flex: 0 0 auto; font-size: 9px; font-weight: 800; color: #8a5f2a; }
+/* v5.29 — 후반 다성(20성+) 거점 목록: 총계·필터·손볼 곳 표시 */
+.cp-sum { display: flex; flex-wrap: wrap; gap: 3px 10px; margin: 2px 0 5px; padding: 5px 8px; border-radius: 8px;
+  background: rgba(255, 250, 238, 0.8); border: 1px solid #dcc9a0; }
+.cp-sum span { font-size: 8.5px; color: #7b6538; }
+.cp-sum b { font-size: 10px; color: #4a3a16; }
+.cp-chips { display: flex; gap: 5px; margin: 0 0 6px; }
+.cp-chips button { flex: 1; padding: 5px 4px; border-radius: 8px; border: 1px solid #c9ae7c;
+  background: #fbf3e0; color: #6b5a2a; font-size: 9px; font-weight: 800; }
+.cp-chips button.on { background: #47673c; border-color: #35512c; color: #f6f0dc; }
+.city-pick-row .cp-front { font-style: normal; font-size: 8px; font-weight: 800; color: #a8443a;
+  border: 1px solid #d9a096; border-radius: 7px; padding: 0 4px; margin-left: 2px; }
+.city-pick-row .cp-need { display: block; font-size: 8.5px; color: #a8443a; margin-top: 1px; }
 .city-title-wrap #city-hanja { font-family: var(--sans); font-size: 9px; font-weight: 800; color: #8b7445; white-space: nowrap; background: #efe2c4; border: 1px solid #cdb489; border-radius: 7px; padding: 0 5px; }
 /* v5.18 — 성 이름 옆 '대도시 · 3중 성벽' 배지가 우측 금/군량 숫자와 붙지 않게:
    제목 줄은 넘칠 때 배지를 줄이고(줄임표), 배지와 자원 열 사이에 숨 쉴 틈을 둔다 */
@@ -652,6 +664,9 @@ b { font-weight: 700; }
   background: rgba(255, 251, 240, 0.8); padding: 8px 10px; text-align: left;
 }
 .target-card:active { background: #fff6e2; }
+/* v5.29 — 수송 목적지: 육로/해로/멀리 표시 */
+.target-card .tp-via { font-style: normal; font-size: 8px; font-weight: 800; color: #6b7a5a;
+  border: 1px solid #c3cfa8; border-radius: 7px; padding: 0 4px; margin-left: 3px; }
 .tc-flag { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; color: #fff6e0; font-family: var(--serif); font-weight: 900; font-size: 14px; }
 .tc-main { flex: 1; min-width: 0; }
 .tc-main b { display: block; font-family: var(--serif); font-size: 14px; color: #2e2510; }
@@ -1560,6 +1575,15 @@ b { font-weight: 700; }
 .tr-slot .ts-effect { display: block; font-size: 7.5px; color: #8a7448; line-height: 1.3; }
 .tr-item .tr-bonus { display: block; font-size: 8px; color: #6b5830; }
 .tr-item .tr-eff { display: block; font-size: 8px; color: #8a7448; }
+/* v5.29 — 보물 문구의 전장 적용/미적용 표기 */
+.tr-slot .ts-fx, .tr-item .tr-fx { display: block; margin-top: 2px; font-size: 7.5px; line-height: 1.35; color: #3f7a5a; }
+.tr-slot .ts-fx b, .tr-item .tr-fx b { color: #2f6647; }
+.tr-slot .ts-fx i, .tr-item .tr-fx i { font-style: normal; color: #a08a5a; }
+.tr-sum { margin: 6px 0 2px; padding: 5px 8px; border-radius: 7px; background: rgba(63, 122, 90, 0.10); border: 1px solid rgba(63, 122, 90, 0.35); }
+.tr-sum span { display: block; font-size: 8px; color: #6b7a5a; }
+.tr-sum b { display: block; font-size: 9.5px; color: #2f6647; line-height: 1.4; }
+.tr-note.tr-fxnote { margin-top: 5px; line-height: 1.45; word-break: keep-all; }
+.hi-bonus.hi-fx { color: #2f6647; line-height: 1.4; word-break: keep-all; }
 
 /* 전장 — 사거리 안 대상 선택 줄 */
 .battle-targets {
@@ -3226,6 +3250,14 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   border: 1px solid #c9ae7c; background: #fffaf0; color: #6b4a12; }
 .pr-offer-btns button:first-child { background: #eef4e2; border-color: #9db97c; color: #3f6b32; }
 .prison-opt.hold b { color: #3f6b32; }
+/* v5.29 — 적에게 사로잡힌 아군 목록 (누가 붙잡고 있는지) */
+.cap-box { margin: 4px 0 6px; padding: 6px 8px; border-radius: 8px; background: #fbf1e2; border: 1px solid #dcc0a0; }
+.cap-box .cap-head { margin: 0 0 4px; color: #7a4a2a; }
+.cap-list { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.cap-row { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 7px; border-radius: 11px;
+  background: #fff7ea; border: 1px solid #e0c9a6; }
+.cap-row b { font-size: 9px; color: #5c3a1e; }
+.cap-row em { font-style: normal; font-size: 8px; color: #9a7a5a; }
 
 /* ⑦ 전투 결산 딜표 */
 .rm-report { margin: 7px 0 4px; border-radius: 9px; border: 1px solid #d8c193; background: rgba(255, 251, 240, 0.92); overflow: hidden; position: relative; }
