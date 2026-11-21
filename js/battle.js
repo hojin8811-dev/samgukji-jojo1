@@ -1734,13 +1734,13 @@
       const pulse = tier >= 3 ? (0.60 + 0.30 * Math.sin(performance.now() / 260)).toFixed(2) : '0.78';
       ctx.save();
       ctx.strokeStyle = `rgba(${tcol},${pulse})`;
-      ctx.lineWidth = tier >= 3 ? 3.4 : 2.2;
+      ctx.lineWidth = tier >= 3 ? 4.4 : (tier === 2 ? 3.2 : 2.6);
       ctx.beginPath();
       ctx.ellipse(bx, by - 2, TILE * (0.34 + tier * 0.02), TILE * (0.152 + tier * 0.008), 0, 0, Math.PI * 2);
       ctx.stroke();
       if (tier >= 3) {
-        ctx.strokeStyle = `rgba(${tcol},0.22)`;
-        ctx.lineWidth = 7;
+        ctx.strokeStyle = `rgba(${tcol},0.34)`;
+        ctx.lineWidth = 9;
         ctx.beginPath();
         ctx.ellipse(bx, by - 2, TILE * 0.41, TILE * 0.19, 0, 0, Math.PI * 2);
         ctx.stroke();
@@ -1750,6 +1750,11 @@
     if (ready) {
       ctx.save();
       if (u.side === 'enemy') ctx.filter = 'saturate(0.9) brightness(0.99)';
+      /* v5.17 — 전직 단계가 높을수록 SD에 은은한 빛테를 두른다 */
+      if (tier > 0) {
+        ctx.shadowColor = tier >= 3 ? 'rgba(255,208,90,0.95)' : (tier === 2 ? 'rgba(220,230,240,0.9)' : 'rgba(198,140,60,0.85)');
+        ctx.shadowBlur = 6 + tier * 4;
+      }
       ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
       if (u.flash > 0) {
         ctx.save();
@@ -1853,13 +1858,19 @@
       ctx.fillStyle = '#ffd35c';
       ctx.fillText('♛', bx + (u.side === 'enemy' ? 0 : 0), pillY - 2 * k);
       ctx.restore();
-    } else if (tier >= 2) {
+    } else if (tier >= 1) {
+      /* 전직 표식 — 1단계 ★(동) · 2단계 ⚑(은) · 3단계 ♛(금). 어두운 테두리를 둘러 어떤 바닥에서도 읽힌다 */
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.font = `bold ${Math.round(10 * k)}px "Noto Sans CJK KR", sans-serif`;
-      ctx.fillStyle = tier >= 3 ? '#ffe08a' : '#dfe6ee';
-      ctx.fillText('⚑', bx + bw / 2 + 6 * k, pillY + pillH);
+      const fs = Math.round((tier >= 3 ? 15 : 13) * k);
+      ctx.font = `900 ${fs}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(30,22,8,0.85)';
+      const mark = tier >= 3 ? '♛' : (tier === 2 ? '⚑' : '★');
+      ctx.strokeText(mark, bx, pillY - 13 * k);
+      ctx.fillStyle = tier >= 3 ? '#ffd35c' : (tier === 2 ? '#eef4ff' : '#e0a452');
+      ctx.fillText(mark, bx, pillY - 13 * k);
       ctx.restore();
     }
     // 강화 표시
