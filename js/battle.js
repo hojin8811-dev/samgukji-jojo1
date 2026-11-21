@@ -2505,6 +2505,18 @@
     const mul = Math.max(0.05, 1 + buffVal(u, 'def') * 0.6);
     return (u.ji * 0.62 + u.tong * 0.34 + u.lv * 2) * troopGuard(u) * (1 + terr(u).def * 0.6) * mul;
   }
+  /* v5.22 — 성을 지키는 원거리 병과는 성벽·망루·본성 위에서 밖을 쏠 수 있다.
+     (예전에는 성문이 버티는 동안 성벽 너머로 어떤 공격도 닿지 않아,
+      수성전 궁수·연노병이 문이 깨질 때까지 아무것도 못 했다) */
+  function canShootOut(a) {
+    if (!B || !a) return false;
+    const defending = B.defense ? a.side === 'ally' : a.side === 'enemy';
+    if (!defending) return false;
+    if (attackKind(a) === 'melee') return false;
+    const row = B.tiles[a.y];
+    const ch = row && row[a.x];
+    return ch === 'T' || ch === 'K' || ch === 'G' || ch === 'C';
+  }
   function canHit(a, d, rng) {
     const dist = manh(a.x, a.y, d.x, d.y);
     const min = a.minRng || 1;
@@ -2512,7 +2524,7 @@
     /* v5.17 — 성문이 버티는 동안에는 성벽 너머로 어떤 공격도 닿지 않는다.
        (근접만 막던 예전 규칙에서는 성 밖에서 사격·투석으로 적 총대장을 잡아 버려
         겹성벽을 뚫는 의미가 없었다) */
-    if (wallBlocked(a, d)) return false;
+    if (wallBlocked(a, d) && !canShootOut(a)) return false;
     return true;
   }
   /* v5.14 — 성문 타일 한 칸을 칠 수 있는 거리인가 (성문 클릭·황금 타일과 같은 눈금) */
@@ -2752,6 +2764,7 @@
 
   function moveUnit(u, x, y) {
     const path = findPath(u, x, y);
+    if (SKBattle && SKBattle.debug) SKBattle.debug._move = { n: u.name, from: [u.x, u.y], to: [x, y], len: path.length };
     if (!path.length) {
       SK.toast('그곳으로는 갈 수 없습니다.');
       return;
@@ -3421,9 +3434,12 @@
   function moveTiles(u) {
     const tiles = [{ x: u.x, y: u.y }];
     const set = (B.reachCache && B.reachCache.uid === u.id) ? B.reachCache.set : reachSet(u);
+    /* v5.22 — 수성전 수비 역할(원거리·보조)은 성 밖 칸을 후보에 넣지 않는다 */
+    const allow = defenseAllowFor(u);
     set.forEach((k) => {
       const [x, y] = k.split(',').map(Number);
       if (B.units.some((o) => o.alive && o.x === x && o.y === y)) return;
+      if (allow && !allow(x, y)) return;
       tiles.push({ x, y });
     });
     return tiles;
@@ -3615,6 +3631,77 @@
     return true;
   }
 
+  /* ───────────── v5.22 — 수성전 수비 역할 분리 ─────────────
+     성을 지키는 자동전투에서 원거리·보조 병과가 성문 밖으로 쏟아져 나가
+     성벽을 비우던 문제를 고친다.
+     · 원거리(궁수·연노병·궁기·포차·발석차) — 성문 안 성벽·망루에서만 쏜다
+     · 보조(책사·풍수사·도사·군악대·무희) — 본진 곁을 지키며 회복·버프만 한다
+     · 근접(검병·창병·기병·등갑병·무도가·산적·수적·야수병) — 문이 깨지거나 적이
+       문 앞까지 붙기 전에는 성 안에서 기다리고, 필요할 때만 출격한다 */
+  const DEF_HOLD_ROLE = {
+    gungsu: 'wall', gunggi: 'wall', yeonnobyung: 'wall', pocha: 'wall', balseokcha: 'wall',
+    chaeksa: 'keep', pungsusa: 'keep', dosa: 'keep', gunakdae: 'keep', muhui: 'keep',
+  };
+  function defenseHome() {
+    if (!B) return null;
+    if (B._home) return B._home;
+    let gateRow = -1, wallRow = -1;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = B.tiles[y] && B.tiles[y][x];
+        if (ch === 'G') gateRow = Math.max(gateRow, y);
+        if (ch === 'C') wallRow = Math.max(wallRow, y);
+      }
+    }
+    /* 수성전은 진영이 뒤집혀 있다 — 우리 본진은 'allyHQ'(성 안) */
+    const hq = (B.sites || []).find((s) => s.type === 'allyHQ')
+      || (B.sites || []).find((s) => s.type === 'enemyHQ') || null;
+    const towers = [];
+    for (let y = 0; y <= Math.max(gateRow, 0); y++) {
+      for (let x = 0; x < N; x++) if (B.tiles[y] && B.tiles[y][x] === 'T') towers.push({ x, y });
+    }
+    B._home = { gateRow, wallRow, insideY: gateRow > 0 ? gateRow - 1 : N - 1, hq, towers };
+    return B._home;
+  }
+  function defenseRoleOf(u) {
+    if (!B || !B.defense || !u || u.side !== 'ally') return null;
+    if (u._defRole == null) {
+      u._defRole = (u.zone === 'tower' ? 'wall' : u.zone === 'keep' ? 'keep' : null)
+        || DEF_HOLD_ROLE[u.cls] || 'melee';
+    }
+    return u._defRole;
+  }
+  /* 바깥 성문이 부서졌는가 — 부서진 뒤에만 근접이 밖으로 나간다 */
+  function outerGateBroken() {
+    const list = (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []));
+    if (!list.length) return false;
+    const out = list.slice().sort((a, b) => (b.row || 0) - (a.row || 0))[0];
+    return !!out && out.hp <= 0;
+  }
+  function defenseAllowed(u, role, home) {
+    if (!home) return null;
+    const inside = (x, y) => {
+      const row = B.tiles[y];
+      if (!row || row[x] == null) return false;
+      if (row[x] === 'C' || row[x] === 'H') return false;
+      return y <= home.insideY || row[x] === 'G';
+    };
+    if (role === 'keep') {
+      const hq = home.hq || { x: Math.floor(N / 2), y: Math.max(1, home.insideY - 2) };
+      return (x, y) => inside(x, y) && manh(x, y, hq.x, hq.y) <= 6;
+    }
+    if (role === 'wall') return (x, y) => inside(x, y) && y >= home.insideY - 5;
+    /* 근접 — 문이 버티는 동안에는 성문 안쪽에서 막고, 문이 깨진 뒤에만 나가서 맞는다 */
+    if (outerGateBroken()) return () => true;
+    return inside;
+  }
+
+  function defenseAllowFor(u) {
+    const role = defenseRoleOf(u);
+    if (!role) return null;
+    return defenseAllowed(u, role, defenseHome());
+  }
+
   /* 한 부대가 할 최선의 행동을 고른다 — 책략 > 사거리 안 적 공격 > (문을 부수는 진영만) 성문 타격 > 접근 */
   function planAuto(u) {
     /* v5.17 — 책략보다 실제 공격·성문 공략을 먼저 본다.
@@ -3627,12 +3714,28 @@
     /* v5.14 — 성문 공략은 문을 부수는 진영만 고른다. 수비측은 적 부대 요격·망루 수사에 집중 */
     const stormGate = isGateAttacker(u);
     const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+    /* v5.22 — 수성전 수비 역할: 원거리·보조는 성 밖으로 나가지 않는다 */
+    const defRole = defenseRoleOf(u);
+    const home = defRole ? defenseHome() : null;
+    const allow = defRole ? defenseAllowFor(u) : null;
     const tiles = [{ x: u.x, y: u.y }];
     (B.reachCache && B.reachCache.set ? B.reachCache.set : new Set()).forEach((k) => {
       const [x, y] = k.split(',').map(Number);
       if (B.units.some((o) => o.alive && o.x === x && o.y === y)) return;
+      if (allow && !allow(x, y)) return;
       tiles.push({ x, y });
     });
+    if (allow && tiles.length <= 1) {
+      /* 역할 자리에 한 칸도 못 닿으면 성 안 아무 곳이나 — 밖으로는 나가지 않는다 */
+      (B.reachCache && B.reachCache.set ? B.reachCache.set : new Set()).forEach((k) => {
+        const [x, y] = k.split(',').map(Number);
+        if (B.units.some((o) => o.alive && o.x === x && o.y === y)) return;
+        const ch = B.tiles[y] && B.tiles[y][x];
+        if (!ch || ch === 'C' || ch === 'H') return;
+        if (home && y > home.insideY && ch !== 'G') return;
+        tiles.push({ x, y });
+      });
+    }
     let best = null;
     const kind = attackKind(u);
     tiles.forEach((t) => {
@@ -3640,7 +3743,7 @@
       foes.forEach((e) => {
         const d = manh(t.x, t.y, e.x, e.y);
         if (d < minR || d > rng) return;
-        if (wallBlocked({ x: t.x, y: t.y }, e)) return;
+        if (wallBlocked({ x: t.x, y: t.y }, e) && !canShootOut({ x: t.x, y: t.y, cls: u.cls, side: u.side })) return;
         const est = calcDamage(u, e, {}).dmg;
         const score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
@@ -3663,6 +3766,22 @@
       let score = -Math.min(d, gy);
       /* 수비측은 망루·본성에 붙어 버티는 쪽을 조금 더 선호한다 (문을 부수는 진영 제외) */
       if (!stormGate && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'K')) score += 2.5;
+      /* v5.22 — 역할별 자리 지키기 */
+      if (defRole === 'wall' && home) {
+        const ch = B.tiles[t.y][t.x];
+        if (ch === 'T') score += 12;                                   // 망루 위가 최선 (사거리 +1·방어 +45%)
+        else if (t.y >= home.insideY - 3) score += 4;                   // 성문 바로 안쪽 성벽
+        if (ch === 'G') score -= 3;                                    // 문통에 서면 뚫린 뒤 그대로 맞는다
+        if (t.y > home.insideY && ch !== 'G') score -= 20;
+      } else if (defRole === 'keep' && home) {
+        const hq = home.hq || { x: Math.floor(N / 2), y: home.insideY };
+        score = -manh(t.x, t.y, hq.x, hq.y) * 2.2 - Math.min(d, 8) * 0.5;
+        if (B.tiles[t.y][t.x] === 'K') score += 4;
+      } else if (defRole === 'melee' && home && gateIntact()) {
+        if (B.tiles[t.y][t.x] === 'G') score += 5;                     // 성문 안쪽에서 문을 막는다
+        else if (t.y >= home.insideY - 2) score += 2;
+        if (t.y > home.insideY && B.tiles[t.y][t.x] !== 'G') score -= 25;
+      }
       if (!pick || score > pick.score) pick = { x: t.x, y: t.y, score, kind: 'move' };
     });
     return pick;
@@ -4843,6 +4962,17 @@
           atk: u.buffs.atk || null, crit: u.buffs.crit || null, evade: u.buffs.evade || null }));
       },
       gateAttackerSide() { return gateAttackerSide(); },
+      get lastMove() { return this._move || null; },
+      /* v5.22 — 수성전 수비 역할 점검 */
+      defRoles() {
+        if (!B || !B.defense) return null;
+        const home = defenseHome();
+        return B.units.filter((u) => u.side === 'ally').map((u) => {
+          const role = defenseRoleOf(u);
+          const allow = defenseAllowed(u, role, home);
+          return { n: u.name, cls: u.cls, role, x: u.x, y: u.y, allowed: allow ? !!allow(u.x, u.y) : null, insideY: home.insideY };
+        });
+      },
       isGateAttacker(name) { const u = B && B.units.find((o) => o.name === name); return u ? isGateAttacker(u) : null; },
       effRng(name) { const u = B && B.units.find((o) => o.name === name); return u ? effRng(u) : null; },
       canHit(aName, dName) {

@@ -361,10 +361,21 @@ SK.lordNameSet = function (st) {
   });
   return out;
 };
+/* v5.22 — 왕·왕비·태자 같은 왕실 인물은 job이 '군주'가 아니어도 재야 인재가 아니다.
+   (의자왕·진덕여왕·고이왕·무령왕·문무왕처럼 병과만 다를 뿐 임금인 인물이
+    주점·탐색에 '은거 인재'로 앉던 문제) */
+SK.ROYAL_TITLE = /(?:대왕|여왕|왕|이사금|태자|왕비|왕후)$/;
+SK.isRoyalName = function (name) {
+  const n = SK.normName ? SK.normName(name) : String(name || '').trim();
+  return !!n && SK.ROYAL_TITLE.test(n);
+};
 SK.isLordOnly = function (g, lordSet) {
   if (!g) return true;
   if (g.job === '군주') return true;
-  return !!(lordSet && lordSet.has(g.name));
+  if (lordSet && lordSet.has(g.name)) return true;
+  /* 왕실 인물 — 이름이 왕·대왕·여왕·이사금·태자로 끝나면 재야에 두지 않는다 */
+  if (g.royal === true) return true;
+  return SK.isRoyalName(g.name);
 };
 SK.factionInfo = function (key) {
   const st = SK.state;
@@ -1821,11 +1832,14 @@ function fortressMap() {
 function siegeMap(rings) {
   rings = rings === 3 ? 3 : (rings === 2 ? 2 : 1);
   /* 성벽 두께는 그림과 맞춰 2칸. walls는 바깥(아래)부터가 아니라 안쪽→바깥 순서로 적는다. */
+  /* v5.22 — 배경 그림(battle_siege*.webp)의 성벽 줄과 격자를 맞췄다.
+     1중성은 그림 성벽이 한 칸 위에 있어 성벽 줄을 11·12 → 10·11로 올렸고,
+     3중성 본성 성곽은 그림의 담장(아래 11·12줄, 좌우 3·28열)에 맞춰 넓혔다. */
   const cfg = rings === 3
-    ? { size: 32, walls: [[17, 18], [24, 25]], box: { top: [1, 2], bottom: [10, 11], x0: 10, x1: 22 } }
+    ? { size: 32, walls: [[17, 18], [24, 25]], box: { top: [1, 2], bottom: [11, 12], x0: 3, x1: 28 } }
     : (rings === 2
       ? { size: 28, walls: [[10, 11], [19, 20]], box: null }
-      : { size: 24, walls: [[11, 12]], box: null });
+      : { size: 24, walls: [[10, 11]], box: null });
   const n = cfg.size, cx = Math.floor(n / 2);
   const walls = cfg.walls;
   const outer = walls[walls.length - 1][1];
