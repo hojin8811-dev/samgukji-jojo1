@@ -864,6 +864,22 @@ SK.applyClassData = function (list) {
       const key = 'c_' + cls + '_' + i;
       const eff = sk.effect || '';
       const def = { name: sk.name, hanja: '', mp: sk.mp, unlockLv: sk.unlockLv || 1, desc: eff, range: rng.max, minRange: rng.min };
+      /* v5.58 — classes.json 이 kind·수치를 직접 적어 주면 그대로 쓴다.
+         (예전에는 description 문구를 정규식으로 읽어 종류를 추측했기 때문에,
+          문구와 실제 동작이 어긋나는 기술이 40여 종 있었다) */
+      if (sk.kind) {
+        def.kind = sk.kind;
+        ['power', 'hits', 'range', 'minRange', 'radius', 'amount', 'turns', 'atk', 'def',
+         'healPct', 'vsMount', 'waterBonus', 'siegeBonus', 'defPierce', 'ignoreEvade', 'slow',
+         'stun', 'confuse', 'fear', 'cleanse'].forEach((k) => {
+          if (sk[k] != null) def[k] = sk[k];
+        });
+        if (sk.morale != null) def.morale = sk.morale;
+        if (sk.range == null) def.range = rng.max;
+        if (sk.minRange == null) def.minRange = rng.min;
+        SK.SKILLS[key] = def;
+        return key;
+      }
       if (/회복/.test(eff) || /회복/.test(sk.name)) {
         const area = /범위|주변|전군/.test(eff);
         def.kind = area ? 'healArea' : 'heal';
@@ -1536,17 +1552,16 @@ SK.equipBonus = function (h) {
    · 원문에 숫자가 없는 문구는 값을 지어내지 않고 fxNotes(미적용)로 남겨 UI에 그대로 보여 준다. */
 SK.TREASURE_FX_KEYS = ['atk', 'def', 'defWall', 'dmg', 'taken', 'magic', 'magicTaken',
   'crit', 'critDmg', 'critRes', 'evade', 'counter', 'heal', 'first', 'mp', 'mpCost', 'exp',
-  /* v5.30 — 전투 규칙 계열: 연격·연속 사격·한 턴 2회·광역·관통·지형·야간·반사·돌격·측면 */
   'combo', 'volley', 'doubleAct', 'pierce', 'splash', 'line',
   'water', 'mountain', 'night', 'nightTaken', 'reflect', 'charge', 'flank',
-  /* v5.31 — 사기·상태이상·내정·외교 계열 */
   'morale', 'moraleMax', 'moraleSave', 'moraleRegen', 'moraleHit',
   'stunHit', 'fearHit', 'slowHit', 'disarm', 'statusRes', 'cleanse',
   'immuneFC', 'immunePoison', 'immuneDisarm',
   'pursuit', 'meleeTaken', 'gateDmg', 'rngPlus', 'lossCut', 'passive', 'radius', 'moveShot',
   'income', 'supply', 'diplo', 'duel', 'detect',
-  /* v5.40 — 250종 확장: 신규 보물의 군량·첩보·민심·징병·훈련 문구 */
-  'food', 'spy', 'loyalty', 'recruit', 'train'];
+  'food', 'spy', 'loyalty', 'recruit', 'train',
+  /* v5.58 — 문구가 병과·대상·비용을 콕 집는 효과를 실제 판정으로 옮긴다 */
+  'vsGeom', 'vsHeavy', 'siegeDmg', 'techCost', 'buildCost'];
 SK.TREASURE_FX_LABEL = {
   atk: '공격력', def: '방어력', defWall: '성벽 위 방어력', dmg: '주는 피해', taken: '받는 피해',
   magic: '책략 위력', magicTaken: '받는 책략 피해', crit: '치명타 확률', critDmg: '치명타 피해',
@@ -1556,202 +1571,443 @@ SK.TREASURE_FX_LABEL = {
   combo: '연격 확률', volley: '연속 사격 확률', doubleAct: '한 턴 2회 공격', pierce: '연격 시 방어 무시',
   splash: '주변 추가 피해', line: '관통 추가 피해', water: '수전 지형 공·방', mountain: '산악 지형 공·방',
   night: '야간 공·방', nightTaken: '야간 받는 피해', reflect: '반사 피해', charge: '돌격 추가 피해', flank: '측면·후면 추가 피해',
-  /* v5.31 */
   morale: '사기', moraleMax: '사기 최대치', moraleSave: '사기 저하 저항', moraleRegen: '턴당 사기 회복',
   moraleHit: '적 사기 저하', stunHit: '기절 부여 확률', fearHit: '위축 부여 확률', slowHit: '둔화 부여',
   disarm: '방어 약화 확률', statusRes: '상태이상 저항', cleanse: '상태이상 해제 확률',
   immuneFC: '공포·혼란 면역', immunePoison: '역병 면역', immuneDisarm: '무기 해제 면역',
   pursuit: '추격 발동 확률', meleeTaken: '근접 받는 피해', gateDmg: '성문·장애물 피해',
-  rngPlus: '사거리 +1', lossCut: '패전 병력 손실', passive: '고유특기 발동 확률',
+  rngPlus: '사거리 +1(원거리만)', lossCut: '패전 병력 손실', passive: '고유특기 발동 확률',
   radius: '책략 범위', moveShot: '이동 후 사격 페널티 무효',
   income: '성 내정 수입', supply: '성 군량 유지비', diplo: '외교·등용 성공률', duel: '일기토 승리 확률', detect: '정찰 범위',
-  /* v5.40 */
   food: '성 군량 생산', spy: '첩보·정찰 성공률', loyalty: '성 민심·충성', recruit: '징병량', train: '훈련 효율',
+  vsGeom: '검병·등갑병에게 주는 피해', vsHeavy: '중갑에게 주는 피해', siegeDmg: '성벽·성문 피해',
+  techCost: '기술 연구 비용', buildCost: '건축·성벽 수리 비용',
 };
-/* v5.30 — 문구에 숫자가 없는 전투 규칙은 지어내지 않고, 이 기본값으로 옮긴 값을 UI에 '기본값'으로 밝힌다. */
 SK.TREASURE_FX_DEFAULT = {
   combo: 15, volley: 15, doubleAct: 1, pierce: 1, splash: 12, line: 12,
-  water: 10, mountain: 10, terrainAny: 10, night: 10, nightTaken: 15, reflect: 15, charge: 8, flank: 12,
-  /* v5.31 — 숫자 없이 적힌 사기·상태이상·내정 문구의 기본값 */
+  water: 10, mountain: 10, night: 10, nightTaken: 15, reflect: 15, charge: 8, flank: 12,
   morale: 12, moraleMax: 10, moraleSave: 25, moraleRegen: 6, moraleHit: 6,
   stunHit: 12, fearHit: 20, slowHit: 1, disarm: 14, statusRes: 15, cleanse: 20,
   immuneFC: 1, immunePoison: 1, immuneDisarm: 1,
   pursuit: 20, meleeTaken: 12, gateDmg: 20, rngPlus: 1, lossCut: 15, passive: 12, radius: 1,
   moveShot: 1, income: 12, supply: 12, diplo: 10, duel: 15, detect: 1,
-  counter: 20, first: 20, magicMorale: 12,
+  counter: 20, first: 20,
   food: 12, spy: 10, loyalty: 8, recruit: 10, train: 10,
+  vsGeom: 20, vsHeavy: 20, siegeDmg: 20, techCost: 10, buildCost: 10,
 };
-SK.TREASURE_FX_FLAGS = { doubleAct: 1, pierce: 1, immuneFC: 1, immunePoison: 1, immuneDisarm: 1, rngPlus: 1, moveShot: 1 };   // 수치가 아니라 '가능/무시' 여부만 보는 효과
+SK.TREASURE_FX_FLAGS = { doubleAct: 1, pierce: 1, immuneFC: 1, immunePoison: 1, immuneDisarm: 1, rngPlus: 1, moveShot: 1 };
+/* 값이 클수록 '덜 받거나 덜 쓴다'인 훅 — 문구의 부호와 상관없이 크기를 효과로 읽는다 */
+SK.TREASURE_FX_ABS = { taken: 1, magicTaken: 1, nightTaken: 1, meleeTaken: 1, mpCost: 1, supply: 1,
+  lossCut: 1, moraleHit: 1, moraleSave: 1, techCost: 1, buildCost: 1 };
+/* ───────────── v5.58 — 문구 절 ↔ 훅 1:1 표 ─────────────
+   treasures.json 의 effect 를 ', ' 로 나눈 절 하나가 아래 표의 한 줄에 정확히 붙는다.
+   숫자는 '#'으로 바꾸고 '%'·공백을 지운 키로 찾으므로 값만 달라도 같은 훅이다.
+   표에 없는 문구만 아래 정규식(SK.TREASURE_FX_RULES)으로 넘어간다. */
+SK.TREASURE_CLAUSE_RULES = [
+  ['무력 +#', 'stat'],
+  ['지력 +#', 'stat'],
+  ['통솔 +#', 'stat'],
+  ['정치 +#', 'stat'],
+  ['매력 +#', 'stat'],
+  ['이동력 +#', 'stat'],
+  ['기병 이동력 +#', 'stat'],
+  ['수군 이동력 +#', 'stat'],
+  ['해상 이동력 +#', 'stat'],
+  ['군주 통솔 보정 +#', 'stat'],
+  ['공격력 +#%', 'atk'],
+  ['기병 공격력 +#%', 'atk'],
+  ['보병 공격력 +#%', 'atk'],
+  ['궁병 공격력 +#%', 'atk'],
+  ['창병 공격력 +#%', 'atk'],
+  ['화기 부대 공격력 +#%', 'atk'],
+  ['화포 부대 공격력 +#%', 'atk'],
+  ['아군 전체 공격력 +#%', 'atk'],
+  ['전쟁 중 아군 공격력 +#%', 'atk'],
+  ['아군 전열 공격력 +#%', 'atk'],
+  ['고대 전열 공격력 +#%', 'atk'],
+  ['근접 공격력 +#', 'atk'],
+  ['야전 및 야습 공격력 +#%', 'atk'],
+  ['해상·수변 전투 공격력 +#%', 'atk'],
+  ['도하·연안 전투 공격력 +#%', 'atk'],
+  ['하천 및 습지 전투에서 아군 공격력 +#%', 'atk'],
+  ['병력 열세 시 공격력 +#%', 'atk'],
+  ['아군 전체 공격력·방어력 +#%', 'atkDef'],
+  ['방어력 +#%', 'def'],
+  ['투사체 방어 +#%', 'def'],
+  ['강가·습지 방어력 +#%', 'def'],
+  ['위기 상황 방어력 +#%', 'def'],
+  ['창병·보병 돌격 방어 +#%', 'def'],
+  ['보병 방어력 +#%', 'def'],
+  ['기병 방어력 +#%', 'def'],
+  ['기병 및 보병 방어력 +#%', 'def'],
+  ['모든 병과 방어력 +#%', 'def'],
+  ['성벽·주둔지 방어력 +#%', 'defWall'],
+  ['성곽 방어력 +#%', 'defWall'],
+  ['산성 방어력 +#%', 'defWall'],
+  ['산성 방어전에서 아군 방어력 +#%', 'defWall'],
+  ['성 방어전 아군 방어력 +#%', 'defWall'],
+  ['주는 피해 +#%', 'dmg'],
+  ['기동 보병·창병 근접 피해 +#%', 'dmg'],
+  ['화계 및 화공 피해 +#%', 'dmg'],
+  ['화계 성공률 +#%', 'dmg'],
+  ['전술 피해 +#%', 'dmg'],
+  ['기병·보병 연계 공격 시 피해 +#%', 'dmg'],
+  ['화기 부대 피해 +#%', 'dmg'],
+  ['야전 전투 피해 +#%', 'dmg'],
+  ['원거리 명중률 +#%', 'dmg'],
+  ['궁병 명중률 +#%', 'dmg'],
+  ['수군 명중률 +#%', 'dmg'],
+  ['방어 관통 +#%', 'dmg'],
+  ['돌격 시 적 방어력 -#%', 'dmg'],
+  ['일기토·책략 양쪽 피해 +#%', 'dmg'],
+  ['받는 피해 -#%', 'taken'],
+  ['받는 물리 피해 -#%', 'taken'],
+  ['물리 피해 -#%', 'taken'],
+  ['받는 원거리 피해 -#%', 'taken'],
+  ['전면 물리 피해 -#%', 'taken'],
+  ['화살·투석 피해 -#%', 'taken'],
+  ['투사체·낙석 피해 -#%', 'taken'],
+  ['돌격·충격 피해 경감 -#%', 'taken'],
+  ['측면·후면 기습 피해 -#%', 'taken'],
+  ['기습 피해 경감 -#%', 'taken'],
+  ['진영 고정 방어 시 피해 -#%', 'taken'],
+  ['보병 피해 감소 +#%', 'taken'],
+  ['이동력 페널티 없이 물리 피해 -#%', 'taken'],
+  ['적 기병 공격력 -#%', 'taken'],
+  ['적 수군 명중률 -#%', 'taken'],
+  ['책략 위력 +#%', 'magic'],
+  ['도술·기상 책략 위력 +#%', 'magic'],
+  ['안개·화계·낙뢰 책략 위력 +#%', 'magic'],
+  ['화계·풍계 책략 위력 +#%', 'magic'],
+  ['기상·바람 계열 책략 및 검격 피해 +#%', 'magic'],
+  ['고대 설화·신비 책략 위력 +#%', 'magic'],
+  ['책략 명중률 +#%', 'magic'],
+  ['기상 변화 예측 및 아군 책략 명중률 +#%', 'magic'],
+  ['야간·기상 책략 명중률 +#%', 'magic'],
+  ['기상 예측 성공률 +#%', 'magic'],
+  ['계절 예측 성공률 +#%', 'magic'],
+  ['화계 확률 +#%', 'magic'],
+  ['고대 설화·신비 책략 위력 및 사기 보정', 'magic'],
+  ['받는 책략 피해 -#%', 'magicTaken'],
+  ['화계 피해 감소 +#%', 'magicTaken'],
+  ['화공·화살 불길 피해 -#%', 'magicTaken'],
+  ['화계·화살 불길 피해 -#%', 'magicTaken'],
+  ['물·바람 책략 피해 -#%', 'magicTaken'],
+  ['책략 역풍·반격 피해 경감 -#%', 'magicTaken'],
+  ['저주 저항 +#%', 'magicTaken'],
+  ['저주·화계·혼란 책략 저항 +#%', 'magicTaken'],
+  ['화계 피해 +#%', 'magicVuln'],
+  ['받는 책략 피해 +#%', 'magicVuln'],
+  ['물리·책략 피해 -#%', 'both'],
+  ['치명타 확률 +#%', 'crit'],
+  ['기병 돌격 치명타율 +#%', 'crit'],
+  ['치명타·책략 크리티컬 확률 +#%', 'crit'],
+  ['근접 치명타 피해 +#%', 'critDmg'],
+  ['원거리 치명타 피해 +#%', 'critDmg'],
+  ['치명타 저항 +#%', 'critRes'],
+  ['헤드샷·치명타 피해 -#%', 'critRes'],
+  ['회피 +#%', 'evade'],
+  ['회피율 +#%', 'evade'],
+  ['위기 회피 확률 +#%', 'evade'],
+  ['근접 회피율 +#%', 'evade'],
+  ['산림·험지 회피율 +#%', 'evade'],
+  ['암습·근접 위기 탈출 확률 +#%', 'evade'],
+  ['반격 피해 +#%', 'counter'],
+  ['기병 접근 시 반격 위력 +#%', 'counter'],
+  ['연속 근접 반격 시 피해 +#%', 'counter'],
+  ['반격 공격력 +#%', 'counter'],
+  ['근접 자위력 상승', 'counter'],
+  ['회복량 +#%', 'heal'],
+  ['턴당 병력·부상 회복량 +#%', 'heal'],
+  ['궁기·기병 선제공격률 +#%', 'first'],
+  ['선제공격·기습 성공률 +#%', 'first'],
+  ['기습 공격 성공률 +#%', 'first'],
+  ['기습 및 매복 성공률 +#%', 'first'],
+  ['매복 성공률 +#%', 'first'],
+  ['기마 부대 기동력·선제 타격 보정', 'first'],
+  ['턴당 기력 회복 +#', 'mp'],
+  ['기력 회복 +#', 'mp'],
+  ['책략 소비 기력 -#%', 'mpCost'],
+  ['기력 소모 -#%', 'mpCost'],
+  ['부대 경험치 획득량 +#%', 'exp'],
+  ['경험치 획득 +#%', 'exp'],
+  ['부대 경험치 +#%', 'exp'],
+  ['단일 대상 연격 확률 +#%', 'combo'],
+  ['연노·궁수 연속 사격 확률 +#%', 'volley'],
+  ['장거리 화염·연속 투사체 공격 가능', 'volley'],
+  ['#턴 #회 근접 공격 가능(쿨타임)', 'doubleAct'],
+  ['자웅 쌍검으로 두 번 벤다', 'doubleAct'],
+  ['연격 시 대상 방어력 무시', 'pierce'],
+  ['주변 #칸 범위 추가 피해', 'splash'],
+  ['다중 화살 공격 시 #번째 대상 피해 증가', 'splash'],
+  ['다수 적 상대 광역 베기 피해 +#%', 'splash'],
+  ['횡일선 관통 베기 추가 피해', 'line'],
+  ['수전 지형 공·방 +#%', 'water'],
+  ['수군 건조 비용 -#%', 'water'],
+  ['수군 방어력 +#%', 'water'],
+  ['수전 피해 감소 +#%', 'water'],
+  ['수전 공격력 +#%', 'water'],
+  ['수전 피해 +#%', 'water'],
+  ['산악 지형 공·방 +#%', 'mountain'],
+  ['산악·수전 지형 아군 능력치 보정 강화', 'terrainAny'],
+  ['야간 공·방 +#%', 'night'],
+  ['야간 받는 피해 -#%', 'nightTaken'],
+  ['야간 전투 시 물리·책략 피해 -#%', 'nightTaken'],
+  ['반사 피해 +#%', 'reflect'],
+  ['반격 시 반사 피해 부여', 'reflect'],
+  ['돌격 추가 피해 +#%', 'charge'],
+  ['돌파 피해 +#%', 'charge'],
+  ['기병 돌격 피해 +#%', 'charge'],
+  ['돌격 피해 +#%', 'charge'],
+  ['돌격 성공률 +#%', 'charge'],
+  ['전열 돌파 시 추가 피해 +#%', 'charge'],
+  ['돌격 시 이동 거리 비례 추가 피해', 'charge'],
+  ['측면·후면 추가 피해 +#%', 'flank'],
+  ['은신·측면 공격 시 추가 피해 +#%', 'flank'],
+  ['험지 이동 페널티 무효', 'rough'],
+  ['강하·도하 이동력 소모 감소', 'rough'],
+  ['이동 시 지형 제약 경감', 'rough'],
+  ['야전 기동력 보정', 'rough'],
+  ['정찰 이동력 소모 감소', 'rough'],
+  ['야간 행군 속도 상승', 'rough'],
+  ['설원·고원 이동 페널티 감소', 'rough'],
+  ['구릉·초원 이동 안정성 상승', 'rough'],
+  ['강남 구릉 지형 이동 보정', 'rough'],
+  ['산악 지형 이동 소모 -#', 'rough'],
+  ['산악 이동 소모 -#', 'rough'],
+  ['해상 이동 소모 -#', 'rough'],
+  ['아군 육상 이동 소모 -# (역참 경로)', 'rough'],
+  ['기상 악화로 인한 이동력 감소 확률 -#%', 'rough'],
+  ['전 지형 이동 페널티 경감 및 시야·행군 효율 대폭 상승', 'rough'],
+  ['사기 +#', 'morale'],
+  ['아군 사기 +#', 'morale'],
+  ['세력 전체 사기 +#', 'morale'],
+  ['아군 전체 사기 +#', 'morale'],
+  ['주둔군 사기 +#', 'morale'],
+  ['아군 기병 사기 +#', 'morale'],
+  ['전쟁 선포 후 3턴간 아군 사기 +#%', 'morale'],
+  ['아군 기병·보병 이동력 보정 및 사기 +#', 'morale'],
+  ['야전 행군 시 사기 +#', 'morale'],
+  ['전군 사기 최대치 상승', 'moraleMax'],
+  ['사기 저하 저항 +#%', 'moraleSave'],
+  ['사기 저하 -#%', 'moraleSave'],
+  ['아군 사기 감소 -#%', 'moraleSave'],
+  ['아군 사기 감소 효과 -#%', 'moraleSave'],
+  ['선봉 지휘 시 아군 사기 감소 -#%', 'moraleSave'],
+  ['사기 안정 +#%', 'moraleSave'],
+  ['행군 시 사기 감소 완화', 'moraleSave'],
+  ['설원·초원 이동 시 사기 유지', 'moraleSave'],
+  ['아군 사기 회복량 +#%', 'moraleRegen'],
+  ['아군 사기 회복 +#%', 'moraleRegen'],
+  ['아군 기병·보병 사기 회복량 +#%', 'moraleRegen'],
+  ['진형 효율 +#%', 'moraleRegen'],
+  ['적 사기 저하 효과 부여', 'moraleHit'],
+  ['적 기세 꺾기 효과', 'moraleHit'],
+  ['적 사기 저하 +#', 'moraleHit'],
+  ['사기 저하 효과', 'moraleHit'],
+  ['적 사기 감소 효과 +#%', 'moraleHit'],
+  ['적 사기 감소 +#', 'moraleHit'],
+  ['돌격 시 적 사기 -#', 'moraleHit'],
+  ['기절·위축 효과 부여 확률 +#%', 'stunHit'],
+  ['일기토·근접전 위압 효과 부여', 'fearHit'],
+  ['둔타 공격 시 이동력 -# 디버프 부여', 'slowHit'],
+  ['무기 해제·방어력 약화 확률 +#%', 'disarm'],
+  ['상태이상 저항 +#%', 'statusRes'],
+  ['아군 상태이상 해제 확률 +#%', 'cleanse'],
+  ['아군 혼란 회복', 'cleanse'],
+  ['공포·혼란 상태이상 면역', 'immuneFC'],
+  ['역병 면역', 'immunePoison'],
+  ['무기 내구 손실 무효', 'immuneDisarm'],
+  ['무기 흘림 방지', 'immuneDisarm'],
+  ['추격 발동 확률 +#%', 'pursuit'],
+  ['추격 공격 발동 확률 +#%', 'pursuit'],
+  ['돌파 이동 시 추격률 +#%', 'pursuit'],
+  ['근접 받는 피해 -#%', 'meleeTaken'],
+  ['전면 근접 피해 -#%', 'meleeTaken'],
+  ['일기토·근접전 내성 상승', 'meleeTaken'],
+  ['목책·장애물 파괴 효율 +#%', 'gateDmg'],
+  ['성문·장애물 피해 +#%', 'gateDmg'],
+  ['사거리 +#', 'rngPlus'],
+  ['사거리 +#(원거리 병과 한정)', 'rngPlus'],
+  ['궁병 사거리 +#', 'rngPlus'],
+  ['중거리 투척 공격 사용 가능', 'rngPlus'],
+  ['해상·포차 공격 사거리 및 폭발 피해 증가', 'rngPlus'],
+  ['패전 병력 손실 -#%', 'lossCut'],
+  ['부상 발생률 감소', 'lossCut'],
+  ['부상 확률 -#%', 'lossCut'],
+  ['패전 피해 감소', 'lossCut'],
+  ['전술 운용 효율 +#%', 'passive'],
+  ['역사적 전술 발동 확률 +#%', 'passive'],
+  ['전투 중 전술 성공률 +#%', 'passive'],
+  ['범위 효과 확대', 'radius'],
+  ['이동 후 사격 피해 감소 없음', 'moveShot'],
+  ['일기토 제안 성공률 상승', 'duel'],
+  ['일기토 승리 확률 +#%', 'duel'],
+  ['일기토 승률 보정 +#%', 'duel'],
+  ['적 장수와의 일기토 피해 +#%', 'duel'],
+  ['은신·매복 적 탐지 범위 +#', 'detect'],
+  ['육상 정찰 범위 +#', 'detect'],
+  ['첩보 정찰 범위 +#', 'detect'],
+  ['야간 매복 발각 확률 감소', 'detect'],
+  ['내정 수입 +#%', 'income'],
+  ['도시 내정 효율 +#%', 'income'],
+  ['도시 상업 수입 +#%', 'income'],
+  ['무역 수입 +#%', 'income'],
+  ['문화 수입 +#%', 'income'],
+  ['도시 세금 수입 +#%', 'income'],
+  ['도시 문화 발전 +#%', 'income'],
+  ['상업 개발 효율 +#%', 'income'],
+  ['농업·수리 내정 효율 +#%', 'income'],
+  ['치안 유지·세수 징수 효율 +#%', 'income'],
+  ['도시 행정 효율 +#%', 'income'],
+  ['도시 개발 효율 +#%', 'income'],
+  ['내정 명령 실행 비용 -#%', 'income'],
+  ['세력 명성 획득량 +#%', 'income'],
+  ['군량 생산량 +#%', 'food'],
+  ['도시 군량 저장량 +#%', 'food'],
+  ['성 군량 생산 +#%', 'food'],
+  ['농지 개발 비용 -#%', 'food'],
+  ['홍수 및 가뭄 피해 예측 성공률 +#%', 'food'],
+  ['군량 소모 -#%', 'supply'],
+  ['보급 소모 감소', 'supply'],
+  ['적군 보급 효율 -#%', 'supply'],
+  ['보급 이동 효율 상승', 'supply'],
+  ['군량 구매 비용 -#%', 'supply'],
+  ['도시 민심 +#%', 'loyalty'],
+  ['내정 안정도 +#%', 'loyalty'],
+  ['도시 민심 회복량 +#%', 'loyalty'],
+  ['점령 도시 민심 안정도 +#%', 'loyalty'],
+  ['점령 도시 민심 +#%', 'loyalty'],
+  ['장수 충성도 상승량 +#%', 'loyalty'],
+  ['도시 민심 상승 및 반란 억제 +#%', 'loyalty'],
+  ['장수 충성도 하락 확률 -#%', 'loyalty'],
+  ['반란 발생 확률 -#%', 'loyalty'],
+  ['반란 확률 -#%', 'loyalty'],
+  ['연구 완료 턴 -#', 'loyalty'],
+  ['외교 협상 성공률 +#%', 'diplo'],
+  ['등용 성공률 +#%', 'diplo'],
+  ['인재 등용 성공률 +#%', 'diplo'],
+  ['동맹 제안 성공률 +#%', 'diplo'],
+  ['외교 우호도 증가량 +#%', 'diplo'],
+  ['외교·내정 성공률 +#%', 'diplo'],
+  ['외교·사신 임무 성공률 +#%', 'diplo'],
+  ['외교·회유 성공률 상승', 'diplo'],
+  ['외교 호감도 상승', 'diplo'],
+  ['포로 등용·외교 성공률 상승', 'diplo'],
+  ['외교·등용 효율 상승', 'diplo'],
+  ['인재 등용 비용 -#%', 'diplo'],
+  ['외교 성공률 +#%', 'diplo'],
+  ['첩보 성공률 +#%', 'spy'],
+  ['부패 적발 성공률 +#%', 'spy'],
+  ['적군 침공 정보 탐지 확률 +#%', 'spy'],
+  ['적군 이동 경로 정찰 성공률 +#%', 'spy'],
+  ['징병량 +#%', 'recruit'],
+  ['모병량 +#%', 'recruit'],
+  ['훈련 효율 +#%', 'train'],
+  ['부대 훈련 효율 +#%', 'train'],
+  ['신규 장수 무력 성장 확률 +#%', 'train'],
+  ['검병·등갑병에게 주는 피해 +#%', 'vsGeom'],
+  ['방패·등갑 대상 추가 피해 +#%', 'vsGeom'],
+  ['중갑 대상 피해 +#%', 'vsHeavy'],
+  ['중갑에게 주는 피해 +#%', 'vsHeavy'],
+  ['성벽·성문 피해 +#%', 'siegeDmg'],
+  ['성벽·목책 공성 피해 +#%', 'siegeDmg'],
+  ['공성·성벽 파괴 피해 +#%', 'siegeDmg'],
+  ['기술 연구 비용 -#%', 'techCost'],
+  ['모든 기술 연구 비용 -#%', 'techCost'],
+  ['성벽 건설 및 수리 비용 -#%', 'buildCost'],
+  ['성벽 건설 비용 -#%', 'buildCost'],
+  ['도시 건축 비용 -#%', 'buildCost'],
+  ['치명타 피해 +#%', 'critDmg'],
+  ['첫 공격 피해 +#%', 'first'],
+  ['턴당 기력 +#', 'mp'],
+  ['책략 기력 소모 -#%', 'mpCost'],
+  ['연격 확률 +#%', 'combo'],
+  ['연속 사격 확률 +#%', 'volley'],
+  ['주변 추가 피해 +12%', 'splash'],
+  ['관통 추가 피해 +12%', 'line'],
+  ['수전·산악 지형 공·방 +10%', 'terrainAny'],
+  ['사기 최대치 +10', 'moraleMax'],
+  ['턴당 사기 회복 +#%', 'moraleRegen'],
+  ['기절 부여 확률 +#%', 'stunHit'],
+  ['위축 부여 확률 +20%', 'fearHit'],
+  ['둔화 부여', 'slowHit'],
+  ['상태이상 해제 확률 +#%', 'cleanse'],
+  ['사거리 +1(원거리만)', 'rngPlus'],
+  ['고유특기 발동 확률 +#%', 'passive'],
+  ['책략 범위 +1칸', 'radius'],
+  ['정찰 범위 +#', 'detect'],
+  ['성 내정 수입 +#%', 'income'],
+  ['성 민심·충성 +#%', 'loyalty'],
+  ['성 군량 유지비 -#%', 'supply'],
+  ['외교·등용 성공률 +#%', 'diplo'],
+  ['첩보·정찰 성공률 +#%', 'spy'],
+  ['중갑(검병·등갑병·창병)에게 주는 피해 +#%', 'vsHeavy'],
+  ['건축·성벽 수리 비용 -#%', 'buildCost'],
+  ['한 턴 2회 공격', 'doubleAct'],
+];
+SK.treasureClauseKey = function (s) { return String(s || '').replace(/\d+/g, '#').replace(/%/g, '').replace(/\s+/g, ''); };
+SK.TREASURE_CLAUSE_MAP = (function () {
+  const m = {};
+  SK.TREASURE_CLAUSE_RULES.forEach((r) => { m[SK.treasureClauseKey(r[0])] = r[1]; });
+  return m;
+})();
+/* 옛 정규식 규칙 — 표에 없는 새 문구를 위한 안전망(순서가 중요하다) */
 SK.TREASURE_FX_RULES = [
-  /* v5.30 — 전투 규칙 계열을 일반 수치 규칙보다 먼저 잡는다 ("연속 사격"이 사격 피해로, "야간 피해"가
-     상시 피해 감소로 새지 않게). */
-  /* v5.31 — 사기·상태이상·내정·외교 계열 (일반 수치 규칙보다 먼저 잡는다) */
   [/공포[·,]?\s*혼란[^,]*면역|혼란[·,]?\s*공포[^,]*면역/, 'immuneFC'],
   [/역병\s*면역/, 'immunePoison'],
   [/무기\s*흘림\s*방지|무기\s*내구\s*손실\s*무효/, 'immuneDisarm'],
   [/무기\s*해제[·,]?\s*방어력\s*약화/, 'disarm'],
   [/아군\s*상태이상\s*해제\s*확률|아군\s*혼란\s*회복/, 'cleanse'],
   [/상태이상\s*저항/, 'statusRes'],
-  [/기절[·,]?\s*위축[^,]*부여/, 'stunHit'],
-  [/위압\s*효과\s*부여/, 'fearHit'],
-  [/둔타[^,]*이동력\s*-\s*1/, 'slowHit'],
-  [/추격\s*(?:공격)?\s*발동\s*확률|추격률/, 'pursuit'],
-  [/적\s*사기\s*저하\s*효과\s*부여|적\s*기세\s*꺾기|^사기\s*저하\s*효과$|적\s*사기\s*[-−]\s*\d+|적\s*사기\s*(?:감소|저하)[^,]*[+＋]\s*\d+/, 'moraleHit'],
-  [/전군\s*사기\s*최대치|사기\s*최대치/, 'moraleMax'],
-  [/사기\s*저하\s*저항|사기\s*안정|사기\s*유지|아군\s*사기\s*감소|선봉\s*지휘\s*시\s*아군\s*사기|행군\s*시\s*사기|사기\s*저하\s*[-−]\s*\d+/, 'moraleSave'],
-  [/사기\s*회복/, 'moraleRegen'],
-  [/사기\s*\+\s*\d+|전군\s*사기/, 'morale'],
-  /* v5.40 — 250종 확장 문구. 비용 문구는 값을 지어내지 않고 미적용(note)으로 남기고,
-     전투·내정에 실제 판정이 있는 것만 훅으로 옮긴다. */
-  [/비용\s*[-−]\s*\d+/, 'note'],
-  [/화계[^,]*피해\s*감소|화공[^,]*피해\s*감소|화계\s*피해\s*[-−]\s*\d+/, 'magicTaken'],
-  [/화계|화공\s*(?:피해|성공률|확률)|화공(?!\s*부대)/, 'magic'],
-  /* 적 수군·적 기병 약화는 '우리 수전 보정'보다 먼저 받는 피해 경감으로 옮긴다 */
-  [/적[^,]*공격력\s*[-−]|적\s*수군[^,]*[-−]|적군\s*[^,]*[-−]\s*\d+/, 'taken'],
-  [/수전|수군/, 'water'],
-  [/첩보/, 'spy'],
-  [/정찰\s*성공률|부패\s*적발/, 'spy'],
-  [/정찰\s*범위|탐지\s*확률|정보\s*탐지/, 'detect'],
   [/사거리\s*\+\s*\d+/, 'rngPlus'],
-  [/일기토[^,]*(?:승률|승리)/, 'duel'],
-  [/부상\s*(?:확률|발생)/, 'lossCut'],
-  [/기습[^,]*성공률|매복\s*성공률/, 'first'],
-  [/도시\s*(?:행정|개발|문화\s*발전)|내정\s*안정도/, 'income'],
-  [/민심|충성도|반란/, 'loyalty'],
-  [/군량\s*(?:생산|수확|저장)|농업\s*(?:생산|개발\s*효율)/, 'food'],
-  [/징병|모병/, 'recruit'],
-  [/훈련\s*(?:효율|도)|부대\s*훈련/, 'train'],
-  [/성벽\s*(?:건설|수리|방어)|성곽\s*방어|성\s*방어전[^,]*방어력|산성\s*방어력/, 'defWall'],
-  [/산악[^,]*이동|산지[^,]*이동|육상\s*이동|해상\s*이동/, 'rough'],
-  [/등용\s*성공률|인재\s*등용|동맹\s*제안|외교\s*(?:협상|성공률|우호도)|우호도\s*증가/, 'diplo'],
-  [/도시\s*세금|세금\s*수입|무역\s*수입|문화\s*수입|상업\s*개발/, 'income'],
-  [/내정\s*수입|도시\s*내정\s*효율|상업\s*수입|농업[·,]?\s*수리\s*내정\s*효율|치안\s*유지[·,]?\s*세수\s*징수\s*효율|민심\s*상승[^,]*반란\s*억제/, 'income'],
-  [/군량\s*소모|보급\s*소모\s*감소|보급\s*이동\s*효율/, 'supply'],
-  [/외교[^,]*?(?:성공률|효율|호감도)/, 'diplo'],
-  [/일기토\s*제안\s*성공률/, 'duel'],
-  [/일기토[·,]?\s*근접전\s*내성/, 'meleeTaken'],
-  [/근접\s*자위력/, 'counter'],
-  [/목책[·,]?\s*장애물\s*파괴\s*효율/, 'gateDmg'],
-  [/포차[^,]*사거리|중거리\s*투척\s*공격\s*사용/, 'rngPlus'],
-  [/은신[·,]?\s*매복\s*적\s*탐지\s*범위|야간\s*매복\s*발각\s*확률/, 'detect'],
-  [/패전\s*피해\s*감소|부상\s*발생률\s*감소/, 'lossCut'],
-  [/진형\s*효율|부대\s*집결[·,]?\s*명령\s*전달\s*효율/, 'moraleRegen'],
-  [/전술\s*운용\s*효율|역사적\s*전술\s*발동\s*확률/, 'passive'],
-  [/고대\s*설화[·,]?\s*신비\s*책략\s*위력[^,]*사기\s*보정/, 'magicMorale'],
-  [/고대\s*설화[·,]?\s*신비\s*책략\s*위력/, 'magic'],
-  [/설원[·,]?\s*초원\s*이동\s*시\s*사기\s*유지/, 'moraleSave'],
-  [/야전\s*기동력|야간\s*행군\s*속도|구릉[·,]?\s*초원|강남\s*구릉|정찰\s*이동력|강하[·,]?\s*도하\s*이동력|설원[·,]?\s*고원\s*이동\s*페널티/, 'rough'],
-  [/기마\s*부대\s*기동력|선제\s*타격\s*보정/, 'first'],
-  [/다중\s*화살[^,]*2번째\s*대상\s*피해/, 'splash'],
-  [/암습[·,]?\s*근접\s*위기\s*탈출\s*확률/, 'evade'],
   [/이동\s*후\s*사격\s*피해\s*감소\s*없음/, 'moveShot'],
   [/범위\s*효과\s*확대/, 'radius'],
-  [/군주\s*통솔\s*보정/, 'stat'],
-  [/연격\s*시\s*대상\s*방어력\s*무시/, 'pierce'],
   [/연격\s*확률|단일\s*대상\s*연격|연격\s*발동/, 'combo'],
   [/연속\s*사격|연사\s*확률|연속\s*투사체/, 'volley'],
   [/1턴\s*2회|한\s*턴\s*(?:에\s*)?두\s*번|2회\s*근접\s*공격|두\s*번\s*벤다|쌍검으로\s*두/, 'doubleAct'],
-  [/주변\s*\d?\s*칸?\s*범위|광역\s*(?:베기|피해)|주변\s*추가\s*피해|범위\s*추가\s*피해/, 'splash'],
-  [/횡일선|관통\s*베기|전열\s*관통/, 'line'],
-  [/산악\s*[·,]?\s*수전|수전\s*[·,]?\s*산악/, 'terrainAny'],
-  [/수전\s*지형|수상\s*전투/, 'water'],
-  [/산악\s*지형|산지\s*지형/, 'mountain'],
-  [/야간\s*전투\s*시[^,]*피해|밤\s*전투[^,]*피해/, 'nightTaken'],
-  [/야간\s*전투|밤\s*전투/, 'night'],
-  [/반사\s*피해/, 'reflect'],
-  [/(?:돌격|돌파)\s*시[^,]*피해/, 'charge'],
-  [/측면\s*공격|후면\s*공격|배후\s*공격/, 'flank'],
-  [/^(무력|지력|통솔|매력|정치|이동력|사거리|사정거리)\s*\+\s*\d+/, 'stat'],
   [/험지\s*이동\s*페널티\s*무효|지형\s*제약\s*경감|이동\s*페널티\s*경감|지형\s*이동\s*페널티/, 'rough'],
-  [/기력\s*회복/, 'mp'],
-  [/기력\s*소모|책략\s*소비/, 'mpCostAbs'],
-  [/경험치\s*획득|부대\s*경험치/, 'exp'],
-  [/회복량|병력.*회복/, 'heal'],
-  [/사기\s*감소|사기\s*저하|사기\s*유지|사기\s*안정|사기\s*최대치/, 'note'],
-  [/(아군|전군|세력\s*전체)[^,]*사기\s*\+\s*\d+|사기\s*\+\s*\d+/, 'atkHalf'],
-  [/물리·책략\s*피해/, 'bothTaken'],
-  [/책략\s*역풍|책략\s*저항|저주.*저항|받는\s*책략\s*피해|화공.*불길\s*피해|책략\s*피해\s*-/, 'magicTaken'],
-  [/^화계\s*피해\s*\+/, 'magicPenalty'],
-  [/치명타\s*저항|치명타\s*피해\s*-\s*\d+|헤드샷/, 'critRes'],
-  [/치명타\s*확률|치명타율|회심|치명타·책략/, 'crit'],
-  [/치명타\s*피해/, 'critDmg'],
-  [/회피/, 'evade'],
-  [/반사/, 'counter'],
-  [/반격/, 'counter'],
-  [/선제|기습\s*성공률/, 'first'],
-  [/투사체\s*방어|창병·보병\s*돌격\s*방어/, 'def'],
-  [/성벽·주둔지\s*방어력/, 'defWall'],
-  [/공격력·방어력\s*\+\s*\d+/, 'atkDef'],
-  [/방어력\s*\+\s*\d+|방어\s*\+\s*\d+/, 'def'],
-  [/무기\s*해제|방어력\s*약화/, 'note'],
-  [/책략\s*명중|책략\s*크리|책략\s*위력|화계·풍계|도술·기상|안개·화계|기상·바람|야간·기상|고대\s*설화/, 'magic'],
-  [/명중률/, 'dmg'],
-  [/관통|방어력\s*무시|방어력\s*-\s*\d+/, 'dmgAbs'],
-  [/공격력\s*[+\-]\s*\d+/, 'atk'],
-  [/피해\s*경감|피해\s*감소/, 'taken'],
-  [/물리\s*피해\s*-\s*\d+|받는\s*(물리|원거리|투사체|화살|낙석|근접|돌격|충격|기습)?\s*피해|전면\s*(물리|근접)\s*피해|화살·투석\s*피해|투사체·낙석\s*피해|측면·후면/, 'taken'],
-  [/방어력/, 'def'],
-  [/피해\s*-/, 'taken'],
-  [/피해\s*\+/, 'dmg'],
+  [/(무력|지력|통솔|매력|정치|이동력)\s*\+\s*\d+/, 'stat'],
 ];
 SK.parseTreasureFx = function (effect) {
   const fx = { rough: false };
   SK.TREASURE_FX_KEYS.forEach((k) => { fx[k] = 0; });
   const used = [], notes = [];
-  const clampV0 = (x) => Math.max(-60, Math.min(60, x));
+  const clampV = (x) => Math.max(-60, Math.min(80, x));
+  const add = (hook, val) => {
+    if (SK.TREASURE_FX_FLAGS[hook]) { fx[hook] = 1; return; }
+    fx[hook] = clampV(fx[hook] + val);
+  };
   String(effect || '').split(/,|\s·\s/).forEach((raw) => {
     const cl = raw.trim();
     if (!cl) return;
-    let hook = null;
-    for (let i = 0; i < SK.TREASURE_FX_RULES.length; i++) {
-      if (SK.TREASURE_FX_RULES[i][0].test(cl)) { hook = SK.TREASURE_FX_RULES[i][1]; break; }
+    let hook = SK.TREASURE_CLAUSE_MAP[SK.treasureClauseKey(cl)] || null;
+    if (!hook) {
+      for (let i = 0; i < SK.TREASURE_FX_RULES.length; i++) {
+        if (SK.TREASURE_FX_RULES[i][0].test(cl)) { hook = SK.TREASURE_FX_RULES[i][1]; break; }
+      }
     }
     const m = cl.match(/([+\-])\s*(\d+)/);
-    const v = m ? (m[1] === '+' ? 1 : -1) * Number(m[2]) : null;
+    const signed = m ? (m[1] === '+' ? 1 : -1) * Number(m[2]) : null;
     if (hook === 'stat') return;
-    if (hook === 'note' || !hook) { notes.push(cl); return; }
+    if (!hook) { notes.push(cl); return; }
     if (hook === 'rough') { fx.rough = true; used.push({ cl, hook, v: null }); return; }
-    /* v5.30 — 숫자가 없는 전투 규칙 문구는 기본값으로 옮기되, 기본값임을 표시해 둔다 */
+    /* 숫자가 없는 문구는 훅별 기본값으로 옮기되, 기본값임을 남긴다 */
+    let v = signed;
     if (v == null) {
       const dflt = SK.TREASURE_FX_DEFAULT[hook];
       if (dflt == null) { notes.push(cl); return; }
-      if (hook === 'terrainAny') {
-        fx.water += dflt; fx.mountain += dflt;
-        used.push({ cl, hook: 'water', v: dflt, d: true }, { cl, hook: 'mountain', v: dflt, d: true });
-        return;
-      }
-      /* v5.31 — '고대 설화·신비 책략 위력 및 사기 보정'은 책략 위력과 사기를 함께 준다 */
-      if (hook === 'magicMorale') {
-        fx.magic += dflt; fx.morale += Math.round(dflt / 2);
-        used.push({ cl, hook: 'magic', v: dflt, d: true }, { cl, hook: 'morale', v: Math.round(dflt / 2), d: true });
-        return;
-      }
-      fx[hook] = SK.TREASURE_FX_FLAGS[hook] ? 1 : clampV0(fx[hook] + dflt);
-      used.push({ cl, hook, v: dflt, d: true });
-      return;
+      v = dflt; used.push({ cl, hook, v, d: true });
+    } else {
+      used.push({ cl, hook, v });
     }
-    if (hook === 'terrainAny') {
-      fx.water += v; fx.mountain += v;
-      used.push({ cl, hook: 'water', v }, { cl, hook: 'mountain', v });
-      return;
-    }
-    if (SK.TREASURE_FX_FLAGS[hook]) { fx[hook] = 1; used.push({ cl, hook, v }); return; }
-    if (hook === 'magicPenalty') { fx.magicTaken -= Math.abs(v); used.push({ cl, hook: 'magicTaken', v: -Math.abs(v) }); return; }
-    if (hook === 'bothTaken') { fx.taken += Math.abs(v); fx.magicTaken += Math.abs(v); used.push({ cl, hook: 'both', v }); return; }
-    if (hook === 'atkDef') { fx.atk += v; fx.def += v; used.push({ cl, hook: 'atkDef', v }); return; }
-    if (hook === 'atkHalf') { fx.atk += Math.round(v / 2); used.push({ cl, hook: 'atk', v: Math.round(v / 2) }); return; }
-    if (hook === 'mpCostAbs') { fx.mpCost = Math.max(-60, Math.min(60, fx.mpCost + Math.abs(v))); used.push({ cl, hook: 'mpCost', v: Math.abs(v) }); return; }
-    const clampV = (x) => Math.max(-60, Math.min(60, x));
-    if (hook === 'taken' || hook === 'magicTaken' || hook === 'critRes' || hook === 'nightTaken' ||
-        hook === 'moraleHit' || hook === 'slowHit' || hook === 'moraleSave' || hook === 'supply') {
-      /* v5.31 — '적 사기 -10'·'사기 저하 -10%'·'군량 소모 -25%'는 크기가 효과다 (부호는 항상 +) */
-      fx[hook] = clampV(fx[hook] + Math.abs(v));
-    } else if (hook === 'dmgAbs') {
-      fx.dmg = clampV(fx.dmg + Math.abs(v));
-    } else if (fx[hook] != null) {
-      fx[hook] = clampV(fx[hook] + v);
-    } else { notes.push(cl); }
-    used.push({ cl, hook, v });
+    if (hook === 'both') { add('taken', Math.abs(v)); add('magicTaken', Math.abs(v)); return; }
+    if (hook === 'atkDef') { add('atk', v); add('def', v); return; }
+    if (hook === 'magicVuln') { add('magicTaken', -Math.abs(v)); return; }
+    if (hook === 'magicMorale') { add('magic', v); add('morale', Math.round(v / 2)); return; }
+    if (hook === 'terrainAny') { add('water', v); add('mountain', v); return; }
+    if (SK.TREASURE_FX_ABS[hook]) { add(hook, Math.abs(v)); return; }
+    add(hook, v);
   });
   return { fx, used, notes };
 };
@@ -1783,9 +2039,11 @@ SK.TREASURE_FX_PCT = { atk: 1, def: 1, defWall: 1, dmg: 1, magic: 1, evade: 1, c
   combo: 1, volley: 1, splash: 1, line: 1, water: 1, mountain: 1, night: 1, reflect: 1, charge: 1, flank: 1,
   moraleSave: 1, moraleRegen: 1, stunHit: 1, fearHit: 1, disarm: 1, statusRes: 1, cleanse: 1,
   pursuit: 1, meleeTaken: 1, gateDmg: 1, lossCut: 1, passive: 1, income: 1, supply: 1, diplo: 1, duel: 1 };
-SK.TREASURE_FX_NEG = { taken: 1, magicTaken: 1, mpCost: 1, nightTaken: 1, moraleHit: 1, supply: 1 };
+SK.TREASURE_FX_NEG = { taken: 1, magicTaken: 1, mpCost: 1, nightTaken: 1, moraleHit: 1, supply: 1,
+  meleeTaken: 1, lossCut: 1, techCost: 1, buildCost: 1 };   // v5.58 — 덜 받거나 덜 쓰는 값
 /* v5.31 — '−N'으로 읽어야 자연스러운 문구 (군량 유지비 −N%, 적 사기 −N) */
-SK.TREASURE_FX_NEG_LABEL = { supply: '성 군량 유지비', moraleHit: '적 사기' };   // 이름만 바꾸고 −단위는 같다   // 값이 클수록 '−'(상대를 깎거나 덜 받는다)
+SK.TREASURE_FX_NEG_LABEL = { supply: '성 군량 유지비', moraleHit: '적 사기', lossCut: '패전 병력 손실',
+  techCost: '기술 연구 비용', buildCost: '건축·성벽 수리 비용', meleeTaken: '근접 받는 피해', nightTaken: '야간 받는 피해' };   // 이름만 바꾸고 −단위는 같다   // 값이 클수록 '−'(상대를 깎거나 덜 받는다)
 SK.fxSumLine = function (fx, asArray) {
   const parts = [];
   if (fx) {
@@ -1801,8 +2059,8 @@ SK.fxSumLine = function (fx, asArray) {
         return;
       }
       if (k === 'crit' || k === 'critDmg' || k === 'critRes') { parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%p`); return; }
-      if (k === 'mp' || k === 'morale' || k === 'moraleMax') { parts.push(`${lab} +${v}`); return; }
-      if (k === 'slowHit') { parts.push(`${lab} ${v}턴`); return; }
+      if (k === 'mp' || k === 'morale' || k === 'moraleMax') { parts.push(`${lab} ${v > 0 ? '+' : ''}${v}`); return; }
+      if (k === 'slowHit') { parts.push(lab); return; }
       if (k === 'radius' || k === 'detect') { parts.push(`${lab} +${v}${k === 'radius' ? '칸' : ''}`); return; }
       parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%`);
     });

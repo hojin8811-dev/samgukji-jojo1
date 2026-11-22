@@ -301,6 +301,21 @@
   }
   SK.cityTfx = cityTfx;
   SK.heroTfx = heroTfx;
+  /* v5.58 — 기술 연구처럼 세력 전체에 걸리는 비용은 '우리 성 중 가장 좋은 값'을 쓴다
+     (연구는 성 하나의 일이 아니라 나라 전체의 일이라, 그 보물을 가진 장수가 어느 성에 있어도 인정) */
+  function realmTfx(key, cap) {
+    const s = SK.state;
+    if (!s || !s.cities) return 0;
+    let best = 0;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      const v = cityTfx(c.id, key, cap);
+      if (v > best) best = v;
+    });
+    return best;
+  }
+  SK.realmTfx = realmTfx;
 
   /* v5.56 — 성에 주둔한 장수의 **내정형 고유 특기**(data/unique_passives.json 의 kind:'domestic')가
      그 성의 금 수입·군량 수확·훈련도·징병량을 키운다. (태수·군사·건물 담당 모두 포함, 합계 상한 15%) */
@@ -1817,6 +1832,53 @@
   SK.mapPickInfo = () => (mapPickCfg ? { ids: mapPickCfg.ids, origin: mapPickCfg.origin, title: mapPickCfg.title } : null);
 
   /* cfg: { kicker, title, hint, origin, ids, chips, block, onPick, onCancel } */
+  /* ══════════════════════════════════════════════════════════════
+     v5.58 — 계략·첩보 대상: '이웃 1칸'만 보던 것을 '내 성에서 3칸 이내'로 넓힌다
+     (사용자: "계략은 주변국이 아니라 내 성에서 가까운 곳부터. 약 3칸까지")
+     · 도로·바다 길을 따라 BFS로 몇 칸 걸리는지 세고, 가까운 순으로 돌려준다
+     · 같은 칸 수면 성 이름 순으로 안정 정렬 (매달 순서가 흔들리지 않게)
+     ══════════════════════════════════════════════════════════════ */
+  const SCHEME_HOPS = 3;
+  function cityHops(fromId, maxHop) {
+    const out = {};
+    if (!fromId) return out;
+    const seen = {};
+    seen[fromId] = 0;
+    let frontier = [fromId];
+    for (let d = 1; d <= (maxHop || SCHEME_HOPS); d++) {
+      const next = [];
+      frontier.forEach((id) => {
+        (SK.allNeighbors(id) || []).forEach((n) => {
+          if (seen[n] != null) return;
+          seen[n] = d;
+          out[n] = d;
+          next.push(n);
+        });
+      });
+      frontier = next;
+      if (!frontier.length) break;
+    }
+    return out;
+  }
+  SK.cityHops = cityHops;
+  /* cfg: { kinds: ['enemy'|'hostile'|'any'], maxHop } */
+  function citiesWithinHops(fromId, opts) {
+    const o = opts || {};
+    const s = SK.state;
+    const hops = cityHops(fromId, o.maxHop || SCHEME_HOPS);
+    const list = Object.keys(hops).filter((id) => {
+      const st = s && s.cities ? s.cities[id] : null;
+      if (!st || !CITY[id]) return false;
+      const mine = st.owner === PF();
+      if (o.skipMine !== false && mine) return false;
+      if (o.enemyOnly && (mine || st.owner === 'neutral')) return false;
+      return true;
+    }).map((id) => ({ id: id, hop: hops[id], name: CITY[id].name }));
+    list.sort((a, b) => (a.hop - b.hop) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    return list;
+  }
+  SK.citiesWithinHops = citiesWithinHops;
+
   function pickCityOnMap(cfg) {
     if (!window.SKMap || !SKMap.setPick) { SK.toast('지도를 열 수 없습니다.'); return false; }
     const s = SK.state;
@@ -3001,7 +3063,7 @@
   const GUIDE_LINES = {
     1: '<b>① 배속</b> — 아래 <b>[시설 관리]</b>(왼쪽 첫 칸)에서 공터에 건물을 지으면 수입이 늘어납니다. 장수를 배속하면 건물이 더 빨리 자랍니다. 다 됐으면 <b>[다음 달]</b>을 누르세요.',
     2: '<b>② 건설</b> — <b>[시설 관리 → 내성 시설]</b>의 공터를 눌러 시장·농원·병영을 세우고, 지은 건물을 눌러 증축하세요. 증축은 경험이 차면 열립니다.',
-    3: '<b>③ 정찰·출진</b> — <b>[외교·계략 → 정찰]</b>로 이웃 성을 살피고, <b>[군사 → 출진]</b>으로 성을 치세요. 성을 하나 차지하면 천하가 열립니다.',
+    3: '<b>③ 정찰·출진</b> — <b>[외교·계략 → 정찰]</b>로 적성(어느 지역이든)을 살피고, <b>[군사 → 출진]</b>으로 성을 치세요. 성을 하나 차지하면 천하가 열립니다.',
   };
   function renderCityGuide() {
     const box = $('#city-guide');
@@ -3682,7 +3744,7 @@
     /* v5.39 — 연구소 → 첩보소. 지력(ji) 담당이 매달 자동 첩보·이간·유언비어를 편다.
        기술 연구는 이 시설과 무관하게 상단 [기술 연구]에서 그대로 할 수 있다. */
     lab: { name: '첩보소', icon: 'lab', stat: 'ji', res: 'intel', desc: '담당 배속 시 매달 주변 적성 자동 첩보·이간·유언비어' },
-    workshop: { name: '공방', icon: 'workshop', stat: 'pol', res: 'gold', desc: '병기를 만들어 3개월마다 보물을 하나 만듭니다 (금 수입도)' },
+    workshop: { name: '공방', icon: 'workshop', stat: 'pol', res: 'gold', desc: '병기를 만들어 6개월마다 보물을 하나 만듭니다 (금 수입도)' },
   };
   /* v5.35 — 시설 카드에 '담당 없음 · 수입 50%'가 병영·연병장·성벽에도 붙어 오해를 샀다.
      건물마다 실제로 반값이 되는 효과를 적어 준다. */
@@ -3868,7 +3930,26 @@
   SK.dutyTail = dutyTail;
 
   /* v5.4 — 증축 비용. v5.35 — Lv.1→2 350금부터 Lv.4→5 2,200금까지 (시장 Lv.2 +70금/달 → 5달이면 회수) */
-  function buildCost(sl) { return sl.key ? ECON.buildUp[clamp(sl.lv, 1, 4)] : ECON.buildNew; }
+  /* 성 상태 객체 → 성 id (상태 객체에는 id를 넣지 않는다) */
+  function cityIdOf(cs) {
+    if (!cs) return null;
+    if (cs.__id) return cs.__id;
+    const s = SK.state;
+    if (!s || !s.cities) return null;
+    for (let i = 0; i < SK.CITY_LIST.length; i++) {
+      const id = SK.CITY_LIST[i].id;
+      if (s.cities[id] === cs) { cs.__id = id; return id; }
+    }
+    return null;
+  }
+  SK.cityIdOf = cityIdOf;
+  /* v5.58 — 건축·성벽 수리 비용 (거중기·화성 축성 기록 같은 보물이 그 성의 증축비를 깎는다) */
+  function buildCost(sl, cityId) {
+    const base = sl.key ? ECON.buildUp[clamp(sl.lv, 1, 4)] : ECON.buildNew;
+    const cut = cityId ? Math.min(0.4, cityTfx(cityId, 'buildCost', 40) / 100) : 0;
+    return Math.max(1, Math.round(base * (1 - cut)));
+  }
+  SK.buildCost = buildCost;
 
   function renderCitySlots(cityId) {
     const s = SK.state;
@@ -3932,7 +4013,7 @@
         const extra = sl.key === 'workshop'
           ? `<i class="sc-craft">제작 ${sl.craft || 0}/${CRAFT_MONTHS}${g ? '' : ' 정지'}</i>`
           : (sl.key === 'wall' ? `<i class="sc-craft">계략방어 ${Math.round(schemeGuardOf(cityId).block * 100)}%</i>`
-          : (sl.key === 'lab' && g && !spyTargets(cityId).length ? '<i class="sc-craft warn">이웃 적성 없음</i>' : ''));
+          : (sl.key === 'lab' && g && !spyTargets(cityId).length ? '<i class="sc-craft warn">3칸 안 적성 없음</i>' : ''));
         return `<button class="slot-card${full && sl.lv < 5 ? ' ready' : ''}" data-slot="${i}">
           <img class="sc-ico" src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt="">
           <div class="sc-main">
@@ -3987,7 +4068,7 @@
     (cs.slots || []).forEach((sl, i) => {
       if (!sl.key || sl.lv >= 5) return;
       if ((sl.exp || 0) < slotExpNeed(sl.lv)) return;
-      out.push({ sl, i, cost: buildCost(sl), name: (SLOT_DEFS[sl.key] || {}).name || sl.key });
+      out.push({ sl, i, cost: buildCost(sl, cityIdOf(cs)), name: (SLOT_DEFS[sl.key] || {}).name || sl.key });
     });
     out.sort((a, b) => (b.sl.exp / slotExpNeed(b.sl.lv)) - (a.sl.exp / slotExpNeed(a.sl.lv)));
     return out;
@@ -4133,7 +4214,7 @@
     const def = SLOT_DEFS[sl.key];
     const g = slotOwner(cityId, sl);
     const depG = slotDeputy(cityId, sl);
-    const cost = buildCost(sl);
+    const cost = buildCost(sl, cityId);
     const needEp = slotExpNeed(sl.lv);
     const ep = Math.round(sl.exp || 0);
     const epOk = ep >= needEp;
@@ -4439,10 +4520,10 @@
 
   /* ══════════════════════════════════════════════════════════════
      v5.40 — 공방 제작: 담당 장수가 앉아 있으면 매달 게이지 +1,
-     3개월째에 보물 1개를 만든다. 공방 Lv·담당 정치/지력이 높을수록
+     6개월째에 보물 1개를 만든다. 공방 Lv·담당 정치/지력이 높을수록
      회귀·영웅 확률이 오르고 전설은 극히 드물다.
      ══════════════════════════════════════════════════════════════ */
-  const CRAFT_MONTHS = 3;
+  const CRAFT_MONTHS = 6;   // v5.58 — 오래 해 보니 3개월은 너무 잦았다: 6개월에 1개
   SK.CRAFT_MONTHS = CRAFT_MONTHS;
   function workshopCraft(st, c, cs, sl, g) {
     if (!sl || sl.key !== 'workshop') return null;
@@ -4556,7 +4637,7 @@
       const recM = 1 + (pfx.recruit || 0) + Math.min(0.4, cityTfx(c.id, 'recruit', 40) / 100);
       const trnM = (1 + (pfx.train || 0) + Math.min(0.4, cityTfx(c.id, 'train', 40) / 100)) * obTrainM;
       const wallM = 1 + (pfx.wall || 0);
-      let craft = null;                // v5.40 — 공방 제작 (3개월에 보물 1개)
+      let craft = null;                // v5.40 — 공방 제작 (6개월에 보물 1개)
       if (cs.order == null) cs.order = 55;
       cs.slots.forEach((sl) => {
         if (!sl.key) return;
@@ -4581,7 +4662,7 @@
         else if (sl.key === 'wall') def += 0.6 * lv * mul * wallM;
         else if (sl.key === 'workshop') {
           gold += Math.round((40 + lv * 40) * mul * goldM * obProdM);
-          /* v5.40 — 담당이 앉아 있으면 매달 제작 +1, 3개월째에 보물 1개 */
+          /* v5.40 — 담당이 앉아 있으면 매달 제작 +1, 6개월째에 보물 1개 */
           if (g) craft = workshopCraft(st, c, cs, sl, g);
         }
         else if (sl.key === 'tavern') { if (g) SK.gainExp(g, 20); }
@@ -4617,7 +4698,7 @@
 
   /* ══════════════════════════════════════════════════════════════
      v5.39 — 첩보소(옛 연구소 자리)
-     · 지력 담당을 앉힌 성은 달마다 이웃 적성 하나를 자동 정찰
+     · 지력 담당을 앉힌 성은 달마다 3칸 안 적성 하나를 자동 정찰 (가까운 순)
      · 이미 정찰한 적성에는 시설 Lv·담당 지력 비례로 이간계/유언비어
      · 결과는 월정산 '첩보소 첩보'에 한 줄씩 보고한다
      ══════════════════════════════════════════════════════════════ */
@@ -4637,8 +4718,9 @@
     const s = SK.state;
     /* v5.41 — 재야(중립) 성도 첩보 대상에 넣는다. [출진]으로 공격할 수 있는 대상인데
        첩보소만 적성을 고집해, 고구려·신라·조선처럼 이웃이 전부 재야인 세력은
-       담당을 앉혀도 몇 달째 아무 일도 하지 않았다. */
-    return (SK.allNeighbors(cityId) || []).filter((n) => s.cities[n] && s.cities[n].owner !== PF());
+       담당을 앉혀도 몇 달째 아무 일도 하지 않았다.
+       v5.58 — 이웃 1칸만 보던 것을 '내 성에서 3칸 이내, 가까운 순'으로 넓힌다 */
+    return citiesWithinHops(cityId, { maxHop: SCHEME_HOPS }).map((x) => x.id);
   }
   function runSpyOffices(s) {
     const log = [], news = [], wall = [];
@@ -4665,7 +4747,12 @@
         return !isScouted(st) || Number(st.scoutedUntil) - s.turn <= 1;
       });
       if (need.length) {
-        const id = need[Math.floor(Math.random() * need.length)];
+        /* v5.58 — 가까운 성부터 (같은 칸 수 안에서만 무작위) */
+        const hd = {};
+        citiesWithinHops(c.id, { maxHop: SCHEME_HOPS }).forEach((x) => { hd[x.id] = x.hop; });
+        const hmin = Math.min.apply(null, need.map((id) => hd[id] || 9));
+        const pool = need.filter((id) => (hd[id] || 9) === hmin);
+        const id = pool[Math.floor(Math.random() * pool.length)];
         const st = s.cities[id];
         const fresh = !isScouted(st);
         st.scoutedUntil = s.turn + SPY_SCOUT_MONTHS;
@@ -4674,10 +4761,15 @@
         row.acts.push({ kind: 'scout', text: `${CITY[id].name} ${fresh ? '정찰' : '재정찰'} (${SPY_SCOUT_MONTHS}개월)` });
         SK.gainExp(off.g, 6);
       }
-      /* 2) 이간계 · 유언비어 — 이미 정찰한 이웃 적성 하나 (같은 성은 2달 쉬어 간다: 한 성만 파고들지 않게) */
+      /* 2) 이간계 · 유언비어 — 이미 정찰한 3칸 안 적성 하나 (같은 성은 2달 쉬어 간다: 한 성만 파고들지 않게) */
       const seen = targets.filter((id) => isScouted(s.cities[id]) && Number(s.cities[id].spyHitTurn || -9) <= s.turn - 2);
       if (seen.length) {
-        const id = seen[Math.floor(Math.random() * seen.length)];
+        /* v5.58 — 계략도 가까운 성부터 */
+        const hd2 = {};
+        citiesWithinHops(c.id, { maxHop: SCHEME_HOPS }).forEach((x) => { hd2[x.id] = x.hop; });
+        const hmin2 = Math.min.apply(null, seen.map((id) => hd2[id] || 9));
+        const pool2 = seen.filter((id) => (hd2[id] || 9) === hmin2);
+        const id = pool2[Math.floor(Math.random() * pool2.length)];
         const st = s.cities[id];
         const gens = (st.genIds || []).map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean);
         const estrange = gens.length > 0 && Math.random() < 0.55;
@@ -5139,16 +5231,19 @@
     const cats = [];
     list.forEach((t) => { if (cats.indexOf(t.category) < 0) cats.push(t.category); });
     const can = (t) => !s.techs.includes(t.id) && (!t.prereq || s.techs.includes(t.prereq));
+    /* v5.58 — 기술 연구 비용 -N% (팔만대장경·혼천 천문기 …) */
+    const techCut = Math.min(0.5, realmTfx('techCost', 50) / 100);
+    const techCost = (base) => Math.max(1, Math.round(base * (1 - techCut)));
     const rows = cats.map((cat) => {
       const items = list.filter((t) => t.category === cat).sort((a, b) => a.tier - b.tier);
       return `<div class="tech-branch"><p class="tb-name">${cat}</p>
         ${items.map((t) => {
           const done = s.techs.includes(t.id);
           const ok = can(t);
-          return `<button class="tech-node ${done ? 'done' : ok ? 'ready' : 'locked'}" data-t="${t.id}" ${done || !ok || s.gold < t.costGold ? 'disabled' : ''}>
+          return `<button class="tech-node ${done ? 'done' : ok ? 'ready' : 'locked'}" data-t="${t.id}" ${done || !ok || s.gold < techCost(t.costGold) ? 'disabled' : ''}>
             <span class="tn-lv">${['I','II','III','IV'][Math.min(3, t.tier - 1)]}</span>
             <div><b>${t.name}</b><span>${t.summary}</span></div>
-            <em>${done ? '완료' : `금 ${fmt(t.costGold)}`}</em></button>`;
+            <em>${done ? '완료' : `금 ${fmt(techCost(t.costGold))}`}</em></button>`;
         }).join('')}
       </div>`;
     }).join('');
@@ -5162,9 +5257,10 @@
       b.onclick = () => {
         const t = list.find((x) => x.id === b.dataset.t);
         if (!t) return;
-        if (s.gold < t.costGold) { SK.toast('금이 부족합니다.'); return; }
+        const price = techCost(t.costGold);
+        if (s.gold < price) { SK.toast('금이 부족합니다.'); return; }
         if (t.prereq && !s.techs.includes(t.prereq)) { SK.toast('앞 단계 기술이 필요합니다.'); return; }
-        s.gold -= t.costGold;
+        s.gold -= price;
         s.techs.push(t.id);
         SK.save(); SK.refreshHud(); m.close();
         SK.sfx.play('levelup');
@@ -5207,7 +5303,7 @@
     diplomacy: {
       name: '외교·계략', sub: '이간·항복·동맹',
       items: [
-        { key: 'scout', label: '정찰 — 이웃 적성 첩보', desc: `금 ${scoutCost()} + 대기 장수 1명의 행동 — 3~5개월 동안 적성 내부를 봅니다` },
+        { key: 'scout', label: '정찰 — 적성 첩보(어느 지역이든)', desc: `금 ${scoutCost()} + 대기 장수 1명의 행동 — 3~5개월 동안 적성 내부를 봅니다` },
         { key: 'estrange', label: '이간계 — 적 장수 지목', desc: `금 ${ESTRANGE_COST} · 적 성의 장수 한 명을 지목해 충성을 깎고, 50 이하면 바로 회유합니다` },
         { key: 'surrender', label: '항복 권고 — 싸움 없이 성 받기', desc: '금 300 · 규모 차가 큰 약소 세력에 사자를 보내 성을 넘겨받습니다' },
         { key: 'spy', label: '계략 — 적성 수비 약화', desc: '금 100 · 적성 수비병과 성벽을 깎습니다' },
@@ -5284,21 +5380,24 @@
   /* v5.5 — 정찰: 먼저 어느 성을 살필지, 다음은 누구를 첩자로 보낼지 고른다 */
   function openScoutPick(cityId) {
     const s = SK.state;
-    const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF());
-    if (!targets.length) { SK.toast('정찰할 이웃 적성이 없습니다.'); return; }
+    /* v5.58 — 정찰(첩보)은 거리 제한 없이 지도 어디든 적성 (사용자: "일반 첩보는 어느 지역이든 가능")
+       다만 지도에서 가까운 성부터 보이도록 3칸 안을 앞에 둔다 */
+    const all = citiesWithinHops(cityId, { maxHop: 999 });
+    const targets = all.map((x) => x.id);
+    if (!targets.length) { SK.toast('정찰할 적성이 없습니다.'); return; }
     /* v5.36 — 살필 성은 지도에서 고른다 (배지: 정찰중 / 미정찰) */
     const chips = {};
     targets.forEach((id) => { chips[id] = isScouted(s.cities[id]) ? '정찰중' : '미정찰'; });
     const ok = pickCityOnMap({
       kicker: `${CITY[cityId].name} 첩보`,
       title: '어느 성을 살필까',
-      hint: `금빛 적성을 누르세요. 정찰하면 3~5개월 동안 병력·성벽·민심·장수를 봅니다. 금 ${scoutCost()} + 첩자 한 명의 이번 달 행동.`,
+      hint: `금빛 적성을 누르세요 — 어느 지역이든 적성에 보낼 수 있습니다(가까운 성부터 보입니다). 정찰하면 3~5개월 동안 병력·성벽·민심·장수를 봅니다. 금 ${scoutCost()} + 첩자 한 명의 이번 달 행동.`,
       origin: cityId, ids: targets, chips,
-      block: '이웃한 적성에만 첩자를 보낼 수 있습니다.',
+      block: '적성에만 첩자를 보낼 수 있습니다.',
       onPick: (id) => openScoutEnvoy(cityId, id),
       onCancel: () => SK.openCity(cityId),
     });
-    if (!ok) SK.toast('정찰할 이웃 적성이 없습니다.');
+    if (!ok) SK.toast('정찰할 적성이 없습니다.');
   }
 
   function scoutMonths(actor) {
@@ -5343,7 +5442,12 @@
   /* 지도 적성 시트의 [정찰 보내기] — 맞닿은 내 성의 대기 장수 중에서 고른다 */
   SK.openScoutSheet = function (targetId) {
     const s = SK.state;
-    const froms = SK.allNeighbors(targetId).filter((n) => s.cities[n] && s.cities[n].owner === PF());
+    /* v5.58 — 첩보는 어느 지역이든 보낼 수 있다. 맞닿은 성이 아니어도 내 성 아무 곳에서
+       대기 장수를 보낼 수 있게, 내 성을 '목표에서 가까운 순'으로 늘어놓는다 */
+    const hops = cityHops(targetId, 999);
+    const froms = SK.CITY_LIST.map((c) => c.id)
+      .filter((id) => s.cities[id] && s.cities[id].owner === PF())
+      .sort((a, b) => ((hops[a] == null ? 99 : hops[a]) - (hops[b] == null ? 99 : hops[b])));
     const rows = [];
     froms.forEach((fid) => {
       scoutActors(fid).slice(0, 4).forEach((g, i) => {
@@ -5357,7 +5461,7 @@
     });
     if (!rows.length) {
       SK.sfx.play('deny');
-      SK.toast('첩자로 보낼 대기 장수가 없습니다. (모두 이번 달 일을 마쳤거나 맞닿은 내 성이 없습니다)');
+      SK.toast('첩자로 보낼 대기 장수가 없습니다. (모든 장수가 이번 달 일을 마쳤습니다)');
       return;
     }
     const m = SK.modal({
@@ -5381,8 +5485,9 @@
     SK.setPurse(cityId);
     const s = SK.state;
     const cost = kind === 'spy' ? 100 : 80;
-    const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF() && s.cities[n].owner !== 'neutral');
-    if (!targets.length) { SK.toast('계략을 펼칠 이웃 적성이 없습니다.'); return; }
+    /* v5.58 — 내 성에서 3칸 이내 적성(중립 제외), 가까운 순 */
+    const targets = citiesWithinHops(cityId, { maxHop: SCHEME_HOPS, enemyOnly: true }).map((x) => x.id);
+    if (!targets.length) { SK.toast('계략을 펼칠 적성이 3칸 안에 없습니다.'); return; }
     /* v5.36 — 계략을 펼 성은 지도에서 고른다 (배지: 성벽·민심) */
     const chips = {};
     targets.forEach((id) => {
@@ -5395,11 +5500,11 @@
       title: kind === 'spy' ? '이간계를 펼 성' : '유언비어를 풀 성',
       hint: `${kind === 'spy' ? '적 장수 사이를 갈라 수비병과 성벽을 약화시킵니다.' : '거짓 소문을 풀어 적성 민심을 흔듭니다.'} 금 ${cost} — 실패해도 금은 나갑니다.`,
       origin: cityId, ids: targets, chips,
-      block: '이웃한 적성에만 계략을 펼칠 수 있습니다.',
+      block: '내 성에서 3칸 이내 적성에만 계략을 펼칠 수 있습니다.',
       onPick: (id) => spyStrike(cityId, kind, id),
       onCancel: () => SK.openCity(cityId),
     });
-    if (!ok) SK.toast('계략을 펼 이웃 적성이 없습니다.');
+    if (!ok) SK.toast('계략을 펼 적성이 3칸 안에 없습니다.');
   }
 
   function spyStrike(cityId, kind, targetId) {
@@ -5457,9 +5562,10 @@
   function openEstrange(cityId) {
     SK.setPurse(cityId);
     const s = SK.state;
-    const targets = SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF()
-      && s.cities[n].owner !== 'neutral' && (s.cities[n].genIds || []).length);
-    if (!targets.length) { SK.toast('이간계를 펼 이웃 적성이 없습니다. (장수가 있는 성이 없습니다)'); return; }
+    /* v5.58 — 이간계도 내 성에서 3칸 이내 적성, 가까운 순 */
+    const targets = citiesWithinHops(cityId, { maxHop: SCHEME_HOPS, enemyOnly: true })
+      .map((x) => x.id).filter((id) => (s.cities[id].genIds || []).length);
+    if (!targets.length) { SK.toast('이간계를 펼 적성이 3칸 안에 없습니다. (장수가 있는 성이 없습니다)'); return; }
     /* v5.36 — 흔들 성은 지도에서 고른다 (배지: 장수 수) */
     const chips = {};
     targets.forEach((id) => { chips[id] = `장수 ${(s.cities[id].genIds || []).length}`; });
@@ -5468,11 +5574,11 @@
       title: '어느 성을 흔들까',
       hint: '금빛 적성을 누르세요. 금 120과 장수 한 명의 이번 달 행동을 씹니다. 지력이 높으면 성사가 쉽습니다.',
       origin: cityId, ids: targets, chips,
-      block: '이웃한 적성에만 이간계를 펼칠 수 있습니다.',
+      block: '내 성에서 3칸 이내 적성에만 이간계를 펼칠 수 있습니다.',
       onPick: (id) => openEstrangeGen(cityId, id),
       onCancel: () => SK.openCity(cityId),
     });
-    if (!ok) SK.toast('이간계를 펼 이웃 적성이 없습니다.');
+    if (!ok) SK.toast('이간계를 펼 적성이 3칸 안에 없습니다.');
   }
   function openEstrangeGen(cityId, targetId) {
     SK.setPurse(cityId);
@@ -7281,12 +7387,13 @@
 
   /* ══════════════════════════════════════════════════════════════
      v5.52 — 주점 방랑 재야 유입
-     · 성 주점에 선 인재가 한 명도 없으면, 먼 고을을 떠돌던 같은 계열
-       (위·촉·오·군웅·한국)의 재야 인재가 6~12개월에 한 번 그 주점에 들어온다
-     · 주점 Lv이 높고 매력 높은 담당이 앉아 있으면 6개월 쪽, 아니면 12개월 쪽
+     v5.58 — 6개월마다 한 명으로 고정 (사용자: "오래 해 보니 성마다 10명씩은 채워야 하는데 인원이 부족")
+     · 먼 고을을 떠돌던 같은 계열(위·촉·오·군웅·한국)의 재야 인재가
+       주점이 있는 성에 6개월에 한 번 찾아온다 (주점 Lv·매력과 상관없이 6개월)
+     · 주점에 이미 두 명이 서 있으면 그달은 쉬고 다음 6개월을 센다
      · 성마다 남은 개월(cs.wanderCd)을 따로 세어 매달 쏟아지지 않는다
      ══════════════════════════════════════════════════════════════ */
-  const WANDER_MIN = 6, WANDER_MAX = 12;
+  const WANDER_MIN = 6, WANDER_MAX = 6;   // v5.58 — 6개월 고정
   function wanderInterval(cityId) {
     const cs = SK.state && SK.state.cities ? SK.state.cities[cityId] : null;
     if (!cs) return WANDER_MAX;
@@ -7314,8 +7421,8 @@
       if (!cs || cs.owner !== PF()) return;
       if (cs.wanderCd == null) { cs.wanderCd = wanderInterval(c.id); return; }
       if (cs.wanderCd > 0) { cs.wanderCd -= 1; return; }
-      /* 주점에 선 인재가 있을 때는 쉰다 */
-      if ((cs.talents || []).length > 0) { cs.wanderCd = wanderInterval(c.id); return; }
+      /* v5.58 — 두 명까지는 받는다 (예전에는 한 명이라도 서 있으면 쉬어 인원이 모자랐다) */
+      if ((cs.talents || []).length >= 2) { cs.wanderCd = wanderInterval(c.id); return; }
       const grp = tavernGroupOf(s, c.id);
       const region = grp === '한국' ? '한국' : '중국';
       const pickPool = (strict) => SK.GENERALS.filter((g) => {
@@ -8808,7 +8915,7 @@
       if (!sl.key || sl.lv >= 5) return;
       if (used && used.indexOf(sl) >= 0) return;
       if ((sl.exp || 0) < slotExpNeed(sl.lv)) return;
-      const cost = buildCost(sl);
+      const cost = buildCost(sl, cityIdOf(cs));
       if (s.gold - cost < AUTO_UPGRADE_RESERVE) return;
       const pri = AUTO_UP_PRIORITY[sl.key] != null ? AUTO_UP_PRIORITY[sl.key] : 8;
       const r = (sl.exp || 0) / slotExpNeed(sl.lv) + sl.lv * 0.01;
@@ -11787,7 +11894,7 @@
           ${slotLog.filter((l) => l.agri || l.comm).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.agri ? `농업 +${l.agri}` : ''}${l.agri && l.comm ? ' · ' : ''}${l.comm ? `상업 +${l.comm}` : ''}</span></div>`).join('')}</div>` : ''}
         ${tavernLog.length ? `<div class="mr-auto"><p class="mr-auto-title">주점 배속 <em>반값 등용 · 소문 탐색</em></p>
           ${tavernLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text}${l.gain ? ` · ${l.gain}` : ''}</span></div>`).join('')}</div>` : ''}
-        ${craftLog.length ? `<div class="mr-auto"><p class="mr-auto-title">공방 제작 <em>담당이 앉은 공방은 3개월에 보물 1개</em></p>
+        ${craftLog.length ? `<div class="mr-auto"><p class="mr-auto-title">공방 제작 <em>담당이 앉은 공방은 6개월에 보물 1개</em></p>
           ${craftLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 공방 ${l.hero || ''}</b><span>${l.full ? '보물을 모두 모아 더 만들 것이 없습니다' : l.done ? `${l.treasure} (${l.grade}) 완성!` : `제작 ${l.progress}/${l.need}개월`}</span></div>`).join('')}
           ${craftLog.length > 6 ? `<p class="mr-note">${craftLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
         ${wallLog.length ? `<div class="mr-auto"><p class="mr-auto-title">계략 방어 <em>성벽 + 치안 + 관아가 적 첩자를 막았습니다</em></p>
@@ -11895,8 +12002,8 @@
     { ico: '⚔️', name: '병영', stat: '통솔', text: '매달 수비병을 모읍니다. 부상병 치료도 여기서.' },
     { ico: '🏋️', name: '연병장', stat: '통솔', text: '훈련도를 올리고 대기 장수를 수련시킵니다.' },
     { ico: '🔔', name: '순찰소', stat: '매력', text: '민심과 <b>치안</b>을 올립니다 — 계략 방어의 바탕.' },
-    { ico: '🕵️', name: '첩보소', stat: '지력', text: '매달 이웃 적성을 자동 정찰·이간·유언비어 (담당 없으면 정지).' },
-    { ico: '🥋', name: '공방', stat: '정치', text: '3개월마다 보물 1개를 만듭니다. 금 수입도.' },
+    { ico: '🕵️', name: '첩보소', stat: '지력', text: '매달 3칸 안 적성을 가까운 순으로 자동 정찰·이간·유언비어 (담당 없으면 정지).' },
+    { ico: '🥋', name: '공방', stat: '정치', text: '6개월마다 보물 1개를 만듭니다. 금 수입도.' },
     { ico: '🏯', name: '성벽', stat: '통솔', text: '성을 지키고 적 계략을 막습니다 (성벽만 최대 55%).' },
     { ico: '🍶', name: '주점', stat: '매력', text: '재야 인재가 모입니다 — 등용과 탐색의 창구.' },
     { ico: '🏛️', name: '관아', stat: '본부', text: '시설 칸을 쓰지 않는 성의 본부입니다. <b>본성은 군주, 지성은 태수</b>가 자동으로 앉아 다섯 능력치만큼 <b>소폭 가산점</b>을 줍니다 — 정치→생산(최대 +8%) · 통솔→징병·훈련 · 무력→순찰·치안 · 지력→계략 · 매력→탐색·등용(각 +6%). 배속되어도 그달 행동·출진은 그대로.' },
@@ -12003,11 +12110,11 @@
         <div class="help-item"><b>지도</b><p>두 손가락으로 확대·축소하고, 한 손가락으로 끌어 이동합니다. 우리 성을 누르면 내정, 적성을 누르면 공격 정보가 열립니다. 아래 [내 본성 ▶]을 누르면 언제든 내 수도로 돌아갑니다.</p></div>
         <div class="help-item"><b>태수·군사와 자동 내정</b><p>관아에서 태수(정치·통솔)와 군사(지력·매력)를 앉힙니다. 태수가 앉은 성은 [다음 달]을 누를 때 대기 장수로 개간·징병·보수·민심·훈련을 스스로 마치고 월정산에 보고합니다. 본성과 태수가 없는 성은 자동으로 움직이지 않으며, 관아에서 자동 내정을 끄거나 언제든 직접 지시할 수 있습니다.</p></div>
         <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·첩보소·공방을 직접 지을 수 있습니다(소도시 ${SK.SLOT_MAX.town}칸 · 중도시 ${SK.SLOT_MAX.mid}칸 · 대도시 ${SK.SLOT_MAX.capital}칸 · 관문 ${SK.SLOT_MAX.pass}칸 · 요새 ${SK.SLOT_MAX.fortress}칸). 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건물을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜹니다.</p></div>
-        <div class="help-item"><b>공방 — 3개월에 보물 1개</b><p>공방에 담당 장수를 앉히면 매달 제작 게이지가 <b>1/3 → 2/3 → 3/3</b>으로 차고, 3개월째에 <b>보물 1개</b>가 완성됩니다(보관함). 공방 Lv과 담당의 정치·지력이 높을수록 희귀·영웅 등급이 잘 나오고 전설은 극히 드뭅니다. 담당이 없으면 제작이 멈춥니다. 진행도는 시설 카드와 상세 창, 월정산 <b>[공방 제작]</b>에 나옵니다.</p></div>
+        <div class="help-item"><b>공방 — 6개월에 보물 1개</b><p>공방에 담당 장수를 앉히면 매달 제작 게이지가 <b>1/6 → … → 6/6</b>으로 차고, 6개월째에 <b>보물 1개</b>가 완성됩니다(보관함). 공방 Lv과 담당의 정치·지력이 높을수록 희귀·영웅 등급이 잘 나오고 전설은 극히 드뭅니다. 담당이 없으면 제작이 멈춥니다. 진행도는 시설 카드와 상세 창, 월정산 <b>[공방 제작]</b>에 나옵니다.</p></div>
         <div class="help-item"><b>성벽 + 치안 — 적 첩보·계략 차단</b><p>성벽 시설 Lv과 담당 통솔이 높을수록 적의 첩보·이간·유언비어가 성문에서 막힙니다(성벽 <b>최대 55%</b>). 여기에 <b>치안</b>이 더해집니다 — 치안 50에서 100까지 <b>최대 +25%</b>. 둘을 합쳐도 <b>80%에서 막혀</b> 아무리 높여도 100% 차단은 없습니다. 막아 낸 달은 월정산 <b>[계략 방어]</b>에 성벽·치안 몫과 함께 한 줄로 보고됩니다. 성벽 카드·상세 창에 지금 차단률이 표시됩니다.</p></div>
         <div class="help-item"><b>치안 — 도적과 계략</b><p>치안은 순찰소 담당 배속으로 오릅니다(배속이 없으면 달마다 조금씩 풀립니다). <b>40 아래</b>면 계략 방어가 0%가 되고 도적이 들어 금·병력이 새어 나가며, 인구도 덜 늘어납니다. <b>50부터</b> 계략 방어가 붙기 시작해 100이면 +25%입니다.</p></div>
         <div class="help-item"><b>위임 방침의 실제 수치</b><p>관아의 방침은 내정 순서만 바꾸던 것을 실제 수치로 바꿨습니다 — <b>균형</b> 금·군량·징병·훈련·성벽 +5%, <b>상업 중시</b> 금 +25%·징병 -15%, <b>농업 중시</b> 수확 +30%·매달 민심 +2·금 -10%, <b>전시 체제</b> 징병·훈련 +30%·성벽 +10%·금 -15%·매달 민심 -1, <b>수송 중시</b> 지정 성 자동 수송·수송 상한 60→75%. 방침은 성마다 따로이며 <b>본성에도 그대로 적용</b>됩니다.</p></div>
-        <div class="help-item"><b>첩보소 — 매달 자동 첩보·계략</b><p>지력이 높은 장수를 담당으로 앉히면 달이 바뀔 때마다 이웃한 성 하나(재야 성 포함)를 <b>자동으로 정찰</b>합니다(${SK.SCOUT_SPAN} 지속, 금 없음). 이미 정찰한 이웃 성에는 시설 Lv·담당 지력에 비례한 확률로 <b>이간계</b>(적 장수 충성 −) 또는 <b>유언비어</b>(민심 −)를 펼칩니다. 결과는 월정산 <b>[첩보소 첩보]</b>에 한 줄로 보고됩니다. 담당이 없으면 아무 일도 하지 않고, 부장을 앉히면 확률이 더 오릅니다.</p></div>
+        <div class="help-item"><b>첩보소 — 매달 자동 첩보·계략</b><p>지력이 높은 장수를 담당으로 앉히면 달이 바뀔 때마다 <b>내 성에서 3칸 이내 성 하나(가까운 순·재야 성 포함)</b>를 <b>자동으로 정찰</b>합니다(${SK.SCOUT_SPAN} 지속, 금 없음). 이미 정찰한 3칸 안의 성에는 시설 Lv·담당 지력에 비례한 확률로 <b>이간계</b>(적 장수 충성 −) 또는 <b>유언비어</b>(민심 −)를 펼칩니다. 결과는 월정산 <b>[첩보소 첩보]</b>에 한 줄로 보고됩니다. 담당이 없으면 아무 일도 하지 않고, 부장을 앉히면 확률이 더 오릅니다.</p></div>
         <div class="help-item"><b>장수는 한 달에 한 번</b><p>장수는 <b>건물 담당</b>, 아니면 직접 명령(탐색·등용·수송·계략·출진) 중 하나를 합니다. 담당을 맡은 장수는 매달 자동으로 건물 효과를 내므로, 급히 출진에 쓰고 싶으면 그 건물에서 담당을 해제하세요. 행동력 숫자는 없앴고 장수 카드에 <b>건물 담당 / 대기 / 이번 달 완료</b>로만 표시됩니다.</p></div>
         <div class="help-item"><b>인사·탐색</b><p>주점에서 재야 인재를 등용하고, [탐색]은 <b>금이 들지 않고</b> 장수의 그달 행동만 씁니다. 탐색에서는 보물·은거 인재·금·군량·의용병 합류·산적 퇴치·맹수 사냥·일기토가 고루 나옵니다. 태수·군사는 관아에서 언제든 바꿉니다.</p></div>
         <div class="help-item"><b>외교·계략</b><p>정찰(금 ${scoutCost()})로 ${SK.SCOUT_SPAN} 적성 내부를 보고, 이간계(금 ${ESTRANGE_COST})·유언비어(금 80)·계략(금 100)으로 적의 병력·성벽·민심을 깎고, 화친(금 200)으로 6개월 휴전을 청합니다.</p></div>

@@ -1,6 +1,24 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=74`
+기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=75`
+
+## ✅ v5.58 — 보물 250종·책략 97·고유 특기 642·필살기 104 전수조사 · 공방/주점 6개월 · 계략 3칸 (2026-11-22 · `?v=75`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 보물 절↔훅 | `SK.TREASURE_CLAUSE_RULES` **341줄** — 숫자→`#`·`%`/공백 제거 키. 표에 없는 문구만 옛 정규식 | `js/data.js` |
+| 전수 결과 | **미적용 0건 · 없는 병과명 0건 · 죽은 훅 0건(67키 전부 소비) · 문구 재작성 238/250** | `data/treasures.json` |
+| 대부도끼 | `검병·등갑병에게 주는 피해 +20%` → `vsGeom`; `calcDamage`가 검병·등갑병만 1.2배 (실측 1.207·1.180 / 창병 0.991·궁수 0.986) | `js/data.js`·`js/battle.js` |
+| 청동령 | `통솔 +5, 징병량 +10%, 사기 +4` → `cityTfx('recruit')=10`·부대 사기 +4 | `js/data.js`·`js/app.js` |
+| 새 훅 5 | `vsGeom`·`vsHeavy`(검병·등갑병·창병)·`siegeDmg`(성벽·성문)·`techCost`·`buildCost` + `rngPlus`·`immuneDisarm` 실제 연결 | `battle.js`·`app.js` |
+| 병과 책략 72 | `classes.json`에 `kind`·수치 명시(추측 제거) → effect 문구 자동 생성. 범위 방어 버프·회복+사기/해제·기절/혼란/위축/둔화 명시·방어 관통·회피 무시 실행 | `data/classes.json`·`battle.js` |
+| 책략 중복 이름 | 한 병과 두 번 나오던 6쌍에 30레벨 새 이름(천지연화·산천대진·천벌폭풍·신궁·천왕권·맹수왕·유혹의 장막·노우폭풍·극·철벽진형·대승리의 교향곡) | `data/classes.json` |
+| 고유 특기 642 | 문구 1:1 재작성 · **on_kill 3명 신규 구현** · turn_start `mode`/`stat` 명시 · S>A>B>C 값 단조 | `data/unique_passives.json`·`battle.js` |
+| 필살기 104 | `e.k` 9종 실행부 처리 · `v` 16종 이펙트 존재 · 이름·대사 104/104 | `js/data.js`·`battle.js` |
+| 공방 | **3개월 → 6개월** (`CRAFT_MONTHS=6`), 카드·상세·월정산·도움말 문구 교체 | `js/app.js` |
+| 주점 | 방랑 재야 **6개월 고정**(`WANDER_MIN=WANDER_MAX=6`) · 두 명까지 | `js/app.js` |
+| 계략 | 이간계·유언비어·첩보소 = **내 성에서 3칸 이내 가까운 순**(`cityHops`/`citiesWithinHops`), 정찰은 **거리 제한 없음** | `js/app.js` |
+| 검수 | `tools/qa_v558.py` **a 42/42 · c 42/42**(로컬 844/680), 콘솔·4xx 0 · 자동전투 3턴 무오류 | `preview/v558/` |
 
 ## ✅ v5.57 — 초상화 테두리 번짐 전수 재정리(126장) · 병영 징병량 2배 (2026-11-22 · `?v=74`)
 
