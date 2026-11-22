@@ -2222,10 +2222,10 @@
     if (capBtn) {
       const capName = (s.playerCapital && CITY[s.playerCapital]) ? CITY[s.playerCapital].name : '본성';
       if (!capBtn.querySelector('.cap-ic')) {
-        capBtn.innerHTML = '<svg class="cap-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-capital"></use></svg><i class="cap-mark"></i>';
+        capBtn.innerHTML = '<svg class="cap-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-capital"></use></svg>';
       }
-      const mk = capBtn.querySelector('.cap-mark');
-      if (mk) { mk.textContent = SK.markOf(pfInfo); mk.style.color = pfInfo.color || '#e3bd63'; }
+      /* 세력 색은 버튼 테두리로만 (글자 배지는 27px에서 읽히지 않아 뺐다) */
+      capBtn.style.borderColor = pfInfo.color || 'rgba(227, 189, 99, 0.5)';
       capBtn.title = `수도로 — ${capName}`;
       capBtn.setAttribute('aria-label', `수도로 — ${capName}`);
     }
@@ -2248,7 +2248,10 @@
     const marchT = marchTroopsOf(s);
     $('#map-troops').textContent = fmt(gateT + marchT);
     const tmEl = $('#map-troops-march');
-    if (tmEl) tmEl.textContent = marchT ? `행군 ${fmt(marchT)}` : '';
+    /* 좁은 상단 줄 — 행군 병력은 '+4k'처럼 짧게. 정확한 수는 툴팁에 적는다 */
+    const marchShort = marchT >= 10000 ? `+${Math.round(marchT / 1000)}k`
+      : (marchT >= 1000 ? `+${Math.round(marchT / 100) / 10}k` : (marchT ? `+${Math.round(marchT)}` : ''));
+    if (tmEl) tmEl.textContent = marchShort;
     const tcell = $('#map-troops-cell');
     if (tcell) tcell.title = `총병력 ${fmt(gateT + marchT)} — 주둔 ${fmt(gateT)}${marchT ? ` · 행군 ${fmt(marchT)}` : ''}`;
     /* v5.21 — 상단 자원 줄 밀도: 숫자가 5~6자리로 길어지면 글씨·아이콘·보조 합계를 단계적으로 줄여
@@ -2258,7 +2261,7 @@
       const digits = ['#map-gold', '#map-food', '#map-troops'].reduce((a, sel) => {
         const el = $(sel);
         return a + (el ? el.textContent.replace(/[^0-9]/g, '').length : 0);
-      }, 0) + ['#map-gold-total', '#map-food-total'].reduce((a, sel) => {
+      }, 0) + ['#map-gold-total', '#map-food-total', '#map-troops-march'].reduce((a, sel) => {
         const el = $(sel);
         return a + (el ? el.textContent.replace(/[^0-9]/g, '').length : 0);
       }, 0);

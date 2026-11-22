@@ -242,8 +242,9 @@ b { font-weight: 700; }
 /* v5.40 — 수도로 버튼: 세력 글자 대신 성·깃발 아이콘 + 작은 세력 배지 */
 #go-capital { position: relative; display: grid; place-items: center; }
 #go-capital .cap-ic { width: 15px; height: 15px; display: block; }
-#go-capital .cap-mark { position: absolute; right: 0; bottom: -1px; font-size: 6.5px; font-style: normal; font-weight: 900;
-  line-height: 1; text-shadow: 0 0 2px rgba(20, 14, 4, 0.95), 0 0 2px rgba(20, 14, 4, 0.95); }
+#go-capital .cap-ic { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
+/* v5.40 — 행군 병력 보조 표기는 좁은 상단 줄에 맞춰 작게 */
+#map-troops-march { font-size: 7px !important; opacity: 0.72; }
 /* v5.38 — 성 정보 시트가 열려 있는 동안에는 지도 조작·범례가 비켜 준다 (시트 버튼을 가리지 않게).
    `:has()`를 모르는 브라우저에서는 콤마 선택자가 통째로 무시되므로 규칙을 나눠 둔다 —
    JS가 달아 주는 `#screen-map.sheet-open`만으로도 동작한다. */

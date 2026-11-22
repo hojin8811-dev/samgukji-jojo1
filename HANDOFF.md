@@ -28,13 +28,13 @@
 | 갈래 | 내용 | 코드 |
 | --- | --- | --- |
 | ① 요격전 복구 | 요격전 도중 새로고침·앱 종료 → 행군이 살아 있으면 **병력을 성으로 돌려보내지 않고** `marchQueuePush(s,'intercept',marchId)`로 요격 사건을 다시 예약한다. 안내 `전투 중 이탈 · 요격전부터 다시 시작합니다` 뒤 같은 요격전(요격대·지형 유지)이 다시 열린다. 같은 블록에서 일반 전투 복구가 `PF()`(아직 이전 판)를 써 세력을 못 찾던 문제도 `s.playerFaction` 직접 판정으로 고쳤다 | `js/app.js` `SK.load`(battleInProgress 블록)·`startGame`(battleRecover.resume), `js/battle.js` `startBattle`(battleInProgress에 `marchId·intercept·raiders`) |
-| ② 상단 총병력 | 지도 상단 병력을 `totalTroops() + marchTroopsOf(s)`로. 행군 중이면 `#map-troops-march`에 `행군 4,000`, `#map-troops-cell` title에 `총병력 … — 주둔 … · 행군 …` | `js/app.js` `refreshHud`, `index.html` `#map-troops-march` |
+| ② 상단 총병력 | 지도 상단 병력을 `totalTroops() + marchTroopsOf(s)`로. 행군 중이면 `#map-troops-march`에 `+4k`, `#map-troops-cell` title에 `총병력 … — 주둔 … · 행군 …` | `js/app.js` `refreshHud`, `index.html` `#map-troops-march` |
 | ③ 병과 배지 | `drawUnit`의 병과 배지를 HP 알약 **위 줄**(`by2 = pillY - bh2 - 2`)에 따로 그린다. 밀집(dense/veryDense)·축소(tinyView)에는 한 글자로 축약 — 옆 칸과 부딪혀 생략되던 경로를 없앴다 | `js/battle.js` `drawUnit` |
 | ④ `.sc-need` | `.sc-up`과 같은 알약 규칙(`margin-left:auto; white-space:nowrap; border-radius:6px`). `[담당이 빈 건물]` 안내(`.slot-hint`)도 9.5px로 (본문 크기로 커져 화면을 덮던 문제) | `css/game.css` |
 | ⑤ 탐색 버튼 | '한 명씩' 모드에서 주 버튼 `display:none`, 목록 위 안내 `보낼 장수의 카드를 누르면 바로 출발합니다`. '여러 명'에서만 `N명 탐색 보내기` | `js/app.js` `openExplore` |
 | ⑥ 건설 머리말 | `대부분의 건물은 담당이 없어도 50%… 첩보소는 담당이 있어야만 돌고, 공방은 담당이 있어야 보물을 만듭니다` | `js/app.js` `openSlot` |
 | ⑦ 첫 안내 | `아래 [시설 관리](왼쪽 첫 칸)` | `js/app.js` `GUIDE_LINES[1]` |
-| ⑧ 수도로 버튼 | 세력 글자 대신 `#ic-capital` 성·깃발 SVG, 세력 글자는 `.cap-mark` 작은 배지, title/aria `수도로 — {본성명}` | `index.html`, `js/app.js` `refreshHud`, `css/game.css` |
+| ⑧ 수도로 버튼 | 세력 글자 대신 `#ic-capital` 성·깃발 SVG, 세력 색은 버튼 테두리, title/aria `수도로 — {본성명}` | `index.html`, `js/app.js` `refreshHud`, `css/game.css` |
 | ⑨ 중복 건설 | 이미 지은 건물은 `{건물}을 한 채 더 지을까` 확인 창(효과 합산 설명·금액·금고). 확인 전 결제 없음. 카드에 `· 2채째` 표기 | `js/app.js` `openSlot` |
 | ⑩ 빈 부대 카드 | 선택 없음이면 `.unit-card.empty` — 초상·Lv·EXP·병력/스탯 줄 숨김, `부대를 고르면 병과·병력·사거리가 보입니다`. 아래 상태줄도 `부대를 눌러 선택하세요` | `js/battle.js` `refreshUI`, `css/game.css` |
 | 보물 250 | `data/treasures.json` 250종(152~250 99종: 일반 35·희귀 34·영웅 20·전설 10). `statBonus.int` → `intel` 정규화, 갈래 `문물·비보·병법서`는 manual 칸, `GRADE_COLOR.일반`, 도감 등급/갈래 필터(갈래 칩은 두 줄로 접음) | `data/treasures.json`, `js/data.js`, `js/app.js` `openCodex` |
