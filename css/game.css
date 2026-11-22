@@ -4527,3 +4527,191 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 }
 .rs-citychip.on b { color: #ffe9a8; }
 .rs-citychip:active { transform: translateY(1px); }
+
+/* ══════════════════════════════════════════════════════════════════
+   v5.53 · 조조전 스타일 《장수 정보》 팝업 (전장 · 아군/적군 공통)
+   — 머리(초상·이름·등급·병과·Lv·진영·HP/MP/EXP·지형) + 3탭(능력·장비·특성·기술)
+     + [이전]/[다음] 넘기기 + [닫기]. 390px 폰 세로 기준으로 짰다.
+   ══════════════════════════════════════════════════════════════════ */
+.gen-info {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+  padding: 10px; background: rgba(16, 12, 4, 0.66); backdrop-filter: blur(2px);
+}
+.gen-info[hidden] { display: none; }
+.gi-panel {
+  width: 100%; max-width: 392px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+  background: linear-gradient(180deg, #fdf6e4, #ecdcba);
+  border: 2px solid #6f5423; border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  animation: giIn 0.16s ease-out;
+}
+@keyframes giIn { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
+.gi-bar {
+  display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto;
+  padding: 4px 8px 4px 11px; background: linear-gradient(180deg, #6a5227, #46340f);
+  color: #ffeab4; box-shadow: inset 0 -1px 0 rgba(255, 226, 150, 0.35);
+}
+.gi-bar b { font-family: var(--serif); font-size: 12.5px; letter-spacing: 0.08em; }
+.gi-x {
+  width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  border: 1px solid rgba(255, 226, 150, 0.55); background: rgba(255, 255, 255, 0.08);
+  color: #ffeab4; font-size: 16px; line-height: 1; font-weight: 900;
+}
+.gi-x:active { background: rgba(255, 255, 255, 0.2); }
+.gi-head {
+  display: flex; gap: 9px; flex: 0 0 auto; padding: 9px 10px 8px;
+  background: linear-gradient(180deg, #f7ead0, #f0e0be);
+  border-bottom: 1px solid rgba(150, 116, 50, 0.32);
+}
+.gi-frame {
+  flex: 0 0 auto; position: relative; width: 78px; height: 96px; padding: 3px; border-radius: 7px;
+  background: linear-gradient(160deg, #dcbd72, #8a6a2a);
+  box-shadow: inset 0 0 0 1px #f8e8bd, 0 2px 6px rgba(80, 58, 20, 0.28);
+}
+.gi-frame img {
+  width: 100%; height: 100%; display: block; border-radius: 4px; background: #cbb287;
+  object-fit: cover; object-position: 50% 16%;
+}
+.gi-frame .gi-lvtag {
+  position: absolute; left: 3px; right: 3px; bottom: 3px; text-align: center;
+  font-size: 8.5px; font-weight: 900; color: #2a1d06; background: rgba(255, 240, 200, 0.92);
+  border-radius: 0 0 4px 4px; padding: 1px 0;
+}
+.gi-hmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.gi-hname { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.gi-hname b { font-family: var(--serif); font-size: 19px; color: #2b2210; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gi-hname span { flex: 0 0 auto; font-size: 9.5px; color: #8a7448; }
+.gi-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.gi-chip {
+  flex: 0 0 auto; white-space: nowrap;
+  font-size: 8.5px; font-weight: 800; padding: 1.5px 5px; border-radius: 8px;
+  background: #ecdcb4; color: #6a5732; border: 1px solid #cfb47d; line-height: 1.25;
+}
+.gi-chip.side.ally { background: #2f6fd0; color: #f2f8ff; border-color: #24559f; }
+.gi-chip.side.enemy { background: #c0392b; color: #fff2ec; border-color: #8a2b1e; }
+.gi-chip.tier.tS { background: #a8443a; color: #fff3ea; border-color: #7d2f27; }
+.gi-chip.tier.tA { background: #7a5aa8; color: #f7f0ff; border-color: #573d7c; }
+.gi-chip.tier.tB { background: #3f7a5a; color: #f0fff6; border-color: #2a5a3e; }
+.gi-chip.tier.tC { background: #8a7a5a; color: #fffaf0; border-color: #665a3f; }
+.gi-chip.boss { background: #7a2e22; color: #ffe1c9; border-color: #54200f; }
+.gi-chip.down { background: #4a3d20; color: #ffe3c4; border-color: #2a2210; }
+.gi-bars { display: flex; flex-direction: column; gap: 2px; margin-top: 1px; }
+.gi-bar2 { position: relative; height: 12px; border-radius: 4px; overflow: hidden; background: #c9b287; border: 1px solid rgba(120, 94, 40, 0.45); }
+.gi-bar2 i { display: block; height: 100%; transition: width 0.25s; }
+.gi-bar2.hp i { background: linear-gradient(180deg, #6fbf6a, #479144); }
+.gi-bar2.mp i { background: linear-gradient(180deg, #7fb8e8, #4d86c0); }
+.gi-bar2.exp i { background: linear-gradient(180deg, #f0cf78, #b8862f); }
+.gi-bar2 em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 8px; font-weight: 900; color: #1b2312; letter-spacing: 0.01em; }
+.gi-terrline { font-size: 8.8px; color: #4e6a3c; line-height: 1.3; }
+.gi-terrline b { color: #2f5233; }
+.gi-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: 0 0 auto; padding: 6px 8px 0; background: linear-gradient(180deg, #f0e0be, #eddcb8); }
+.gi-tab {
+  padding: 7px 4px; font-size: 11.5px; font-weight: 900; color: #6a5732;
+  background: #e3d0a8; border: 1px solid #c2a76e; border-bottom: none; border-radius: 7px 7px 0 0;
+}
+.gi-tab.on {
+  background: linear-gradient(180deg, #fff9ea, #fbf2dd); color: #2c2412;
+  border-color: #8a6a2a; box-shadow: inset 0 2px 0 #d8b263;
+}
+.gi-actbar { flex: 0 0 auto; padding: 6px 9px 0; background: #fbf2dd; }
+.gi-actbar[hidden] { display: none; }
+.gi-atk {
+  width: 100%; padding: 7px 6px; border-radius: 8px; font-size: 12px; font-weight: 900;
+  color: #fff6e2; background: linear-gradient(180deg, #b4482f, #8a2f1c); border: 1px solid #6d2413;
+  box-shadow: 0 2px 5px rgba(90, 30, 15, 0.28);
+}
+.gi-atk:active { transform: translateY(1px); }
+.gi-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px 10px 10px; background: #fbf2dd;
+}
+.gi-sec {
+  margin: 9px 0 5px; font-size: 9.5px; font-weight: 900; letter-spacing: 0.07em; color: #8a6a2a;
+  border-bottom: 1px solid rgba(150, 116, 50, 0.28); padding-bottom: 2px;
+}
+.gi-sec:first-child { margin-top: 0; }
+.gi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.gi-grid.five { grid-template-columns: repeat(5, 1fr); }
+.gi-cell { background: #fffaf0; border: 1px solid #d3bb8a; border-radius: 6px; padding: 3px 1px; text-align: center; }
+.gi-cell i { display: block; font-style: normal; font-size: 8px; color: #8a7448; line-height: 1.2; }
+.gi-cell b { font-size: 12.5px; color: #2e2510; font-variant-numeric: tabular-nums; }
+.gi-cell b em { font-style: normal; font-size: 8.5px; color: #3f7a5a; margin-left: 1px; }
+.gi-state { display: flex; flex-wrap: wrap; gap: 4px; }
+.gi-st {
+  font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 9px; line-height: 1.3;
+  background: #ecdcb4; border: 1px solid #cfb47d; color: #6a5732;
+}
+.gi-st em { font-style: normal; font-size: 8px; opacity: 0.85; margin-left: 2px; }
+.gi-st.good { background: rgba(96, 170, 110, 0.22); border-color: #7fbf8c; color: #2f6b3c; }
+.gi-st.bad { background: rgba(190, 80, 80, 0.18); border-color: #d08a80; color: #8a3228; }
+.gi-st.normal { background: #e7f0e2; border-color: #a9c8a0; color: #3f6a3c; }
+.gi-st.dim { opacity: 0.62; }
+.gi-eq { display: flex; flex-direction: column; gap: 5px; }
+.gi-eq-row { display: flex; gap: 7px; padding: 6px 7px; border: 1px solid #d3bb8a; border-radius: 7px; background: #fffaf0; }
+.gi-eq-row.none { opacity: 0.7; background: #f6ecd8; }
+.gi-slot { flex: 0 0 40px; font-size: 9px; font-weight: 900; color: #8a6a2a; }
+.gi-eq-row > div { flex: 1; min-width: 0; }
+.gi-eq-row b { font-size: 12px; color: #2e2510; }
+.gi-eq-row em { display: block; font-style: normal; font-size: 9px; color: #7b6538; margin-top: 1px; }
+.gi-eq-row p { margin: 2px 0 0; font-size: 9.5px; color: #5c4a28; line-height: 1.35; }
+.gi-grade { display: inline-block; font-size: 8px; font-weight: 900; padding: 0 4px; margin-right: 4px; border-radius: 6px; background: #ecdcb4; border: 1px solid #cfb47d; color: #6a5732; }
+.gi-sum { margin: 5px 0 0; font-size: 9.5px; color: #4a3d20; line-height: 1.4; }
+.gi-note { margin: 5px 0 0; font-size: 9px; color: #8a7448; line-height: 1.4; }
+.gi-trait { border: 1px solid #d3bb8a; border-radius: 7px; background: #fffaf0; padding: 6px 8px; margin-bottom: 5px; }
+.gi-trait b { font-size: 12px; color: #2e2510; }
+.gi-trait b em {
+  font-style: normal; font-size: 8.5px; font-weight: 800; color: #a4601e;
+  background: rgba(214, 168, 70, 0.18); border-radius: 6px; padding: 0 5px; margin-left: 4px;
+}
+.gi-trait p { margin: 3px 0 0; font-size: 9.5px; color: #5c4a28; line-height: 1.4; }
+.gi-skills .skill-row { pointer-events: none; padding: 6px 8px; }
+.gi-skills .skill-row span { line-height: 1.35; }
+.gi-bond {
+  display: flex; gap: 6px; align-items: flex-start; margin-bottom: 4px; padding: 5px 7px;
+  border: 1px solid #d3bb8a; border-radius: 7px; background: #fffaf0;
+}
+.gi-bond.friend { border-left: 3px solid #3f7a5a; }
+.gi-bond.rival { border-left: 3px solid #a8443a; }
+.gi-bond-tag { flex: 0 0 auto; font-size: 8px; font-weight: 900; padding: 1px 5px; border-radius: 7px; background: #ecdcb4; color: #6a5732; }
+.gi-bond > div { flex: 1; min-width: 0; }
+.gi-bond b { font-size: 11px; color: #2e2510; }
+.gi-bond em { font-style: normal; font-size: 9px; color: #8a7448; margin-left: 4px; }
+.gi-bond p { margin: 2px 0 0; font-size: 9px; color: #5c4a28; line-height: 1.35; }
+.gi-bond-on { flex: 0 0 auto; font-size: 8px; font-weight: 900; color: #2f6b3c; background: #e7f0e2; border: 1px solid #a9c8a0; border-radius: 6px; padding: 1px 4px; }
+.gi-foot {
+  display: flex; align-items: center; gap: 5px; flex: 0 0 auto;
+  padding: 7px 9px calc(7px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #e8d4ac, #dcc49a); border-top: 1px solid #b8862f;
+}
+.gi-nav, .gi-close {
+  flex: 1 1 auto; padding: 9px 6px; border-radius: 8px; font-size: 12px; font-weight: 900;
+  color: #3a2d15; background: linear-gradient(180deg, #fffaf0, #e9d7b2); border: 1px solid #b99a5e;
+}
+.gi-nav:active, .gi-close:active { transform: translateY(1px); }
+.gi-nav:disabled { opacity: 0.4; }
+.gi-pos { flex: 0 0 auto; min-width: 44px; text-align: center; font-size: 10px; font-weight: 900; color: #6a5732; font-variant-numeric: tabular-nums; }
+.gi-close { flex: 0 0 66px; color: #f4ecd2; background: linear-gradient(180deg, #5a7a4a, #3a5530); border-color: #24371d; }
+
+/* v5.53 — 아래 부대 카드에서 장수 정보 열기 (초상화 탭 / [정보]) */
+.uc-portrait { cursor: pointer; }
+.uc-portrait:active { filter: brightness(0.94); }
+.uc-side { flex: 0 0 auto; font-style: normal; font-size: 8.5px; font-weight: 900; padding: 0 5px; border-radius: 7px; align-self: center; }
+.uc-side.ally { background: #2f6fd0; color: #f2f8ff; }
+.uc-side.enemy { background: #c0392b; color: #fff2ec; }
+.uc-side[hidden] { display: none; }
+#uc-terrain { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uc-info {
+  flex: 0 0 auto; align-self: center; margin-left: 4px; padding: 2px 8px; border-radius: 7px;
+  font-size: 9px; font-weight: 900; color: #fff6df; letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #7a5a2a, #53390f); border: 1px solid #33220a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.uc-info[hidden] { display: none; }
+.uc-info:active { transform: translateY(1px); }
+@media (max-height: 700px) {
+  .gi-head { padding: 7px 9px 6px; }
+  .gi-frame { width: 64px; height: 80px; }
+  .gi-hname b { font-size: 17px; }
+  .gi-tab { padding: 6px 3px; font-size: 11px; }
+  .gi-body { padding: 6px 9px 8px; }
+}

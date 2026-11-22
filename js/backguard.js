@@ -3,7 +3,8 @@
    v5.23 (?v=37) · v5.32 (?v=46) · v5.39 (?v=55) 보강
 
    · 모달이 열려 있으면  → 맨 위 모달만 닫는다 (dismissible:false 는 무시)
-   · 전장 화면이면       → 이동만 하고 행동 전이면 '이동 취소', 아니면 '후퇴할까요?'
+   · 전장 화면이면       → 이동만 하고 행동 전이면 '이동 취소',
+                            아니면 "게임을 종료하시겠습니까?" (계속 싸운다 / 후퇴 / 종료)
    · 성(내정) 화면이면   → 지도로 돌아간다
    · 시나리오·세력 화면  → 한 단계 앞 화면으로 돌아간다
    · 지도·타이틀이면     → "게임을 종료하시겠습니까?" 확인 창 (계속하기 / 종료)
@@ -12,6 +13,13 @@
    사용자 제스처 없이 넣은 pushState 항목은 크롬이 무시할 수 있어, 앱을 연 직후
    지도에서 뒤로가기를 누르면 그대로 사이트를 나가 버린다. 그래서 boot() 뿐 아니라
    첫 pointerdown·touchstart·keydown 때 history.state 에 가드가 없으면 한 번 더 얹는다.
+
+   v5.53 — 전장에서 뒤로가기가 앱을 튕겨 나가던 문제:
+   ensureGuard 가 {once:true} 라 첫 입력 뒤로는 가드를 다시 얹지 않았고, popstate 안에서
+   (사용자 제스처 없이) 얹은 항목은 크롬이 '건너뛸 수 있는 항목'으로 표시해 두었다.
+   그래서 전장에서 뒤로가기를 누르면 가드를 지나쳐 앱 밖으로 나가 버렸다.
+   이제 입력이 들어올 때마다(state.act 가 없는) 가드를 '제스처 있는 항목'으로 다시 얹는다.
+   그리고 전장의 뒤로가기는 곧바로 후퇴하지 않고 "게임을 종료하시겠습니까?" 창을 띄운다.
 
    히스토리 설계: 앱을 열 때 pushState 로 '가드' 항목 하나를 얹는다.
    뒤로가기가 오면 항상 같은 항목을 다시 얹어(popstate → pushState) 제자리로 돌아오므로
@@ -27,13 +35,17 @@
   let guardStopped = false;    // pushState 가 막힌 환경
   let guardCount = 0;          // 지금까지 얹은 가드 항목 수 (점검용)
   let lockedAt = 0;            // 필수 선택 모달에서 뒤로가기를 누른 시각
-  let exitOpen = false;        // "게임을 종료하시겠습니까?" 창이 열려 있는가
+  let exitOpen = false;        // "게임을 종료하시겠습니까?" 창이 열려 있는가 (지도·타이틀)
+  let battleExitOpen = false;  // 전장에서 같은 창이 열려 있는가 (v5.53)
 
   /* ── 가드 항목 ───────────────────────────────────────────── */
-  function pushGuard() {
+  /* v5.53 — byGesture: 사용자 입력(pointerdown 등) 안에서 얹은 가드인가.
+     크롬은 제스처 없이 만든 히스토리 항목을 뒤로가기에서 건너뛸 수 있어서,
+     state.act 로 구분해 두고 다음 입력 때 다시 얹는다. */
+  function pushGuard(byGesture) {
     if (guardStopped) return;
     try {
-      history.pushState({ skBackGuard: 1 }, '', location.href);
+      history.pushState({ skBackGuard: 1, act: byGesture ? 1 : 0 }, '', location.href);
       guardCount += 1;
     } catch (e) {
       /* 시크릿 모드·히스토리 제한 등: 뒤로가기 보호 없이 조용히 넘어간다 */
@@ -44,17 +56,17 @@
   /* v5.32 — 지금 히스토리 항목에 가드가 없으면 다시 얹는다.
      안드로이드 크롬은 사용자 제스처 없이 만든 pushState 항목을 무시할 수 있어,
      첫 터치/키 입력 순간에 이 검사를 한 번 더 해야 지도에서 바로 나가지 않는다. */
-  let gestureSeen = false;
+  let gestureCount = 0;        // 사용자 입력 횟수 (점검용)
   function ensureGuard() {
-    let has = false;
-    try { has = !!(history.state && history.state.skBackGuard); } catch (e) { has = false; }
-    /* 가드가 없으면 당연히 얹고, 첫 제스처 전에 만든 가드는 크롬이 건너뛸 수 있으므로
-       제스처가 들어온 이 순간 한 번 더 얹어 '제스처 있는 항목'으로 바꿔 둔다. */
-    if (!has || !gestureSeen) pushGuard();
-    gestureSeen = true;
+    gestureCount += 1;
+    let st = null;
+    try { st = history.state; } catch (e) { st = null; }
+    /* v5.53 — {once:true}를 걷어냈다. popstate 가 만든(제스처 없는) 가드는 다음 입력 때
+       '제스처 있는 항목'으로 다시 얹어야, 그 뒤의 뒤로가기가 가드를 건너뛰고 앱을 나가지 않는다. */
+    if (!st || !st.skBackGuard || !st.act) pushGuard(true);
   }
   ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
-    window.addEventListener(ev, ensureGuard, { once: true, capture: true, passive: true });
+    window.addEventListener(ev, ensureGuard, { capture: true, passive: true });
   });
 
   /* ── 지금 화면 상태 읽기 ─────────────────────────────────── */
@@ -84,7 +96,7 @@
   /* ── 뒤로가기 한 번에 할 일 정하기 ───────────────────────── */
   /* 'modal' | 'locked' | 'battle' | 'city' | 'sub' | 'exit' */
   function backAction() {
-    if (exitOpen) return 'exit-ask';     // 종료 확인 창 위에서는 아무 것도 하지 않는다
+    if (exitOpen || battleExitOpen) return 'exit-ask';   // 종료 확인 창 위에서는 아무 것도 하지 않는다
     const m = topModal();
     if (m) {
       /* 닫으면 안 되는 모달(돌발 사건·필수 선택 등)은 그대로 둔다 */
@@ -105,10 +117,11 @@
     }
     if (scr === 'screen-battle') {
       /* v5.39 — 이동만 하고 아직 행동하지 않은 부대가 있으면 뒤로가기는 '이동 취소'다.
-         이동이 없으면(또는 이미 행동을 마쳤으면) 예전처럼 후퇴 확인 창. */
+         v5.53 — 그 밖에는 곧바로 후퇴시키지 않고, 다른 화면과 똑같이
+         "게임을 종료하시겠습니까?" 창을 띄운다 (계속 싸운다 / 후퇴 / 종료).
+         예전에는 후퇴 확인만 띄웠는데, 가드가 건너뛰어지면 그대로 앱이 닫혔다. */
       if (typeof SK.battleUndoMove === 'function' && SK.battleUndoMove()) return 'sub';
-      if (typeof SK.confirmRetreat === 'function') SK.confirmRetreat();
-      else press('#btn-retreat');
+      askBattleExit();
       return 'battle';
     }
     if (scr === 'screen-city') {
@@ -188,6 +201,32 @@
     });
   }
 
+  /* ── v5.53 — 전장에서 뒤로가기: 종료 확인 창 ────────────────
+     · 계속 싸운다 → 가드를 다시 얹고 전장으로 돌아온다
+     · 후퇴        → 이번 공격을 포기하고 지도로 (기존 후퇴와 같은 처리)
+     · 종료        → 한 칸 더 나가 이전 페이지로 (갈 곳이 없으면 안내) */
+  function askBattleExit() {
+    if (battleExitOpen) return;
+    battleExitOpen = true;
+    if (typeof SK.modal !== 'function') {
+      battleExitOpen = false;
+      pushGuard();
+      return;
+    }
+    const done = function () { battleExitOpen = false; };
+    SK.modal({
+      kicker: '전장',
+      title: '게임을 종료하시겠습니까?',
+      body: '<p class="modal-p">지금 전투에서 나가면 이번 공격은 취소되고, 마지막 저장 지점부터 다시 시작합니다.<br><span class="modal-sub">계속 싸우거나, [후퇴]로 이번 공격을 포기하거나, 게임을 종료할 수 있습니다.</span></p>',
+      actions: [
+        { label: '계속 싸운다', primary: true, onClick: function () { done(); if (SK.toast) SK.toast('전투를 계속합니다.'); } },
+        { label: '후퇴', onClick: function () { done(); if (window.SKBattle) SKBattle.retreat(); } },
+        { label: '종료', onClick: function () { done(); leave(); } },
+      ],
+      dismissible: false,
+    });
+  }
+
   /* ── popstate ────────────────────────────────────────────── */
   function onPop() {
     if (exiting) return;             // leave() 가 부른 history.back() 의 되울림은 무시
@@ -203,7 +242,9 @@
       return;
     }
 
-    if (act === 'exit-ask') return;    // 종료 확인 창 위에서 또 누른 경우 — 창은 그대로 둔다
+    /* v5.53 — 종료 확인 창이 떠 있는 동안 또 뒤로가기를 눌러도 앱을 나가지 않는다.
+       (예전에는 여기서 가드를 다시 얹지 않아 히스토리 가드가 비어 버렸다) */
+    if (act === 'exit-ask') { pushGuard(); return; }
 
     armedAt = 0;                     // 모달·화면 이동이 있었으면 종료 대기는 취소
     pushGuard();                     // 가드를 다시 얹어 히스토리를 늘리지 않고 제자리로
@@ -238,6 +279,8 @@
         armed: armedAt ? Date.now() - armedAt : -1,
         exiting,
         exitOpen,
+        battleExitOpen,
+        gestureCount,
         guardCount,
         stopped: guardStopped,
         historyLength: history.length,
@@ -249,5 +292,8 @@
     arm() { armedAt = Date.now(); return this.info(); },
     /* 테스트에서 종료 확인 창을 직접 열 때 */
     askExit() { askExit(); return this.info(); },
+    askBattleExit() { askBattleExit(); return this.info(); },
+    /* 가드가 '제스처 있는 항목'으로 서 있는지 */
+    guardState() { try { return history.state || null; } catch (e) { return null; } },
   };
 })();

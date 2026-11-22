@@ -9,10 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=69" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=70" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=69" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=69" />
+<link rel="stylesheet" href="css/game.css?v=70" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=70" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -367,9 +367,9 @@
     <div class="battle-bottom">
       <div id="battle-targets" class="battle-targets" hidden></div>
       <div class="unit-card" id="unit-card">
-        <div class="uc-portrait"><img id="uc-img" src="assets/portraits/v2/caocao.webp" alt="" /><span id="uc-lv">Lv.1</span></div>
+        <div class="uc-portrait" id="uc-portrait" role="button" tabindex="0" aria-label="이 부대의 장수 정보 열기"><img id="uc-img" src="assets/portraits/v2/caocao.webp" alt="" /><span id="uc-lv">Lv.1</span></div>
         <div class="uc-main">
-          <div class="uc-row"><b id="uc-name">조조</b><span id="uc-cls">군주</span><span id="uc-terrain">평지</span></div>
+          <div class="uc-row"><b id="uc-name">조조</b><span id="uc-cls">군주</span><em id="uc-side" class="uc-side ally" hidden>아군</em><span id="uc-terrain">평지</span><button type="button" class="uc-info" id="btn-unit-info" aria-label="장수 정보" hidden>정보</button></div>
           <div class="uc-bars">
             <div class="hpbar"><i id="uc-hp"></i><em id="uc-hp-txt">0/0</em></div>
             <div class="mpbar"><i id="uc-mp"></i><em id="uc-mp-txt">0/0</em></div>
@@ -394,6 +394,27 @@
     </div>
 
     <div id="battle-overlay" class="battle-overlay" hidden></div>
+
+    <!-- v5.53 — 조조전 스타일 《장수 정보》 — 아군·적군 공통 (능력 · 장비 · 특성·기술) -->
+    <div id="gen-info" class="gen-info" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="장수 정보">
+      <div class="gi-panel">
+        <div class="gi-bar"><b>장수 정보</b><button type="button" class="gi-x" id="gi-x" aria-label="닫기">×</button></div>
+        <div class="gi-head" id="gi-head"></div>
+        <div class="gi-tabs" id="gi-tabs" role="tablist">
+          <button type="button" class="gi-tab on" data-tab="stat" role="tab">능력</button>
+          <button type="button" class="gi-tab" data-tab="equip" role="tab">장비</button>
+          <button type="button" class="gi-tab" data-tab="trait" role="tab">특성·기술</button>
+        </div>
+        <div class="gi-actbar" id="gi-actbar" hidden><button type="button" class="gi-atk" id="gi-attack"></button></div>
+        <div class="gi-body" id="gi-body"></div>
+        <div class="gi-foot">
+          <button type="button" class="gi-nav" id="gi-prev">◀ 이전</button>
+          <span class="gi-pos" id="gi-pos">1 / 1</span>
+          <button type="button" class="gi-nav" id="gi-next">다음 ▶</button>
+          <button type="button" class="gi-close" id="gi-close">닫기</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div id="month-banner" class="month-banner" aria-live="polite"><span></span></div>
@@ -414,20 +435,20 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=69"></script>
-<script src="js/mapmask.js?v=69"></script>
-<script src="js/city_geo.js?v=69"></script>
-<script src="js/data.js?v=69"></script>
-<script src="js/bgm.js?v=69"></script>
-<script src="js/sfx.js?v=69"></script>
-<script src="js/app.js?v=69"></script>
-<script src="js/map.js?v=69"></script>
-<script src="js/battle.js?v=69"></script>
-<script src="js/backguard.js?v=69"></script>
+<script src="js/mapgeo.js?v=70"></script>
+<script src="js/mapmask.js?v=70"></script>
+<script src="js/city_geo.js?v=70"></script>
+<script src="js/data.js?v=70"></script>
+<script src="js/bgm.js?v=70"></script>
+<script src="js/sfx.js?v=70"></script>
+<script src="js/app.js?v=70"></script>
+<script src="js/map.js?v=70"></script>
+<script src="js/battle.js?v=70"></script>
+<script src="js/backguard.js?v=70"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=69').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=70').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

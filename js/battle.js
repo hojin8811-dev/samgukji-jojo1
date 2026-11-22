@@ -119,6 +119,7 @@
   SK.healAmount = healAmount;
   SK.startBattle = function (opts) {
     document.querySelectorAll('#modal-root .modal-layer').forEach((m) => m.remove());
+    closeGenInfo();   // v5.53 — 앞 전투의 《장수 정보》 창이 새 전장에 남지 않게
     const s = SK.state;
     const target = SK.CITY[opts.targetId];
     const defense = opts.defense || null;
@@ -280,7 +281,7 @@
     B = {
       type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name}` : `${target.name} ${def.name}`),
       targetId: opts.targetId, origin: opts.origin,
-      tiles, units: [], turn: 1, phase: 'ally', sel: null,
+      tiles, units: [], turn: 1, phase: 'ally', sel: null, insp: null,   // v5.53 — insp = 아래 카드에 띄운 부대(적군 포함, 읽기 전용)
       cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings,
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
@@ -3188,7 +3189,7 @@
 
   /* ══════════════════════════════════════════════════════════════
      v5.52 — 고퀄 1:1 일기토 미니게임 (사용자 확정 사양)
-     · 이름 있는 장수끼리 근접 교전에서 4% 확률로 벌어진다 (아군이 거는 공격만)
+     · 이름 있는 장수끼리 근접 교전에서 벌어진다 — 확률은 두 장수의 무력으로 가중(2~7%, v5.53) (아군이 거는 공격만)
        한 판에 3번까지 · 같은 상대와는 한 번만
      · HP 100 대 100 · 최대 5턴 · 5가지 수의 가위바위보
        ⚔️강공 → 💨속공·👁️간파 / 💨속공 → 👁️간파·🔥필살 / 👁️간파 → 🔥필살·🛡️방어
@@ -3197,7 +3198,17 @@
      · 승리 = 사기 +18 + 본대 병력 10% 회복 · 패배 = 10% 붕괴(생포) / 90% 사기 −22
      · 빨리 감기 ×3·×4나 자동전투에서는 연출과 진행이 함께 짧아진다
      ══════════════════════════════════════════════════════════════ */
-  let duelRate = 0.04;   // 일기토 발동 확률 (검수에서만 바꾼다)
+  /* v5.53 — 일기토 발동 확률은 '두 장수의 무력'에 따라 달라진다 (사용자: "무력이 높을수록 일기토 확률 가중치").
+     · 기본 2.5% + (두 무력 평균 − 50) × 0.08%p, 2%~7%로 자른다.
+       관우·여포·장비 같은 고무력 맞대결 ≈ 5.5~6.5%, 책사·풍수사처럼 낮은 무력끼리는 2%.
+     · duelRate 는 검수용 고정값 — null 이면 무력 가중치를 쓴다. */
+  const DUEL_RATE_BASE = 0.025;
+  let duelRate = null;   // 검수에서 고정 확률을 넣을 때만 쓴다
+  function duelChance(a, d) {
+    if (duelRate != null) return duelRate;
+    const avg = ((Number(a && a.wu) || 50) + (Number(d && d.wu) || 50)) / 2;
+    return clamp(DUEL_RATE_BASE + (avg - 50) * 0.0008, 0.02, 0.07);
+  }
   const DUEL_TURNS = 5;
   const DUEL_MAX_HP = 100;
   /* 문관 계열 — 공격에 지력을 쓴다 */
@@ -3480,7 +3491,7 @@
     el._t = setTimeout(() => el.classList.remove('on'), 950);
   }
 
-  /* 일어날 수 있는 일기토인가 — 4% 확률 · 이름 있는 장수 · 서로 다른 편 · 한 판 3번까지 */
+  /* 일어날 수 있는 일기토인가 — 무력 가중 확률(2~7%) · 이름 있는 장수 · 서로 다른 편 · 한 판 3번까지 */
   function duelOffer(a, d) {
     if (!B || !a || !d || a === d || !a.alive || !d.alive) return false;
     if (a.side === d.side || a.side !== 'ally') return false;
@@ -3489,7 +3500,7 @@
     B.duels = B.duels || { n: 0, last: 0, seen: {} };
     const key = [a.name, d.name].sort().join('|');
     if (B.duels.n >= 3 || B.duels.seen[key]) return false;
-    return Math.random() < duelRate;
+    return Math.random() < duelChance(a, d);
   }
 
   function openDuel(a, d, done) {
@@ -4283,7 +4294,7 @@
       SK.sfx.play('hit');
       if (onDone) onDone();
     };
-    /* v5.52 — 근접 공격 4%로 1:1 일기토 미니게임. 일기토가 끝난 뒤에야
+    /* v5.52 — 근접 공격에서 확률(무력 가중 2~7%)로 1:1 일기토 미니게임. 일기토가 끝난 뒤에야
        원래 공격(돌진 → 피해)이 이어진다. 일기토에서 쓰러진 부대는 공격하지 못한다. */
     const swing = () => {
       if (!B || !a.alive || !d.alive) { if (onDone) onDone(); return; }
@@ -4341,10 +4352,15 @@
   /* ───────────── 조작 ───────────── */
   function onTileTap(x, y) {
     if (!B || B.over || busy || !B.introDone) return;
-    if (B.phase !== 'ally') return;
     if (x < 0 || y < 0 || x >= N || y >= N) return;
     const u = B.sel;
     const t = B.units.find((o) => o.alive && o.x === x && o.y === y);
+    /* v5.53 — 적군 페이즈에도 부대를 눌러 《장수 정보》를 볼 수 있다.
+       읽기 전용이라 턴·이동·공격에는 아무 영향이 없다. */
+    if (B.phase !== 'ally') {
+      if (t) inspectUnit(t, { open: true });
+      return;
+    }
 
     if (mode === 'skillTarget' && pendingSkill) { trySkillAt(x, y); return; }
 
@@ -4375,12 +4391,11 @@
       return;
     }
     if (t && t.side === 'enemy') {
-      if (u && u.side === 'ally' && !u.acted && mode !== 'skillTarget') {
-        if (canHit(u, t)) { openAttackPreview(u, t); return; }
-        SK.toast(`사거리 밖입니다. (사거리 ${effRng(u)})`);
-        return;
-      }
-      showUnitInfo(t);
+      /* v5.53 — [공격]을 눌러 대상을 고르는 중일 때만 한 번에 공격 예고.
+         그 밖에는 적군을 눌러도 《장수 정보》가 열린다 (사거리 밖 적군도 병력·장비를 볼 수 있게).
+         정보 창 아래 [공격 예고]로 바로 칠 수도 있다. */
+      if (mode === 'attack' && u && u.side === 'ally' && !u.acted && canHit(u, t)) { openAttackPreview(u, t); return; }
+      inspectUnit(t, { open: true });
       return;
     }
     /* v5.0.1 — 적을 살짝 빗나가게 눌러도 사거리 안의 적을 잡아 준다 */
@@ -4407,6 +4422,7 @@
   function selectUnit(u) {
     if (!u || !u.alive) return;
     if (u.rx == null) { u.rx = u.x; u.ry = u.y; }
+    B.insp = null;   // v5.53 — 내 부대를 고르면 적군 정보 보기에서 돌아온다
     B.sel = u;
     trackTurn(u);
     /* v5.39 — 이미 이번 턴에 걸어간 부대는 다시 선택해도 이동 범위를 열지 않는다.
@@ -4425,6 +4441,7 @@
 
   function clearSel() {
     B.sel = null;
+    B.insp = null;   // v5.53
     B.reachCache = null;
     mode = 'idle';
     pendingSkill = null;
@@ -5339,29 +5356,363 @@
     nextUnitOrWait();
   }
 
-  function showUnitInfo(t) {
-    const C = SK.CLASSES[t.cls];
-    const tr = SK.TERRAIN[B.tiles[t.y][t.x]];
-    const bonds = (SK.bondsOf ? SK.bondsOf(t.name) : []).map((b) => {
-      const p = SK.bondPartner(b, t.name);
-      const rival = b.relation === '숙적';
-      return `<div class="hb-row ${rival ? 'rival' : 'friend'}"><span class="hb-rel">${rival ? '숙적' : '친밀'}</span>
-        <div><b>${p}</b><span>${b.title}</span><em>${b.effect}</em></div></div>`;
-    }).join('');
-    SK.modal({
-      title: `${t.name}`,
-      body: `<div class="battle-info">
-        <img src="${SK.ptSrc(t.portrait)}" alt="">
-        <div class="bi-main">
-          <p class="bi-cls">${C.name} · Lv.${t.lv} ${t.boss ? '· 적장' : ''}${t.tier ? ` · ${t.tier}급` : ''}</p>${t.skillName ? `<p class="bi-skill">특기 — ${t.skillName}</p>` : ''}
-          <div class="bi-hp"><i style="width:${Math.round(t.hp / t.maxHp * 100)}%"></i><span>병력 ${Math.round(t.hp).toLocaleString('ko-KR')} / ${Math.round(t.maxHp).toLocaleString('ko-KR')}</span></div>
-          <p class="bi-train">훈련도 ${t.train == null ? trainOf(t.lv, t.tier) : t.train}</p><div class="bi-attrs"><span>공 ${Math.round(effAtk(t))}</span><span>방 ${Math.round(effDef(t))}</span><span>책공 ${Math.round(magicAtk(t))}</span><span>책방 ${Math.round(magicDef(t))}</span><span>이동 ${movOf(t)}</span><span>사거리 ${effRng(t)}</span></div>
-          <p class="bi-terr">지형 ${tr.name} · 방어 ${Math.round(tr.def * 100)}%${bondAllyMul(t) > 1 ? ' · 인연 공격 +15%' : ''}</p>
-        </div>
-      </div>${bonds ? `<div class="hi-bonds">${bonds}</div>` : ''}`,
-      actions: [{ label: '닫기', primary: true }],
-    });
+  /* ══════════════════════════════════════════════════════════════
+     v5.53 — 조조전 스타일 《장수 정보》 (아군·적군 공통)
+     · 전장에서 부대를 누르면 아래 카드에 그 부대가 뜨고, 카드의 초상화나
+       [정보]를 누르면 이 창이 열린다. 적군·일반 부대도 읽기 전용으로 열린다.
+     · 머리: 초상·이름·진영·병과·Lv·등급(S/A/B/C)·HP/MP/EXP·지형
+     · 3탭: 능력(전투 스탯·5대 능력·상태) / 장비(보물·보정) / 특성·기술(고유 특기·병종·책략·버프·인연)
+     · 아래: [이전] / [다음] — 같은 진영 부대 안에서 넘긴다. [닫기]
+     ══════════════════════════════════════════════════════════════ */
+  let giTab = 'stat';
+  let giUid = null;
+  let giTimer = null;
+
+  function giHero(u) {
+    return (u && u.side === 'ally' && u.uid && SK.state)
+      ? ((SK.state.heroes || []).find((x) => x.uid === u.uid) || null) : null;
   }
+  function giGen(u) {
+    if (!u || u.genId == null || !SK.GEN_BY_ID) return null;
+    return SK.GEN_BY_ID[u.genId] || null;
+  }
+  function giTierOf(u) {
+    const h = giHero(u);
+    const t = (u && u.tier) || (h && h.tier) || '';
+    return SK.TIER_LV[t] ? t : '';
+  }
+  function giFive(u) {
+    const h = giHero(u), g = giGen(u), src = h || g;
+    if (!src) return null;
+    const eq = h && SK.equipBonus ? SK.equipBonus(h) : null;
+    const pick = (a, b) => (src[a] != null ? src[a] : (src[b] != null ? src[b] : null));
+    return {
+      tong: { base: pick('tong', 'leadership'), add: eq ? eq.leadership : 0 },
+      wu: { base: pick('wu', 'war'), add: eq ? eq.war : 0 },
+      ji: { base: pick('ji', 'intel'), add: eq ? eq.intel : 0 },
+      pol: { base: pick('pol', 'politics'), add: eq ? eq.politics : 0 },
+      cha: { base: pick('cha', 'charm'), add: eq ? eq.charm : 0 },
+    };
+  }
+  function giExp(u) {
+    const h = giHero(u);
+    if (!h) return { val: 0, need: 0, has: false };
+    const need = SK.expNeed ? SK.expNeed(h.lv) : 100;
+    return { val: Math.max(0, Math.round(h.exp || 0)), need, has: true };
+  }
+  const GI_BUFF = { atk: '공격', def: '방어', crit: '치명', evade: '회피' };
+  const GI_WEAPON = {
+    sword: '검', spear: '창', bow: '활', crossbow: '석궁', axe: '도끼', fan: '부채',
+    staff: '지팡이', fist: '맨손', trident: '삼지창', claw: '발톱', ribbon: '채찍',
+    catapult: '투석기', ram: '충차', drum: '북',
+  };
+  const GI_TRIGGER = { passive: '상시', turn_start: '턴 시작', on_attack: '공격 시' };
+
+  function giStateChips(u, kind) {
+    const out = [];
+    if (kind === 'ail') {
+      if (u.ail) {
+        Object.keys(AIL).forEach((k) => {
+          const t = u.ail[k];
+          if (t > 0) out.push(`<span class="gi-st bad">${AIL[k].n} <em>${t}턴</em></span>`);
+        });
+      }
+      if (u.aboard) out.push('<span class="gi-st good">조각배 <em>수상</em></span>');
+      if (u.side === 'ally' && u.acted) out.push('<span class="gi-st dim">행동 완료</span>');
+      if (!out.length) out.push('<span class="gi-st normal">정상</span>');
+    } else {
+      if (u.buffs) {
+        Object.keys(u.buffs).forEach((k) => {
+          const b = u.buffs[k];
+          if (!b || b.t <= 0 || !b.v) return;
+          const v = Math.round(b.v * 100);
+          out.push(`<span class="gi-st ${v >= 0 ? 'good' : 'bad'}">${GI_BUFF[k] || k} ${v >= 0 ? '+' : ''}${v}% <em>${b.t}턴</em></span>`);
+        });
+      }
+      if (u.side === 'ally' && bondAllyMul(u) > 1) out.push('<span class="gi-st good">인연 <em>공격 +15%</em></span>');
+      if (!out.length) out.push('<span class="gi-st normal">없음</span>');
+    }
+    return out.join('');
+  }
+
+  function giHeaderHTML(u) {
+    const C = SK.CLASSES[u.cls] || { name: '부대' };
+    const tr = SK.TERRAIN[B.tiles[u.y][u.x]] || SK.TERRAIN.P;
+    const h = giHero(u), g = giGen(u);
+    const tier = giTierOf(u);
+    const promo = (SK.classTitle && C.name) ? SK.classTitle(u.cls, u.lv) : '';
+    const hpPct = Math.round(clamp(u.hp / Math.max(1, u.maxHp), 0, 1) * 100);
+    const mpPct = Math.round(clamp(u.mp / Math.max(1, u.maxMp), 0, 1) * 100);
+    const ex = giExp(u);
+    const exPct = ex.has ? Math.round(clamp(ex.val / Math.max(1, ex.need), 0, 1) * 100) : 0;
+    const tile = B.tiles[u.y][u.x];
+    const holdTag = tile === 'T' ? '망루 방어↑' : tile === 'K' ? '본성 방어↑' : '';
+    const aff = (SK.affinity ? SK.affinity(u.cls, tile) : null);
+    const chips = [
+      `<span class="gi-chip side ${u.side}">${u.side === 'ally' ? '아군' : '적군'}</span>`,
+      `<span class="gi-chip">${C.name}</span>`,
+      promo && promo !== C.name ? `<span class="gi-chip">${promo}</span>` : '',
+      `<span class="gi-chip">Lv.${u.lv}</span>`,
+      tier ? `<span class="gi-chip tier t${tier}">${tier}급</span>` : '',
+      u.boss ? '<span class="gi-chip boss">적장</span>' : '',
+      !u.alive ? '<span class="gi-chip down">전투 불능</span>' : '',
+    ].filter(Boolean).join('');
+    return `<div class="gi-frame"><img src="${SK.ptSrc(u.portrait)}" alt="" /><span class="gi-lvtag">Lv.${u.lv}</span></div>
+      <div class="gi-hmain">
+        <div class="gi-hname"><b>${u.name}</b>${u.hanja ? `<span>${u.hanja}</span>` : ''}</div>
+        <div class="gi-chips">${chips}</div>
+        <div class="gi-bars">
+          <div class="gi-bar2 hp"><i style="width:${hpPct}%"></i><em>병력 ${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}</em></div>
+          <div class="gi-bar2 mp"><i style="width:${mpPct}%"></i><em>기력 ${u.mp} / ${u.maxMp}</em></div>
+          ${ex.has
+            ? `<div class="gi-bar2 exp"><i style="width:${exPct}%"></i><em>EXP ${ex.val} / ${ex.need}</em></div>`
+            : '<div class="gi-bar2 exp"><i style="width:0%"></i><em>EXP —</em></div>'}
+        </div>
+        <div class="gi-terrline">지형 <b>${tr.name}</b> · 방어 <b>${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</b>${holdTag ? ` · ${holdTag}` : ''}${aff && aff.label ? ` · ${aff.label}` : ''}</div>
+      </div>`;
+  }
+
+  function giStatHTML(u) {
+    const tr = SK.TERRAIN[B.tiles[u.y][u.x]] || SK.TERRAIN.P;
+    const five = giFive(u);
+    const morale = Math.round(u.morale == null ? 100 : u.morale);
+    const moralePct = Math.round((moraleMul(u) - 1) * 100);
+    const tile = B.tiles[u.y][u.x];
+    const hold = tile === 'T' ? '<span class="gi-st good">망루 방어↑·회복</span>'
+      : tile === 'K' ? '<span class="gi-st good">본성 방어↑·회복</span>' : '';
+    const cells = [
+      ['공격력', Math.round(effAtk(u))],
+      ['방어력', Math.round(effDef(u))],
+      ['책략공격', Math.round(magicAtk(u))],
+      ['책략방어', Math.round(magicDef(u))],
+      ['이동력', movOf(u)],
+      ['사거리', (u.minRng || 1) > 1 ? `${u.minRng}~${effRng(u)}` : effRng(u)],
+      ['사기', morale],
+      ['훈련도', u.train == null ? trainOf(u.lv, u.tier) : u.train],
+    ].map(([k, v]) => `<span class="gi-cell"><i>${k}</i><b>${v}</b></span>`).join('');
+    const fiveNames = [['통솔', 'tong'], ['무력', 'wu'], ['지력', 'ji'], ['정치', 'pol'], ['매력', 'cha']];
+    const fiveHtml = five ? fiveNames.map(([lab, k]) => {
+      const st = five[k];
+      const base = st.base == null ? '—' : st.base;
+      const add = (st.base != null && st.add) ? `<em>+${st.add}</em>` : '';
+      return `<span class="gi-cell"><i>${lab}</i><b>${base}${add}</b></span>`;
+    }).join('') : '';
+    return `<p class="gi-sec">전투 능력</p>
+      <div class="gi-grid">${cells}</div>
+      <p class="gi-sec">기본 능력</p>
+      ${five ? `<div class="gi-grid five">${fiveHtml}</div>`
+        : '<p class="gi-note">일반 부대 — 통솔·무력·지력·정치·매력은 이름 있는 장수만 가집니다.</p>'}
+      <p class="gi-sec">지형·사기</p>
+      <div class="gi-state">
+        <span class="gi-st">${tr.name}</span>
+        <span class="gi-st ${tr.def >= 0 ? 'good' : 'bad'}">방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</span>
+        ${hold}
+        <span class="gi-st ${morale >= 100 ? 'good' : (morale >= 80 ? '' : 'bad')}">사기 ${morale} <em>공격 ${moralePct >= 0 ? '+' : ''}${moralePct}%</em></span>
+      </div>
+      <p class="gi-sec">현재 상태</p>
+      <div class="gi-state">${giStateChips(u, 'ail')}</div>`;
+  }
+
+  function giEquipHTML(u) {
+    const h = giHero(u);
+    const C = SK.CLASSES[u.cls] || {};
+    const wpn = GI_WEAPON[C.weapon] || '기본 병장';
+    const rows = Object.keys(SK.SLOT_NAMES).map((sl) => {
+      const t = h && h.equip && h.equip[sl] ? SK.TREASURE_BY_ID[h.equip[sl]] : null;
+      if (!t) {
+        return `<div class="gi-eq-row none"><span class="gi-slot">${SK.SLOT_NAMES[sl]}</span><div><b>미착용</b></div></div>`;
+      }
+      const st = SK.treasureStats(t);
+      const bonus = [];
+      [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['politics', '정치'], ['charm', '매력'], ['move', '이동력'], ['rng', '사거리']]
+        .forEach(([k, lab]) => { if (st[k]) bonus.push(`${lab} +${st[k]}`); });
+      const grade = t.grade || '일반';
+      return `<div class="gi-eq-row"><span class="gi-slot">${SK.SLOT_NAMES[sl]}</span><div>
+        <b style="color:${SK.GRADE_COLOR[grade] || '#8a7a5a'}">${t.name}</b>
+        <em><span class="gi-grade">${grade}</span>${bonus.join(' · ') || '능력치 보정 없음'}</em>
+        ${t.effect ? `<p>${t.effect}</p>` : ''}</div></div>`;
+    }).join('');
+    const eq = h && SK.equipBonus ? SK.equipBonus(h) : null;
+    const sum = [];
+    if (eq) {
+      [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['politics', '정치'], ['charm', '매력'], ['move', '이동력'], ['rng', '사거리']]
+        .forEach(([k, lab]) => { if (eq[k]) sum.push(`${lab} +${eq[k]}`); });
+    }
+    let fxLine = '';
+    if (h && SK.heroTreasureFx && SK.fxSumLine) {
+      const parts = SK.fxSumLine(SK.heroTreasureFx(h), true) || [];
+      if (parts.length) fxLine = parts.join(' · ');
+    }
+    return `<p class="gi-sec">장비</p>
+      <div class="gi-eq">
+        <div class="gi-eq-row"><span class="gi-slot">병장</span><div><b>${wpn}</b><em>병과 기본 무기 · 보정 없음</em></div></div>
+        ${rows}
+      </div>
+      <p class="gi-sum">보물 보정 — ${sum.length ? sum.join(' · ') : '없음'}</p>
+      ${fxLine ? `<p class="gi-sum">전장 적용 — ${fxLine}</p>` : ''}
+      ${h ? '' : '<p class="gi-note">적군 부대와 일반 부대는 보물을 장착하지 않습니다.</p>'}`;
+  }
+
+  function giTraitHTML(u) {
+    const C = SK.CLASSES[u.cls] || {};
+    const p = u.passive;
+    let uniq;
+    if (p) {
+      uniq = `<div class="gi-trait"><b>「${p.title || u.skillName || '고유 특기'}」<em>${GI_TRIGGER[p.trigger] || '공격 시'}</em></b><p>${p.effect || ''}</p></div>`;
+    } else if (u.skillName) {
+      uniq = `<div class="gi-trait"><b>「${u.skillName}」</b><p>열전에 기록된 특기입니다. 전장 수치 효과는 아직 붙지 않았습니다.</p></div>`;
+    } else {
+      uniq = '<p class="gi-note">고유 특기 없음 — 상위 100명 장수만 고유 특기를 가집니다.</p>';
+    }
+    const skills = (u.skills || []).map((k) => {
+      const sk = SK.SKILLS[k];
+      if (!sk) return '';
+      const rng = sk.radius ? `반경 ${sk.radius}` : `사거리 ${skRange(u, sk)}`;
+      const off = u.mp < sk.mp ? ' off' : '';
+      return `<div class="skill-row gi-skill${off}"><span class="sk-mp">${sk.mp}</span>
+        <div><b>${sk.name}<em class="sk-rng">${rng}</em></b><span>${sk.desc || ''}</span></div></div>`;
+    }).join('');
+    const bonds = (SK.bondsOf ? SK.bondsOf(u.name) : []).map((b) => {
+      const partner = SK.bondPartner(b, u.name);
+      const mate = B.units.find((o) => o.alive && o !== u && o.name === partner);
+      const rival = b.relation === '숙적';
+      return `<div class="gi-bond ${rival ? 'rival' : 'friend'}">
+        <span class="gi-bond-tag">${rival ? '숙적' : '친밀'}</span>
+        <div><b>${partner}</b><em>${b.title || ''}</em><p>${b.effect || ''}</p></div>
+        ${mate ? `<i class="gi-bond-on">${mate.side === u.side ? '참전' : '적군 참전'}</i>` : ''}
+      </div>`;
+    }).join('');
+    return `<p class="gi-sec">고유 특기</p>${uniq}
+      <p class="gi-sec">병종 특성</p>
+      <div class="gi-trait"><b>${C.name}<em>${C.role || ''}</em></b><p>${C.desc || ''}</p></div>
+      <p class="gi-sec">보유 책략</p>
+      ${skills ? `<div class="skill-list gi-skills">${skills}</div>` : '<p class="gi-note">책략이 없는 병과입니다.</p>'}
+      <p class="gi-sec">현재 버프</p>
+      <div class="gi-state">${giStateChips(u, 'buff')}</div>
+      <p class="gi-sec">인연</p>
+      ${bonds || '<p class="gi-note">맺은 인연이 없습니다.</p>'}`;
+  }
+
+  function giAttackTarget(u) {
+    const a = B && B.sel;
+    return !!(a && u && a.side === 'ally' && a.alive && !a.acted && u.side === 'enemy' && u.alive
+      && B.phase === 'ally' && canHit(a, u));
+  }
+
+  function giRender() {
+    const panel = $('#gen-info');
+    if (!panel || panel.hidden || !B) return;
+    const u = B.units.find((o) => o.id === giUid);
+    if (!u) { closeGenInfo(); return; }
+    $('#gi-head').innerHTML = giHeaderHTML(u);
+    $('#gi-body').innerHTML = giBodyHTML(u);
+    panel.querySelectorAll('.gi-tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === giTab));
+    const list = giSideList(u);
+    const idx = list.findIndex((o) => o.id === u.id);
+    $('#gi-pos').textContent = idx >= 0 ? `${idx + 1} / ${list.length}` : '—';
+    $('#gi-prev').disabled = list.length < 2;
+    $('#gi-next').disabled = list.length < 2;
+    const bar = $('#gi-actbar');
+    const canAtk = giAttackTarget(u);
+    if (bar) bar.hidden = !canAtk;
+    if (canAtk) $('#gi-attack').textContent = `공격 예고 · ${B.sel.name} → ${u.name}`;
+  }
+
+  function giBodyHTML(u) {
+    if (giTab === 'equip') return giEquipHTML(u);
+    if (giTab === 'trait') return giTraitHTML(u);
+    return giStatHTML(u);
+  }
+
+  function giSideList(u) {
+    if (!B) return [];
+    return B.units.filter((o) => o.alive && o.side === u.side);
+  }
+
+  function giState() {
+    const panel = $('#gen-info');
+    if (!panel || panel.hidden || !B) return null;
+    const u = B.units.find((o) => o.id === giUid);
+    if (!u) return null;
+    const list = giSideList(u);
+    const txt = (el) => (el ? String(el.textContent || '').replace(/\s+/g, ' ').trim() : '');
+    return {
+      name: u.name, side: u.side, tab: giTab,
+      tabs: Array.from(panel.querySelectorAll('.gi-tab')).map((b) => txt(b)),
+      pos: txt($('#gi-pos')).replace(/\s*\/\s*/g, '/'),
+      idx: list.findIndex((o) => o.id === u.id) + 1, total: list.length,
+      head: txt($('#gi-head')),
+      body: txt($('#gi-body')),
+      attack: !!($('#gi-actbar') && !$('#gi-actbar').hidden),
+      attackLabel: txt($('#gi-attack')),
+    };
+  }
+
+  function openGenInfo(u) {
+    const panel = $('#gen-info');
+    if (!panel || !u || !B) return null;
+    giUid = u.id;
+    panel.hidden = false;
+    panel.setAttribute('aria-hidden', 'false');
+    giRender();
+    if (giTimer) clearInterval(giTimer);
+    /* 뒤에서 전투가 계속 도는 경우(적군 페이즈)에도 머리의 병력·기력은 따라간다.
+       본문은 다시 그리지 않아 스크롤이 튀지 않는다. */
+    giTimer = setInterval(() => {
+      if (!B || B.over) { closeGenInfo(); return; }
+      const cur = B.units.find((o) => o.id === giUid);
+      if (!cur) { closeGenInfo(); return; }
+      const head = $('#gi-head');
+      if (head) head.innerHTML = giHeaderHTML(cur);
+      const bar = $('#gi-actbar');
+      if (bar) {
+        const canAtk = giAttackTarget(cur);
+        bar.hidden = !canAtk;
+        if (canAtk) $('#gi-attack').textContent = `공격 예고 · ${B.sel.name} → ${cur.name}`;
+      }
+    }, 900);
+    return giState();
+  }
+
+  function closeGenInfo() {
+    const panel = $('#gen-info');
+    if (giTimer) { clearInterval(giTimer); giTimer = null; }
+    giUid = null;
+    if (!panel) return;
+    panel.hidden = true;
+    panel.setAttribute('aria-hidden', 'true');
+  }
+
+  function giNav(dir) {
+    const u = B && B.units.find((o) => o.id === giUid);
+    if (!u) { closeGenInfo(); return; }
+    const list = giSideList(u);
+    if (list.length < 2) return;
+    let i = list.findIndex((o) => o.id === u.id);
+    if (i < 0) i = 0;
+    const nx = list[(i + dir + list.length) % list.length];
+    giUid = nx.id;
+    if (nx.side === 'enemy') B.insp = nx;   // 적군을 넘겨 보면 아래 카드도 그 적을 따라간다
+    giRender();
+    if (SK.sfx) SK.sfx.play('ui');
+  }
+
+  /* 전장에서 부대를 눌렀을 때 — 아래 카드에 띄우고(읽기 전용) 필요하면 창까지 연다 */
+  function inspectUnit(u, opts) {
+    if (!B || !u || !u.alive) return;
+    B.insp = u;
+    SKBattle.refreshUI();
+    const tr = SK.TERRAIN[B.tiles[u.y][u.x]] || SK.TERRAIN.P;
+    const tip = $('#battle-tip');
+    if (tip) {
+      tip.textContent = `${u.name} · ${(SK.CLASSES[u.cls] || {}).name || ''} · ${tr.name} 방어 ${Math.round(tr.def * 100)}% · [정보] 장수 정보`;
+    }
+    /* 카메라는 그대로 둔다 — 누른 부대는 이미 화면 안에 있고, 창을 닫으면 보던 자리 그대로다 */
+    if (opts && opts.open) openGenInfo(u);
+  }
+
+  /* v5.53 — 예전 적군 정보 창(showUnitInfo)은 새 《장수 정보》로 통일했다 */
+  function showUnitInfo(t) { return inspectUnit(t, { open: true }); }
 
   /* ───────────── 턴 종료·AI ───────────── */
   function endTurn() {
@@ -7317,7 +7668,9 @@
       $('#count-enemy').textContent = Math.round(enemyHp).toLocaleString('ko-KR');
       $('#bar-ally').style.width = Math.round(allyStart ? allyHp / allyStart * 100 : 0) + '%';
       $('#bar-enemy').style.width = Math.round(enemyStart ? enemyHp / enemyStart * 100 : 0) + '%';
-      const u = B.sel;
+      /* v5.53 — 적군(또는 아군)을 눌러 보면 아래 카드에 그 부대가 뜬다.
+         B.sel은 내 부대 선택 그대로 두고, 보기용 부대는 B.insp가 맡는다(읽기 전용). */
+      const u = B.insp || B.sel;
       const card = $('#unit-card');
       if (u) {
         card.classList.add('on');
@@ -7326,6 +7679,10 @@
         $('#uc-lv').textContent = 'Lv.' + u.lv;
         $('#uc-name').textContent = u.name;
         $('#uc-cls').textContent = SK.CLASSES[u.cls].name;
+        const sideEl = $('#uc-side');
+        if (sideEl) { sideEl.textContent = u.side === 'ally' ? '아군' : '적군'; sideEl.className = 'uc-side ' + u.side; sideEl.hidden = false; }
+        const infoBtn = $('#btn-unit-info');
+        if (infoBtn) { infoBtn.hidden = false; infoBtn.disabled = false; infoBtn.title = `${u.name} 장수 정보 — 능력·장비·특성`; }
         const tr = SK.TERRAIN[B.tiles[u.y][u.x]];
         const holdTag = B.tiles[u.y][u.x] === 'T' ? '망루 방어↑·회복' : B.tiles[u.y][u.x] === 'K' ? '본성 방어↑·회복' : '';
         /* v5.27 — 음수 지형(도로 −5%)에 '+'가 붙어 '방어+-5%'로 찍히던 표기 오류 */
@@ -7341,8 +7698,9 @@
         const exVal = hero ? (hero.exp || 0) : 0;
         const needExp = SK.expNeed ? SK.expNeed(exLv) : 100;
         const ex = $('#uc-exp'), exT = $('#uc-exp-txt');
-        if (ex) ex.style.width = Math.max(0, Math.min(100, Math.round(exVal / needExp * 100))) + '%';
-        if (exT) exT.textContent = `EXP ${exVal}/${needExp}`;
+        /* v5.53 — 적군·일반 부대는 경험치가 없다: 0/145를 보여 주지 않고 —로 둔다 */
+        if (ex) ex.style.width = hero ? Math.max(0, Math.min(100, Math.round(exVal / needExp * 100))) + '%' : '0%';
+        if (exT) exT.textContent = hero ? `EXP ${exVal}/${needExp}` : 'EXP —';
         $('#uc-troops').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
         $('#uc-train').textContent = `${u.train == null ? trainOf(u.lv, u.tier) : u.train}`;
         $('#uc-atk').textContent = Math.round(effAtk(u));
@@ -7375,7 +7733,9 @@
         }
         $('#uc-mov').textContent = movOf(u);
         $('#uc-rng').textContent = effRng(u);
-        const canAct = u.side === 'ally' && !u.acted;
+        /* v5.53 — 행동 가능 여부는 '내가 고른 부대'(B.sel)로 판단한다.
+           적군을 보고 있을 때는 누구도 고르지 않은 것과 같다. */
+        const canAct = !!B.sel && B.sel.side === 'ally' && !B.sel.acted;
         document.querySelectorAll('.act').forEach((b) => b.classList.toggle('off', !canAct));
         /* v5.36 — [군량] 버튼에 이 부대의 남은 횟수를 보여 준다: 군량 (2) / 군량 (0) 잠김 */
         paintItemButton(u);
@@ -7392,6 +7752,8 @@
         $('#uc-hp').style.width = '0%'; $('#uc-mp').style.width = '0%';
         const ex0 = $('#uc-exp'); if (ex0) ex0.style.width = '0%';
         const exT0 = $('#uc-exp-txt'); if (exT0) exT0.textContent = 'EXP 0/0';
+        const sideEl0 = $('#uc-side'); if (sideEl0) sideEl0.hidden = true;
+        const infoBtn0 = $('#btn-unit-info'); if (infoBtn0) infoBtn0.hidden = true;
         $('#uc-hp-txt').textContent = ''; $('#uc-mp-txt').textContent = '';
         $('#uc-troops').textContent = '0'; $('#uc-train').textContent = '-';
         $('#uc-atk').textContent = '-'; $('#uc-def').textContent = '-';
@@ -7450,6 +7812,29 @@
       get phase() { return B ? B.phase : null; },
       get turn() { return B ? B.turn : null; },
       tap(x, y) { onTileTap(x, y); },
+      /* v5.53 — 《장수 정보》 QA: 탭 좌표·창 상태·바로 열기 */
+      screenOf(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { x: (u.x + 0.5) * TILE * cam.s + cam.x, y: (u.y + 0.62) * TILE * cam.s + cam.y, s: cam.s };
+      },
+      openInfo(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return openGenInfo(u);
+      },
+      info() { return giState(); },
+      /* 화면 밖 부대를 검수에서 보이게 할 때 (기존 focus(x,y,s) 카메라 훅과 이름이 겹치지 않게) */
+      centerOn(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        centerCam(u.x, u.y);
+        return SKBattle.debug.screenOf(name);
+      },
+      closeInfo() { closeGenInfo(); },
+      inspect() { return B && B.insp ? B.insp.name : null; },
+      infoTab(k) { if (k) { giTab = k; giRender(); } return giTab; },
+      infoNav(d) { giNav(d); return giState(); },
       select(name) { const u = B.units.find((o) => o.name === name && o.alive); if (u) { selectUnit(u); return { x: u.x, y: u.y }; } return null; },
       endTurn,
       checkFinish() { finishCheck(); },
@@ -7698,6 +8083,15 @@
       duelClose() { closeDuel(); return true; },
       duelAlive() { return duel ? { a: duel.a.alive, d: duel.d.alive, fateA: duel.a.fate || null, fateD: duel.d.fate || null } : null; },
       /* 같은 조건으로 여러 번 뽑아 4% 발동률을 실측한다 (상태는 건드리지 않는다) */
+      /* v5.53 — 무력 가중치 확인: 그 두 장수의 지금 발동 확률(%)과 고정값 설정 */
+      duelChance(aName, dName) {
+        if (!B) return null;
+        const a = B.units.find((u) => u.name === aName && u.alive) || B.units.find((u) => u.side === 'ally' && u.alive);
+        const d = B.units.find((u) => u.name === dName && u.alive) || B.units.find((u) => u.side === 'enemy' && u.alive);
+        if (!a || !d) return null;
+        return { a: a.name, d: d.name, aw: a.wu, dw: d.wu, pct: Math.round(duelChance(a, d) * 1000) / 10 };
+      },
+      duelSetRate(v) { duelRate = (v == null ? null : Number(v)); return duelRate; },
       duelProbe(aName, dName, n) {
         if (!B) return null;
         const a = B.units.filter((u) => u.side === 'ally' && u.alive && (!aName || u.name === aName))[0];
@@ -7761,6 +8155,8 @@
       if (act === 'auto') { toggleAuto(); return; }   // v5.2 — 아군 턴 자동 토글
       if (act === 'speed') { toggleSpeed(); return; }  // v5.10 — 전투 배속 ×1 / ×2
       if (B.phase !== 'ally' || B.over) return;
+      /* v5.53 — 적군 정보를 보던 중에 내 부대 명령을 누르면 보기용 선택을 먼저 푼다 */
+      if (B.insp) { B.insp = null; B.reachCache = B.sel && !B.sel.acted && !B.sel.movedThisTurn ? { uid: B.sel.id, set: reachSet(B.sel) } : null; SKBattle.refreshUI(); }
       const u = B.sel;
       if (act === 'attack') {
         if (!u || u.acted) { SK.toast('부대를 먼저 선택하세요.'); return; }
@@ -7772,6 +8168,45 @@
       if (act === 'item') useItem();
       if (act === 'wait') waitUnit();
     });
+    /* v5.53 — 아래 카드에서 《장수 정보》 열기 (초상화 탭 · [정보] 버튼) */
+    const openInfoFromCard = () => {
+      if (!B) return;
+      const t = B.insp || B.sel;
+      if (!t) { SK.toast('부대를 먼저 선택하세요.'); return; }
+      if (SK.sfx) SK.sfx.play('ui');
+      openGenInfo(t);
+    };
+    const ib = $('#btn-unit-info'), pc = $('#uc-portrait');
+    if (ib) ib.onclick = openInfoFromCard;
+    if (pc) {
+      pc.onclick = openInfoFromCard;
+      pc.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openInfoFromCard(); } };
+    }
+    const gix = $('#gi-x'), gic = $('#gi-close');
+    if (gix) gix.onclick = closeGenInfo;
+    if (gic) gic.onclick = closeGenInfo;
+    const gp = $('#gi-prev'), gn = $('#gi-next');
+    if (gp) gp.onclick = () => giNav(-1);
+    if (gn) gn.onclick = () => giNav(1);
+    const gtabs = $('#gi-tabs');
+    if (gtabs) gtabs.onclick = (e) => {
+      const b = e.target.closest('.gi-tab');
+      if (!b || !b.dataset.tab) return;
+      giTab = b.dataset.tab;
+      giRender();
+      if (SK.sfx) SK.sfx.play('ui');
+    };
+    const gatk = $('#gi-attack');
+    if (gatk) gatk.onclick = () => {
+      if (!B) return;
+      const t = B.units.find((o) => o.id === giUid);
+      const a = B.sel;
+      if (!t || !a) return;
+      closeGenInfo();
+      openAttackPreview(a, t);
+    };
+    const gpanel = $('#gen-info');
+    if (gpanel) gpanel.addEventListener('click', (e) => { if (e.target === gpanel) closeGenInfo(); });
     const spdBtn = $('#btn-speed');
     if (spdBtn) { spdBtn.onclick = () => toggleSpeed(); paintSpeedBtn(); }
     $('#b-zoom-in').onclick = () => zoomAt(cam.s * 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
