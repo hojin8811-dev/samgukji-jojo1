@@ -1504,7 +1504,7 @@ b { font-weight: 700; }
 .rs-body { min-height: 220px; }
 .rs-table { border: 1px solid #cfb47d; border-radius: 9px; overflow: hidden; background: rgba(255, 252, 244, 0.7); }
 .rs-head, .rs-row {
-  display: grid; grid-template-columns: 2.15fr repeat(6, 0.5fr) 0.78fr 0.9fr;
+  display: grid; grid-template-columns: 1.95fr 0.6fr repeat(6, 0.47fr) 0.72fr 0.86fr;
   align-items: center; gap: 0; width: 100%;
 }
 .rs-head { background: linear-gradient(180deg, #4a2f14, #3a2410); }
@@ -1525,12 +1525,34 @@ b { font-weight: 700; }
 .rs-name .rs-age { flex: 0 0 auto; }
 .rs-num { font-family: var(--serif); font-size: 10.5px; color: #3a2c10; }
 .rs-num.dim { color: #6b5830; }
+/* v5.64 — 레벨 칸: `Lv.12` 배지 + 다음 해금(Lv.10/20/30)까지의 진행 막대 */
+.rs-lv {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  justify-self: center; min-width: 0;
+}
+.rs-lv b {
+  font-family: var(--serif); font-size: 8.5px; font-weight: 900; line-height: 1.1; letter-spacing: -0.03em;
+  color: #6b4a12; background: linear-gradient(180deg, #fbf2da, #efdbb2);
+  border: 1px solid #d9bf88; border-radius: 5px; padding: 0 2px; white-space: nowrap;
+}
+.rs-lv .rs-lv-bar {
+  display: block; width: 100%; max-width: 24px; height: 2px; border-radius: 2px;
+  background: rgba(150, 120, 60, 0.28); overflow: hidden;
+}
+.rs-lv .rs-lv-bar em { display: block; height: 100%; background: #b8862f; border-radius: 2px; }
+.rs-lv.near b { color: #7a3a0c; border-color: #c98a3a; background: linear-gradient(180deg, #ffe9c0, #f3cf92); }
+.rs-lv.near .rs-lv-bar em { background: #d97a2a; }
+.rs-lv.now b { color: #5c3a00; border-color: #e3bd63; background: linear-gradient(180deg, #ffe9a8, #f0c96a); box-shadow: 0 0 0 1px rgba(227, 189, 99, 0.45); }
+.rs-lv.now .rs-lv-bar em { background: #e0a52a; }
+.rs-lv.max b { color: #fff4d6; border-color: #b8862f; background: linear-gradient(180deg, #9a6d1e, #7a5416); }
+.rs-lv.max .rs-lv-bar em { background: #b8862f; }
 .rs-role { font-size: 8px; font-weight: 800; color: #fff6e0; background: #8a7448; border-radius: 5px; padding: 1px 3px; justify-self: center; }
 .rs-role.r-군주 { background: #a8443a; }
 .rs-role.r-군사 { background: #3f6b8a; }
 .rs-role.r-태수 { background: #47673c; }
 .rs-city { font-size: 9px; color: #5c4a28; }
-.rs-note { margin: 5px 0 0; font-size: 8.5px; color: #9a8a66; text-align: right; }
+.rs-note { margin: 5px 0 0; font-size: 8.5px; color: #9a8a66; text-align: right; line-height: 1.45; }
+.rs-note b { color: #8a5f2a; }
 .rs-empty { font-size: 11px; color: #8a7448; padding: 18px 8px; text-align: center; }
 
 .rs-inv { display: flex; flex-direction: column; gap: 3px; padding: 7px 9px; border: 1px dashed #cfb47d; border-radius: 9px; background: #fff9ea; margin-bottom: 6px; }

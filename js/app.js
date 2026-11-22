@@ -3402,6 +3402,9 @@
   /* ───────────── 장수 명부 (Koei풍 표) ───────────── */
   const ROSTER_COLS = [
     { key: 'name', label: '이름', w: 'wide', sort: (h) => h.name },
+    /* v5.64 — 이름 옆 레벨 열. Lv.10/20/30 병종 책략 해금까지 얼마나 남았는지 한눈에 보이게
+       배지 안에 다음 해금까지의 진행 막대를 함께 그린다(rsLvCell). */
+    { key: 'lv', label: '레벨', num: true, sort: (h) => h.lv || 1 },
     { key: 'tong', label: '통솔', num: true, sort: (h) => h.tong },
     { key: 'wu', label: '무력', num: true, sort: (h) => h.wu },
     { key: 'ji', label: '지략', num: true, sort: (h) => h.ji },
@@ -3421,6 +3424,29 @@
     return SK.ageOf ? SK.ageOf(g, yr) : 0;
   }
   SK.heroAge = heroAge;
+
+  /* v5.64 — 장수 명부 레벨 칸: `Lv.12` 배지 + 다음 해금(Lv.10/20/30)까지의 진행 막대.
+     이미 그 레벨이면 금테(`now`), 30 이상이면 모두 해금(`max`)으로 표시한다. */
+  const LV_TIERS = [1, 10, 20, 30];
+  function lvCellInfo(lv) {
+    const L = Math.max(1, Number(lv) || 1);
+    const next = LV_TIERS.find((t) => t > L) || 0;
+    const prev = LV_TIERS.filter((t) => t <= L).pop() || 1;
+    const pct = next ? Math.max(0, Math.min(100, Math.round((L - prev) / (next - prev) * 100))) : 100;
+    const need = next ? next - L : 0;
+    const near = next > 0 && need <= 2;
+    const title = next
+      ? `Lv.${L} · 다음 책략 해금 Lv.${next}까지 ${need}`
+      : `Lv.${L} · 병종 책략 모두 해금`;
+    return { lv: L, next, pct, need, near, max: !next, now: LV_TIERS.indexOf(L) >= 0 && L > 1, title };
+  }
+  SK.lvCellInfo = lvCellInfo;
+  function rsLvCell(h) {
+    const i = lvCellInfo(h.lv);
+    const cls = ['rs-lv', i.max ? 'max' : '', i.now ? 'now' : '', i.near && !i.now ? 'near' : ''].filter(Boolean).join(' ');
+    return `<span class="${cls}" title="${i.title}"><b>Lv.${i.lv}</b>`
+      + `<i class="rs-lv-bar"><em style="width:${i.pct}%"></em></i></span>`;
+  }
 
   function roleOf(h) {
     const s = SK.state;
@@ -3499,6 +3525,7 @@
           <span class="rs-name"><img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
             <span class="rs-nm"><span class="rs-nm-top"><b>${h.name}</b></span>
               <em class="rs-cls">${(SK.CLASSES[h.cls] || {}).name || '장수'}</em></span></span>
+          ${rsLvCell(h)}
           <span class="rs-num">${h.tong}</span>
           <span class="rs-num">${h.wu}</span>
           <span class="rs-num">${h.ji}</span>
@@ -3512,7 +3539,7 @@
           <div class="rs-head">${head}</div>
           <div class="rs-rows">${body || '<p class="rs-empty">아직 휘하에 장수가 없습니다. 주점에서 인재를 등용하세요.</p>'}</div>
         </div>
-        <p class="rs-note">머리글을 누르면 정렬됩니다 · 장수를 누르면 상세·보물·이동</p>`;
+        <p class="rs-note">머리글 정렬 · Lv.10·20·30 병종 책략 해금 · 장수를 누르면 상세</p>`;
       m.el.querySelectorAll('.rs-citychip').forEach((b) => {
         b.onclick = () => { cityFilter = b.dataset.city || null; renderGen(); };
       });
@@ -12684,7 +12711,7 @@
         <div class="help-item"><b>미정찰 적성</b><p>첩자가 닿지 않은 성은 병력·성벽·민심·장수가 <b>? (미정찰)</b>로 보입니다. 도시 팝업의 [정찰 보내기]나 외교·계략의 [정찰]로 ${SK.SCOUT_SPAN} 동안 성안을 살필 수 있습니다.</p></div>
         <div class="help-item"><b>인구와 징병</b><p>징병은 그 성의 인구에서 병사를 빼옵니다. 주둔병은 인구의 ${Math.round(SK.CAP_RATE * 100)}%를 넘을 수 없고, 징병하면 민심이 내려갑니다(매력이 높으면 덜 내려갑니다). 민심이 70 이상이면 세수와 인구가 더 늘고, 40 아래면 줄어듭니다.</p></div>
         <div class="help-item"><b>군사 조언</b><p>관아나 행동력 줄의 [군사] 버튼으로 군사를 임명하면, 그 성의 민심·병력·성벽·재정과 이웃 적성·주점 인재를 읽어 지금 필요한 일을 조언합니다. 조언은 행동력을 쓰지 않고, '조언대로 진행'을 눌러야 실행됩니다. 대기 장수에게 남은 내정을 통째로 맡기려면 관아의 [대기 장수 일괄 내정]을 쓰십시오.</p></div>
-        <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다.</p></div>
+        <div class="help-item"><b>장수 명부</b><p>메뉴나 도시 장수 줄의 [전체]로 장수·보물·배치를 한눈에 봅니다. 머리글을 누르면 정렬됩니다. 이름 옆 <b>Lv.N</b> 배지의 가느다란 막대가 <b>다음 책략 해금(Lv.10·20·30)까지 남은 거리</b>이고, [레벨] 머리글을 누르면 레벨순으로 정렬합니다.</p></div>
         <div class="help-item"><b>전장 이동</b><p>부대를 누르면 파란 타일이 나타납니다. 타일을 누르면 부대가 한 칸씩 걸어서 이동하고, 붉은 적을 눌러 공격합니다. <b>한 번 이동한 부대는 그 턴에 다시 움직일 수 없습니다</b> — 공격·책략·군량·대기 중 하나를 고르고, 이동을 물리고 싶으면 <b>폰의 뒤로가기</b>로 제자리로 돌아오면 됩니다. 화면을 끌면 24~32칸 전장을 넓게 볼 수 있고, 우측 상단 미니맵을 누르면 그 자리로 바로 갑니다. 미니맵 위 <b>⤢ 확대</b>를 누르면 미니맵이 두 배 가까이 커져 마을·본진·성문 위치를 한눈에 봅니다(다시 누르면 원래 크기).</p></div>
         <div class="help-item"><b>뒤로가기·종료</b><p>폰의 뒤로가기는 창을 닫고, 성 화면에서는 지도로 돌아갑니다. 지도·타이틀에서 뒤로가면 <b>게임을 종료하시겠습니까?</b> 확인 창이 뜨고, <b>계속하기</b>를 누르면 그대로 남습니다. 전장에서는 <b>방금 이동을 취소</b>해 제자리로 돌아오고, 취소할 이동이 없으면 후퇴 확인 창이 뜨니다.</p></div>
         <div class="help-item"><b>책략과 군량</b><p>[책략]으로 병과별 기술을 쓰고, [군량]으로 HP를 회복합니다. [대기] 후 다음 부대로 넘어갑니다. [공격]을 누르면 사거리 안에 적이 없어도 <b>공격 사거리 타일이 주황색으로 표시</b>됩니다 — 한 칸 더 붙을 자리를 눈으로 보며 움직이세요.</p></div>

@@ -8608,7 +8608,7 @@
         <thead><tr><th>장수</th><th>총공격</th><th>받은피해</th><th>회복</th><th>처치</th></tr></thead>
         <tbody>${list.sort((a, b) => b.score - a.score).map((r) => `<tr class="${r.name === best.name ? 'mvp' : ''}">
           <td>${r.name === best.name ? '👑 ' : ''}${r.name}${r.alive ? '' : ` <em class="rm-fallen ${r.fate === '생포' ? 'captured' : ''}">${r.fate || '퇴각'}</em>`}</td>
-          <td><i style="width:${Math.max(2, Math.round((r.dealt / maxDealt) * 32))}px"></i>${fmtN(r.dealt)}</td>
+          <td><i style="width:${r.dealt > 0 ? Math.max(2, Math.round((r.dealt / maxDealt) * 32)) : 0}px"></i>${fmtN(r.dealt)}</td>
           <td>${fmtN(r.taken)}</td><td>${r.heal ? '+' + fmtN(r.heal) : '0'}</td><td>${r.kills}</td>
         </tr>`).join('')}</tbody>
       </table></div>
