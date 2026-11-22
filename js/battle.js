@@ -3333,6 +3333,7 @@
     const outP = Math.min(1, Math.max(0, (ultShout.life - t) / 240));
     const a = Math.min(inP, outP);
     if (a <= 0.02) return;
+    ultBubbleFrames += 1;
     const cx = (rxOf(u) + 0.5) * TILE * cam.s + cam.x;
     const headY = (ryOf(u) + 0.05) * TILE * cam.s + cam.y - TILE * 1.15 * cam.s;
     const c = ultShout.c || '255,220,140';
@@ -3343,7 +3344,7 @@
     ctx.font = 'bold 12px "Noto Serif CJK KR", serif';
     ctx.font = '10px "Noto Sans CJK KR", sans-serif';
     const qLines = ultWrapText(ultShout.q, bw - pad * 2, 2);
-    const bh = pad * 2 + 16 + (qLines.length ? qLines.length * 12 + 2 : 0);
+    const bh = pad * 2 + 24 + (qLines.length ? qLines.length * 12 + 4 : 0);
     let bx = cx - bw / 2;
     bx = Math.max(6, Math.min(w - bw - 6, bx));
     let by = headY - bh - 10;
@@ -5954,6 +5955,7 @@
      · 적 S급 AI도 사거리 안에 값진 대상이 있으면 필살기를 먼저 꺼낸다.
      ════════════════════════════════════════════════════════════════════════ */
   let ultShout = null;              // 캔버스 말풍선 (지금 떠 있는 필살기)
+  let ultBubbleFrames = 0;          // 말풍선이 실제로 그려진 프레임 수 (검수용)
   let ultBanner = null;             // 컷인 배너 상태(색)
   const ULT_AIL_N = { stun: '기절', fear: '공포', confuse: '혼란', poison: '중독', burn: '화상', slow: '둔화' };
 
@@ -8940,6 +8942,7 @@
         return p ? { x: p.x, y: p.y, target: p.target ? p.target.name : null, score: Math.round(p.score), kill: !!p.kill, hitN: p.hitN } : null;
       },
       ultShout() { return ultShout ? { name: ultShout.name, n: ultShout.n, q: ultShout.q, t: Math.round(ultShout.t), life: ultShout.life } : null; },
+      ultBubbleFrames() { return ultBubbleFrames; },
       ultFx() { return fx.filter((f) => f.kind === 'ult').map((f) => f.sub); },
       ultFxP() { return fx.filter((f) => f.kind === 'ult').map((f) => ({ sub: f.sub, p: Math.round(f.t / f.life * 100) / 100 })); },
       ultTint() { const f = fx.filter((x) => x.kind === 'tint')[0]; return f ? Math.round((1 - f.t / f.life) * 100) / 100 : 0; },
