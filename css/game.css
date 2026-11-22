@@ -3298,6 +3298,10 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .rm-wound b { font-family: var(--serif); font-size: 12px; color: #a8443a; }
 .rm-wound em { font-size: 7.5px; color: #a08b7a; }
 
+/* v5.42 — 결산창의 마을 점령 수당 한 줄 */
+.rm-village { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin: 7px 0 2px; padding: 5px 9px; border-radius: 8px; background: rgba(64, 132, 78, 0.12); border: 1px solid rgba(64, 132, 78, 0.32); font-size: 10px; color: #3f6b46; }
+.rm-village b { font-family: var(--serif); font-size: 13px; color: #2f6b3c; }
+
 @media (max-width: 360px) {
   .city-mid > .city-scene { height: clamp(160px, 28vh, 240px); }
   .dev-card { padding: 5px 6px 5px 5px; gap: 5px; }

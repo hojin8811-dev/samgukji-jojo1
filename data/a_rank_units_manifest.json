@@ -1,0 +1,914 @@
+{
+ "화웅": {
+  "id": 61,
+  "unit": "assets/units/unified/61.webp"
+ },
+ "곽사": {
+  "id": 389,
+  "unit": "assets/units/unified/389.webp"
+ },
+ "최영": {
+  "id": 372,
+  "unit": "assets/units/unified/372.webp"
+ },
+ "설총": {
+  "id": 373,
+  "unit": "assets/units/unified/373.webp"
+ },
+ "임경업": {
+  "id": 374,
+  "unit": "assets/units/unified/374.webp"
+ },
+ "김응하": {
+  "id": 375,
+  "unit": "assets/units/unified/375.webp"
+ },
+ "조홍": {
+  "id": 17,
+  "unit": "assets/units/unified/17.webp"
+ },
+ "우금": {
+  "id": 18,
+  "unit": "assets/units/unified/18.webp"
+ },
+ "악진": {
+  "id": 19,
+  "unit": "assets/units/unified/19.webp"
+ },
+ "이전": {
+  "id": 20,
+  "unit": "assets/units/unified/20.webp"
+ },
+ "관평": {
+  "id": 32,
+  "unit": "assets/units/unified/32.webp"
+ },
+ "미방": {
+  "id": 33,
+  "unit": "assets/units/unified/33.webp"
+ },
+ "손건": {
+  "id": 34,
+  "unit": "assets/units/unified/34.webp"
+ },
+ "황진이": {
+  "id": 379,
+  "unit": "assets/units/unified/379.webp"
+ },
+ "을파소": {
+  "id": 186,
+  "unit": "assets/units/unified/186.webp"
+ },
+ "장소": {
+  "id": 141,
+  "unit": "assets/units/unified/141.webp"
+ },
+ "소교": {
+  "id": 158,
+  "unit": "assets/units/unified/158.webp"
+ },
+ "대교": {
+  "id": 157,
+  "unit": "assets/units/unified/157.webp"
+ },
+ "황희": {
+  "id": 344,
+  "unit": "assets/units/unified/344.webp"
+ },
+ "원효": {
+  "id": 200,
+  "unit": "assets/units/unified/200.webp"
+ },
+ "진군": {
+  "id": 117,
+  "unit": "assets/units/unified/117.webp"
+ },
+ "이황": {
+  "id": 368,
+  "unit": "assets/units/unified/368.webp"
+ },
+ "이이": {
+  "id": 369,
+  "unit": "assets/units/unified/369.webp"
+ },
+ "견희": {
+  "id": 91,
+  "unit": "assets/units/unified/91.webp"
+ },
+ "유성룡": {
+  "id": 366,
+  "unit": "assets/units/unified/366.webp"
+ },
+ "장완": {
+  "id": 127,
+  "unit": "assets/units/unified/127.webp"
+ },
+ "종요": {
+  "id": 119,
+  "unit": "assets/units/unified/119.webp"
+ },
+ "전풍": {
+  "id": 63,
+  "unit": "assets/units/unified/63.webp"
+ },
+ "이자연": {
+  "id": 318,
+  "unit": "assets/units/unified/318.webp"
+ },
+ "황월영": {
+  "id": 242,
+  "unit": "assets/units/unified/242.webp"
+ },
+ "장굉": {
+  "id": 142,
+  "unit": "assets/units/unified/142.webp"
+ },
+ "문앙": {
+  "id": 418,
+  "unit": "assets/units/unified/418.webp"
+ },
+ "안량": {
+  "id": 55,
+  "unit": "assets/units/unified/55.webp"
+ },
+ "미축": {
+  "id": 243,
+  "unit": "assets/units/unified/243.webp"
+ },
+ "간옹": {
+  "id": 35,
+  "unit": "assets/units/unified/35.webp"
+ },
+ "서산대사": {
+  "id": 364,
+  "unit": "assets/units/unified/364.webp"
+ },
+ "저수": {
+  "id": 64,
+  "unit": "assets/units/unified/64.webp"
+ },
+ "비의": {
+  "id": 128,
+  "unit": "assets/units/unified/128.webp"
+ },
+ "성삼문": {
+  "id": 350,
+  "unit": "assets/units/unified/350.webp"
+ },
+ "고옹": {
+  "id": 145,
+  "unit": "assets/units/unified/145.webp"
+ },
+ "최치원": {
+  "id": 313,
+  "unit": "assets/units/unified/313.webp"
+ },
+ "보연사": {
+  "id": 90,
+  "unit": "assets/units/unified/90.webp"
+ },
+ "조식": {
+  "id": 104,
+  "unit": "assets/units/unified/104.webp"
+ },
+ "문추": {
+  "id": 56,
+  "unit": "assets/units/unified/56.webp"
+ },
+ "사명대사": {
+  "id": 365,
+  "unit": "assets/units/unified/365.webp"
+ },
+ "김덕령": {
+  "id": 363,
+  "unit": "assets/units/unified/363.webp"
+ },
+ "정욱": {
+  "id": 120,
+  "unit": "assets/units/unified/120.webp"
+ },
+ "김부식": {
+  "id": 319,
+  "unit": "assets/units/unified/319.webp"
+ },
+ "조준": {
+  "id": 342,
+  "unit": "assets/units/unified/342.webp"
+ },
+ "동화": {
+  "id": 434,
+  "unit": "assets/units/unified/434.webp"
+ },
+ "허황옥": {
+  "id": 82,
+  "unit": "assets/units/unified/82.webp"
+ },
+ "이규보": {
+  "id": 371,
+  "unit": "assets/units/unified/371.webp"
+ },
+ "신숙주": {
+  "id": 351,
+  "unit": "assets/units/unified/351.webp"
+ },
+ "보즐": {
+  "id": 144,
+  "unit": "assets/units/unified/144.webp"
+ },
+ "제갈각": {
+  "id": 160,
+  "unit": "assets/units/unified/160.webp"
+ },
+ "한명회": {
+  "id": 352,
+  "unit": "assets/units/unified/352.webp"
+ },
+ "성충": {
+  "id": 74,
+  "unit": "assets/units/unified/74.webp"
+ },
+ "조창": {
+  "id": 103,
+  "unit": "assets/units/unified/103.webp"
+ },
+ "왕원희": {
+  "id": 236,
+  "unit": "assets/units/unified/236.webp"
+ },
+ "도선국사": {
+  "id": 314,
+  "unit": "assets/units/unified/314.webp"
+ },
+ "월명사": {
+  "id": 300,
+  "unit": "assets/units/unified/300.webp"
+ },
+ "손상향": {
+  "id": 156,
+  "unit": "assets/units/unified/156.webp"
+ },
+ "제갈근": {
+  "id": 143,
+  "unit": "assets/units/unified/143.webp"
+ },
+ "신숭겸": {
+  "id": 309,
+  "unit": "assets/units/unified/309.webp"
+ },
+ "진덕여왕": {
+  "id": 298,
+  "unit": "assets/units/unified/298.webp"
+ },
+ "진궁": {
+  "id": 62,
+  "unit": "assets/units/unified/62.webp"
+ },
+ "하륜": {
+  "id": 343,
+  "unit": "assets/units/unified/343.webp"
+ },
+ "능통": {
+  "id": 47,
+  "unit": "assets/units/unified/47.webp"
+ },
+ "모개": {
+  "id": 226,
+  "unit": "assets/units/unified/226.webp"
+ },
+ "이밀": {
+  "id": 449,
+  "unit": "assets/units/unified/449.webp"
+ },
+ "동윤": {
+  "id": 129,
+  "unit": "assets/units/unified/129.webp"
+ },
+ "마균": {
+  "id": 84,
+  "unit": "assets/units/unified/84.webp"
+ },
+ "채문희": {
+  "id": 92,
+  "unit": "assets/units/unified/92.webp"
+ },
+ "양수": {
+  "id": 228,
+  "unit": "assets/units/unified/228.webp"
+ },
+ "초고왕": {
+  "id": 586,
+  "unit": "assets/units/unified/586.webp"
+ },
+ "조헌": {
+  "id": 358,
+  "unit": "assets/units/unified/358.webp"
+ },
+ "최충헌": {
+  "id": 324,
+  "unit": "assets/units/unified/324.webp"
+ },
+ "사다함": {
+  "id": 198,
+  "unit": "assets/units/unified/198.webp"
+ },
+ "경대승": {
+  "id": 323,
+  "unit": "assets/units/unified/323.webp"
+ },
+ "하후현": {
+  "id": 206,
+  "unit": "assets/units/unified/206.webp"
+ },
+ "밀우": {
+  "id": 188,
+  "unit": "assets/units/unified/188.webp"
+ },
+ "흥수": {
+  "id": 75,
+  "unit": "assets/units/unified/75.webp"
+ },
+ "유엽": {
+  "id": 83,
+  "unit": "assets/units/unified/83.webp"
+ },
+ "괴량": {
+  "id": 495,
+  "unit": "assets/units/unified/495.webp"
+ },
+ "마량": {
+  "id": 131,
+  "unit": "assets/units/unified/131.webp"
+ },
+ "괴월": {
+  "id": 496,
+  "unit": "assets/units/unified/496.webp"
+ },
+ "왕윤": {
+  "id": 180,
+  "unit": "assets/units/unified/180.webp"
+ },
+ "신헌영": {
+  "id": 235,
+  "unit": "assets/units/unified/235.webp"
+ },
+ "가충": {
+  "id": 225,
+  "unit": "assets/units/unified/225.webp"
+ },
+ "유파": {
+  "id": 261,
+  "unit": "assets/units/unified/261.webp"
+ },
+ "화흠": {
+  "id": 118,
+  "unit": "assets/units/unified/118.webp"
+ },
+ "왕쌍": {
+  "id": 98,
+  "unit": "assets/units/unified/98.webp"
+ },
+ "올돌골": {
+  "id": 60,
+  "unit": "assets/units/unified/60.webp"
+ },
+ "사마염": {
+  "id": 237,
+  "unit": "assets/units/unified/237.webp"
+ },
+ "손등": {
+  "id": 268,
+  "unit": "assets/units/unified/268.webp"
+ },
+ "최염": {
+  "id": 227,
+  "unit": "assets/units/unified/227.webp"
+ },
+ "장포": {
+  "id": 123,
+  "unit": "assets/units/unified/123.webp"
+ },
+ "왕준": {
+  "id": 416,
+  "unit": "assets/units/unified/416.webp"
+ },
+ "견훤": {
+  "id": 308,
+  "unit": "assets/units/unified/308.webp"
+ },
+ "조예": {
+  "id": 102,
+  "unit": "assets/units/unified/102.webp"
+ },
+ "왕평": {
+  "id": 126,
+  "unit": "assets/units/unified/126.webp"
+ },
+ "학소": {
+  "id": 96,
+  "unit": "assets/units/unified/96.webp"
+ },
+ "등지": {
+  "id": 252,
+  "unit": "assets/units/unified/252.webp"
+ },
+ "관흥": {
+  "id": 122,
+  "unit": "assets/units/unified/122.webp"
+ },
+ "김경손": {
+  "id": 327,
+  "unit": "assets/units/unified/327.webp"
+ },
+ "고순": {
+  "id": 93,
+  "unit": "assets/units/unified/93.webp"
+ },
+ "관은병": {
+  "id": 239,
+  "unit": "assets/units/unified/239.webp"
+ },
+ "마속": {
+  "id": 130,
+  "unit": "assets/units/unified/130.webp"
+ },
+ "진무": {
+  "id": 151,
+  "unit": "assets/units/unified/151.webp"
+ },
+ "감택": {
+  "id": 280,
+  "unit": "assets/units/unified/280.webp"
+ },
+ "우번": {
+  "id": 159,
+  "unit": "assets/units/unified/159.webp"
+ },
+ "공융": {
+  "id": 170,
+  "unit": "assets/units/unified/170.webp"
+ },
+ "세조": {
+  "id": 353,
+  "unit": "assets/units/unified/353.webp"
+ },
+ "이징옥": {
+  "id": 349,
+  "unit": "assets/units/unified/349.webp"
+ },
+ "고경명": {
+  "id": 359,
+  "unit": "assets/units/unified/359.webp"
+ },
+ "공민왕": {
+  "id": 332,
+  "unit": "assets/units/unified/332.webp"
+ },
+ "만총": {
+  "id": 108,
+  "unit": "assets/units/unified/108.webp"
+ },
+ "주연": {
+  "id": 148,
+  "unit": "assets/units/unified/148.webp"
+ },
+ "장임": {
+  "id": 94,
+  "unit": "assets/units/unified/94.webp"
+ },
+ "장성채": {
+  "id": 240,
+  "unit": "assets/units/unified/240.webp"
+ },
+ "황권": {
+  "id": 134,
+  "unit": "assets/units/unified/134.webp"
+ },
+ "복지겸": {
+  "id": 310,
+  "unit": "assets/units/unified/310.webp"
+ },
+ "마운록": {
+  "id": 432,
+  "unit": "assets/units/unified/432.webp"
+ },
+ "관창": {
+  "id": 78,
+  "unit": "assets/units/unified/78.webp"
+ },
+ "진도": {
+  "id": 86,
+  "unit": "assets/units/unified/86.webp"
+ },
+ "정중부": {
+  "id": 321,
+  "unit": "assets/units/unified/321.webp"
+ },
+ "동습": {
+  "id": 152,
+  "unit": "assets/units/unified/152.webp"
+ },
+ "서질": {
+  "id": 215,
+  "unit": "assets/units/unified/215.webp"
+ },
+ "허유": {
+  "id": 174,
+  "unit": "assets/units/unified/174.webp"
+ },
+ "정지": {
+  "id": 335,
+  "unit": "assets/units/unified/335.webp"
+ },
+ "김취려": {
+  "id": 325,
+  "unit": "assets/units/unified/325.webp"
+ },
+ "복신": {
+  "id": 194,
+  "unit": "assets/units/unified/194.webp"
+ },
+ "유유": {
+  "id": 189,
+  "unit": "assets/units/unified/189.webp"
+ },
+ "주환": {
+  "id": 147,
+  "unit": "assets/units/unified/147.webp"
+ },
+ "공손찬": {
+  "id": 163,
+  "unit": "assets/units/unified/163.webp"
+ },
+ "지채문": {
+  "id": 317,
+  "unit": "assets/units/unified/317.webp"
+ },
+ "하후패": {
+  "id": 140,
+  "unit": "assets/units/unified/140.webp"
+ },
+ "배현경": {
+  "id": 311,
+  "unit": "assets/units/unified/311.webp"
+ },
+ "장연": {
+  "id": 288,
+  "unit": "assets/units/unified/288.webp"
+ },
+ "마대": {
+  "id": 124,
+  "unit": "assets/units/unified/124.webp"
+ },
+ "유표": {
+  "id": 164,
+  "unit": "assets/units/unified/164.webp"
+ },
+ "관색": {
+  "id": 238,
+  "unit": "assets/units/unified/238.webp"
+ },
+ "문흠": {
+  "id": 220,
+  "unit": "assets/units/unified/220.webp"
+ },
+ "국수": {
+  "id": 97,
+  "unit": "assets/units/unified/97.webp"
+ },
+ "궁예": {
+  "id": 307,
+  "unit": "assets/units/unified/307.webp"
+ },
+ "봉기": {
+  "id": 172,
+  "unit": "assets/units/unified/172.webp"
+ },
+ "양의": {
+  "id": 251,
+  "unit": "assets/units/unified/251.webp"
+ },
+ "묘청": {
+  "id": 320,
+  "unit": "assets/units/unified/320.webp"
+ },
+ "엄준": {
+  "id": 50,
+  "unit": "assets/units/unified/50.webp"
+ },
+ "마충": {
+  "id": 259,
+  "unit": "assets/units/unified/259.webp"
+ },
+ "오언": {
+  "id": 464,
+  "unit": "assets/units/unified/464.webp"
+ },
+ "배중손": {
+  "id": 329,
+  "unit": "assets/units/unified/329.webp"
+ },
+ "관구검": {
+  "id": 221,
+  "unit": "assets/units/unified/221.webp"
+ },
+ "하제": {
+  "id": 274,
+  "unit": "assets/units/unified/274.webp"
+ },
+ "엄안": {
+  "id": 95,
+  "unit": "assets/units/unified/95.webp"
+ },
+ "서성": {
+  "id": 48,
+  "unit": "assets/units/unified/48.webp"
+ },
+ "문빙": {
+  "id": 109,
+  "unit": "assets/units/unified/109.webp"
+ },
+ "마등": {
+  "id": 166,
+  "unit": "assets/units/unified/166.webp"
+ },
+ "심배": {
+  "id": 171,
+  "unit": "assets/units/unified/171.webp"
+ },
+ "황개": {
+  "id": 45,
+  "unit": "assets/units/unified/45.webp"
+ },
+ "장패": {
+  "id": 207,
+  "unit": "assets/units/unified/207.webp"
+ },
+ "장로": {
+  "id": 168,
+  "unit": "assets/units/unified/168.webp"
+ },
+ "홍유": {
+  "id": 312,
+  "unit": "assets/units/unified/312.webp"
+ },
+ "한당": {
+  "id": 150,
+  "unit": "assets/units/unified/150.webp"
+ },
+ "부첨": {
+  "id": 139,
+  "unit": "assets/units/unified/139.webp"
+ },
+ "기령": {
+  "id": 162,
+  "unit": "assets/units/unified/162.webp"
+ },
+ "반장": {
+  "id": 89,
+  "unit": "assets/units/unified/89.webp"
+ },
+ "이억기": {
+  "id": 362,
+  "unit": "assets/units/unified/362.webp"
+ },
+ "손분": {
+  "id": 453,
+  "unit": "assets/units/unified/453.webp"
+ },
+ "여거": {
+  "id": 460,
+  "unit": "assets/units/unified/460.webp"
+ },
+ "장억": {
+  "id": 87,
+  "unit": "assets/units/unified/87.webp"
+ },
+ "유찬": {
+  "id": 462,
+  "unit": "assets/units/unified/462.webp"
+ },
+ "곽준": {
+  "id": 138,
+  "unit": "assets/units/unified/138.webp"
+ },
+ "장흠": {
+  "id": 275,
+  "unit": "assets/units/unified/275.webp"
+ },
+ "반준": {
+  "id": 149,
+  "unit": "assets/units/unified/149.webp"
+ },
+ "주이": {
+  "id": 461,
+  "unit": "assets/units/unified/461.webp"
+ },
+ "정발": {
+  "id": 360,
+  "unit": "assets/units/unified/360.webp"
+ },
+ "여범": {
+  "id": 100,
+  "unit": "assets/units/unified/100.webp"
+ },
+ "왕릉": {
+  "id": 223,
+  "unit": "assets/units/unified/223.webp"
+ },
+ "정보": {
+  "id": 46,
+  "unit": "assets/units/unified/46.webp"
+ },
+ "이엄": {
+  "id": 132,
+  "unit": "assets/units/unified/132.webp"
+ },
+ "정봉": {
+  "id": 49,
+  "unit": "assets/units/unified/49.webp"
+ },
+ "이통": {
+  "id": 210,
+  "unit": "assets/units/unified/210.webp"
+ },
+ "능조": {
+  "id": 88,
+  "unit": "assets/units/unified/88.webp"
+ },
+ "가화": {
+  "id": 154,
+  "unit": "assets/units/unified/154.webp"
+ },
+ "전종": {
+  "id": 155,
+  "unit": "assets/units/unified/155.webp"
+ },
+ "의자왕": {
+  "id": 193,
+  "unit": "assets/units/unified/193.webp"
+ },
+ "남은": {
+  "id": 341,
+  "unit": "assets/units/unified/341.webp"
+ },
+ "김통정": {
+  "id": 330,
+  "unit": "assets/units/unified/330.webp"
+ },
+ "손례": {
+  "id": 217,
+  "unit": "assets/units/unified/217.webp"
+ },
+ "시적": {
+  "id": 463,
+  "unit": "assets/units/unified/463.webp"
+ },
+ "제갈탄": {
+  "id": 222,
+  "unit": "assets/units/unified/222.webp"
+ },
+ "오의": {
+  "id": 133,
+  "unit": "assets/units/unified/133.webp"
+ },
+ "제갈첨": {
+  "id": 85,
+  "unit": "assets/units/unified/85.webp"
+ },
+ "하후상": {
+  "id": 107,
+  "unit": "assets/units/unified/107.webp"
+ },
+ "김숙흥": {
+  "id": 316,
+  "unit": "assets/units/unified/316.webp"
+ },
+ "장수": {
+  "id": 232,
+  "unit": "assets/units/unified/232.webp"
+ },
+ "유봉": {
+  "id": 135,
+  "unit": "assets/units/unified/135.webp"
+ },
+ "송겸": {
+  "id": 153,
+  "unit": "assets/units/unified/153.webp"
+ },
+ "장익": {
+  "id": 137,
+  "unit": "assets/units/unified/137.webp"
+ },
+ "조휴": {
+  "id": 106,
+  "unit": "assets/units/unified/106.webp"
+ },
+ "주령": {
+  "id": 208,
+  "unit": "assets/units/unified/208.webp"
+ },
+ "곽도": {
+  "id": 173,
+  "unit": "assets/units/unified/173.webp"
+ },
+ "한수": {
+  "id": 167,
+  "unit": "assets/units/unified/167.webp"
+ },
+ "손환": {
+  "id": 269,
+  "unit": "assets/units/unified/269.webp"
+ },
+ "채모": {
+  "id": 493,
+  "unit": "assets/units/unified/493.webp"
+ },
+ "목록대왕": {
+  "id": 178,
+  "unit": "assets/units/unified/178.webp"
+ },
+ "장보": {
+  "id": 175,
+  "unit": "assets/units/unified/175.webp"
+ },
+ "도겸": {
+  "id": 169,
+  "unit": "assets/units/unified/169.webp"
+ },
+ "요화": {
+  "id": 125,
+  "unit": "assets/units/unified/125.webp"
+ },
+ "장량": {
+  "id": 176,
+  "unit": "assets/units/unified/176.webp"
+ },
+ "공손연": {
+  "id": 475,
+  "unit": "assets/units/unified/475.webp"
+ },
+ "여대": {
+  "id": 273,
+  "unit": "assets/units/unified/273.webp"
+ },
+ "맹달": {
+  "id": 136,
+  "unit": "assets/units/unified/136.webp"
+ },
+ "진식": {
+  "id": 99,
+  "unit": "assets/units/unified/99.webp"
+ },
+ "타사대왕": {
+  "id": 177,
+  "unit": "assets/units/unified/177.webp"
+ },
+ "유벽": {
+  "id": 65,
+  "unit": "assets/units/unified/65.webp"
+ },
+ "유장": {
+  "id": 165,
+  "unit": "assets/units/unified/165.webp"
+ },
+ "유선": {
+  "id": 121,
+  "unit": "assets/units/unified/121.webp"
+ },
+ "원술": {
+  "id": 161,
+  "unit": "assets/units/unified/161.webp"
+ },
+ "엄백호": {
+  "id": 285,
+  "unit": "assets/units/unified/285.webp"
+ },
+ "왕랑": {
+  "id": 287,
+  "unit": "assets/units/unified/287.webp"
+ },
+ "유언": {
+  "id": 521,
+  "unit": "assets/units/unified/521.webp"
+ },
+ "유요": {
+  "id": 286,
+  "unit": "assets/units/unified/286.webp"
+ },
+ "유종": {
+  "id": 499,
+  "unit": "assets/units/unified/499.webp"
+ },
+ "구수왕": {
+  "id": 587,
+  "unit": "assets/units/unified/587.webp"
+ },
+ "벌휴이사금": {
+  "id": 588,
+  "unit": "assets/units/unified/588.webp"
+ },
+ "내해이사금": {
+  "id": 589,
+  "unit": "assets/units/unified/589.webp"
+ }
+}

@@ -1793,6 +1793,11 @@
         const r3 = await fetch('data/korea_v523_art.json', { cache: 'no-cache' });
         if (r3.ok) SK.addTopArt(await r3.json());
       } catch (e3) { console.warn('v5.23 한국 초상 목록을 불러오지 못했습니다.', e3); }
+      /* v5.42 — 18장 통합 시트에서 잘라 낸 A급 이하 SD 228명 (assets/units/unified) */
+      try {
+        const r4 = await fetch('data/a_rank_units_manifest.json', { cache: 'no-cache' });
+        if (r4.ok) SK.addTopArt(await r4.json());
+      } catch (e4) { console.warn('v5.42 통합 SD 목록을 불러오지 못했습니다.', e4); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }
@@ -11155,6 +11160,7 @@
         <div class="help-item"><b>반격</b><p>맞은 쪽이 사거리 안이면 반격합니다. 피해는 <b>75%</b>(검병만 방패 맞다이 <b>90%</b>). 궁수·연노·포차처럼 최소 사거리가 있는 병과는 붙으면 반격하지 못합니다.</p></div>
         <div class="help-item"><b>군악대·무희</b><p>매 턴 시작에 마름모 2칸 아군을 돕습니다 — 군악대는 <b>MP +4 · 공격 +8%</b>, 무희는 아군 <b>회피·치명 +8%</b>에 적 공격 <b>−8%</b>. 세워 두기만 해도 밥값을 합니다.</p></div>
         <div class="help-item"><b>소리</b><p>상단 ♪ 버튼으로 효과음을 끄고 켜고 할 수 있습니다. 첫 터치 때 소리가 준비됩니다.</p></div>
+        <div class="help-item"><b>마을 점령</b><p>마을은 전장 한가운데·성문 앞·다리 어귀에 있습니다. 밟으면 <b>그 자리에서 점령</b>되고, 점령한 부대는 바로 <b>사기 +10</b>(상한까지) · <b>MP +8</b> · <b>최대 병력 10% 회복</b>을 받습니다. 점령한 마을 위에 서 있는 동안은 <b>방어 +20% · 매 턴 최대 병력 15% 회복 · MP +5</b>. 전투에서 이기면 <b>아군이 차지한 마을 하나당 금 +150</b>이 결산에 더해집니다. 적이 다시 밟으면 빼앗기니, 한 번 잡은 마을은 지켜 두는 쪽이 이득입니다.</p></div>
         <div class="help-item"><b>본진과 사기</b><p>본진을 밟으면 그 자리에서 <b>1회</b> 점령됩니다 — 점령한 쪽 전군 <b>사기 +25</b>(상한 110), 빼앗긴 쪽 전군 <b>사기 −25</b>(하한 0). 사기가 높으면 공격이 최대 +16%, 낮으면 −18%까지 약해집니다. 점령된 본진에는 점령한 진영 색 깃발과 <b>[점령]</b> 표시가 남고, 그 뒤로는 다시 뒤집히지 않습니다.</p></div>
         <div class="help-item"><b>승리</b><p>본진 점령만으로는 전투가 끝나지 않습니다 — 적을 모두 쓰러뜨리면 성을 차지합니다. 본진을 먼저 밟아 사기를 꺾은 뒤 마무리하는 길도 있습니다. 성문·다리·숲의 지형 보정을 활용하세요.</p></div>
       </div>`,

@@ -1781,8 +1781,11 @@
 
   /* ══════ v5.17 — 1×1 본진 · 마을 ══════
      본진 위 부대: 턴 시작 최대 병력 +20% · MP +10 · 방어 +25%
-     마을 위 부대(점령한 편): 최대 병력 +10% · MP +5 · 방어 +15%
-     마을은 밟은 진영의 것이 되고, 적진이 다시 밟으면 빼앗긴다. */
+     v5.42 — 마을을 중앙 길목으로 옮기고 값을 올렸다:
+       · 점령하는 순간 그 부대에 사기 +10 · MP +8 · 최대 병력 10% 회복
+       · 점령한 마을 위에 서 있으면 방어 +20% · 매 턴 회복 +15% · MP +5
+       · 전투에서 이기면 아군이 차지한 마을 하나당 금 +150
+     마을은 발은 진영의 것이 되고, 적진이 다시 밸으면 빼앗긴다. */
   function siteAt(x, y) {
     if (!B || !B.sites) return null;
     return B.sites.find((s) => s.x === x && s.y === y) || null;
@@ -1791,9 +1794,42 @@
     if (!u) return null;
     const s = siteAt(u.x, u.y);
     if (!s) return null;
-    if (s.type === 'village') return s.owner === u.side ? { def: 1.15, heal: 0.10, mp: 5 } : null;
+    if (s.type === 'village') return s.owner === u.side ? { def: 1.20, heal: 0.15, mp: 5 } : null;
     const mine = (s.type === 'allyHQ' && u.side === 'ally') || (s.type === 'enemyHQ' && u.side === 'enemy');
     return mine ? { def: 1.25, heal: 0.20, mp: 10 } : null;
+  }
+  /* v5.42 — 마을 점령 즉시 보상: 사기 +10(상한) · MP +8 · 최대 병력 10% 회복 */
+  function villageCaptureBonus(u) {
+    const got = [];
+    const m0 = u.morale == null ? 100 : u.morale;
+    const mmax = u.moraleMax || 100;
+    if (m0 < mmax) {
+      u.morale = Math.round(Math.min(mmax, m0 + 10) * 10) / 10;
+      got.push('사기+' + Math.round(u.morale - m0));
+    }
+    if (u.mp < u.maxMp) {
+      const mp = Math.min(8, u.maxMp - u.mp);
+      u.mp += mp;
+      if (mp > 0) got.push('MP+' + mp);
+    }
+    if (u.hp < u.maxHp) {
+      const hh = Math.min(u.maxHp - u.hp, Math.max(1, Math.round(u.maxHp * 0.10)));
+      u.hp += hh;
+      addHeal(u, hh, u);
+      got.push('회복+' + hh);
+    }
+    return got;
+  }
+  /* v5.42 — 승리 보상: 이긴 전장에서 아군이 차지한 마을 하나당 금 +150 */
+  function villageWarGold() {
+    if (!B || !B.sites) return { count: 0, gold: 0 };
+    const count = B.sites.filter((s) => s.type === 'village' && s.owner === 'ally').length;
+    return { count: count, gold: count * 150 };
+  }
+  function addVillageWarGold(st) {
+    const v = villageWarGold();
+    if (v.gold > 0 && st) st.gold += v.gold;
+    return v;
   }
   function sitePhase(heal) {
     if (!B || !B.sites || B.over) return;
@@ -1803,8 +1839,11 @@
       if (!s) return;
       if (s.type === 'village' && s.owner !== u.side) {
         s.owner = u.side;
-        feed(`${u.name} — 마을 점령 (${u.side === 'ally' ? '아군' : '적군'})`, u.side === 'ally' ? 'good' : 'bad');
-        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '마을 점령', '#9ef0b8');
+        const got = villageCaptureBonus(u);
+        const full = got.length ? got.join(' ') : '보상 없음';
+        feed(`${u.name} — 마을 점령 · ${full} (${u.side === 'ally' ? '아군' : '적군'})`, u.side === 'ally' ? 'good' : 'bad');
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, `마을 점령 · ${got.slice(0, 2).join(' ')}`, '#9ef0b8');
+        addFx({ kind: 'heal', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520 });
         SK.sfx.play('ui');
       }
       if (!heal) return;
@@ -5701,6 +5740,7 @@
     if (from && from.owner !== SK.playerFaction()) from.troops = Math.min(20000, Math.round((from.troops || 0) + fled));
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
+    const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
     s.fame += 3;
     if (st) s.purseCity = inv.target;
     /* 침공 사건을 정리한다 — 뒤이은 침공(큐)은 chainPendingEvents 가 이어서 연다 */
@@ -5724,6 +5764,7 @@
           <div><span>성에 합류</span><b>${troopsLeft.toLocaleString('ko-KR')}</b></div>
           <div><span>명성</span><b>+3</b></div>
         </div>
+        ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${fled > 0 ? `<p class="rm-note">적 잔여 병력 ${fled.toLocaleString('ko-KR')}은 출발 성으로 쫓겨났습니다.</p>` : ''}
         ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
       </div>`,
@@ -5821,6 +5862,7 @@
     if (s.cities[B.origin] && s.cities[B.origin].owner === SK.playerFaction()) s.purseCity = B.origin;
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
+    const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
     s.fame += 2;
     s.pendingMarch = null;
     SK.save();
@@ -5838,6 +5880,7 @@
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
           <div><span>병력</span><b>${Math.round(survivors.reduce((a, u) => a + u.hp, 0)).toLocaleString('ko-KR')}</b></div>
         </div>
+        ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         <p class="rm-note">다음 달에 행군이 한 달 더 진행됩니다.</p></div>`,
       actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
@@ -6210,6 +6253,7 @@
     s.purseCity = B.targetId;      // v5.11 — 함락한 성의 금고·창고를 차지한다
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
+    const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
     s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
     const drop = SK.rollTreasure ? SK.rollTreasure(defeatedNames, c.name) : null;
     if (drop && SK.codexTreasure) SK.codexTreasure(drop.id);
@@ -6255,6 +6299,7 @@
           <div><span>영토</span><b>${owned} / ${SK.CITY_LIST.length}</b></div>
           ${woundedAdd ? `<div class="rm-wound"><span>부상병</span><b>${woundedAdd.toLocaleString('ko-KR')}</b><em>회복중</em></div>` : ''}
         </div>
+        ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${battleReportHTML()}
         ${drop ? `<div class="rm-treasure" style="--gc:${SK.GRADE_COLOR[drop.grade]}">
           <span class="rt-grade">${drop.grade} 보물</span>
@@ -6371,6 +6416,7 @@
     s.purseCity = B.targetId;
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
+    const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
     s.fame = (s.fame || 0) + 10;
     awardMvpMerit();
     const levelUps = [];
@@ -6405,6 +6451,7 @@
           <div><span>명성</span><b>+10</b></div>
           <div><span>남은 수비병</span><b>${Math.round(troopsLeft).toLocaleString('ko-KR')}</b></div>
         </div>
+        ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         ${battleReportHTML()}
         <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
