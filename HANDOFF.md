@@ -33,7 +33,7 @@
 | ④ 성 이름 잘림 | `#city-name`을 `flex:0 0 auto`·말줄임 해제, `◀▶` 22→20px·간격 3px, **세력 배지를 아래 줄로 이동**, 380px 이하 이름 17px, `text-size-adjust:100%` | `index.html` `.ct-line1`, `css/game.css` `.city-step`·`#city-name` |
 | ⑤ 보관 보물 상세 | `장수 명부 → 보물 → 보관 중인 보물` 칩을 전부 **버튼**으로(8점 제한 해제) → 이름·등급·부위(`명마 슬롯`)·능력치·효과·장착 안내·[확인] | `js/app.js` `openStoredTreasure`·`renderItem`, `css/game.css` `.rs-inv-chip`·`.tr-det*` |
 | ⑥ 앱 설치 SW | `sw.js`(통과 서비스 워커 — install skipWaiting, activate claim, **빈 fetch**) + `register('./sw.js?v=67')`. 캐시 0이라 열 때마다 최신판 | `sw.js`, `index.html` |
-| ⑦ 검수 | 로컬 390×844 `tools/qa_v550.py` **29/29** — 3달 연속(천수·관우) 보고↔실제 1:1(민심 0·병력 +1,747/+1,775/+1,585·성벽 +10·슬롯 `[1,1,1]→[2,2,2]`), 증축 3회 −350씩, 6곳 보고·접기·UI 임명·수송·대기 이유, 360/390 이름 잘림 0, 보물 상세, SW `activated`, 콘솔·pageerror·4xx 0. 캡처 `preview/v550_local/` | `tools/qa_v550.py` |
+| ⑦ 검수 | 로컬 390×844 `tools/qa_v550.py` **30/30** — 3달 연속(천수·관우) 보고↔실제 1:1(민심 0·병력 +1,747/+1,775/+1,585·성벽 +10·슬롯 `[1,1,1]→[2,2,2]`), 증축 3회 −350씩, 6곳 보고·접기·UI 임명·수송·대기 이유, 금 1,014에서 증축, 360/390 이름 잘림 0, 보물 상세, SW `activated`, 콘솔·pageerror·4xx 0. 캡처 `preview/v550_local/` | `tools/qa_v550.py` |
 
 ---
 
