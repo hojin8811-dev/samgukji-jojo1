@@ -4197,3 +4197,51 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .fprev-gen img { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; object-position: 50% 14%; border: 1px solid #cfa854; }
 .fprev-note { margin: 0; padding: 6px 8px; border-radius: 7px; background: rgba(255, 248, 230, 0.85); border: 1px solid #d7bd8c; font-size: 10px; line-height: 1.5; color: #5b4a27; }
 .fprev-note b { color: #8a5a12; }
+
+/* ═══════════════ v5.48 — 관아(본부) 고정 카드 · 능력치 가산점 칩 ═══════════════ */
+.hq-card {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin: 5px 0 1px; padding: 5px 7px;
+  border: 1px solid #c9a45c; border-left: 4px solid #b8862f; border-radius: 10px;
+  background: linear-gradient(180deg, #fffaf0, #f6ecda); text-align: left;
+  box-shadow: 0 1px 4px rgba(90, 70, 30, 0.14);
+}
+.hq-card:active { background: #f3e6c8; }
+.hq-card .hq-ico { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+.hq-card .hq-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hq-card .hq-main b { display: flex; align-items: center; gap: 3px; font-family: var(--serif); font-size: 11px; color: #3a2d15; }
+.hq-title { font-style: normal; font-size: 7.5px; font-weight: 900; letter-spacing: 0.04em; padding: 0 4px; border-radius: 6px; background: #7a3a12; color: #fff6e2; }
+.hq-title.off { background: #b8443a; }
+.hq-card .hq-sub { font-size: 7.5px; color: #8a7448; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hq-card .hq-vacant { font-size: 9.5px; font-weight: 800; color: #a8443a; }
+.hq-card .hq-face { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; object-position: 50% 18%; border: 1.5px solid #b8862f; }
+.hq-card .hq-go { flex: 0 0 auto; font-size: 11px; color: #b8862f; }
+
+.oh-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 1px; }
+.oh-chip {
+  font-style: normal; font-size: 7.5px; font-weight: 800; padding: 0 4px; border-radius: 6px;
+  background: #f4e7c8; color: #6b5322; border: 1px solid #e0c58c; white-space: nowrap; line-height: 1.5;
+}
+.oh-chip.k-pol { background: #fbeccd; border-color: #dcbf7f; }
+.oh-chip.k-tong { background: #f0e8d2; border-color: #d5c49a; color: #5c5232; }
+.oh-chip.k-wu { background: #f6e2d8; border-color: #dfb8a0; color: #74452c; }
+.oh-chip.k-ji { background: #e8eadd; border-color: #c3c9a8; color: #4d5a34; }
+.oh-chip.k-cha { background: #f8e6e6; border-color: #e2bdb8; color: #7a3a3a; }
+.oh-chip.zero { opacity: 0.5; }
+
+.office-hq {
+  display: flex; align-items: center; gap: 8px; padding: 7px 9px; text-align: left;
+  border: 1px solid #c9a45c; border-left: 4px solid #b8862f; border-radius: 10px;
+  background: linear-gradient(180deg, #fffaf0, #f6ecda);
+}
+.office-hq:active { background: #f3e6c8; }
+.office-hq .oh-ico { width: 32px; height: 32px; object-fit: contain; flex: 0 0 auto; }
+.office-hq .oh-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.office-hq .oh-main b { display: flex; align-items: center; gap: 4px; font-family: var(--serif); font-size: 12.5px; color: #2f4728; }
+.office-hq .oh-chips { margin-top: 0; }
+.office-hq .oh-chip { font-size: 8px; padding: 0 5px; }
+.oh-title { font-style: normal; font-size: 8.5px; font-weight: 900; letter-spacing: 0.04em; padding: 0 5px; border-radius: 7px; background: #7a3a12; color: #fff6e2; }
+.oh-title.off { background: #b8443a; }
+.oh-sub { font-size: 8.5px; line-height: 1.4; color: #6b5830; }
+.oh-vacant { font-size: 10px; font-weight: 800; color: #a8443a; }
+.office-hq .oh-face { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; object-position: 50% 18%; border: 1.5px solid #b8862f; }
+.office-hq .oh-go { flex: 0 0 auto; font-size: 12px; color: #b8862f; }

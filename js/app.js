@@ -32,6 +32,71 @@
   SK.PF = PF;
 
   /* ══════════════════════════════════════════════════════════════
+     v5.48 — 관아(본부) 배속과 능력치별 소폭 가산점
+     · 관아는 시설 칸(6/8/10)을 쓰지 않는 성의 본부 건물이다.
+       본성은 군주가, 지성은 임명된 태수가 자동으로 머리 자리에 앉는다.
+     · 배속은 이름표만 붙는 것이라 군주·태수의 이번 달 행동을 잠그지 않는다.
+     · 정치 → 생산(금 수입·농원 수확·병영 징병) 최대 +8%
+       통솔 → 징병량 · 훈련(훈련도·[훈련] 효율) 최대 +6%
+       무력 → 순찰·치안(매달 치안 상승·도적 억제) 최대 +6%
+       지력 → 계략(적 계략 방어 · 우리 첩보·계략 성공률) 최대 +6%
+       매력 → 탐색·등용 최대 +6%
+       40 이하는 0%, 40에서 0.12%씩 올라 60 +2.4% · 70 +3.6% · 80 +4.8% · 90 +6.0%
+       (정치만 100에서 +7.2%, 상한 +8%) — 밸런스가 무너지지 않을 만큼만 준다.
+     ══════════════════════════════════════════════════════════════ */
+  const OFFICE_CAPS = { pol: 0.08, tong: 0.06, wu: 0.06, ji: 0.06, cha: 0.06 };
+  SK.OFFICE_CAPS = OFFICE_CAPS;
+  function officePctOf(stat, cap) {
+    return Math.min(cap, Math.max(0, ((Number(stat) || 0) - 40) * 0.0012));
+  }
+  SK.officePctOf = officePctOf;
+  function officeHeadOf(cityId) {
+    const s = SK.state;
+    const cs = s && s.cities && s.cities[cityId];
+    if (!cs || cs.owner !== PF()) return null;
+    const g = officerOf(cityId, 'gov');
+    if (!g) return null;
+    const lord = (SK.factionInfo(PF()) || {}).lord || '';
+    return { cityId: cityId, hero: g, title: lord && g.name === lord ? '군주' : '태수',
+      capital: cityId === s.playerCapital };
+  }
+  SK.officeHeadOf = officeHeadOf;
+  function officeBonusOf(cityId) {
+    const head = officeHeadOf(cityId);
+    if (!head) return { head: null, pol: 0, tong: 0, wu: 0, ji: 0, cha: 0, any: 0 };
+    const h = head.hero;
+    const b = {
+      head: head,
+      pol: officePctOf(effStat(h, 'pol'), OFFICE_CAPS.pol),
+      tong: officePctOf(effStat(h, 'tong'), OFFICE_CAPS.tong),
+      wu: officePctOf(effStat(h, 'wu'), OFFICE_CAPS.wu),
+      ji: officePctOf(effStat(h, 'ji'), OFFICE_CAPS.ji),
+      cha: officePctOf(effStat(h, 'cha'), OFFICE_CAPS.cha),
+    };
+    b.any = Math.max(b.pol, b.tong, b.wu, b.ji, b.cha);
+    return b;
+  }
+  SK.officeBonusOf = officeBonusOf;
+  /* 화면·보고용 — 한 자리 소수 퍼센트 (0%는 그대로 0.0%) */
+  function pctTxt(v) { return (Math.round(v * 1000) / 10).toFixed(1); }
+  SK.pctTxt = pctTxt;
+  function officeChips(b) {
+    const p = b || officeBonusOf(null);
+    return [
+      { key: 'pol', label: '생산', v: p.pol, tip: '금 수입 · 농원 수확 · 병영 징병' },
+      { key: 'tong', label: '징병·훈련', v: p.tong, tip: '달마다 병영 징병량 · 훈련도와 [훈련] 효율' },
+      { key: 'wu', label: '순찰', v: p.wu, tip: '달마다 치안 상승 · 도적 억제' },
+      { key: 'ji', label: '계략', v: p.ji, tip: '적 계략 방어 · 첩보·계략 성공률' },
+      { key: 'cha', label: '탐색·등용', v: p.cha, tip: '탐색 보물·인재 발견 · 주점 등용 확률' },
+    ].map((x) => ({ ...x, text: `${x.label} +${pctTxt(x.v)}%` }));
+  }
+  SK.officeChips = officeChips;
+  function officeChipHtml(b) {
+    return `<span class="oh-chips">${officeChips(b).map((x) => `<i class="oh-chip k-${x.key}${x.v ? '' : ' zero'}" title="${x.tip}">${x.text}</i>`).join('')}</span>`;
+  }
+  SK.officeChipHtml = officeChipHtml;
+
+  /* ══════════════════════════════════════════════════════════════
      v5.11 — 성마다 따로 쓰는 금·군량 창고
      · 모든 성이 자기 금(cs.gold)·군량(cs.food)을 가진다
      · 지금 다루는 성은 s.purseCity. s.gold / s.food는 그 성의 창고를 가리키는
@@ -283,7 +348,9 @@
       /* v5.40 — 정책(농업 중시 +30%)·보물(군량 생산 +N%)이 대수확에 붙는다 */
       const polM = 1 + (policyFxOf(cs).harvest || 0);
       const foodM = 1 + Math.min(0.4, cityTfx(c.id, 'food', 40) / 100);
-      const v = Math.round(c.food * ECON.harvestBase * agriM * morM * (1 + farmM) * fPct * polM * foodM);
+      /* v5.48 — 관아 머리(군주·태수)의 정치가 대수확에도 그대로 붙는다 */
+      const officeM = 1 + officeBonusOf(c.id).pol;
+      const v = Math.round(c.food * ECON.harvestBase * agriM * morM * (1 + farmM) * fPct * polM * foodM * officeM);
       if (v > 0) { total += v; rows.push({ id: c.id, city: c.name, food: v, farm: Math.round(farmM * 100) }); }
     });
     return { total: total, rows: rows };
@@ -308,10 +375,12 @@
       const pol = policyFxOf(st);
       const goldM = 1 + (pol.gold || 0);
       const foodM = 1 + (pol.food || 0);
-      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxMul * incMul * goldM);
+      /* v5.48 — 관아 머리의 정치 가산점 (금 수입·농원 수확·병영 징병) */
+      const obM = 1 + officeBonusOf(c.id).pol;
+      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxMul * incMul * goldM * obM);
       (st.slots || []).forEach((sl) => {
         if (!sl.key) return;
-        const mul = slotMul(st, sl, slotOwner(c.id, sl)) * incMul * (sl.key === 'farm' ? foodM : goldM);
+        const mul = slotMul(st, sl, slotOwner(c.id, sl)) * incMul * (sl.key === 'farm' ? foodM : goldM) * obM;
         if (sl.key === 'market') market += Math.round(ECON.marketGold[clamp(sl.lv, 1, 5)] * mul);
         else if (sl.key === 'workshop') market += Math.round((40 + sl.lv * 40) * mul);
         else if (sl.key === 'farm') farm += Math.round(ECON.farmTrickle * sl.lv * mul * econMul(c));
@@ -3745,6 +3814,22 @@
         <span class="st-note">담당 ${dutyN} · 대기 ${readyN} · 완료 ${doneN}</span>
       </div>
       ${(noOwnerN && readyN) ? `<p class="slot-hint">담당이 빈 건물 <b>${noOwnerN}</b>곳 · 대기 장수 <b>${readyN}</b>명 — <b>[＋ 자동 배속]</b>을 누르면 알맞은 사람이 앉습니다.</p>` : ''}
+      ${(() => {
+        /* v5.48 — 관아는 시설 칸을 쓰지 않는 성의 본부 건물. 시설 탭 맨 위에 고정 카드로 둔다 */
+        const ob = officeBonusOf(cityId);
+        const head = ob.head;
+        const h = head ? head.hero : null;
+        return `<div class="hq-card${h ? '' : ' vacant'}" id="hq-card" role="button" tabindex="0" aria-label="관아 — ${h ? head.title + ' ' + h.name : '태수 미임명'}">
+          <img class="hq-ico" src="assets/buildings/palace.webp" alt="">
+          <div class="hq-main">
+            <b>관아${h ? ` <em class="hq-title">${head.title}</em> ${h.name}` : ' <em class="hq-title off">미임명</em>'}${helpDot('office')}</b>
+            ${h ? officeChipHtml(ob) : '<span class="hq-vacant">태수 미임명 — [태수 임명]으로 배속</span>'}
+            <span class="hq-sub">${h ? `성의 본부 · 시설 칸을 쓰지 않음${head.title === '군주' ? ' · 본성은 군주가 친히' : ''}` : '배속하면 정치·통솔·무력·지력·매력만큼 소폭 가산'}</span>
+          </div>
+          ${h ? `<img class="hq-face" src="${SK.ptSrc(h.portrait)}" alt="">` : ''}
+          <span class="hq-go">▸</span>
+        </div>`;
+      })()}
       <div class="slot-grid">${cs.slots.map((sl, i) => {
         if (!sl.key) {
           return `<button class="slot-card empty" data-slot="${i}">
@@ -3773,6 +3858,14 @@
     box.querySelectorAll('.slot-card').forEach((b) => {
       b.onclick = () => openSlot(cityId, Number(b.dataset.slot));
     });
+    /* v5.48 — 관아 고정 카드: 누르면 관아 창(미임명이면 태수 임명 창)이 열린다 */
+    const hq = box.querySelector('#hq-card');
+    if (hq) hq.onclick = (ev) => {
+      if (ev && ev.target && ev.target.closest && ev.target.closest('[data-help]')) return;   /* v5.48 — ? 도움말 점은 카드 열기와 분리 */
+      SK.sfx.play('ui');
+      if (officeHeadOf(cityId)) openOffice(cityId);
+      else openGovernorPick(cityId);
+    };
     const upAll = box.querySelector('#btn-up-all');
     if (upAll) upAll.onclick = () => upgradeAll(cityId);
     /* v5.10 — 건물 배속 편의 버튼(장수 탭에서 이동) */
@@ -4324,7 +4417,7 @@
      · 합계는 80%에서 막는다 — 성벽 Lv.5·통솔 100에 치안 100이어도
        100% 차단은 없다(적 계략이 최소 20%는 통한다)
      ══════════════════════════════════════════════════════════════ */
-  const SCHEME_CAP = { wall: 0.55, order: 0.25, total: 0.80 };
+  const SCHEME_CAP = { wall: 0.55, order: 0.25, office: 0.06, total: 0.80 };
   SK.SCHEME_CAP = SCHEME_CAP;
   function orderGuardOf(cs) {
     const o = cs && cs.order != null ? clamp(cs.order, 0, 100) : 55;
@@ -4338,10 +4431,16 @@
     const wallBlock = wall ? wall.block : 0;
     const order = cs.order == null ? 55 : clamp(cs.order, 0, 100);
     const orderBlock = orderGuardOf(cs);
-    const block = Math.min(SCHEME_CAP.total, wallBlock + orderBlock);
+    /* v5.48 — 관아 머리(군주·태수)의 지력 → 계략 방어. 최대 +6%지만
+       성벽·치안과 합쳐 80%를 넘지 못한다 (100% 차단은 여전히 없다) */
+    const ob = officeBonusOf(cityId);
+    const officeBlock = ob.ji;
+    const block = Math.min(SCHEME_CAP.total, wallBlock + orderBlock + officeBlock);
+    const raw = wallBlock + orderBlock + officeBlock;
     return {
       sl: wall ? wall.sl : null, lv: wall ? wall.lv : 0, g: wall ? wall.g : null,
-      wallBlock, order, orderBlock, block,
+      wallBlock, order, orderBlock, officeBlock, raw, capped: raw > SCHEME_CAP.total + 1e-9,
+      head: ob.head ? ob.head.hero : null, block,
     };
   }
   SK.orderGuardOf = orderGuardOf;
@@ -4360,10 +4459,15 @@
       const grow = [];                 // v5.4 — 월정산에 보여 줄 시설 성장 기록
       /* v5.40 — 정책·보물이 이 성의 시설 생산에도 그대로 붙는다 */
       const pfx = policyFxOf(cs);
+      /* v5.48 — 관아 머리의 정치 → 생산 가산점 · 통솔 → 훈련 가산점 */
+      const officeB = officeBonusOf(c.id);
+      const obProdM = 1 + officeB.pol;
+      const obTrainM = 1 + officeB.tong;   /* v5.48 — 통솔: 병영 징병량 + 연병장·훈련 */
+      const obPatrolM = 1 + officeB.wu;    /* v5.48 — 무력: 순찰소 치안 */
       const goldM = 1 + (pfx.gold || 0);
       const foodM = 1 + (pfx.food || 0) + Math.min(0.4, cityTfx(c.id, 'food', 40) / 100);
       const recM = 1 + (pfx.recruit || 0) + Math.min(0.4, cityTfx(c.id, 'recruit', 40) / 100);
-      const trnM = 1 + (pfx.train || 0) + Math.min(0.4, cityTfx(c.id, 'train', 40) / 100);
+      const trnM = (1 + (pfx.train || 0) + Math.min(0.4, cityTfx(c.id, 'train', 40) / 100)) * obTrainM;
       const wallM = 1 + (pfx.wall || 0);
       let craft = null;                // v5.40 — 공방 제작 (3개월에 보물 1개)
       if (cs.order == null) cs.order = 55;
@@ -4382,14 +4486,14 @@
           grow.push({ city: c.name, key: sl.key, name: (SLOT_DEFS[sl.key] || {}).name || sl.key,
             lv: lv, gain: gain, exp: sl.exp, need: slotExpNeed(lv), duty: !!g });
         }
-        if (sl.key === 'market') { gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul * goldM); if (g) comm += statGrowOf(sl, g); if (dep) comm += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
-        else if (sl.key === 'farm') { food += Math.round(ECON.farmTrickle * lv * mul * econMul(c) * foodM); if (g) agri += statGrowOf(sl, g); if (dep) agri += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
-        else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul * recM);
+        if (sl.key === 'market') { gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul * goldM * obProdM); if (g) comm += statGrowOf(sl, g); if (dep) comm += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
+        else if (sl.key === 'farm') { food += Math.round(ECON.farmTrickle * lv * mul * econMul(c) * foodM * obProdM); if (g) agri += statGrowOf(sl, g); if (dep) agri += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
+        else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul * recM * obProdM * obTrainM);
         else if (sl.key === 'training') { train += 0.5 * lv * mul * trnM; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
-        else if (sl.key === 'patrol') { order += 1.1 * lv * mul; loyalty += 0.25 * lv * mul; }
+        else if (sl.key === 'patrol') { order += 1.1 * lv * mul * obPatrolM; loyalty += 0.25 * lv * mul; }
         else if (sl.key === 'wall') def += 0.6 * lv * mul * wallM;
         else if (sl.key === 'workshop') {
-          gold += Math.round((40 + lv * 40) * mul * goldM);
+          gold += Math.round((40 + lv * 40) * mul * goldM * obProdM);
           /* v5.40 — 담당이 앉아 있으면 매달 제작 +1, 3개월째에 보물 1개 */
           if (g) craft = workshopCraft(st, c, cs, sl, g);
         }
@@ -4411,7 +4515,8 @@
       if (train) cs.train = clamp((cs.train == null ? 50 : cs.train) + train, 0, 100);
       if (loyalty) cs.loyalty = clamp(cs.loyalty + loyalty, 0, 100);
       if (order) cs.order = clamp(cs.order + order, 0, 100);
-      else cs.order = clamp(cs.order - 0.5, 0, 100);          // 순찰소가 없으면 치안이 조금씩 풀린다
+      /* 순찰소가 없으면 치안이 조금씩 풀린다 — 관아 머리의 무력이 높으면 더 늦게 풀린다 */
+      else cs.order = clamp(cs.order - 0.5 * (1 - officeB.wu * 0.5), 0, 100);
       if (def) cs.def = clamp(cs.def + def, 0, 100);
       if (agri) cs.agri = clamp((cs.agri || 0) + agri, 0, 100);
       if (comm) cs.comm = clamp((cs.comm || 0) + comm, 0, 100);
@@ -4491,7 +4596,9 @@
         const estrange = gens.length > 0 && Math.random() < 0.55;
         /* v5.40 — 보물의 첩보 성공률(+N%)이 자동 계략에도 붙는다 */
         const spyM = 1 + Math.min(0.5, cityTfx(c.id, 'spy', 50) / 100);
-        const p = clamp((0.30 + lv * 0.07 + (ji - 60) * 0.006) * spyM, 0.15, 0.95);
+        /* v5.48 — 관아 머리(군주·태수)의 지력 → 첩보소 계략 성공률 (최대 +6%) */
+        const obSpy = 1 + officeBonusOf(c.id).ji;
+        const p = clamp((0.30 + lv * 0.07 + (ji - 60) * 0.006) * spyM * obSpy, 0.15, 0.95);
         if (Math.random() < p) {
           if (estrange) {
             const g = gens.slice().sort((a, b) => enemyLoyal(a) - enemyLoyal(b))[0];
@@ -4527,8 +4634,9 @@
       const guard = schemeGuardOf(id);
       if (guard && guard.block > 0 && Math.random() < guard.block) {
         wall.push({ city: CITY[id].name, block: guard.block, wallBlock: guard.wallBlock, orderBlock: guard.orderBlock,
+          officeBlock: guard.officeBlock || 0, capped: !!guard.capped,
           order: guard.order, lv: guard.lv, hero: guard.g ? guard.g.name : '',
-          from: c.name, text: `${c.name}의 첩자를 성벽 순라와 치안망이 막았습니다` });
+          from: c.name, text: `${c.name}의 첩자를 성벽 순라와 치안망, 관아 판단이 막았습니다` });
         return;
       }
       s.cities[id].loyalty = clamp(s.cities[id].loyalty - 2, 10, 100);
@@ -4551,12 +4659,16 @@
       if (!cs || cs.owner !== PF()) return;
       const o = cs.order == null ? 55 : clamp(cs.order, 0, 100);
       if (o >= 40) return;
-      if (Math.random() > 0.03 + (40 - o) * 0.012) return;
-      const goldCut = Math.min(Math.round(cs.gold || 0), 40 + Math.floor(Math.random() * 120) + Math.round((40 - o) * 4));
-      const troopCut = Math.min(Math.round(cs.troops || 0), Math.round((cs.troops || 0) * (0.003 + Math.random() * 0.006)));
+      /* v5.48 — 관아 머리의 무력 → 도적 억제 (최대 +6%: 출몰 확률·손실을 그만큼 덜는다) */
+      const obWu = officeBonusOf(c.id).wu;
+      const chance = (0.03 + (40 - o) * 0.012) * (1 - obWu);
+      if (Math.random() > chance) return;
+      const dmgM = 1 - obWu;
+      const goldCut = Math.min(Math.round(cs.gold || 0), Math.round((40 + Math.floor(Math.random() * 120) + Math.round((40 - o) * 4)) * dmgM));
+      const troopCut = Math.min(Math.round(cs.troops || 0), Math.round((cs.troops || 0) * (0.003 + Math.random() * 0.006) * dmgM));
       cs.gold = Math.max(0, Math.round((cs.gold || 0) - goldCut));
       cs.troops = Math.max(0, Math.round((cs.troops || 0) - troopCut));
-      out.push({ city: c.name, order: Math.round(o), gold: goldCut, troops: troopCut });
+      out.push({ city: c.name, order: Math.round(o), gold: goldCut, troops: troopCut, guard: obWu });
     });
     return out;
   }
@@ -4588,14 +4700,16 @@
     const c = CITY[cityId];
     const cs = s.cities[cityId];
     const lucky = (actor ? effStat(actor, 'cha') : 60) + (actor ? effStat(actor, 'ji') : 60);
-    const bonus = Math.min(0.22, Math.max(0, (lucky - 120) * 0.0025));
+    /* v5.48 — 관아 머리(군주·태수)의 매력 → 탐색 가산점 (최대 +6%) */
+    const obCha = officeBonusOf(cityId).cha;
+    const bonus = Math.min(0.22, Math.max(0, (lucky - 120) * 0.0025)) + obCha;
     /* v5.10 — 주점 배속 자동 탐색은 주점 레벨만큼 보너스를 얻는다 (최대 +50%) */
     const boost = clamp((opts && opts.boost) || 0, 0, 0.5);
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     /* v5.12 — 탐색 실패. 장수의 (지력+매력)/2 가 낮을수록 산길을 헤맨다.
        90+ 5% · 70 18% · 50 36% · 주점 보너스가 있으면 실패가 줄어든다. */
     const avg = actor ? (effStat(actor, 'ji') + effStat(actor, 'cha')) / 2 : 60;
-    let failP = clamp(0.40 - (avg - 45) * 0.0085, 0.05, 0.40) * (1 - boost * 0.5);
+    let failP = clamp(0.40 - (avg - 45) * 0.0085, 0.05, 0.40) * (1 - boost * 0.5) * (1 - obCha * 0.6);
     if (Math.random() < failP) {
       return {
         ok: true, kind: 'fail', fail: true,
@@ -5209,7 +5323,8 @@
     const bonus = actor ? Math.min(0.25, Math.max(0, ((actor.ji || 60) - 60) * 0.005)) : 0;
     /* v5.40 — 보물의 첩보 성공률(+N%) */
     const spyM = 1 + Math.min(0.5, cityTfx(cityId, 'spy', 50) / 100);
-    const ok = Math.random() < Math.min(0.95, (base + bonus) * spyM);
+    /* v5.48 — 관아 머리의 지력 → 계략 성공률 (최대 +6%) */
+    const ok = Math.random() < Math.min(0.95, (base + bonus) * spyM * (1 + officeBonusOf(cityId).ji));
     if (actor) { consumeDispatch(cityId, actor); SK.gainExp(actor, 14); }
     if (ok) {
       if (kind === 'spy') { st.troops = Math.max(200, Math.round(st.troops * 0.88)); st.def = Math.max(20, st.def - 4); }
@@ -5297,7 +5412,7 @@
         s.gold -= ESTRANGE_COST;
         consumeDispatch(cityId, actor);
         SK.gainExp(actor, 12);
-        const p = clamp(0.52 + ((actor.ji || 60) - 60) * 0.009 - ((g.intel || 60) - 60) * 0.005, 0.12, 0.88);
+        const p = clamp((0.52 + ((actor.ji || 60) - 60) * 0.009 - ((g.intel || 60) - 60) * 0.005) * (1 + officeBonusOf(cityId).ji), 0.12, 0.88);
         const ok = Math.random() < p;
         let after = enemyLoyal(g);
         if (ok) after = setEnemyLoyal(g.id, after - (26 + Math.floor(Math.random() * 16)));
@@ -5790,6 +5905,12 @@
     pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.'] },
     agri: { t: '농업', lines: ['<b>10월 대수확 때 들어오는 군량(쌀) 양</b>을 키웁니다.', '[개간]이나 [농원] 담당 배속으로 올립니다.'] },
     comm: { t: '상업', lines: ['<b>매달 들어오는 금(세금) 수입</b>을 키웁니다.', '[상업 진흥]이나 [시장] 담당 배속으로 올립니다.'] },
+    office: { t: '관아 — 성의 본부', lines: [
+      '관아는 <b>시설 칸(6/8/10)을 쓰지 않는 성의 본부 건물</b>입니다. 본성은 <b>군주</b>가, 지성은 임명한 <b>태수</b>가 자동으로 관아 머리에 앉습니다(태수가 없으면 [태수 임명]으로 배속).',
+      '머리 자리에 앉았다고 그 달 행동을 잠그지는 않습니다 — 군주·태수는 내정도 출진도 그대로 할 수 있습니다.',
+      '능력치마다 <b>소폭 가산점</b>이 붙습니다(40 이하 0%, 90에서 상한): <b>정치 → 생산</b>(금 수입·농원 수확·병영 징병, 최대 +8%) · <b>통솔 → 징병·훈련</b>(최대 +6%) · <b>무력 → 순찰·치안</b>(매달 치안·도적 억제, 최대 +6%) · <b>지력 → 계략</b>(적 계략 방어·우리 첩보 성공, 최대 +6%) · <b>매력 → 탐색·등용</b>(최대 +6%).',
+      '가산점은 성벽·치안과 합처도 <b>계략 방어 80% 상한</b>을 넘지 못합니다 — 밸런스가 무너지지 않도록 최대치를 작게 잡았습니다.',
+    ] },
   };
   function helpDot(key) {
     return `<button class="help-dot" data-help="${key}" aria-label="설명 보기">?</button>`;
@@ -6899,7 +7020,9 @@
       /* v5.21 — 징병량 절반(2,500 → 1,200 · 보너스 800 → 350). 비용은 금 150 · 군량 120 그대로 */
       /* v5.40 — 정책·보물의 징병 배율 (전시 체제 +30% · 상업 중시 -15%) */
       const recM = 1 + (policyFxOf(st).recruit || 0) + Math.min(0.4, cityTfx(cityId, 'recruit', 40) / 100);
-      const want = Math.min(Math.round((1200 + (roll(0.2) ? 350 : 0)) * m * rPct * recM), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
+      /* v5.48 — 관아 머리의 통솔 → 징병량 (최대 +6%) */
+      const recOff = 1 + officeBonusOf(cityId).tong;
+      const want = Math.min(Math.round((1200 + (roll(0.2) ? 350 : 0)) * m * rPct * recM * recOff), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
       if (want < 300) return fail('징병할 수 있는 인구가 부족합니다.');
       const drop = clamp(5 - Math.round(((actor ? actor.cha : 60) - 60) * 0.04), 2, 7);
       s.gold -= 150; s.food -= 120;
@@ -6923,7 +7046,8 @@
       /* v5.32 — 병사 훈련도를 한 번에 +7~+11 올린다 (예전 +2~+4는 체감이 없었다) */
       /* v5.40 — 정책·보물의 훈련 배율 */
       const trM = 1 + (policyFxOf(cs).train || 0) + Math.min(0.4, cityTfx(cityId, 'train', 40) / 100);
-      cs.train = clamp(beforeTrain + Math.max(5, Math.round(8 * eff * trM)), 0, 100);
+      const trnOff = 1 + officeBonusOf(cityId).tong;   /* v5.48 — 관아 머리의 통솔 → 훈련 효율 (최대 +6%) */
+      cs.train = clamp(beforeTrain + Math.max(5, Math.round(8 * eff * trM * trnOff)), 0, 100);
       const trainGain = Math.round(cs.train) - Math.round(beforeTrain);
       const bonus = roll(0.2) ? 60 : 0;
       const rows = gens.map((h) => {
@@ -7056,6 +7180,9 @@
     /* v5.31 — 옥선·비단전포·옥대: '외교·등용 효율'은 등용 성공률 +N%p */
     if (actor) p += Math.min(20, (heroTfx(actor).diplo || 0) * 0.6);
     p += Math.min(14, (s.fame || 0) * 0.05);
+    /* v5.48 — 관아 머리(군주·태수)의 매력 → 등용 성공률 (최대 +6%p) */
+    const obChaChance = (SK.officeBonusOf ? SK.officeBonusOf(cityId).cha : 0) * 100;
+    p += obChaChance;
     const bond = actor ? SK.bondBetween(actor.name, g.name) : null;
     if (bond && bond.relation === '친밀') p += 15;
     else if (bond && bond.relation === '숙적') p -= 15;
@@ -7277,8 +7404,11 @@
     const gens = cityGens(cityId);
     const advisor = gens.find((g) => g.uid === cs.advisor) || null;
     const gov = gens.find((g) => g.uid === cs.governor) || null;
-    const ready = gens.filter((g) => !g.actedThisMonth).length;
     const isCapital = cityId === s.playerCapital;
+    /* v5.48 — 관아 머리(군주·태수)와 능력치별 가산점 */
+    const ob = officeBonusOf(cityId);
+    const headTitle = ob.head ? ob.head.title : (isCapital ? '군주' : '태수');
+    const ready = gens.filter((g) => !g.actedThisMonth).length;
     const autoOn = cs.auto !== false;
     const pol = policyOf(cs);
     const supplyName = cs.supplyTo && s.cities[cs.supplyTo] && s.cities[cs.supplyTo].owner === PF()
@@ -7290,6 +7420,16 @@
       kicker: `${CITY[cityId].name} 관아`,
       title: '성을 다스린다',
       body: `<div class="office-wrap">
+        <div class="office-hq${gov ? '' : ' vacant'}" data-o="head" role="button" tabindex="0">
+          <img class="oh-ico" src="assets/buildings/palace.webp" alt="">
+          <div class="oh-main">
+            <b>관아 배속 ${gov ? `<em class="oh-title">${headTitle}</em> ${gov.name}` : '<em class="oh-title off">미임명</em>'}${helpDot('office')}</b>
+            ${gov ? officeChipHtml(ob) : '<span class="oh-vacant">태수 미임명 — [태수 임명]으로 배속</span>'}
+            <span class="oh-sub">${gov ? `${headTitle}는 관아에 배속되어도 이번 달 행동·출진을 그대로 씁니다 · 관아는 시설 칸을 쓰지 않습니다` : '태수를 앉혀야 가산점이 생깁니다 (정치·통솔·무력·지력·매력)'}</span>
+          </div>
+          ${gov ? `<img class="oh-face" src="${SK.ptSrc(gov.portrait)}" alt="">` : ''}
+          <span class="oh-go">▸</span>
+        </div>
         <div class="office-stats">
           <div><span>민심</span><b>${Math.round(cs.loyalty)}</b></div>
           <div><span>성벽</span><b>${Math.round(cs.def)}</b></div>
@@ -7338,12 +7478,13 @@
       wide: true,
     });
     m.el.querySelectorAll('[data-o]').forEach((b) => {
-      b.onclick = () => {
+      b.onclick = (ev) => {
+        if (ev && ev.target && ev.target.closest && ev.target.closest('[data-help]')) return;   /* v5.48 — ? 도움말 점은 카드 열기와 분리 */
         const k = b.dataset.o;
         if (k === 'comfort') {
           m.close();
           openComfort(cityId);
-        } else if (k === 'governor') {
+        } else if (k === 'head' || k === 'governor') {
           m.close();
           openGovernorPick(cityId);
         } else if (k === 'advisor') {
@@ -11005,7 +11146,9 @@
       const incMul = 1 + cityTfx(c.id, 'income', 60) / 100;   // v5.31 — 보물 내정 수입
       /* v5.40 — 정책 금 수입 배율 (상업 중시 +25% · 전시 체제 -15% 등) */
       const pfxMonth = policyFxOf(st);
-      const cityTax = Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxRate.mul * incMul * (1 + (pfxMonth.gold || 0)));
+      /* v5.48 — 관아 머리(군주·태수)의 정치 → 세수 가산점 (최대 +8%) */
+      const officeM = 1 + officeBonusOf(c.id).pol;
+      const cityTax = Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxRate.mul * incMul * (1 + (pfxMonth.gold || 0)) * officeM);
       tax += cityTax;
       st.gold = (st.gold || 0) + cityTax;   // v5.11 — 세수는 그 성 금고로
       // v5.5 — 인구는 민심·치안·농업·상업·시설 Lv 합을 함께 본다 (popMonthly)
@@ -11020,7 +11163,8 @@
       /* v5.41 — 징집 보고와 실제 충원을 한 값으로 묶는다.
          예전에는 보고만 경제 배율을 곱해(+195) 실제로는 160만 들어가,
          월정산 숫자와 병력 유지가 매달 35명씩 어긋났다. */
-      const draftGain = Math.round(160 * base);
+      /* v5.48 — 관아 머리의 통솔 → 매달 자동 징집량 (최대 +6%) */
+      const draftGain = Math.round(160 * base * (1 + officeBonusOf(c.id).tong));
       const troopsBefore = st.troops;
       st.troops = clamp(st.troops + draftGain, 0, cityCap(st));
       pop += Math.max(0, Math.round(st.troops - troopsBefore));
@@ -11295,8 +11439,8 @@
         ${craftLog.length ? `<div class="mr-auto"><p class="mr-auto-title">공방 제작 <em>담당이 앉은 공방은 3개월에 보물 1개</em></p>
           ${craftLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 공방 ${l.hero || ''}</b><span>${l.full ? '보물을 모두 모아 더 만들 것이 없습니다' : l.done ? `${l.treasure} (${l.grade}) 완성!` : `제작 ${l.progress}/${l.need}개월`}</span></div>`).join('')}
           ${craftLog.length > 6 ? `<p class="mr-note">${craftLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
-        ${wallLog.length ? `<div class="mr-auto"><p class="mr-auto-title">계략 방어 <em>성벽 + 치안이 적 첩자를 막았습니다</em></p>
-          ${wallLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text} (차단 ${Math.round(l.block * 100)}% = 성벽 ${Math.round((l.wallBlock || 0) * 100)}% + 치안 ${Math.round((l.orderBlock || 0) * 100)}%${l.hero ? ` · ${l.hero}` : ''})</span></div>`).join('')}</div>` : ''}
+        ${wallLog.length ? `<div class="mr-auto"><p class="mr-auto-title">계략 방어 <em>성벽 + 치안 + 관아가 적 첩자를 막았습니다</em></p>
+          ${wallLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text} (차단 ${Math.round(l.block * 100)}% = 성벽 ${Math.round((l.wallBlock || 0) * 100)}% + 치안 ${Math.round((l.orderBlock || 0) * 100)}%${l.officeBlock ? ` + 관아 ${Math.round(l.officeBlock * 100)}%` : ''}${l.capped ? ' · 80% 상한' : ''}${l.hero ? ` · ${l.hero}` : ''})</span></div>`).join('')}</div>` : ''}
         ${banditLog.length ? `<div class="mr-auto"><p class="mr-auto-title">도적 출몰 <em>치안 40 아래 — 순찰소로 올리세요</em></p>
           ${banditLog.slice(0, 4).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>치안 ${l.order} — 도적이 들어 금 −${fmt(l.gold)} · 병력 −${fmt(l.troops)}</span></div>`).join('')}</div>` : ''}
         ${spyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">첩보소 첩보 <em>자동 첩보 · 이간 · 유언비어</em></p>
@@ -11404,7 +11548,7 @@
     { ico: '🥋', name: '공방', stat: '정치', text: '3개월마다 보물 1개를 만듭니다. 금 수입도.' },
     { ico: '🏯', name: '성벽', stat: '통솔', text: '성을 지키고 적 계략을 막습니다 (성벽만 최대 55%).' },
     { ico: '🍶', name: '주점', stat: '매력', text: '재야 인재가 모입니다 — 등용과 탐색의 창구.' },
-    { ico: '🏛️', name: '관아', stat: '메뉴', text: '태수·군사 임명과 자동 내정 방침. 건물이 아니라 메뉴입니다.' },
+    { ico: '🏛️', name: '관아', stat: '본부', text: '시설 칸을 쓰지 않는 성의 본부입니다. <b>본성은 군주, 지성은 태수</b>가 자동으로 앉아 다섯 능력치만큼 <b>소폭 가산점</b>을 줍니다 — 정치→생산(최대 +8%) · 통솔→징병·훈련 · 무력→순찰·치안 · 지력→계략 · 매력→탐색·등용(각 +6%). 배속되어도 그달 행동·출진은 그대로.' },
   ];
 
   function introBody(cid) {
@@ -11422,7 +11566,7 @@
         <span class="bg-ico sm">${b.ico}</span>
         <div><b>${b.name}</b><i>${b.stat}</i><p>${b.text}</p></div></div>`).join('')}</div>
       <div class="bg-rule"><b>가장 중요한 규칙</b><p>건물은 <b>빈 칸이 아니라 장수를 배속해야</b> 100% 효과가 나고 매달 자랍니다. 담당이 없으면 절반(첩보소는 정지)이고, <b>부장</b>을 앉히면 +45%가 더 붙습니다. 건물을 누르면 배속·증축 창이 열립니다.</p></div>
-      <p class="bg-note">시설 칸은 성 규모에 따라 6~10칸입니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜨고, 관아는 건물이 아니라 [시설 관리 → 관아] 메뉴입니다.</p>`;
+      <p class="bg-note">시설 칸은 성 규모에 따라 6~10칸입니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜹니다. <b>관아는 이 칸을 쓰지 않는 성의 본부</b>로, [시설] 탭 맨 위 카드나 성 그림의 관아 간판으로 엽니다 — 본성은 군주, 지성은 태수가 자동 배속되어 정치·통솔·무력·지력·매력만큼 작은 가산점을 줍니다(최대 +6~8%, ? 버튼에 자세히).</p>`;
     const p3 = `<div class="bg-steps">
         <div class="bg-step"><span class="bg-num">1</span><div><b>금·민심 다지기</b><p>[시설 관리]에서 공터에 <b>시장·농원</b>을 짓고 장수를 배속하세요. 민심이 낮으면 [백성 위로].</p></div></div>
         <div class="bg-step"><span class="bg-num">2</span><div><b>병사 모으기</b><p>[군사 → 징병](금 150 · 군량 120) 또는 지은 [병영]으로 주둔병을 채웁니다.</p></div></div>
