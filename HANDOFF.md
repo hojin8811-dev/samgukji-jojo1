@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.40** 실플레이 감사 10건 수정 + **보물 250종** + 공방 3개월 제작 + 성벽 방첩 + 정책 실제 수치 · 2026-11-22 · 라이브 `?v=56`
+> 기준: **v5.41** 2차 감사 10건 수정(세이브 삭제 확인·징집 보고·첩보소 재야·일기토 조건·지도 띠·전투 시야·미니맵·시설 카드·도움말 수치·출진 병기 표기) · 2026-11-22 · 라이브 `?v=57`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,32 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=56`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=57`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · **보물 250** · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
+
+---
+
+## 0.0 v5.41 — 2차 감사 10건 수정 (2026-11-22 · `?v=57`)
+
+`preview/v541_audit/REPORT.md`의 10건을 고쳤다. **`assets/units/`는 손대지 않았다**(통합 병과 시트 교체 작업과 충돌 방지).
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 세이브 삭제 확인 | `[data-del]` 핸들러가 곧바로 지우던 것을 `슬롯 N 삭제 / 이 슬롯의 저장 데이터를 삭제할까요? … / 되돌릴 수 없습니다` + `취소·지우기` 모달로. 자동 저장도 같음 | `js/app.js` `SK.openSaveSlots` |
+| ② 징집 보고 = 실제 | `const draftGain = Math.round(160*base); st.troops = clamp(st.troops+draftGain,0,cityCap(st)); pop += st.troops - before` — 보고와 실제 충원이 같은 값 | `js/app.js` `advanceMonth` |
+| ③ 첩보소 재야 대상 | `spyTargets`에서 `owner !== 'neutral'` 제거. 대상 0이면 카드 `이웃 적성 없음`(`.sc-craft.warn`) + 월정산 1회 안내(`sl.spyIdleNoted`), 경험치 절반 | `js/app.js` `spyTargets`·`runSpyOffices`·`runSlots`·`renderCitySlots` |
+| ④ 일기토 조건 | `SK.pickEvent`가 제목·트리거에 나온 장수(`SK.eventGenNames()`)를 검사 — 내 군에 있으면 점수 0(제외), 수비 장수가 아니면 점수 ≤2(성 이름만으로 미채택) | `js/data.js` `SK.pickEvent` |
+| ⑤ 지도 상단 띠 | `clampCam` pad 0, 지도 그림 로드 시 `#world-viewport`에 같은 그림 배경 + `has-bleed`(흐림 레이어). 축소 시 여백도 지도색 | `js/map.js` `clampCam`·`loadBg`, `css/game.css` `.world-viewport::before` |
+| ⑥ 전투 시작 시야 | 시작 시 `본진 + 모든 부대`의 경계 상자로 `cam.s = clamp(min(fit, 0.8), 0.42, 0.8)` 후 중심 정렬 | `js/battle.js` `initCanvas` |
+| ⑦ 미니맵 기본 접힘 | 폭 450px 미만이면 `mmOpen = false`로 시작(토글 26px), 접힘 상태는 `.mm-collapsed` | `js/battle.js` `bindMinimap`, `css/game.css` `.mm-toggle` |
+| ⑧ 시설 카드 | `.sc-owner` flex-wrap + `em` ellipsis, 담당 없는 카드는 `부장 없음` 생략 | `js/app.js` `renderCitySlots`, `css/game.css` |
+| ⑨ 도움말 수치 | `SK.SLOT_MAX`·`SK.CAP_RATE`·`SK.ESTRANGE_COST`·`SK.SCOUT_SPAN`에서 문구 생성(도움말·정보 시트) | `js/app.js` `showHelp`·`openCitySheet` |
+| ⑩ 출진 병력 표기 | `SK.DEPLOY_MIN(1,000)`·`SK.DEPLOY_BASE(2,000)` 상수화, 장수 상세 `출진 최소 1,000 · 기본 2,000 / 상한 10,000`, `openDeploy`도 같은 상수 사용 | `js/data.js`, `js/app.js` `showHeroInfo`·`openDeploy` |
+| 검수 | 로컬 `preview/v541_audit/`·라이브 `preview/v541_live/` 390×844 — 10건 확인, 콘솔/pageerror/4xx 0. 라이브 `?v=57` 수성전 자동전투 **9턴** 정상 진행(양 진영 HP 감소·페이즈 교대, 적군 페이즈 프리즈 없음) | `preview/v541_audit/`·`preview/v541_live/` |
+
+**참고** — 헤드리스 Chromium(이 샌드박스)에서는 소리를 켜고 DPR 2로 자동전투를 돌리면 60~100초쯤 페이지가 응답하지 않는 경우가 있었고, 같은 조건이 **수정 전 v5.40 라이브에서도 동일하게** 나타났다(게임 로직 정지가 아니라 렌더·오디오 부하). 소리를 끄고 DPR 0.5로 돌린 검수에서 9턴까지 정상 통과했다.
 
 ---
 
