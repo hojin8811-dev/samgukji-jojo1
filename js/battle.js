@@ -393,6 +393,9 @@
     busy = false;
     mode = 'idle';
     autoOn = false;
+    /* v5.52 — 앞 전장의 일기토 창이 열린 채 남아 있지 않게 닫는다 */
+    if (duel) { duel.done = null; duel = null; }
+    if (duelEls) { duelEls.root.hidden = true; duelEls.root.classList.remove('show', 'out'); }
     autoStop();
     autoPending = null;
     autoSpeed = speedPref || 1;   // v5.26 — 지난 전투에서 고른 배속을 이어 쓴다 (처음엔 ×1)
@@ -3183,6 +3186,538 @@
     return true;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.52 — 고퀄 1:1 일기토 미니게임 (사용자 확정 사양)
+     · 이름 있는 장수끼리 근접 교전에서 4% 확률로 벌어진다 (아군이 거는 공격만)
+       한 판에 3번까지 · 같은 상대와는 한 번만
+     · HP 100 대 100 · 최대 5턴 · 5가지 수의 가위바위보
+       ⚔️강공 → 💨속공·👁️간파 / 💨속공 → 👁️간파·🔥필살 / 👁️간파 → 🔥필살·🛡️방어
+       🔥필살 → 🛡️방어·⚔️강공 / 🛡️방어 → ⚔️강공·💨속공
+     · 무장은 무력, 문관(책사·도사·풍수·무희·군악)은 지력으로 공격하고, 통솔로 피해를 덜어낸다
+     · 승리 = 사기 +18 + 본대 병력 10% 회복 · 패배 = 10% 붕괴(생포) / 90% 사기 −22
+     · 빨리 감기 ×3·×4나 자동전투에서는 연출과 진행이 함께 짧아진다
+     ══════════════════════════════════════════════════════════════ */
+  let duelRate = 0.04;   // 일기토 발동 확률 (검수에서만 바꾼다)
+  const DUEL_TURNS = 5;
+  const DUEL_MAX_HP = 100;
+  /* 문관 계열 — 공격에 지력을 쓴다 */
+  const DUEL_INT_CLS = { chaeksa: 1, pungsusa: 1, dosa: 1, muhui: 1, gunakdae: 1 };
+  const DUEL_MOVES = [
+    { k: 'strike', ico: '⚔️', name: '강공', fx: '황금 대참격', beats: ['speed', 'read'], short: '속공·간파 승' },
+    { k: 'speed', ico: '💨', name: '속공', fx: '청록 연참', beats: ['read', 'kill'], short: '간파·필살 승' },
+    { k: 'read', ico: '👁️', name: '간파', fx: '보라 역습', beats: ['kill', 'guard'], short: '필살·방어 승' },
+    { k: 'kill', ico: '🔥', name: '필살', fx: '화염 폭발', beats: ['guard', 'strike'], short: '방어·강공 승' },
+    { k: 'guard', ico: '🛡️', name: '방어', fx: '금빛 파동', beats: ['strike', 'speed'], short: '강공·속공 승' },
+  ];
+  const DUEL_MOVE_BY = {};
+  DUEL_MOVES.forEach((m) => { DUEL_MOVE_BY[m.k] = m; });
+  /* 수 아이콘 — 어떤 폰에서도 같은 모양이 나오게 이모지 대신 SVG로 그린다 */
+  const DUEL_ICONS = {
+    strike: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 4l13 13"/><path d="M4 4v3.4M4 4h3.4"/><path d="M20 4L7 17"/><path d="M20 4v3.4M20 4h-3.4"/><path d="M15.6 18.4L18.4 21.6M8.4 18.4L5.6 21.6" stroke-width="2"/></svg>',
+    speed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 7h11.5a3.2 3.2 0 100-6.4"/><path d="M3 12h14.5"/><path d="M3 17h9.5a3 3 0 110 6"/></svg>',
+    read: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"><path d="M2.4 12S6.4 5.6 12 5.6 21.6 12 21.6 12 17.6 18.4 12 18.4 2.4 12 2.4 12z"/><circle cx="12" cy="12" r="3.1" fill="currentColor" stroke="none"/></svg>',
+    kill: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.6 2c.4 3.2 2.3 4.3 3.6 6.4 1.6 2.6 2.4 4.2 2.4 6.6a6.6 6.6 0 11-13.2 0c0-2 .8-3.3 2-4.8.5 1.3 1.1 2 2.1 2.7-.3-2.4.4-5.4 3.1-7.6-.4 2 .3 3 1.2 3.7.3-2 .1-4.3-1.2-7z"/></svg>',
+    guard: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.8l8.2 3v7.1c0 5-3.5 8.4-8.2 10.3C7.3 20.3 3.8 16.9 3.8 11.9V4.8l8.2-3z"/><path d="M12 5.4l5 1.9v4.7c0 3.2-2.1 5.4-5 6.7-2.9-1.3-5-3.5-5-6.7V7.3l5-1.9z" fill="#fff9ec" opacity="0.85"/></svg>',
+  };
+  /* 장수 말풍선 — 성격(무력·지력)과 세력에 맞춰 고른다 */
+  const DUEL_TALK = {
+    호장: {
+      start: ['어디, 한번 붙어 보자!', '칼끝으로 말하겠다!', '물러서면 내가 아니다!'],
+      clashWin: ['이맛이야!', '한 수 배웠나?', '아직 멀었다!'],
+      clashLose: ['크윽—!', '제법이군…', '아직 안 끝났다!'],
+      victory: ['천하에 내 이름을 새겼다!', '일합에 끝났군!', '이것이 무인의 길이다!'],
+      defeat: ['이런… 내가 지다니!', '한 수 접어 주지…', '다음엔 다를 것이다!'],
+      collapse: ['으윽… 부하들에게 미안하다…', '내 목을 가져라!'],
+    },
+    지장: {
+      start: ['힘만으로 되는 싸움은 아닙니다.', '허를 찌르겠습니다.', '한 수 읽히지 않겠습니까?'],
+      clashWin: ['보시다시피, 읽혔습니다.', '지략은 힘을 이깁니다.', '한 발 앞서 있었습니다.'],
+      clashLose: ['이런… 계산이 틀렸나.', '흠, 제법이군요.', '아직 판이 남았습니다.'],
+      victory: ['지혜가 칼을 이겼습니다.', '예견한 그대로입니다.', '이것이 승산입니다.'],
+      defeat: ['제 판단이 얕았습니다.', '허를 내줬군요…', '다시 만나면 다를 겁니다.'],
+      collapse: ['이럴 수가… 내 계획이…', '여기서 무너지다니…'],
+    },
+    명장: {
+      start: ['명예를 걸고 겨루겠다.', '좋은 상대를 만났군.', '한 판, 정정당당히!'],
+      clashWin: ['좋은 일격이었다!', '한 걸음 앞섰군.', '아직 내가 위다.'],
+      clashLose: ['훌륭하군…', '제법인데?', '한 번 더!'],
+      victory: ['승부는 났다.', '이만하면 이름값을 했다.', '부하들이 보고 있다 — 이겼다!'],
+      defeat: ['나의 패배다.', '뜻밖의 상대였군…', '이름을 잃었구나…'],
+      collapse: ['부디… 살려 주게…', '여기까지인가…'],
+    },
+  };
+  const DUEL_FACTION_START = {
+    위: ['위군의 위엄을 보여 주마!', '이 길을 열어라!'],
+    촉: ['의로써 겨루겠다!', '형제들이 지켜보고 있다!'],
+    오: ['오의 노련함을 알려 주지.', '오래 버틴 자가 이긴다.'],
+    군웅: ['이 난세, 내가 주인이다!', '목숨을 걸고 붙자!'],
+    한국: ['이 땅의 기개를 보여 주마!', '이름을 걸고 싸운다!'],
+  };
+  /* 수마다 다른 타격 연출 — CSS(.duel-fx-item.fx-*)가 움직인다 */
+  const DUEL_FX_SVG = {
+    strike: `<svg viewBox="0 0 200 200" aria-hidden="true">
+      <defs><radialGradient id="dvGold" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#fff8d6" stop-opacity="0.95"/><stop offset="48%" stop-color="#ffb42b" stop-opacity="0.6"/><stop offset="100%" stop-color="#ff4a12" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="74" fill="url(#dvGold)"/>
+      <path d="M18,168 Q104,78 188,18 Q120,98 40,182 Z" fill="#fff9d6" stroke="#ff9410" stroke-width="5"/>
+      <path d="M8,120 Q88,84 176,44 Q104,100 20,140 Z" fill="#ffd95a" opacity="0.85"/>
+      <circle cx="52" cy="52" r="5" fill="#fff4b8"/><circle cx="156" cy="146" r="6" fill="#ffcf4d"/><circle cx="148" cy="40" r="4" fill="#fff"/>
+    </svg>`,
+    speed: `<svg viewBox="0 0 200 200" aria-hidden="true">
+      <defs><radialGradient id="dvTeal" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#e8fff8" stop-opacity="0.9"/><stop offset="60%" stop-color="#37e0c0" stop-opacity="0.35"/><stop offset="100%" stop-color="#0f8f8a" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="70" fill="url(#dvTeal)"/>
+      <path class="dv-s1" d="M140,26 Q86,74 34,150" fill="none" stroke="#dffff8" stroke-width="7" stroke-linecap="round"/>
+      <path class="dv-s2" d="M172,58 Q110,92 62,162" fill="none" stroke="#5ef0d2" stroke-width="6" stroke-linecap="round"/>
+      <path class="dv-s3" d="M182,104 Q126,120 86,172" fill="none" stroke="#a8fff0" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="60" cy="52" r="4" fill="#eafffb"/><circle cx="142" cy="120" r="4.5" fill="#bafff2"/>
+    </svg>`,
+    read: `<svg viewBox="0 0 200 200" aria-hidden="true">
+      <defs><radialGradient id="dvPur" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f4e6ff" stop-opacity="0.95"/><stop offset="55%" stop-color="#a45cff" stop-opacity="0.45"/><stop offset="100%" stop-color="#4a1a9c" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="72" fill="url(#dvPur)"/>
+      <circle class="dv-ring" cx="100" cy="100" r="52" fill="none" stroke="#d9b7ff" stroke-width="5" stroke-dasharray="18 10"/>
+      <path class="dv-bolt" d="M100,14 L114,84 L186,100 L114,118 L100,188 L86,118 L14,100 L86,84 Z" fill="#9b5cff" stroke="#5b1fa8" stroke-width="4" opacity="0.85"/>
+      <circle cx="100" cy="100" r="19" fill="#fffdf2"/>
+    </svg>`,
+    kill: `<svg viewBox="0 0 200 200" aria-hidden="true">
+      <defs><radialGradient id="dvFire" cx="50%" cy="55%" r="55%">
+        <stop offset="0%" stop-color="#fffbe0" stop-opacity="0.98"/><stop offset="35%" stop-color="#ffd245" stop-opacity="0.9"/>
+        <stop offset="68%" stop-color="#ff6a12" stop-opacity="0.6"/><stop offset="100%" stop-color="#8f1400" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="100" cy="102" r="90" fill="#6b1500" opacity="0.5"/>
+      <circle cx="100" cy="102" r="80" fill="url(#dvFire)"/>
+      <path class="dv-flame" d="M100,22 Q128,64 118,92 Q146,84 136,122 Q158,134 128,170 Q104,190 74,168 Q44,148 58,116 Q42,82 74,90 Q62,54 100,22 Z" fill="#ff6a00" stroke="#5c1300" stroke-width="5"/>
+      <path d="M100,60 Q120,88 112,110 Q134,106 126,138 Q112,164 88,148 Q66,130 78,106 Q64,82 100,60 Z" fill="#ffd24a"/>
+      <circle cx="100" cy="116" r="18" fill="#fffdf2"/>
+      <circle cx="52" cy="52" r="5" fill="#fff3b8"/><circle cx="156" cy="62" r="6" fill="#ffb347"/><circle cx="150" cy="158" r="5" fill="#ffe6a0"/>
+    </svg>`,
+    guard: `<svg viewBox="0 0 200 200" aria-hidden="true">
+      <defs><radialGradient id="dvShield" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#fffdf0" stop-opacity="0.9"/><stop offset="58%" stop-color="#ffd878" stop-opacity="0.42"/><stop offset="100%" stop-color="#a06a08" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="74" fill="url(#dvShield)"/>
+      <path d="M100,32 L154,55 Q154,121 100,170 Q46,121 46,55 Z" fill="#fff3d0" opacity="0.42" stroke="#7a5200" stroke-width="5"/>
+      <path class="dv-rip1" d="M100,20 L166,48 Q166,126 100,184 Q34,126 34,48 Z" fill="none" stroke="#fff0c0" stroke-width="4"/>
+      <path class="dv-rip2" d="M100,52 L142,70 Q142,120 100,154 Q58,120 58,70 Z" fill="none" stroke="#ffd45e" stroke-width="3"/>
+      <circle cx="100" cy="100" r="10" fill="#fffdf0"/>
+    </svg>`,
+  };
+
+  let duel = null;      // 진행 중인 일기토 상태
+  let duelEls = null;
+
+  function namedUnit(u) { return !!u && (!!u.uid || !!u.genId || (!!u.boss && !/대장$/.test(String(u.name || '')))); }
+
+  function duelAtkStat(u) {
+    if (!u) return 60;
+    return DUEL_INT_CLS[u.cls] ? (u.ji || 60) : (u.wu || 60);
+  }
+  function duelDamage(atkU, defU) {
+    const atk = duelAtkStat(atkU);
+    const def = Math.max(20, Math.min(110, (defU && defU.tong) || 60));
+    const base = (10 + atk * 0.24) * (1 - def * 0.0022);
+    return Math.max(6, Math.round(base * (0.88 + Math.random() * 0.24)));
+  }
+  function duelArch(u) {
+    if (!u) return '명장';
+    if (DUEL_INT_CLS[u.cls]) return '지장';
+    if ((u.wu || 0) >= 90) return '호장';
+    return '명장';
+  }
+  function duelTalk(u, moment) {
+    const g = SK.GEN_BY_NAME ? SK.GEN_BY_NAME[u.name] : null;
+    if (moment === 'start' && g && DUEL_FACTION_START[g.faction] && Math.random() < 0.55) {
+      const f = DUEL_FACTION_START[g.faction];
+      return f[Math.floor(Math.random() * f.length)];
+    }
+    const pool = (DUEL_TALK[duelArch(u)] || {})[moment] || [];
+    if (!pool.length) return '';
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  function duelAiPick(u) {
+    if (duel && duel.forceAi) { const k = duel.forceAi; duel.forceAi = null; return k; }
+    const pref = DUEL_INT_CLS[u && u.cls] ? ['read', 'guard', 'kill']
+      : ((u && u.wu >= 90) ? ['strike', 'kill'] : ['strike', 'guard', 'speed']);
+    const w = DUEL_MOVES.map((m) => (pref.indexOf(m.k) >= 0 ? 1.7 : 1));
+    let total = w.reduce((x, y) => x + y, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < DUEL_MOVES.length; i++) { r -= w[i]; if (r <= 0) return DUEL_MOVES[i].k; }
+    return 'strike';
+  }
+  /* 일기토 연출 시계 — 전투 배속이 빠르면 연출도 함께 짧아진다 */
+  let duelFast = false;   // QA 전용: 연출 없이 즉시 진행
+  function dwait(fn, ms) {
+    if (duelFast) return setTimeout(fn, 0);
+    const sp = autoSpeed || 1;
+    const k = sp >= 3 ? 0.55 : (sp === 2 ? 0.75 : 1);
+    return setTimeout(fn, Math.max(90, Math.round(ms * k)));
+  }
+
+  function ensureDuelDom() {
+    if (duelEls && document.body.contains(duelEls.root)) return duelEls;
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp'; } catch (e) { /* ignore */ }
+    const root = document.createElement('div');
+    root.id = 'duel-arena';
+    root.className = 'duel-arena';
+    root.hidden = true;
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-label', '일기토');
+    root.innerHTML = `
+      <div class="duel-top">
+        <span class="duel-badge"><i class="dbl-ic">${DUEL_ICONS.strike}</i>일기토 1:1</span>
+        <span class="duel-turn" id="duel-turn">1 / ${DUEL_TURNS}턴</span>
+        <button type="button" class="duel-auto" id="duel-auto">⚡ 자동</button>
+      </div>
+      <div class="duel-hud">
+        <div class="duel-card ally">
+          <div class="dc-head"><img id="duel-pt-a" alt="" /><div><b id="duel-name-a"></b><em id="duel-role-a"></em></div></div>
+          <div class="dc-hp"><div class="dc-hp-label"><span>HP</span><span id="duel-hp-txt-a">100 / 100</span></div><div class="dc-hp-bar"><i id="duel-hp-a"></i></div></div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div class="duel-card enemy">
+          <div class="dc-head"><img id="duel-pt-d" alt="" /><div><b id="duel-name-d"></b><em id="duel-role-d"></em></div></div>
+          <div class="dc-hp"><div class="dc-hp-label"><span>HP</span><span id="duel-hp-txt-d">100 / 100</span></div><div class="dc-hp-bar"><i id="duel-hp-d"></i></div></div>
+        </div>
+      </div>
+      <div class="duel-stage" id="duel-stage">
+        <div class="duel-banner" id="duel-banner"><b></b><span></span></div>
+        <div class="duel-sprite ally"><span class="duel-bubble" id="duel-bub-a" hidden></span><img id="duel-sp-a" alt="" /></div>
+        <div class="duel-sprite enemy"><span class="duel-bubble" id="duel-bub-d" hidden></span><img id="duel-sp-d" alt="" /></div>
+        <div class="duel-fx" id="duel-fx"></div>
+        <span class="duel-dmg a" id="duel-dmg-a"></span>
+        <span class="duel-dmg d" id="duel-dmg-d"></span>
+      </div>
+      <div class="duel-panel">
+        <div class="duel-hint">수마다 고유 타격 · 무장=무력 / 문관=지력 / 통솔=방어</div>
+        <div class="duel-cmds" id="duel-cmds">${DUEL_MOVES.map((m) => `<button type="button" class="duel-cmd" data-k="${m.k}"><span class="dcmd-ico">${DUEL_ICONS[m.k]}</span><b>${m.name}</b><span>${m.short}</span></button>`).join('')}</div>
+        <div class="duel-reward">승리: 사기 +18 · 본대 병력 10% 회복 · 패배: 10% 붕괴(생포) / 90% 사기 −22</div>
+      </div>`;
+    document.body.appendChild(root);
+    const q = (s) => root.querySelector(s);
+    duelEls = {
+      root,
+      stage: q('#duel-stage'), turn: q('#duel-turn'), auto: q('#duel-auto'),
+      banner: q('#duel-banner'), bannerB: q('#duel-banner b'), bannerS: q('#duel-banner span'),
+      ptA: q('#duel-pt-a'), ptD: q('#duel-pt-d'),
+      nameA: q('#duel-name-a'), nameD: q('#duel-name-d'),
+      roleA: q('#duel-role-a'), roleD: q('#duel-role-d'),
+      hpA: q('#duel-hp-a'), hpD: q('#duel-hp-d'),
+      hpTxtA: q('#duel-hp-txt-a'), hpTxtD: q('#duel-hp-txt-d'),
+      spA: q('#duel-sp-a'), spD: q('#duel-sp-d'),
+      bubA: q('#duel-bub-a'), bubD: q('#duel-bub-d'),
+      fx: q('#duel-fx'), dmgA: q('#duel-dmg-a'), dmgD: q('#duel-dmg-d'),
+      cmds: q('#duel-cmds'),
+    };
+    duelEls.cmds.querySelectorAll('.duel-cmd').forEach((b) => { b.onclick = () => duelPick(b.dataset.k); });
+    duelEls.auto.onclick = () => duelToggleAuto();
+    root.addEventListener('click', (e) => {
+      if (duel && duel.over) { e.preventDefault(); e.stopPropagation(); closeDuel(); }
+    });
+    return duelEls;
+  }
+
+  function updateDuelHp() {
+    if (!duel || !duelEls) return;
+    const e = duelEls;
+    const pa = Math.max(0, Math.round(duel.hpA)), pd = Math.max(0, Math.round(duel.hpD));
+    e.hpA.style.width = (pa / DUEL_MAX_HP * 100) + '%';
+    e.hpD.style.width = (pd / DUEL_MAX_HP * 100) + '%';
+    e.hpTxtA.textContent = `${pa} / ${DUEL_MAX_HP}`;
+    e.hpTxtD.textContent = `${pd} / ${DUEL_MAX_HP}`;
+    e.hpA.classList.toggle('low', pa <= 34);
+    e.hpD.classList.toggle('low', pd <= 34);
+  }
+  function setDuelBanner(left, right, line) {
+    if (!duelEls) return;
+    duelEls.bannerB.textContent = left + (right ? ` vs ${right}` : '');
+    duelEls.bannerS.textContent = line || '';
+    duelEls.banner.classList.remove('on');
+    void duelEls.banner.offsetWidth;
+    duelEls.banner.classList.add('on');
+  }
+  function showDuelBubble(side, text, ms) {
+    if (!duelEls || !text) return;
+    const el = side === 'a' ? duelEls.bubA : duelEls.bubD;
+    el.textContent = text;
+    el.hidden = false;
+    el.classList.remove('on');
+    void el.offsetWidth;
+    el.classList.add('on');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.hidden = true; el.classList.remove('on'); }, ms || 1500);
+  }
+  function duelFxAt(side, mk) {
+    if (!duelEls || !duelEls.stage) return;
+    const sp = side === 'a' ? duelEls.spA : duelEls.spD;
+    const stage = duelEls.stage;
+    const r = sp.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    if (!r.width || !sr.width) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'duel-fx-item fx-' + mk;
+    wrap.style.left = ((r.left - sr.left) + r.width / 2) + 'px';
+    wrap.style.top = ((r.top - sr.top) + r.height * 0.46) + 'px';
+    wrap.innerHTML = DUEL_FX_SVG[mk] || '';
+    duelEls.fx.appendChild(wrap);
+    setTimeout(() => { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 1150);
+  }
+  /* 전장이 아니라 이 화면이 흔들려야 한다 (일기토 창이 전장을 덮으므로) */
+  function duelShake(strong) {
+    if (!duelEls) return;
+    const el = duelEls.stage;
+    el.classList.remove('hit', 'hit-strong');
+    void el.offsetWidth;
+    el.classList.add(strong ? 'hit-strong' : 'hit');
+    clearTimeout(el._sh);
+    el._sh = setTimeout(() => el.classList.remove('hit', 'hit-strong'), 340);
+  }
+  function duelPop(side, dmg) {
+    if (!duelEls) return;
+    const el = side === 'a' ? duelEls.dmgA : duelEls.dmgD;
+    el.textContent = `-${dmg}!`;
+    el.classList.remove('on');
+    void el.offsetWidth;
+    el.classList.add('on');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('on'), 950);
+  }
+
+  /* 일어날 수 있는 일기토인가 — 4% 확률 · 이름 있는 장수 · 서로 다른 편 · 한 판 3번까지 */
+  function duelOffer(a, d) {
+    if (!B || !a || !d || a === d || !a.alive || !d.alive) return false;
+    if (a.side === d.side || a.side !== 'ally') return false;
+    if (duel) return false;
+    if (!namedUnit(a) || !namedUnit(d)) return false;
+    B.duels = B.duels || { n: 0, last: 0, seen: {} };
+    const key = [a.name, d.name].sort().join('|');
+    if (B.duels.n >= 3 || B.duels.seen[key]) return false;
+    return Math.random() < duelRate;
+  }
+
+  function openDuel(a, d, done) {
+    const els = ensureDuelDom();
+    if (!els || !B) { if (done) done(); return false; }
+    B.duels = B.duels || { n: 0, last: 0, seen: {} };
+    B.duels.seen[[a.name, d.name].sort().join('|')] = 1;
+    B.duels.n = (B.duels.n || 0) + 1;
+    B.duels.last = performance.now();
+    duel = {
+      a, d, hpA: DUEL_MAX_HP, hpD: DUEL_MAX_HP, turn: 1, over: false, busy: false,
+      auto: !!autoOn, done: done || null, last: null, ended: null,
+      bond: SK.bondBetween ? SK.bondBetween(a.name, d.name) : null,
+    };
+    const e = els;
+    e.ptA.src = SK.ptSrc(a.portrait);
+    e.ptD.src = SK.ptSrc(d.portrait);
+    e.spA.src = unitImgFor(a).src;
+    e.spD.src = unitImgFor(d).src;
+    e.nameA.textContent = a.name; e.nameD.textContent = d.name;
+    const clsName = (u) => `${((SK.CLASSES[u.cls] || {}).name) || '장수'} · ${DUEL_INT_CLS[u.cls] ? '지' : '무'}${Math.round(duelAtkStat(u))} 통${Math.round(u.tong || 60)}`;
+    e.roleA.textContent = clsName(a);
+    e.roleD.textContent = clsName(d);
+    e.turn.textContent = `1 / ${DUEL_TURNS}턴`;
+    e.auto.classList.toggle('on', duel.auto);
+    e.auto.textContent = duel.auto ? '⚡ 자동 중' : '⚡ 자동';
+    e.fx.innerHTML = '';
+    e.dmgA.classList.remove('on'); e.dmgD.classList.remove('on');
+    e.bubA.hidden = true; e.bubD.hidden = true;
+    e.root.querySelectorAll('.duel-cmd').forEach((b) => b.classList.remove('on'));
+    e.cmds.classList.remove('busy', 'done');
+    updateDuelHp();
+    e.root.hidden = false;
+    e.root.classList.remove('out');
+    e.root.classList.add('show');
+    const rival = !!(duel.bond && duel.bond.relation === '숙적');
+    setDuelBanner(a.name, d.name, rival ? `숙적 · ${duel.bond.title} — 한판 승부!` : '일기토 개시 — 다섯 합으로 승부를 낸다!');
+    SK.sfx.play('drum');
+    shakeScreen(5);
+    showDuelBubble('a', duelTalk(a, 'start'), 1900);
+    dwait(() => showDuelBubble('d', duelTalk(d, 'start'), 1900), 340);
+    feed(`${a.name} ↔ ${d.name} — 일기토! (HP 100 · 5합)`, 'rival');
+    if (duel.auto) dwait(() => { if (duel && !duel.over && !duel.busy) duelPick(duelAiPick(duel.a)); }, 950);
+    return true;
+  }
+
+  function duelPick(k) {
+    if (!duel || duel.over || duel.busy || !DUEL_MOVE_BY[k]) return false;
+    duel.busy = true;
+    if (duelEls) {
+      duelEls.cmds.classList.add('busy');
+      duelEls.cmds.querySelectorAll('.duel-cmd').forEach((b) => b.classList.toggle('on', b.dataset.k === k));
+    }
+    SK.sfx.play('ui');
+    duelResolve(k);
+    return true;
+  }
+
+  function duelResolve(playerK) {
+    const a = duel.a, d = duel.d;
+    const aiK = duelAiPick(d);
+    const A = DUEL_MOVE_BY[playerK], D = DUEL_MOVE_BY[aiK];
+    duel.last = { player: playerK, ai: aiK };
+    duel.log = duel.log || [];
+    duel.log.push({ turn: duel.turn, player: playerK, ai: aiK });
+    setDuelBanner(`${a.name} [${A.name}]`, `${d.name} [${D.name}]`, '···');
+    dwait(() => {
+      if (!duel || duel.over) return;
+      const aWins = A.beats.indexOf(aiK) >= 0;
+      const dWins = D.beats.indexOf(playerK) >= 0;
+      let line = '';
+      if (aWins) {
+        const dmg = duelDamage(a, d);
+        duel.hpD = Math.max(0, duel.hpD - dmg);
+        duelFxAt('d', playerK);
+        duelPop('d', dmg);
+        line = `상성 승리! ${A.fx}이 ${d.name}을 강타했다!`;
+        showDuelBubble('a', duelTalk(a, 'clashWin'), 1500);
+        if (Math.random() < 0.5) showDuelBubble('d', duelTalk(d, 'clashLose'), 1500);
+        SK.sfx.play('sword');
+        duelShake(false);
+        shakeScreen(7);
+      } else if (dWins) {
+        const dmg = duelDamage(d, a);
+        duel.hpA = Math.max(0, duel.hpA - dmg);
+        duelFxAt('a', aiK);
+        duelPop('a', dmg);
+        line = `상성 패배… ${D.fx}이 ${a.name}을 덮쳤다!`;
+        showDuelBubble('d', duelTalk(d, 'clashWin'), 1500);
+        if (Math.random() < 0.5) showDuelBubble('a', duelTalk(a, 'clashLose'), 1500);
+        SK.sfx.play('hit');
+        duelShake(true);
+        shakeScreen(7);
+      } else {
+        const c1 = Math.max(4, Math.round(duelDamage(a, d) * 0.42));
+        const c2 = Math.max(4, Math.round(duelDamage(d, a) * 0.42));
+        duel.hpA = Math.max(0, duel.hpA - c2);
+        duel.hpD = Math.max(0, duel.hpD - c1);
+        duelFxAt('a', 'guard');
+        duelFxAt('d', 'guard');
+        duelPop('a', c2); duelPop('d', c1);
+        line = `같은 ${A.name} — 칼날이 맞부딪혀 양쪽이 물러섰다`;
+        SK.sfx.play('hit');
+        duelShake(false);
+        shakeScreen(4);
+      }
+      setDuelBanner(`${a.name} [${A.name}]`, `${d.name} [${D.name}]`, line);
+      updateDuelHp();
+      dwait(duelNext, 1000);
+    }, 430);
+  }
+
+  function duelNext() {
+    if (!duel || duel.over) return;
+    if (duel.hpA <= 0 || duel.hpD <= 0 || duel.turn >= DUEL_TURNS) { duelEnd(); return; }
+    duel.turn += 1;
+    duel.busy = false;
+    if (duelEls) {
+      duelEls.turn.textContent = `${duel.turn} / ${DUEL_TURNS}턴`;
+      duelEls.cmds.classList.remove('busy');
+      duelEls.cmds.querySelectorAll('.duel-cmd').forEach((b) => b.classList.remove('on'));
+    }
+    if (duel.auto) dwait(() => { if (duel && !duel.over && !duel.busy) duelPick(duelAiPick(duel.a)); }, 560);
+  }
+
+  function duelEnd() {
+    if (!duel || duel.over) return;
+    const a = duel.a, d = duel.d;
+    let winner = null;
+    if (duel.hpD <= 0 && duel.hpA > 0) winner = 'a';
+    else if (duel.hpA <= 0 && duel.hpD > 0) winner = 'd';
+    else if (duel.hpA > duel.hpD) winner = 'a';
+    else if (duel.hpD > duel.hpA) winner = 'd';
+    else {
+      const sa = duelAtkStat(a) + (a.tong || 60), sd = duelAtkStat(d) + (d.tong || 60);
+      winner = sa > sd ? 'a' : (sd > sa ? 'd' : null);
+    }
+    duel.over = true;
+    duel.busy = false;
+    duel.ended = winner;
+    if (duelEls) {
+      duelEls.cmds.classList.add('done', 'busy');
+      duelEls.cmds.querySelectorAll('.duel-cmd').forEach((b) => b.classList.remove('on'));
+    }
+    duelApply(winner);
+    if (winner === 'a') {
+      setDuelBanner(`★ ${a.name} 승리!`, '', `일기토 승리 — 사기 +18 · 본대 병력 10% 회복`);
+      showDuelBubble('a', duelTalk(a, 'victory'), 2600);
+      dwait(() => showDuelBubble('d', duelTalk(d, 'defeat'), 2600), 380);
+      SK.sfx.play('victory');
+    } else if (winner === 'd') {
+      setDuelBanner(`✕ ${d.name} 승리…`, '', `일기토 패배 — 우리 부대가 큰 타격을 입었다`);
+      showDuelBubble('d', duelTalk(d, 'victory'), 2600);
+      dwait(() => showDuelBubble('a', duelTalk(a, 'defeat'), 2600), 380);
+      SK.sfx.play('defeat');
+    } else {
+      setDuelBanner('무승부', '', '다섯 합을 겨루었으나 승부가 나지 않았다');
+      SK.sfx.play('deny');
+    }
+    const hold = (duel.auto || autoSpeed >= 3) ? 900 : 2100;
+    dwait(closeDuel, hold);
+  }
+
+  /* 일기토 결과를 본 전장에 적용한다 */
+  function duelApply(winner) {
+    if (!B || !duel) return;
+    if (!winner) { feed('일기토 — 무승부 (양쪽 물러섬)', 'rival'); return; }
+    const win = winner === 'a' ? duel.a : duel.d;
+    const lose = winner === 'a' ? duel.d : duel.a;
+    if (win.alive) {
+      moraleShift(win, 18);
+      const heal = Math.round(win.maxHp * 0.10);
+      const before = win.hp;
+      win.hp = Math.min(win.maxHp, win.hp + heal);
+      const got = Math.round(win.hp - before);
+      if (got > 0) {
+        addHeal(win, got, win);
+        addFloat((rxOf(win) + 0.5) * TILE, (ryOf(win) + 0.15) * TILE, '일기토 승리 +' + got, '#a8f0b8');
+        addFx({ kind: 'heal', x: (rxOf(win) + 0.5) * TILE, y: (ryOf(win) + 0.5) * TILE, life: 620 });
+      }
+      feed(`${win.name} — 일기토 승리! 사기 +18 · 병력 +${got.toLocaleString('ko-KR')} 회복`, 'good');
+    }
+    if (lose.alive) {
+      if (Math.random() < 0.10) {
+        downUnit(lose);
+        lose.fate = '생포';
+        statOf(win).kills += 1;
+        addFloat((rxOf(lose) + 0.5) * TILE, (ryOf(lose) + 0.2) * TILE, '일기토 패배 — 생포!', '#ffd166');
+        feed(`${lose.name} — 일기토 패배, 대열이 무너져 생포됐다!`, 'bad');
+        SK.sfx.play('drum');
+        shakeScreen(6);
+      } else {
+        moraleShift(lose, -22);
+        feed(`${lose.name} — 일기토 패배, 사기 −22`, 'bad');
+      }
+    }
+    if (window.SKBattle) SKBattle.refreshUI();
+  }
+
+  function closeDuel() {
+    if (!duel) return;
+    const cb = duel.done;
+    duel.done = null;
+    duel = null;
+    if (duelEls) {
+      duelEls.root.classList.add('out');
+      setTimeout(() => {
+        if (!duelEls) return;
+        duelEls.root.hidden = true;
+        duelEls.root.classList.remove('show', 'out');
+        duelEls.fx.innerHTML = '';
+      }, 240);
+    }
+    if (cb) setTimeout(cb, 140);
+  }
+
+  /* 자동 — 남은 합을 알아서 끝낸다 */
+  function duelToggleAuto() {
+    if (!duel || duel.over) return;
+    duel.auto = !duel.auto;
+    if (duelEls) {
+      duelEls.auto.classList.toggle('on', duel.auto);
+      duelEls.auto.textContent = duel.auto ? '⚡ 자동 중' : '⚡ 자동';
+    }
+    SK.sfx.play('ui');
+    if (duel.auto && !duel.busy) dwait(() => { if (duel && duel.auto && !duel.over && !duel.busy) duelPick(duelAiPick(duel.a)); }, 280);
+  }
+
   function rivalClash(bond, a, d) {
     B.rivalSeen = B.rivalSeen || {};
     const key = bond.id + ':' + [a.name, d.name].sort().join('|');
@@ -3732,8 +4267,6 @@
     const bond = (res.bond && res.bond.relation === '숙적') ? res.bond : null;
     if (bond) rivalClash(bond, a, d);
     const kind = attackKind(a, opts);
-    /* v5.30 — 조조전식 일기토 컷인: 이름 있는 장수끼리의 근접 교전에서만, 한 판에 몇 번만 */
-    if (opts && opts.duel && kind === 'melee' && !dodged) duelCutin(a, d);
     const land = () => {
       if (dodged) {
         addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.4) * TILE, '회피!', '#9fd8ff');
@@ -3750,15 +4283,25 @@
       SK.sfx.play('hit');
       if (onDone) onDone();
     };
-    if (kind === 'melee') {
-      lunge(a, d, () => {
-        addFx({ kind: 'slash', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.45) * TILE, life: 380 });
-        SK.sfx.play('sword');
-        wait(land, 70);
-      });
-    } else {
-      launchProjectile(a, d, kind, land);
+    /* v5.52 — 근접 공격 4%로 1:1 일기토 미니게임. 일기토가 끝난 뒤에야
+       원래 공격(돌진 → 피해)이 이어진다. 일기토에서 쓰러진 부대는 공격하지 못한다. */
+    const swing = () => {
+      if (!B || !a.alive || !d.alive) { if (onDone) onDone(); return; }
+      if (kind === 'melee') {
+        lunge(a, d, () => {
+          addFx({ kind: 'slash', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.45) * TILE, life: 380 });
+          SK.sfx.play('sword');
+          wait(land, 70);
+        });
+      } else {
+        launchProjectile(a, d, kind, land);
+      }
+    };
+    if (opts && opts.duel && kind === 'melee' && !dodged && duelOffer(a, d)) {
+      openDuel(a, d, swing);
+      return;
     }
+    swing();
   }
 
   /* v5.15 — 반격: 방어자의 최소 사거리(minRng) 안쪽이면 반격하지 못한다.
@@ -4316,6 +4859,8 @@
     const dblReady = !!(kind === 'melee' && a.tfx && a.tfx.doubleAct && !a.dblUsed && (a.dblCd || 0) <= 0);
     let dealt = 0;
     attackUnit(a, d, { mult: 1, duel: true, onDamage: (n) => { dealt = n; } }, () => {
+      /* v5.52 — 일기토에서 우리 장수가 쓰러졌으면 공격도 반격도 없다 */
+      if (!B || B.over || !a || !a.alive) { busy = false; finishCheck(); return; }
       const wasAlive = d.alive && d.hp > 0;
       triggerPassive(a, 'on_attack');
       wait(() => {
@@ -6678,6 +7223,9 @@
   }
   function closeBattle() {
     clearBattleProgress();
+    /* v5.52 — 일기토 창이 떠 있는 채로 전장을 닫지 않는다 */
+    if (duel) { duel.done = null; duel = null; }
+    if (duelEls) { duelEls.root.hidden = true; duelEls.root.classList.remove('show', 'out'); }
     B = null;
     mode = 'idle';
     pendingSkill = null;
@@ -7125,6 +7673,44 @@
         return { dmg: r.dmg, tri: r.tri, atk: Math.round(effAtk(a)), def: Math.round(effDef(d)), tfx: a.tfx, dtfx: d.tfx };
       },
       duels() { return B ? Object.assign({}, B.duels || {}) : null; },
+      /* v5.52 — 1:1 일기토 검증 훅: 강제 개전 · 상태 · 수 선택 · 자동 · 발동률 측정 */
+      duelOpen(aName, dName) {
+        if (!B) return null;
+        const find = (n, side) => B.units.filter((u) => u.side === side && u.alive && (!n || u.name === n))[0];
+        const a = find(aName, 'ally'), d = find(dName, 'enemy');
+        if (!a || !d) return null;
+        if (duel) closeDuel();
+        openDuel(a, d, null);
+        return { a: a.name, d: d.name, atkA: duelAtkStat(a), atkD: duelAtkStat(d) };
+      },
+      duelState() {
+        if (!duel) return null;
+        return { a: duel.a.name, d: duel.d.name, hpA: Math.round(duel.hpA), hpD: Math.round(duel.hpD),
+          turn: duel.turn, over: !!duel.over, busy: !!duel.busy, auto: !!duel.auto,
+          last: duel.last, ended: duel.ended, war: duel.a.alive && duel.d.alive };
+      },
+      duelChoose(k) { return duelPick(k); },
+      duelForceAi(k) { if (!duel) return null; duel.forceAi = k; return k; },
+      duelFast(v) { duelFast = !!v; return duelFast; },
+      duelRateSet(v) { if (v != null) duelRate = Math.max(0, Math.min(1, Number(v) || 0)); return duelRate; },
+      duelWait() { return !!(duelEls && !duelEls.root.hidden); },
+      duelAuto() { duelToggleAuto(); return duel ? !!duel.auto : null; },
+      duelClose() { closeDuel(); return true; },
+      duelAlive() { return duel ? { a: duel.a.alive, d: duel.d.alive, fateA: duel.a.fate || null, fateD: duel.d.fate || null } : null; },
+      /* 같은 조건으로 여러 번 뽑아 4% 발동률을 실측한다 (상태는 건드리지 않는다) */
+      duelProbe(aName, dName, n) {
+        if (!B) return null;
+        const a = B.units.filter((u) => u.side === 'ally' && u.alive && (!aName || u.name === aName))[0];
+        const d = B.units.filter((u) => u.side === 'enemy' && u.alive && (!dName || u.name === dName))[0];
+        if (!a || !d) return null;
+        const keep = JSON.parse(JSON.stringify(B.duels || {}));
+        B.duels = { n: 0, last: 0, seen: {} };
+        let hits = 0;
+        const total = Math.max(1, Number(n) || 1000);
+        for (let i = 0; i < total; i++) if (duelOffer(a, d)) hits += 1;
+        B.duels = keep;
+        return { hits, n: total, pct: Math.round(hits / total * 1000) / 10 };
+      },
       night() { return !!(B && B.night); },
       /* v5.30 — 공격/반격 한 번을 직접 실행해 보는 검증 훅 */
       strike(aName, dName, opts) {

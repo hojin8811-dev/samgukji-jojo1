@@ -219,20 +219,33 @@
     const order = cs.order == null ? 55 : cs.order;
     const lvSum = (cs.slots || []).reduce((a, sl) => a + (sl.key ? (sl.lv || 1) : 0), 0);
     const tech = SK.techPct ? SK.techPct('popPct') : 0;
-    const rate = 0.0022
+    const baseRate = 0.0022
       + (cs.agri || 0) / 100 * 0.0060
       + (cs.comm || 0) / 100 * 0.0035
       + (morale - 50) / 100 * 0.0060
       + (order - 50) / 100 * 0.0030
       + lvSum * 0.00009
       + tech / 100;
-    const r = clamp(rate, -0.012, 0.022);
+    /* v5.52 — 민심·치안이 함께 좋으면 인구가 눈에 띄게 빨리 는다.
+       60을 넘는 순간부터 비례해 붙고, 둘 다 90 이상이면 +70%(1.7배)까지.
+       한쪽만 높아서는 보너스가 없다 — 다스림이 고르게 좋아야 사람이 모인다. */
+    const calm = Math.max(0, Math.min(1, (morale - 60) / 30)) * Math.max(0, Math.min(1, (order - 60) / 30));
+    const rate = baseRate * (1 + 0.70 * calm);
+    const r = clamp(rate, -0.012, 0.032);
     const cap = cityPopCap(c || CITY[cs.id] || { type: 'town' });
     const raw = Math.round((cs.pop || 0) * r);
     if (raw > 0 && (cs.pop || 0) + raw > cap) return Math.max(0, cap - (cs.pop || 0));
     return raw;
   }
   SK.popMonthly = popMonthly;
+  /* v5.52 — 민심·치안 인구 가속 배율 (도움말·검수용) */
+  SK.popCalmMul = function (cs) {
+    if (!cs) return 1;
+    const morale = cs.loyalty == null ? 50 : cs.loyalty;
+    const order = cs.order == null ? 55 : cs.order;
+    const calm = Math.max(0, Math.min(1, (morale - 60) / 30)) * Math.max(0, Math.min(1, (order - 60) / 30));
+    return 1 + 0.70 * calm;
+  };
 
   /* ══════════════════════════════════════════════════════════════
      v5.4 — 내정 경제 밸런스
@@ -3192,6 +3205,7 @@
     let cur = tab || 'gen';
     let sortKey = 'tong';
     let dir = -1;
+    let cityFilter = null;      // v5.52 — 성(거점)별 필터 칩
 
     const m = SK.modal({
       kicker: '내 장수',
@@ -3210,7 +3224,7 @@
     });
 
     function rows() {
-      const list = SK.state.heroes.slice();
+      const list = SK.state.heroes.filter((h) => !cityFilter || h.city === cityFilter).slice();
       const col = ROSTER_COLS.find((c) => c.key === sortKey) || ROSTER_COLS[0];
       list.sort((a, b) => {
         const va = col.sort(a), vb = col.sort(b);
@@ -3218,6 +3232,25 @@
         return String(va).localeCompare(String(vb), 'ko') * dir;
       });
       return list;
+    }
+
+    /* v5.52 — 성(거점)별 필터 칩 — 표 바로 위에서 한 번에 거른다 */
+    function cityChips() {
+      const s = SK.state;
+      const counts = {};
+      s.heroes.forEach((h) => { counts[h.city] = (counts[h.city] || 0) + 1; });
+      const mine = (id) => (s.cities[id] && s.cities[id].owner === PF() ? 1 : 0);
+      const isCap = (id) => ((CITY[id] || {}).type === 'capital' ? 1 : 0);
+      const ids = Object.keys(counts).sort((a, b) => {
+        if (mine(a) !== mine(b)) return mine(b) - mine(a);
+        if (isCap(a) !== isCap(b)) return isCap(b) - isCap(a);
+        return (counts[b] - counts[a]) || String((CITY[a] || {}).name || '').localeCompare(String((CITY[b] || {}).name || ''), 'ko');
+      });
+      const all = s.heroes.length;
+      return `<div class="rs-citybar">
+        <button type="button" class="rs-citychip ${cityFilter ? '' : 'on'}" data-city="">전체 <b>${all}</b></button>
+        ${ids.map((id) => `<button type="button" class="rs-citychip ${cityFilter === id ? 'on' : ''}" data-city="${id}">${(CITY[id] || {}).name || id} <b>${counts[id]}</b></button>`).join('')}
+      </div>`;
     }
 
     function renderGen() {
@@ -3236,11 +3269,14 @@
           <span class="rs-role r-${roleOf(h)}">${roleOf(h)}</span>
           <span class="rs-city">${(CITY[h.city] || {}).name || '-'}</span>
         </button>`).join('');
-      m.el.querySelector('#rs-body').innerHTML = `<div class="rs-table">
+      m.el.querySelector('#rs-body').innerHTML = `${cityChips()}<div class="rs-table">
           <div class="rs-head">${head}</div>
           <div class="rs-rows">${body || '<p class="rs-empty">아직 휘하에 장수가 없습니다. 주점에서 인재를 등용하세요.</p>'}</div>
         </div>
         <p class="rs-note">머리글을 누르면 정렬됩니다 · 장수를 누르면 상세·보물·이동</p>`;
+      m.el.querySelectorAll('.rs-citychip').forEach((b) => {
+        b.onclick = () => { cityFilter = b.dataset.city || null; renderGen(); };
+      });
       m.el.querySelectorAll('.rs-th').forEach((b) => {
         b.onclick = () => {
           const k = b.dataset.k;
@@ -5909,13 +5945,13 @@
   const LV_TEXT = ['', '초라한 성', '자라나는 성', '번성하는 성', '큰 성', '천하의 명성'];
   /* ── v5.8 물음표 도움말 — 민심·치안·훈련도·대수확·세율 옆의 ? 버튼 ── */
   const HELP_TIPS = {
-    loyal: { t: '민심', lines: ['백성이 다스림을 따르는 마음입니다. 세수와 인구가 민심을 따라 오르내립니다.', '40 아래로 떨어지면 소란이 나 병력이 줄고, 70을 넘으면 세수 15%가 붙습니다. [관아 → 백성 위로]로 올립니다.'] },
-    order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.'] },
+    loyal: { t: '민심', lines: ['백성이 다스림을 따르는 마음입니다. 세수와 인구가 민심을 따라 오르내립니다.', '40 아래로 떨어지면 소란이 나 병력이 줄고, 70을 넘으면 세수 15%가 붙습니다. [관아 → 백성 위로]로 올립니다.', '<b>치안과 함께 60을 넘으면 인구가 더 빨라지고, 둘 다 90이면 인구 증가가 최대 1.7배</b>까지 붙습니다.'] },
+    order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.', '<b>민심과 함께 60을 넘으면 인구가 빨리 늘고, 둘 다 90이면 최대 1.7배</b> — 다스림이 고를수록 사람이 모입니다.'] },
     wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>, <b>관아 머리의 지력이 최대 +6%</b>를 더하지만, 모두 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.'] },
     train: { t: '훈련도', lines: ['이 성 병사들의 숙련도입니다. 높을수록 전장에서 같은 병력으로 더 강합니다.', '[병영 → 훈련]이나 연병장으로 올립니다. 출진할 때 이 수치가 부대에 그대로 넘어갑니다.'] },
     harvest: { t: '10월 대수확', lines: ['한 해 군량은 10월에 한 번에 들어옵니다. 농업도·민심·농원 Lv가 많을수록 많이 걷습니다.', '그 전까지는 [개간]·[탐색]·[군량 상인]으로 버티고, 병력 유지비는 매달 나갑니다.'] },
     tax: { t: '세율', lines: ['세금을 많이 걷으면 금은 빨리 모이지만 민심이 달마다 떨어집니다.', '낮게 두면 당장 금은 줄어도 민심이 올라 다음 달 세수와 인구가 늘어납니다.'] },
-    pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.'] },
+    pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.', '<b>민심·치안이 함께 60을 넘는 순간부터 인구 증가가 비례해 붙고, 둘 다 90 이상이면 최대 1.7배(＋70%)</b>까지 빨라집니다. 인구 상한은 성 등급이 정합니다.'] },
     agri: { t: '농업', lines: ['<b>10월 대수확 때 들어오는 군량(쌀) 양</b>을 키웁니다.', '[개간]이나 [농원] 담당 배속으로 올립니다.'] },
     comm: { t: '상업', lines: ['<b>매달 들어오는 금(세금) 수입</b>을 키웁니다.', '[상업 진흥]이나 [시장] 담당 배속으로 올립니다.'] },
     office: { t: '관아 — 성의 본부', lines: [
@@ -7160,6 +7196,68 @@
     return out;
   }
   SK.tavernPool = tavernPool;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.52 — 주점 방랑 재야 유입
+     · 성 주점에 선 인재가 한 명도 없으면, 먼 고을을 떠돌던 같은 계열
+       (위·촉·오·군웅·한국)의 재야 인재가 6~12개월에 한 번 그 주점에 들어온다
+     · 주점 Lv이 높고 매력 높은 담당이 앉아 있으면 6개월 쪽, 아니면 12개월 쪽
+     · 성마다 남은 개월(cs.wanderCd)을 따로 세어 매달 쏟아지지 않는다
+     ══════════════════════════════════════════════════════════════ */
+  const WANDER_MIN = 6, WANDER_MAX = 12;
+  function wanderInterval(cityId) {
+    const cs = SK.state && SK.state.cities ? SK.state.cities[cityId] : null;
+    if (!cs) return WANDER_MAX;
+    const sl = (cs.slots || []).find((x) => x.key === 'tavern');
+    const lv = sl ? (sl.lv || 1) : 1;
+    const owner = sl && sl.uid ? (SK.state.heroes || []).find((h) => h.uid === sl.uid) : null;
+    const cha = owner ? effStat(owner, 'cha') : 40;
+    const lvScore = Math.max(0, Math.min(1, (lv - 1) / 4));
+    const chaScore = Math.max(0, Math.min(1, (cha - 40) / 50));
+    const k = lvScore * 0.55 + chaScore * 0.45;
+    return Math.round(WANDER_MAX - (WANDER_MAX - WANDER_MIN) * k);
+  }
+  SK.wanderInterval = wanderInterval;
+
+  function runWanderers(s) {
+    const log = [];
+    if (!s || !SK.GENERALS || !SK.GENERALS.length) return log;
+    const used = garrisonedIds(s);
+    const lordSet = SK.lordNameSet(s);
+    const yr = eraYearOf(s);
+    const inTavern = new Set();
+    SK.CITY_LIST.forEach((c) => { (((s.cities[c.id] || {}).talents) || []).forEach((id) => inTavern.add(id)); });
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      if (cs.wanderCd == null) { cs.wanderCd = wanderInterval(c.id); return; }
+      if (cs.wanderCd > 0) { cs.wanderCd -= 1; return; }
+      /* 주점에 선 인재가 있을 때는 쉰다 */
+      if ((cs.talents || []).length > 0) { cs.wanderCd = wanderInterval(c.id); return; }
+      const grp = tavernGroupOf(s, c.id);
+      const region = grp === '한국' ? '한국' : '중국';
+      const pickPool = (strict) => SK.GENERALS.filter((g) => {
+        if (!g || used.has(g.id) || inTavern.has(g.id)) return false;
+        if (SK.isLordOnly(g, lordSet) || !SK.debutOk(g, yr) || SK.isDead(g.id, g.name)) return false;
+        const gg = genPoolGroup(g);
+        return strict ? gg === grp : ((gg === '한국') === (region === '한국'));
+      });
+      let pool = pickPool(true);
+      if (!pool.length) pool = pickPool(false);
+      if (!pool.length) { cs.wanderCd = Math.max(2, Math.round(wanderInterval(c.id) / 2)); return; }
+      pool.sort((a, b) => SK.genScore(b) - SK.genScore(a));
+      const top = pool.slice(0, Math.min(6, pool.length));
+      const g = top[Math.floor(Math.random() * top.length)];
+      cs.talents = cs.talents || [];
+      cs.talents.push(g.id);
+      inTavern.add(g.id);
+      cs.wanderInfo = { id: g.id, name: g.name, at: (s.year || 0) * 12 + (s.month || 0) };
+      log.push({ city: c.name, id: g.id, name: g.name, tier: g.tier });
+      cs.wanderCd = wanderInterval(c.id);
+    });
+    return log;
+  }
+  SK.runWanderers = runWanderers;
 
   /* 성을 새로 얻었을 때 그 성의 주점을 다시 채운다 (깃발에 맞는 지역 인물만) */
   SK.refillTalents = function (cityId) {
@@ -9093,7 +9191,14 @@
     const tc = SK.CITY[targetId], ts = s.cities[targetId];
     const bt = SK.battleTypeFor(tc);
     const f = SK.factionInfo(ts.owner);
-    const pool = cityGens(origin);
+    /* v5.52 — 명장 출진 목록: 시설 담당이 없는 '대기' 장수를 맨 위로, 담당·이번 달 완료는 아래로
+       (예전에는 능력치순이라 시장 담당 제갈량이 맨 위에 서고 놀고 있는 장수가 밀렸다) */
+    const pool = cityGens(origin).slice().sort((a, b) => {
+      const ra = (dutyLabelOf(origin, a) ? 2 : 0) + (a.actedThisMonth ? 1 : 0);
+      const rb = (dutyLabelOf(origin, b) ? 2 : 0) + (b.actedThisMonth ? 1 : 0);
+      if (ra !== rb) return ra - rb;
+      return ((b.wu + b.ji + b.pol) - (a.wu + a.ji + a.pol));
+    });
     /* v5.10 — 인접 적 성 원군 가능성 경고 */
     const aiSup = SK.aiSupportCandidates ? SK.aiSupportCandidates(targetId) : [];
     if (!pool.length && ts.troops < 1800) {
@@ -11372,6 +11477,11 @@
     const slotLog = runSlots(s);
     /* v5.10 — 주점 배속: 반값 등용 협상 또는 보너스 탐색 */
     const tavernLog = runTavernDuty(s);
+    /* v5.52 — 주점이 빈 성에 방랑 재야가 들어오면 주점 소식으로 먼저 알린다 */
+    runWanderers(s).slice().reverse().forEach((w) => {
+      tavernLog.unshift({ city: w.city, kind: 'wander',
+        text: `방랑 재야 — ${SK.josa(w.name, 'i')} 먼 고을에서 찾아와 주점(${w.tier}급)에 앉았습니다` });
+    });
     /* v5.39 — 첩보소: 달마다 자동 첩보·이간·유언비어 (AI 첩보소 소식은 천하 소식에 합침) */
     const spyRun = runSpyOffices(s);
     const spyLog = spyRun.log;
