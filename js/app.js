@@ -2506,11 +2506,7 @@
     const label = (c, color, bold) => {
       ctx.fillStyle = 'rgba(30, 22, 8, 0.55)';
       ctx.font = (bold ? '900 10px' : '700 9px') + ' ui-serif, serif';
-      /* v5.64 — 가장자리 거점(국내성·성도 등)의 이름표가 카드 밖으로 잘리지 않게 안쪽으로 밀어 넣는다 */
-      const tw = ctx.measureText(c.name).width;
-      const lx = Math.max(tw / 2 + 2, Math.min(CW - tw / 2 - 2, c.u * CW));
-      const ly = Math.max(11, Math.min(CH - 3, c.v * CH - 7));
-      ctx.fillText(c.name, lx, ly);
+      ctx.fillText(c.name, c.u * CW, c.v * CH - 7);
     };
     SK.CITY_LIST.forEach((c) => {
       const o = res.owner[c.id] || 'neutral';
