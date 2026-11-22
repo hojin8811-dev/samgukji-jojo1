@@ -49,6 +49,12 @@
   let autoSpeed = 1;
   let speedPref = 1;
   const LV_GROW = 0.018;        // 1레벨마다 공·방 +1.8% (아군·적군 공통)
+  /* v5.49 — 책략(기술)에는 반격이 없는 대신 모두의 최대 MP를 절반으로 낮춘다.
+     아군 장수는 SK.maxMpOf(app.js)가 절반으로 계산하고, 일반 부대·적 부대는 여기서
+     병종 기본 MP에 같은 비율(0.5)을 걸어 맞춘다. 최소 12 — 가장 싼 책략(8~10) 한 번은 가능. */
+  const MP_SCALE = 0.5, MP_FLOOR = 12;
+  function maxMpBase(base) { return Math.max(MP_FLOOR, Math.round((Number(base) || 0) * MP_SCALE)); }
+  SK.maxMpBase = maxMpBase;
   /* v5.10 — 전투 배속: ×1이면 전장의 모든 대기·연출이 2배 느려지고 ×2면 예전 그대로.
      수동 조작 중(autoOn=false)에는 아무 영향이 없다. */
   function paceMs(ms) { return autoOn ? Math.round((Number(ms) || 0) * (2 / autoSpeed) * (autoSpeed >= 4 ? 0.85 : 1)) : (Number(ms) || 0); }
@@ -527,7 +533,7 @@
     const lv = 3;
     return {
       id: 'r' + i, side: 'ally', uid: null, name: spec.name, hanja: '', cls: spec.cls, lv,
-      hp: spec.troops, maxHp: spec.troops, mp: C.mp, maxMp: C.mp,
+      hp: spec.troops, maxHp: spec.troops, mp: maxMpBase(C.mp), maxMp: maxMpBase(C.mp),
       /* v5.3 — 일반 부대는 Lv.1 C급 장수보다 약하게 (장수 부대가 확실히 우위) */
       atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
       wu: 52, ji: 50, tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
@@ -543,7 +549,7 @@
     const troops = Math.round(per * 1.5);
     return {
       id: 'boss', side: 'enemy', name: info.name, hanja: info.hanja, cls: info.cls, lv,
-      hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
+      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2), maxMp: maxMpBase(C.mp + lv * 2),
       atk: C.atk + lv * 1.15, def: C.def + lv * 0.8,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv, tong: 80, boss: true,
       portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: C.skills.slice(),
@@ -562,7 +568,7 @@
     const lvMul = 1 + LV_GROW * (lv - 1);
     return {
       id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv, genId: g.id,
-      hp: troops, maxHp: troops, mp: C.mp + lv * 2, maxMp: C.mp + lv * 2,
+      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2), maxMp: maxMpBase(C.mp + lv * 2),
       /* v5.17 — 적 명장도 아군과 같은 모양의 계산을 쓴다 (능력치 60 기준).
          예전에는 g.war를 그대로 더해 A급 적장이 아군보다 1.8배 강했다 — 반격까지 겹쳐
          아군이 4배 이상 손해를 보던 원인. */
@@ -589,7 +595,7 @@
     return {
       id: 'e' + i, side: 'enemy', name: `${SK.factionName(faction).replace(/군$/, '')} ${C.name}대`,
       hanja: '', cls, lv,
-      hp: troops, maxHp: troops, mp: C.mp + lv, maxMp: C.mp + lv,
+      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv), maxMp: maxMpBase(C.mp + lv),
       /* v5.3 — 무명 일반 수비병도 아군 일반 부대와 같은 낮은 기준 (명장 부대가 확실히 강하다) */
       atk: C.atk - 1.5, def: C.def - 1.5,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48, tong: 50,
@@ -4898,6 +4904,8 @@
     const allies = B.units.filter((o) => o.alive && o.side === u.side);
     const tiles = moveTiles(u);
     const dTo = (t, x, y) => manh(t.x, t.y, x, y);
+    /* v5.49 — 마을을 밟으면서 책략을 펼칠 수 있으면 그 자리를 고른다 (점령 값의 절반만 반영) */
+    const vBoost = (t, canStrike) => villageValueAt(u, t.x, t.y, { foes, canStrike }) * 0.6;
 
     /* 1) 회복 — HP 85% 이하 아군이 있으면 최우선 */
     const heals = skills.filter((s) => s.kind === 'heal' || s.kind === 'healArea');
@@ -4911,7 +4919,7 @@
             hurt.forEach((a) => {
               if (dTo(t, a.x, a.y) > reach) return;
               /* v5.33 — 적에게 붙는 자리에서 시전하지 않는다 */
-              const sc = (1 - a.hp / a.maxHp) * 130 - dTo(t, u.x, u.y) * 0.4 - foeThreatAt(t.x, t.y, foes);
+              const sc = (1 - a.hp / a.maxHp) * 130 - dTo(t, u.x, u.y) * 0.4 - foeThreatAt(t.x, t.y, foes) + vBoost(t, true);
               if (!best || sc > best.score) best = { kind: 'skill', mode: 'heal', key: sk.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
             });
           } else {
@@ -4923,6 +4931,7 @@
             sc += inRange.length > 1 ? 30 : 0;
             sc -= dTo(t, u.x, u.y) * 0.4;
             sc -= foeThreatAt(t.x, t.y, foes);
+            sc += vBoost(t, true);
             if (!best || sc > best.score) best = { kind: 'skill', mode: 'heal', key: sk.key, x: t.x, y: t.y, tx: t.x, ty: t.y, target: inRange[0], score: sc };
           }
         });
@@ -4945,7 +4954,7 @@
             if (f.buffs[bk] && f.buffs[bk].t > 0) return;
             if (dTo(t, f.x, f.y) > range) return;
             const hit = foes.filter((o) => !o.buffs[bk] && manh(f.x, f.y, o.x, o.y) <= rad).length;
-            const sc = 34 + hit * 16 + threat(f) / 9000 - dTo(t, u.x, u.y) * 0.3 - foeThreatAt(t.x, t.y, foes) * 0.7;
+            const sc = 34 + hit * 16 + threat(f) / 9000 - dTo(t, u.x, u.y) * 0.3 - foeThreatAt(t.x, t.y, foes) * 0.7 + vBoost(t, true);
             if (!best || sc > best.score) best = { kind: 'skill', mode: 'debuff', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
           });
         });
@@ -4962,7 +4971,7 @@
         const group = allies.filter((a) => dTo(t, a.x, a.y) <= rad);
         const need = group.filter((a) => !a.buffs.atk || a.buffs.atk.t <= 0).length;
         if (need < 2) return;
-        const sc = need * 24 + group.length * 5 - dTo(t, u.x, u.y) * 0.3 - foeThreatAt(t.x, t.y, foes);
+        const sc = need * 24 + group.length * 5 - dTo(t, u.x, u.y) * 0.3 - foeThreatAt(t.x, t.y, foes) + vBoost(t, true);
         if (!best || sc > best.score) best = { kind: 'skill', mode: 'instant', key: areaBuf.key, x: t.x, y: t.y, tx: t.x, ty: t.y, score: sc };
       });
       if (best) return best;
@@ -4992,7 +5001,7 @@
               const hit = foes.filter((o) => manh(f.x, f.y, o.x, o.y) <= rad);
               let sum = 0, kill = false;
               hit.forEach((o) => { const e = estSkillDmg(u, o, sk); sum += e; if (e >= o.hp) kill = true; });
-              const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) - dTo(t, u.x, u.y) * 0.3;
+              const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
               if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
             });
           });
@@ -5003,7 +5012,7 @@
               if (d < minR || d > range) return;
               const e = estSkillDmg(u, f, sk);
               const kill = e >= f.hp;
-              const sc = e * (sk.hits || 1) + (kill ? 170 : 0) - dTo(t, u.x, u.y) * 0.3;
+              const sc = e * (sk.hits || 1) + (kill ? 170 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
               if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
             });
           });
@@ -5206,6 +5215,55 @@
   }
   SK.foeThreatAt = foeThreatAt;
 
+  /* ══════ v5.49 — AI의 마을 활용 ══════
+     사용자 제보(성도 가는 길 5턴째): 바로 옆에 점령 안 된 마을이 있는데도
+     아군 [자동]도 적군도 지나쳐 버렸다. 원인은 이동·공격 칸 점수가 '적과의 거리'만
+     보고 마을 값은 아예 없었기 때문이다.
+     이제 한 칸의 마을 값을 한 곳에서 매겨 공격 칸·이동 칸 점수에 함께 얹는다.
+       · 밟는 순간 — 사기 +10 · MP +8 · 최대 병력 10% 회복
+       · 그 위에 서면 — 방어 +20% · 매 턴 회복 +15% · MP +5
+       · 이기면 — 마을 하나당 금 +150
+     다친 부대·MP가 빈 부대는 더 크게 보고, 그 칸에서 아직 적을 칠 수 있으면 한 번 더.
+     적이 코앞인데 뒤로 물러나며 집는 칸은 값이 거의 남지 않게 깎는다. */
+  function villageValueAt(u, x, y, ctx) {
+    if (!B || !B.sites || !B.sites.length) return 0;
+    const s = siteAt(x, y);
+    if (!s || s.type !== 'village') return 0;
+    const c = ctx || {};
+    const foes = c.foes || B.units.filter((o) => o.alive && o.side !== u.side);
+    const mine = s.owner === u.side;
+    const wounded = u.hp < u.maxHp * 0.85;
+    const dry = (u.mp || 0) < (u.maxMp || 0) * 0.45;
+    const hereD = foes.length ? Math.min(...foes.map((f) => manh(u.x, u.y, f.x, f.y))) : 99;
+    const tileD = foes.length ? Math.min(...foes.map((f) => manh(x, y, f.x, f.y))) : 99;
+    const back = Math.max(0, tileD - hereD);          // 지금보다 전선에서 멀어지는 칸 수
+    let v = 0;
+    if (!mine) {
+      v = 46;                                          // 점령 기본값
+      if (s.owner) v += 8;                             // 적이 가진 마을을 빼앗는 값
+      if (wounded) v += 16;                            // 10% 회복 + 방어 20%가 급한 부대
+      if (dry) v += 8;                                 // MP +8
+      if (c.canStrike) v += 20;                        // 밟고도 같은 턴에 적을 칠 수 있으면
+      if (back) v -= back * (hereD <= 2 ? 24 : 9);     // 코앞의 적을 두고 뒤로 빼지는 않는다
+    } else {
+      if (c.canStrike) v = 4;
+      if (wounded) v = Math.max(v, 11);                // 내 마을 위에서 버티면 회복 +15%·방어 +20%
+      if (back) v -= back * 12;
+    }
+    return Math.round(v);
+  }
+
+  /* 이 칸에서 지금 적을 칠 수 있는가 (마을에 서서도 한 턴을 쓰는지 판단) */
+  function canStrikeFrom(u, x, y, foes, rng, minR) {
+    if (!foes || !foes.length) return false;
+    return foes.some((f) => {
+      const d = manh(x, y, f.x, f.y);
+      if (d < minR || d > rng) return false;
+      if (wallBlocked({ x, y }, f) && !canShootOut({ x, y, cls: u.cls, side: u.side })) return false;
+      return true;
+    });
+  }
+
   function defenseAllowFor(u) {
     const role = defenseRoleOf(u);
     if (!role) return null;
@@ -5267,6 +5325,9 @@
     const skipGate = fewFoes && (foeHitPossible || !foeBehindGate);
     let best = null;
     const kind = attackKind(u);
+    /* v5.49 — 마을 값. 수성전 성벽·본진 역할은 제자리를 지키는 게 우선이라 조금만 반영한다 */
+    const vMul = defRole === 'wall' ? 0.4 : defRole === 'keep' ? 0.6 : 1;
+    const vv = (t, canStrike) => villageValueAt(u, t.x, t.y, { foes, canStrike }) * vMul;
     tiles.forEach((t) => {
       const home = t.x === u.x && t.y === u.y;
       foes.forEach((e) => {
@@ -5275,6 +5336,8 @@
         if (wallBlocked({ x: t.x, y: t.y }, e) && !canShootOut({ x: t.x, y: t.y, cls: u.cls, side: u.side })) return;
         const est = calcDamage(u, e, {}).dmg;
         let score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
+        /* v5.49 — 같은 적을 칠 수 있는 칸이라면 마을을 밟고 치는 쪽을 고른다 */
+        score += vv(t, true);
         /* v5.33 — 후방 문관·보조에게 3칸 안으로 붙은 적을 먼저 친다 (전투 병과만) */
         if (!SUPPORT_CLS_SET[u.cls] && allies.some((a) => a !== u && SUPPORT_CLS_SET[a.cls] && manh(e.x, e.y, a.x, a.y) <= 3)) score += 24;
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
@@ -5363,6 +5426,8 @@
         else if (t.y >= home.insideY - 2) score += 2;
         if (t.y > home.insideY && B.tiles[t.y][t.x] !== 'G') score -= 25;
       }
+      /* v5.49 — 걸어갈 수 있는 마을은 밟고 지나간다. 그 칸에서 아직 적을 칠 수 있으면 더 크게. */
+      score += vv(t, canStrikeFrom(u, t.x, t.y, foes, rng, minR));
       if (!pick || score > pick.score) pick = { x: t.x, y: t.y, score, kind: 'move' };
     });
     return pick;
@@ -5618,9 +5683,16 @@
         if (e.role === 'guard') score += gd * (inRange ? 0.25 : 0.85);
         else score += gd * 0.5;
       }
-      if (!best || score < best.score) best = { t, score, inRange };
+      /* v5.49 — 적군 AI도 마을을 밟고 차지한다 (적은 점수가 낮을수록 좋은 칸) */
+      const vv = villageValueAt(e, t.x, t.y, { foes: targets, canStrike: inRange });
+      if (vv > 0) score -= vv;
+      if (!best || score < best.score) best = { t, score, inRange, vv };
     });
-    const moveTo = already ? null : (best && best.t);
+    let moveTo = already ? null : (best && best.t);
+    /* v5.49 — 이미 사거리 안이어도, 마을을 밟으면서 그대로 칠 수 있는 칸이면 그리로 옮긴다
+       (예전엔 사거리에 들면 그 턴에 아예 움직이지 않아 옆 마을을 그냥 지나쳤다) */
+    if (already && best && best.vv >= 20 && best.inRange && best.t
+      && (best.t.x !== e.x || best.t.y !== e.y)) moveTo = best.t;
     const finishMove = () => {
       const path = moveTo ? findPath(e, moveTo.x, moveTo.y) : [];
       animatePath(e, path, { step: paceMs(88), onDone: () => {
@@ -6843,6 +6915,16 @@
         if (!B || !B.sites) return [];
         return B.sites.map((s) => ({ type: s.type, x: s.x, y: s.y, owner: s.owner || null, tile: B.tiles[s.y] ? B.tiles[s.y][s.x] : null }));
       },
+      /* v5.49 — 마을 점령 판단 점검: 이 부대가 마을 칸마다 매기는 값과 지금 칸에서 갈 수 있는지 */
+      villageScores(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u || !B.sites) return [];
+        const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+        const reach = reachSet(u);
+        return B.sites.filter((s) => s.type === 'village').map((s) => ({ x: s.x, y: s.y, owner: s.owner || null,
+          d: manh(u.x, u.y, s.x, s.y), inReach: reach.has(s.x + ',' + s.y),
+          value: villageValueAt(u, s.x, s.y, { foes, canStrike: canStrikeFrom(u, s.x, s.y, foes, effRng(u), u.minRng || 1) }) }));
+      },
       statuses() {
         if (!B) return [];
         return B.units.filter((u) => u.alive).map((u) => ({ n: u.name, side: u.side, morale: Math.round(u.morale || 100),
@@ -6932,6 +7014,22 @@
         if (!p) return null;
         return { kind: p.kind, x: p.x, y: p.y, target: p.target ? p.target.name : null,
           gate: p.gate || null, score: p.score };
+      },
+      /* v5.49 — 책략에는 반격이 없다는 규칙 검증: 지정 부대가 책략을 그 자리에서 펼친다 */
+      castSkill(name, key, x, y) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        const sk = key ? SK.SKILLS[key] : null;
+        if (!u || !sk) return null;
+        const before = { hp: Math.round(u.hp), mp: u.mp, maxMp: u.maxMp };
+        const ok = aiCast(u, sk, x, y);
+        return { ok, before, after: { hp: Math.round(u.hp), mp: u.mp }, cost: sk.mp || 0 };
+      },
+      /* v5.49 — 지금 이 부대가 쓸 수 있는 책략(MP가 되는 것) 목록 */
+      skills(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        return { mp: u.mp, maxMp: u.maxMp,
+          list: (u.skills || []).map((k) => ({ key: k, name: (SK.SKILLS[k] || {}).name, kind: (SK.SKILLS[k] || {}).kind, mp: (SK.SKILLS[k] || {}).mp })) };
       },
       gatePlan(name) {
         const u = B && B.units.find((o) => o.name === name);
