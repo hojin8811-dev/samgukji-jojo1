@@ -2354,10 +2354,10 @@ function siegeMap(rings) {
   /* v5.42 — 마을은 성문 앞 좌·우 협공 자리 + 1중·2중 성벽 사이 마당 한 곳
      (예전에는 소도시 마을이 성 안 구석·성 밖 모서리에 있어 아무도 밟지 않았다) */
   const villages = rings === 3
-    ? [[cx - 5, outer + 4], [cx + 4, outer + 4], [6, 21]]
+    ? [[cx - 5, outer + 2], [cx + 4, outer + 2], [6, 21]]
     : (rings === 2
-      ? [[cx - 5, outer + 4], [cx + 4, outer + 4], [5, 16]]
-      : [[cx - 5, outer + 4], [cx + 4, outer + 4], [6, 8]]);
+      ? [[cx - 5, outer + 2], [cx + 4, outer + 2], [5, 16]]
+      : [[cx - 5, outer + 2], [cx + 4, outer + 2], [6, 8]]);
   const key = rings === 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege');
   return finishMap(key, g, { ally: [cx, n - 2], enemy: enemyBase, villages });
 }

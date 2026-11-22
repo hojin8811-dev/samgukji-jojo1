@@ -1840,9 +1840,10 @@
       if (s.type === 'village' && s.owner !== u.side) {
         s.owner = u.side;
         const got = villageCaptureBonus(u);
-        const full = got.length ? got.join(' ') : '보상 없음';
+        const full = got.length ? got.join(' ') : '이미 만전';
         feed(`${u.name} — 마을 점령 · ${full} (${u.side === 'ally' ? '아군' : '적군'})`, u.side === 'ally' ? 'good' : 'bad');
-        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, `마을 점령 · ${got.slice(0, 2).join(' ')}`, '#9ef0b8');
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE,
+          got.length ? `마을 점령 · ${got.slice(0, 2).join(' ')}` : '마을 점령', '#9ef0b8');
         addFx({ kind: 'heal', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520 });
         SK.sfx.play('ui');
       }
@@ -6832,9 +6833,15 @@
         const u = B && B.units.find((o) => o.name === name);
         if (!u) return null;
         return { name: u.name, cls: u.cls, x: u.x, y: u.y, morale: Math.round(u.morale), moraleMax: u.moraleMax,
+          hp: Math.round(u.hp), maxHp: Math.round(u.maxHp), mp: Math.round(u.mp), maxMp: Math.round(u.maxMp),
           ail: Object.assign({}, u.ail || {}), aboard: !!u.aboard, slow: u.slow || 0,
           stunCd: u.stunCd || 0, ailRes: Object.assign({}, u.ailRes || {}),
           atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), mov: movOf(u), tfx: u.tfx || {} };
+      },
+      /* v5.42 — 마을 자리·점령 상태 QA 훅 (중앙 길목으로 옮긴 자리와 점령 진영을 그대로 읽는다) */
+      sites() {
+        if (!B || !B.sites) return [];
+        return B.sites.map((s) => ({ type: s.type, x: s.x, y: s.y, owner: s.owner || null, tile: B.tiles[s.y] ? B.tiles[s.y][s.x] : null }));
       },
       statuses() {
         if (!B) return [];
