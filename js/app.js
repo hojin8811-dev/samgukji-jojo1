@@ -1606,12 +1606,13 @@
         if (left-- > 0) pendingWatch = setTimeout(tick, 700);
         return;
       }
+      /* v5.47 — 내 공격 도착이 적 침공보다 먼저 열린다 (침공은 도착 사건이 다른 뒤에 이어진다)
+         v5.28 — 같은 달 도착 대기열이 남아 있으면 다음 사건을 올린다 */
+      if (SK.promoteMarchQueue && SK.promoteMarchQueue(s)) { if (left-- > 0) pendingWatch = setTimeout(tick, 220); return; }
+      if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
       /* v5.29 — 같은 달에 여러 성이 침공받으면 침공 대기열도 이어서 연다 */
       if (SK.promoteInvasionQueue && SK.promoteInvasionQueue(s)) { if (left-- > 0) pendingWatch = setTimeout(tick, 220); return; }
       if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
-      if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
-      /* v5.28 — 같은 달 도착 대기열이 남아 있으면 다음 사건을 올린다 */
-      if (SK.promoteMarchQueue && SK.promoteMarchQueue(s)) { if (left-- > 0) pendingWatch = setTimeout(tick, 220); return; }
       if (left-- > 0) pendingWatch = setTimeout(tick, 700);
     };
     pendingWatch = setTimeout(tick, 900);
@@ -2096,7 +2097,8 @@
       }, f.id === recId)).join('') || '<p class="fx-empty">이 시대에 일어설 세력이 없습니다.</p>';
       list.scrollTop = 0;
       list.querySelectorAll('.fx-card').forEach((b) => {
-        b.onclick = () => beginScenario(sc, b.dataset.fid);
+        /* v5.47 — 바로 시작하지 않고 위치 미리보기 창을 연다 */
+        b.onclick = () => openFactionPreview(sc, b.dataset.fid);
       });
     }
     const yr = $('#fx-year'); if (yr) yr.textContent = actOf(sc);
@@ -2107,6 +2109,161 @@
     const back = $('#btn-faction-back');
     if (back) back.onclick = () => openScenarioPicker();
   }
+
+  /* ════════════════════════════════════════════════════════════
+     v5.47 — 세력 위치 미리보기
+     세력 카드를 누르면 바로 시작하지 않고, 전국 지도를 축소해 그린 미니 지도에
+     그 세력의 영지·수도가 반짝 뜨고 이웃 적성이 이름으로 보인다.
+     [이 세력으로 시작!]을 눌러야 그제서야 게임이 시작된다.
+     (사용자: "이 화면에서 군주를 누르면 지도상 어느 위치인지 알면 좋겠어")
+     ════════════════════════════════════════════════════════════ */
+  const MINI_RAD = { capital: 132, mid: 112, town: 98, pass: 92, fortress: 96 };
+  function drawFactionMiniMap(canvas, res, fid) {
+    if (!canvas || !res) return 0;
+    const CW = 340, CH = Math.round(CW * 1333 / 2000);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = CW * dpr; canvas.height = CH * dpr;
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, CW, CH);
+    /* 바다 — 양피지보다 살짝 잿빛 */
+    ctx.fillStyle = '#d3cfb2';
+    ctx.fillRect(0, 0, CW, CH);
+    /* 육지 — mapgeo 육지 폴리곤을 그대로 축소해 채운다 */
+    const land = (SK.MAPGEO && SK.MAPGEO.land) || [];
+    ctx.fillStyle = '#eee3c2';
+    land.forEach((flat) => {
+      if (!flat || flat.length < 6) return;
+      ctx.beginPath();
+      ctx.moveTo(flat[0] * CW / 2000, flat[1] * CH / 1333);
+      for (let i = 2; i < flat.length; i += 2) ctx.lineTo(flat[i] * CW / 2000, flat[i + 1] * CH / 1333);
+      ctx.closePath();
+      ctx.fill();
+    });
+    const colOf = (o) => (res.factions[o] && res.factions[o].color) || '#8b8677';
+    /* 영토 — 거점 주위로 세력색 원을 살짝 깐다 (본 지도의 영토 색칠 축소판) */
+    ctx.globalAlpha = 0.34;
+    SK.CITY_LIST.forEach((c) => {
+      const o = res.owner[c.id];
+      if (!o || o === 'neutral') return;
+      const r = (MINI_RAD[c.type] || 100) * CW / 2000;
+      const g = ctx.createRadialGradient(c.u * CW, c.v * CH, r * 0.25, c.u * CW, c.v * CH, r);
+      g.addColorStop(0, colOf(o)); g.addColorStop(1, colOf(o) + '00');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(c.u * CW, c.v * CH, r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    /* 도로·해로 */
+    ctx.lineWidth = 1;
+    SK.CITY_LIST.forEach((c) => {
+      (SK.neighbors(c.id) || []).forEach((nid) => {
+        if (String(nid) <= String(c.id)) return;
+        const n = SK.CITY[nid]; if (!n) return;
+        ctx.strokeStyle = 'rgba(110, 86, 40, 0.5)';
+        ctx.beginPath(); ctx.moveTo(c.u * CW, c.v * CH); ctx.lineTo(n.u * CW, n.v * CH); ctx.stroke();
+      });
+      (SK.seaNeighbors(c.id) || []).forEach((nid) => {
+        if (String(nid) <= String(c.id)) return;
+        const n = SK.CITY[nid]; if (!n) return;
+        ctx.strokeStyle = 'rgba(90, 108, 130, 0.5)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(c.u * CW, c.v * CH); ctx.lineTo(n.u * CW, n.v * CH); ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    });
+    /* 이웃 세력·이웃 거점 목록 (라벨용) */
+    const mine = SK.CITY_LIST.filter((c) => res.owner[c.id] === fid);
+    const neighIds = new Set();
+    const neighF = new Set();
+    mine.forEach((c) => {
+      SK.allNeighbors(c.id).forEach((nid) => {
+        const o = res.owner[nid];
+        if (o && o !== fid) { neighIds.add(nid); if (o !== 'neutral') neighF.add(o); }
+      });
+    });
+    /* 거점 점 — 내 것은 크고 밝게, 이웃은 이름표와 함께 */
+    ctx.font = '800 9px ui-serif, serif';
+    ctx.textAlign = 'center';
+    const label = (c, color, bold) => {
+      ctx.fillStyle = 'rgba(30, 22, 8, 0.55)';
+      ctx.font = (bold ? '900 10px' : '700 9px') + ' ui-serif, serif';
+      ctx.fillText(c.name, c.u * CW, c.v * CH - 7);
+    };
+    SK.CITY_LIST.forEach((c) => {
+      const o = res.owner[c.id] || 'neutral';
+      const isMine = o === fid;
+      const isNeigh = neighIds.has(c.id);
+      const r = c.type === 'capital' ? 5 : c.type === 'mid' ? 4 : c.type === 'pass' || c.type === 'fortress' ? 2.6 : 3;
+      ctx.beginPath();
+      ctx.arc(c.u * CW, c.v * CH, isMine ? r + 1.2 : r, 0, Math.PI * 2);
+      ctx.fillStyle = isMine ? '#ffe9a8' : colOf(o);
+      ctx.fill();
+      ctx.lineWidth = isMine ? 1.6 : 1;
+      ctx.strokeStyle = isMine ? '#8a5a12' : 'rgba(40, 30, 12, 0.7)';
+      ctx.stroke();
+      if (isMine || isNeigh) label(c, null, isMine);
+    });
+    return { CW, CH, neighF };
+  }
+
+  function openFactionPreview(sc, factionId) {
+    const res = SK.resolveScenario(sc);
+    if (!res || !res.factions[factionId]) { beginScenario(sc, factionId); return; }
+    const f = res.factions[factionId];
+    const cap = f.capital ? SK.CITY[f.capital] : null;
+    const lord = f.lord ? SK.GEN_BY_NAME[f.lord] : null;
+    const gens = (f.startGenerals && f.startGenerals.length ? f.startGenerals : f.generals || []).slice(0, 8);
+    const pt = lord ? SK.genPortrait(lord) : (SK.CLASS_PORTRAIT.gunwoong || 'gen_bobyung');
+    const tier = lord && lord.tier ? String(lord.tier) : '';
+    const genChips = gens.map((nm) => {
+      const g = SK.GEN_BY_NAME[nm];
+      return g ? `<span class="fprev-gen"><img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">${nm}</span>` : '';
+    }).join('');
+    const mm = SK.modal({
+      kicker: sc ? `${actOf(sc)} · 세력 미리보기` : '세력 미리보기',
+      title: `${f.name} — 어디서 일어서나`,
+      wide: true,
+      body: `<div class="fprev">
+        <div class="fprev-map" id="fprev-map"><canvas id="fprev-canvas"></canvas></div>
+        <div class="fprev-head">
+          <span class="fprev-port"><img src="${SK.ptSrc(pt)}" alt="">${tier ? `<em class="fx-tier t-${tier}">${tier}</em>` : ''}</span>
+          <div class="fprev-title">
+            <b>${f.name} <i class="fprev-mark" style="background:${f.color}">${SK.markOf(f)}</i></b>
+            <span>군주 <b>${f.lord || '-'}</b> · 수도 <b>${cap ? cap.name : '-'}</b></span>
+            <span>거점 ${(f.cities || []).length}곳 · 시작 장수 ${(f.startGenerals || f.generals || []).length}명</span>
+          </div>
+        </div>
+        ${genChips ? `<div class="fprev-gens">${genChips}</div>` : ''}
+        <p class="fprev-note">지도에서 <b>밝게 반짝이는 점</b>이 이 세력의 시작 거점입니다. 이름 적힌 옆 성이 바로 첫 상대 — 눌러서 시작하세요.</p>
+      </div>`,
+      actions: [
+        { label: '다른 세력 고르기', onClick: () => {} },
+        { label: '이 세력으로 시작!', primary: true, onClick: () => { mm.close(); beginScenario(sc, factionId); } },
+      ],
+    });
+    /* 지도를 그리고, 내 거점 위에 반짝임을 얹는다 (모달이 뜬 뒤에) */
+    setTimeout(() => {
+      const canvas = mm.el.querySelector('#fprev-canvas');
+      const meta = drawFactionMiniMap(canvas, res, factionId);
+      const wrap = mm.el.querySelector('#fprev-map');
+      if (wrap && meta) {
+        SK.CITY_LIST.forEach((c) => {
+          if (res.owner[c.id] !== factionId) return;
+          const d = document.createElement('span');
+          d.className = 'fprev-pulse' + (c.id === f.capital ? ' cap' : '');
+          d.style.left = (c.u * 100).toFixed(3) + '%';
+          d.style.top = (c.v * 100).toFixed(3) + '%';
+          wrap.appendChild(d);
+        });
+        const nf = Array.from(meta.neighF || []).map((o) => (res.factions[o] || {}).name || o);
+        const note = mm.el.querySelector('.fprev-note');
+        if (note && nf.length) note.innerHTML += `<br><b>이웃 세력</b> — ${nf.join(' · ')}`;
+      }
+    }, 60);
+  }
+  SK.openFactionPreview = openFactionPreview;
 
   /* 난이도 줄 — 세력 선택 화면 위쪽 */
   function renderDiffRow() {
@@ -5630,6 +5787,9 @@
     train: { t: '훈련도', lines: ['이 성 병사들의 숙련도입니다. 높을수록 전장에서 같은 병력으로 더 강합니다.', '[병영 → 훈련]이나 연병장으로 올립니다. 출진할 때 이 수치가 부대에 그대로 넘어갑니다.'] },
     harvest: { t: '10월 대수확', lines: ['한 해 군량은 10월에 한 번에 들어옵니다. 농업도·민심·농원 Lv가 많을수록 많이 걷습니다.', '그 전까지는 [개간]·[탐색]·[군량 상인]으로 버티고, 병력 유지비는 매달 나갑니다.'] },
     tax: { t: '세율', lines: ['세금을 많이 걷으면 금은 빨리 모이지만 민심이 달마다 떨어집니다.', '낮게 두면 당장 금은 줄어도 민심이 올라 다음 달 세수와 인구가 늘어납니다.'] },
+    pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.'] },
+    agri: { t: '농업', lines: ['<b>10월 대수확 때 들어오는 군량(쌀) 양</b>을 키웁니다.', '[개간]이나 [농원] 담당 배속으로 올립니다.'] },
+    comm: { t: '상업', lines: ['<b>매달 들어오는 금(세금) 수입</b>을 키웁니다.', '[상업 진흥]이나 [시장] 담당 배속으로 올립니다.'] },
   };
   function helpDot(key) {
     return `<button class="help-dot" data-help="${key}" aria-label="설명 보기">?</button>`;
@@ -5776,10 +5936,10 @@
         <span class="dev-note">병력 상한 = 인구 17%</span>
       </div>
       <div class="dev-grid">
-        ${devCard({ label: '인구', icon: 'pop', val: fmt(Math.round(cs.pop)), delta: `${pd >= 0 ? '+' : '−'}${fmt(Math.abs(pd))}/월`, pct: popCap ? cs.pop / popCap * 100 : 0, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)' })}
-        ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)' })}
+        ${devCard({ label: '인구', icon: 'pop', val: fmt(Math.round(cs.pop)), delta: `${pd >= 0 ? '+' : '−'}${fmt(Math.abs(pd))}/월`, pct: popCap ? cs.pop / popCap * 100 : 0, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'pop' })}
+        ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'agri' })}
         ${devCard({ label: '민심', icon: 'loyal', val: Math.round(cs.loyalty), pct: cs.loyalty, color: 'linear-gradient(90deg,#a8443a,#d97a63)', help: 'loyal', warn: cs.loyalty < 40 })}
-        ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)' })}
+        ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm' })}
         ${devCard({ label: '성벽', icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
         ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
       </div>`;
@@ -9201,10 +9361,13 @@
   function queuedIds(s) {
     return new Set(((s && s.marchQueue) || []).map((q) => q.marchId));
   }
-  /* 대기 중인 도착·요격 하나를 꺼내 pendingMarch 로 올린다 */
+  /* 대기 중인 도착·요격 하나를 꺼내 pendingMarch 로 올린다
+     v5.47 — 내가 먼저 보낸 공격이 같은 달에 온 적 침공(수성전)에 밀려 뒤로 가지 않게,
+     침공이 pendingInvasion 으로 대기 중이어도(이미 침공 창이 열려 있어도) 도착 사건을 먼저 꺼낸다.
+     (사용자: "내가 먼저 쳤는데 왜 얘네 먼저 전쟁이냐") */
   function promoteMarchQueue(s) {
     s = s || SK.state;
-    if (!s || s.over || s.pendingMarch || s.pendingInvasion) return false;
+    if (!s || s.over || s.pendingMarch) return false;
     /* 전투 중에는 다음 도착 사건을 꺼내지 않는다 */
     if (window.SKBattle && SKBattle.debug && SKBattle.debug.battle) return false;
     const alive = new Set((s.marches || []).map((m) => m.id));
@@ -9250,15 +9413,19 @@
     if (!s || s.over || s.pendingInvasion || s.pendingMarch) return false;
     if (window.SKBattle && SKBattle.debug && SKBattle.debug.battle) return false;
     s.invasionQueue = s.invasionQueue || [];
-    /* 이미 내 성이 아닌 곳을 노리는 침공은 버리고 다음을 고른다 */
-    while (s.invasionQueue.length) {
-      const inv = s.invasionQueue.shift();
+    /* 이미 내 성이 아닌 곳을 노리는 침공은 버리고 다음을 고른다.
+       v5.47 — [성에서 기다리기]로 다음 달로 미룬 침공(due 가 미래)은 대기열에 그대로 남는다. */
+    let opened = null;
+    const turn = s.turn || 0;
+    s.invasionQueue = s.invasionQueue.filter((inv) => {
+      if (opened) return true;
       const ts = inv && s.cities[inv.target];
-      if (!ts || ts.owner !== PF()) continue;
-      s.pendingInvasion = inv;
-      SK.save();
-      return true;
-    }
+      if (!ts || ts.owner !== PF()) return false;
+      if (inv.due && turn < inv.due) return true;
+      opened = inv;
+      return false;
+    });
+    if (opened) { s.pendingInvasion = opened; SK.save(); return true; }
     SK.save();
     return false;
   }
@@ -10224,6 +10391,30 @@
   }
   SK.openInterceptSortie = openInterceptSortie;
 
+  /* ════════════════════════════════════════════════════════════
+     v5.47 — [성에서 기다리기]: 요격도 수성전도 하지 않고 문을 걸어 잠근다.
+     · 적군은 성 아래에 당도하지만, 공성은 다음 달로 1턴 미뤄진다
+     · 그 사이 한 달 — 징병·훈련·원군을 준비하거나, 밖에 나간 우리 공격(공성전)이 먼저 터지게 둘 수 있다
+     · 침공은 invasionQueue 로 돌아가 due(다음 달)가 될 때까지 대기하고,
+       지도에는 붉은 ⚔ 표식이 성 위에 붙어 다음 달 도착을 알린다
+     ════════════════════════════════════════════════════════════ */
+  function deferSiege(inv) {
+    const s = SK.state;
+    if (!s || !inv) return;
+    inv.due = (s.turn || 0) + 1;
+    inv.waited = true;
+    s.pendingInvasion = null;
+    s.invasionQueue = s.invasionQueue || [];
+    s.invasionQueue.push(inv);
+    SK.save();
+    SK.sfx.play('ui');
+    SK.toast('성문을 걸어 잠그고 수비 준비 — 적군이 다음 달 성 아래 도착합니다.');
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    /* 대기 중인 우리 공격 도착 같은 다음 사건이 있으면 이어서 연다 */
+    setTimeout(() => { if (SK.chainPendingEvents) SK.chainPendingEvents(); }, 320);
+  }
+  SK.deferSiege = deferSiege;
+
   function openPendingInvasion() {
     const s = SK.state;
     if (!s || !s.pendingInvasion) return;
@@ -10259,6 +10450,7 @@
           : (near.length ? `<div class="rfg-tip"><b>지원군을 보낼 수 있습니다</b><span>${near.map((o) => `${o.name}(${o.via}·${fmt(o.troops)})`).join(' · ')}</span></div>` : '')}
         <p class="talent-note">[수성전] — 격자 전장에서 성을 지킵니다. 출진 장수(최대 10명)와 자리(외성·망루·내성)를 먼저 고릅니다. 이기면 적을 물리치고, 지면 성을 잃고 남은 병력·장수는 가까운 내 성으로 물러납니다.</p>
         <p class="talent-note">[요격 출진] — 성 밖 길목으로 나가 적을 먼저 맞아 싸웁니다. 이기면 <b>성벽 피해 없이</b> 침공을 꺾고 적 잔여 병력은 출발 성으로 쫓겨납니다. 지면 살아남은 병력이 성으로 돌아오고, 줄어든 적과 수성전을 치릅니다. 병력 1,200 이상이 필요합니다.</p>
+        <p class="talent-note">[성에서 기다리기] — 싸우지 않고 성문을 걸어 잠급니다. 적은 다음 달 성 아래에 닿고, 수성전도 다음 달로 미뤄집니다 — 그동안 징병·원군·내 정비를 할 수 있습니다.</p>
         <p class="talent-note">[철수] — 싸우지 않고 병력 85%와 장수를 가까운 내 성으로 빼고 성을 내줍니다.</p>
       </div>`,
       actions: [
@@ -10266,6 +10458,7 @@
         (s.marches || []).length ? { label: '긴급 회군', onClick: () => { setTimeout(() => SK.openRecall(inv.target), 120); } } : null,
         near.length || rfg ? { label: rfg ? '지원군 다시' : '지원군 파견', onClick: () => { if (rfg) { cancelReinforce(); } setTimeout(() => openReinforce(inv.target), 140); } } : null,
         (gens.length && (ts.troops || 0) >= 1200 && !inv.intercepted) ? { label: '요격 출진', onClick: () => { setTimeout(() => openInterceptSortie(inv), 160); } } : null,
+        { label: '성에서 기다리기', onClick: () => deferSiege(inv) },
         { label: rfg ? '수성전 (원군 합류)' : '수성전', primary: true, onClick: () => { setTimeout(() => openDefenseDeploy(inv), 140); } },
       ].filter(Boolean),
       dismissible: false,
@@ -11114,11 +11307,16 @@
       </div>`,
       actions: [{ label: '계속', primary: true, onClick: () => {
         const inv = () => { if (s.pendingInvasion) setTimeout(openPendingInvasion, 280); };
+        /* v5.47 — 도착(우리 공격) 먼저, 침공(수성전)은 그 뒤에 */
         const go = () => {
           if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
-          if (s.pendingMarch) setTimeout(openPendingMarch, 280); else inv();
+          if (s.pendingMarch) { setTimeout(openPendingMarch, 280); return; }
+          if (SK.promoteInvasionQueue) SK.promoteInvasionQueue(s);
+          inv();
         };
         const flow = () => {
+          if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
+          if (s.pendingMarch) { setTimeout(openPendingMarch, 280); return; }
           if (s.pendingInvasion) { inv(); return; }
           if (tlEv) setTimeout(() => showTimelineCard(tlEv, false, go), 220);
           else setTimeout(go, 260);
@@ -11605,17 +11803,17 @@
     if (B && !B.over) { devObsBattle(B); return; }
     if (devObsModal()) return;
     if (Date.now() < OBS.settleUntil) return;
-    /* 달이 바뀐 뒤 남은 사건(행군 도착·요격·침공)을 먼저 처리한다 */
-    if (SK.promoteInvasionQueue && SK.promoteInvasionQueue(s)) {
-      setTimeout(() => { if (OBS.on && SK.openPendingInvasion) SK.openPendingInvasion(); }, 200);
-      return;
-    }
+    /* 달이 바뀐 뒤 남은 사건(행군 도착·요격·침공)을 먼저 처리한다 — v5.47 도착 먼저 */
     if (SK.promoteMarchQueue && SK.promoteMarchQueue(s)) {
       setTimeout(() => { if (OBS.on && SK.openPendingMarch) SK.openPendingMarch(); }, 200);
       return;
     }
-    if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
     if (s.pendingMarch) { if (SK.openPendingMarch) SK.openPendingMarch(); return; }
+    if (SK.promoteInvasionQueue && SK.promoteInvasionQueue(s)) {
+      setTimeout(() => { if (OBS.on && SK.openPendingInvasion) SK.openPendingInvasion(); }, 200);
+      return;
+    }
+    if (s.pendingInvasion) { if (SK.openPendingInvasion) SK.openPendingInvasion(); return; }
     if (OBS.turnDone !== s.turn) { OBS.turnDone = s.turn; devObsPrepare(s); return; }
     devObsAdvance(s);
   }

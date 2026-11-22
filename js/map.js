@@ -1109,20 +1109,42 @@
     if (!markersEl) return;
     const list = (SK.state && SK.state.marches) || [];
     markersEl.querySelectorAll('.march-mark').forEach((el) => el.remove());
+    /* v5.47 — [성에서 기다리기]로 다음 달로 미뤄진 침공: 성 위에 붉은 ⚔ 표식을 붙인다 */
+    const sieges = [];
+    if (SK.state) {
+      const turn = SK.state.turn || 0;
+      const q = SK.state.pendingInvasion;
+      if (q && q.due && q.due > turn) sieges.push(q);
+      ((SK.state.invasionQueue || []) || []).forEach((w) => { if (w && w.due && w.due > turn) sieges.push(w); });
+    }
     marchEls = list.map((m) => {
       const el = document.createElement('div');
       el.className = 'march-mark';
       el.innerHTML = `<span class="mm-dot">⚔</span><span class="mm-tag">행군</span>`;
       markersEl.appendChild(el);
       return { m, el, tag: el.querySelector('.mm-tag') };
-    });
+    }).concat(sieges.map((inv) => {
+      const el = document.createElement('div');
+      el.className = 'march-mark siege-soon';
+      el.innerHTML = `<span class="mm-dot">⚔</span><span class="mm-tag">내달 성 아래</span>`;
+      markersEl.appendChild(el);
+      return { inv, siege: true, el, tag: el.querySelector('.mm-tag') };
+    }));
     placeMarchMarks();
   }
 
   function placeMarchMarks() {
     if (!marchEls.length) return;
     const s = cam.s;
-    marchEls.forEach(({ m, el, tag }) => {
+    marchEls.forEach((entry) => {
+      const m = entry.m, el = entry.el, tag = entry.tag;
+      /* v5.47 — 미뤄진 침공 표식은 길 위가 아니라 목표 성 위에 붙는다 */
+      if (entry.siege) {
+        const c = entry.inv ? city(entry.inv.target) : null;
+        if (!c) return;
+        el.style.transform = `translate3d(${(cam.tx + c.u * MAPW * s).toFixed(2)}px, ${(cam.ty + c.v * MAPH * s).toFixed(2)}px, 0)`;
+        return;
+      }
       const path = SK.roadPoints(m.origin, m.target);
       if (!path || path.length < 2) return;
       const prog = Math.max(0.22, Math.min(0.94, 1 - Math.max(0, m.left) / Math.max(1, m.total)));

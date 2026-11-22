@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.46** 치안 계략방어(성벽 합산 80% 상한) + 초보자 1분 입문 가이드 + 탐색 단일 방식 · 2026-11-22 · 라이브 `?v=63`
+> 기준: **v5.47** 아군 공격 우선 + [성에서 기다리기] 1턴 지연 + 세력 위치 미리보기 + 앱 아이콘 · 2026-11-22 · 라이브 `?v=64`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,25 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=63`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=64`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **701장수**(json 596 + 시나리오·재야 인물 105, 한국 181) · 19병과(군주 포함) · 고유특기 100 · **보물 250** · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
+
+---
+
+## 0.0 v5.47 — 아군 공격 우선 · [성에서 기다리기] 1턴 지연 · 세력 위치 미리보기 · 앱 아이콘 (2026-11-22 · `?v=64`)
+
+실기기 제보 세 개("내가 먼저 쳤는데 왜 얘네 먼저 전쟁이냐" · "요격을 안누르면 한턴 지연하는게 맞지 않아?" · "군주를 누르면 지도상 어느 위치인지 알면 좋겠어")와 앱 아이콘 1번안을 묶은 패치.
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 도착 우선 | 같은 달 우리 원정 도착(공성전)이 적 침공(수성전)보다 먼저 열린다. `promoteMarchQueue`가 `pendingInvasion` 설정 여부와 무관하게 도착을 꺼내고, `armPendingWatch`·월정산 [계속]·AI 관전(`devObsStep`)의 순서를 도착 → 침공으로 통일 | `js/app.js` `promoteMarchQueue`·`armPendingWatch`·월정산 actions·`devObsStep` |
+| ② 기다리기 | 침공 창 `[성에서 기다리기]` → 수성전 다음 달 지연. 침공이 `invasionQueue`로 돌아가 `due = turn+1`이 되고, 지도에 붉은 `⚔ 내달 성 아래` 표식. `promoteInvasionQueue`가 `due` 미래 항목을 보존 | `js/app.js` `deferSiege`·`promoteInvasionQueue`, `js/map.js` `syncMarchMarks`·`placeMarchMarks`, `css/game.css` `.siege-soon` |
+| ③ 세력 미리보기 | 세력 카드 탭 → 미니 지도 모달(육지 폴리곤 + 세력색 영토 원 + 도로·해로 + 내 거점 반짝임·수도 링 + 이웃 라벨·이웃 세력 줄 + 군주 초상·시작 장수 칩) → `[이 세력으로 시작!]`로만 개전 | `js/app.js` `openFactionPreview`·`drawFactionMiniMap`, `css/game.css` `.fprev*` |
+| ④ 앱 아이콘 | 유저 지정 1번안(1,254², 검은 라운드 코너)을 1.14배 줌 크롭으로 풀블리드화 → `icon-512`·`icon-192` 교체, `apple-touch-icon.png`(180) 신설, favicon·manifest `?v=64` | `assets/icons/`, `index.html`, `manifest.webmanifest` |
+| ⑤ 도움말 | 내정 탭 인구·농업·상업 `?` 점 + `HELP_TIPS` `pop`·`agri`·`comm` | `js/app.js` `renderCityDev`·`HELP_TIPS` |
+| ⑥ 검수 | 로컬 390×844 — 미리보기 모달(캔버스·반짝임·버튼·개전), 도착 우선(첫 창 = 도착), 기다리기(due=turn+1·표식·다음 달 재개), 도움말 점 3종. 콘솔·pageerror·4xx 0. 캡처 `preview/v547_local/` | `tools/qa_v547.py` |
 
 ---
 

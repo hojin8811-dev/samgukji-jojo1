@@ -2319,6 +2319,15 @@ b { font-weight: 700; }
   background: rgba(32, 22, 8, 0.85); border: 1px solid rgba(227, 189, 99, 0.65);
 }
 @keyframes marchPulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(255, 214, 120, 0.18), 0 3px 8px rgba(0, 0, 0, 0.5); } 50% { box-shadow: 0 0 0 7px rgba(255, 214, 120, 0.06), 0 3px 8px rgba(0, 0, 0, 0.5); } }
+/* v5.47 — [성에서 기다리기]로 다음 달로 미뤄진 침공 표식 (붉게 두드려 보인다) */
+.march-mark.siege-soon { z-index: 7; }
+.march-mark.siege-soon .mm-dot {
+  background: radial-gradient(circle at 50% 34%, #f4a08c, #a2331f 70%, #4d120a);
+  border-color: #ffc9b5; color: #fff2ec;
+  animation: siegePulse 1.5s ease-in-out infinite;
+}
+.march-mark.siege-soon .mm-tag { color: #ffe0d4; border-color: rgba(226, 122, 96, 0.75); }
+@keyframes siegePulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(226, 92, 60, 0.28), 0 3px 8px rgba(0, 0, 0, 0.5); } 50% { box-shadow: 0 0 0 9px rgba(226, 92, 60, 0.10), 0 3px 8px rgba(0, 0, 0, 0.5); } }
 
 /* ── 출진 준비 — 행군 안내 · 등용 확률 ── */
 .march-note {
@@ -4146,3 +4155,45 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .ws-craft p.ws-def b { color: #8a3a20; }
 /* 체크 전 주 버튼은 비활성으로 보이게 (탐색 보내기 등) */
 .modal-actions .btn:disabled { opacity: 0.45; }
+
+/* ═══ v5.47 — 세력 위치 미리보기 (미니 지도 모달) ═══ */
+.fprev { display: flex; flex-direction: column; gap: 8px; }
+.fprev-map {
+  position: relative; border-radius: 10px; overflow: hidden;
+  border: 1.5px solid #b3903f; box-shadow: inset 0 0 0 1px rgba(255, 243, 208, 0.55);
+  background: #d3cfb2;
+}
+.fprev-map canvas { display: block; }
+.fprev-pulse {
+  position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
+  border: 2.2px solid #ffd977; background: rgba(255, 214, 120, 0.35);
+  pointer-events: none; animation: fprevPulse 1.5s ease-in-out infinite;
+}
+.fprev-pulse.cap { width: 24px; height: 24px; margin: -12px 0 0 -12px; border-color: #ffb63d; background: rgba(255, 176, 61, 0.4); }
+@keyframes fprevPulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.55); opacity: 0.3; } }
+.fprev-head { display: flex; align-items: center; gap: 9px; }
+.fprev-port { position: relative; flex: 0 0 52px; width: 52px; height: 62px; }
+.fprev-port img {
+  width: 52px; height: 62px; object-fit: cover; object-position: 50% 16%;
+  border: 1.5px solid #d3ac56; border-radius: 5px; background: #3a2b13;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.fprev-port .fx-tier { position: absolute; right: -6px; top: -6px; }
+.fprev-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fprev-title b { font-family: var(--serif); font-size: 16px; color: #2c2412; display: flex; align-items: center; gap: 5px; }
+.fprev-title span { font-size: 11px; color: #6a5527; }
+.fprev-title span b { color: #3a2c10; }
+.fprev-mark {
+  font-style: normal; display: inline-grid; place-items: center;
+  width: 19px; height: 19px; border-radius: 4px; color: #fff8e8;
+  font-size: 10.5px; font-weight: 900; border: 1.4px solid #f0d69c;
+}
+.fprev-gens { display: flex; flex-wrap: wrap; gap: 4px; }
+.fprev-gen {
+  display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 2px;
+  border: 1px solid #dcc9a0; border-radius: 999px; background: #fffaf0;
+  font-size: 9.5px; font-weight: 800; color: #4a3a18;
+}
+.fprev-gen img { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; object-position: 50% 14%; border: 1px solid #cfa854; }
+.fprev-note { margin: 0; padding: 6px 8px; border-radius: 7px; background: rgba(255, 248, 230, 0.85); border: 1px solid #d7bd8c; font-size: 10px; line-height: 1.5; color: #5b4a27; }
+.fprev-note b { color: #8a5a12; }
