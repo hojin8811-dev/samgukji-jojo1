@@ -58,6 +58,7 @@
   let shakeT = 0, shakeAmp = 0; // 화면 진동
   let bondTick = 0;
   let calloutTimer = null;
+  let lastMovedUid = null;      // v5.39 — 이번 턴 마지막으로 이동한 아군 부대 (뒤로가기 이동 취소)
 
   /* ───────────── 이미지 로드 ───────────── */
   function loadImg(src) {
@@ -622,6 +623,8 @@
       }
       taken.add(x + ',' + y);
       u.x = x; u.y = y; u.rx = x; u.ry = y; u.flash = 0; u.shake = 0; u.side = side;
+      /* v5.39 — 턴 시작 좌표·이번 턴 이동 여부 (뒤로가기 이동 취소·재이동 방지) */
+      u.turnStartX = x; u.turnStartY = y; u.movedThisTurn = false;
       B.units.push(u);
     });
   }
@@ -1923,7 +1926,8 @@
     /* v5.13 — 회복·아군 버프를 고르는 동안은 이동 범위(파랑)를 깔지 않는다.
        v5.14 — 책략 대상을 고르는 동안은 모두 같다. 파란 이동 범위가 ◇ 사거리와 겹쳐 탁해지지 않게. */
     const healPick = mode === 'skillTarget' && !!pendingSkill;
-    if (reach && !healPick) {
+    /* v5.39 — [공격] 모드에서는 파란 이동 범위를 깔지 않는다 (사거리 타일만 보이게) */
+    if (reach && !healPick && mode !== 'attack') {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 380);
       reach.forEach((k) => {
         const [x, y] = k.split(',').map(Number);
@@ -1991,6 +1995,41 @@
               ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
             }
           }
+        }
+      }
+      /* v5.39 — [공격] 모드: 사거리 안에 적이 있든 없든 공격 사거리 타일을 붉은 주황으로 깐다.
+         (예전에는 적 타일만 붉게 칠해 '한 칸 더 붙으세요' 때 어디까지 닿는지 보이지 않았다) */
+      if (mode === 'attack' && !pendingSkill) {
+        const pulse3 = 0.5 + 0.5 * Math.sin(performance.now() / 400);
+        const minA = u.minRng || 1;
+        const inSetA = new Set();
+        for (let y2 = 0; y2 < N; y2++) {
+          for (let x2 = 0; x2 < N; x2++) {
+            const d2 = manh(u.x, u.y, x2, y2);
+            if (d2 < minA || d2 > rng) continue;
+            inSetA.add(x2 + ',' + y2);
+            ctx.fillStyle = `rgba(196,32,24,${0.30 + pulse3 * 0.10})`;
+            ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
+            ctx.strokeStyle = 'rgba(255,126,96,1)';
+            ctx.lineWidth = 2.2;
+            ctx.strokeRect(x2 * TILE + 3, y2 * TILE + 3, TILE - 6, TILE - 6);
+          }
+        }
+        if (inSetA.size) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255,178,140,1)';
+          ctx.lineWidth = 3.4;
+          ctx.beginPath();
+          inSetA.forEach((k) => {
+            const [x2, y2] = k.split(',').map(Number);
+            const px = x2 * TILE, py = y2 * TILE;
+            if (!inSetA.has(x2 + ',' + (y2 - 1))) { ctx.moveTo(px + 2, py + 2.5); ctx.lineTo(px + TILE - 2, py + 2.5); }
+            if (!inSetA.has(x2 + ',' + (y2 + 1))) { ctx.moveTo(px + 2, py + TILE - 2.5); ctx.lineTo(px + TILE - 2, py + TILE - 2.5); }
+            if (!inSetA.has((x2 - 1) + ',' + y2)) { ctx.moveTo(px + 2.5, py + 2); ctx.lineTo(px + 2.5, py + TILE - 2); }
+            if (!inSetA.has((x2 + 1) + ',' + y2)) { ctx.moveTo(px + TILE - 2.5, py + 2); ctx.lineTo(px + TILE - 2.5, py + TILE - 2); }
+          });
+          ctx.stroke();
+          ctx.restore();
         }
       }
       B.units.forEach((t) => {
@@ -2235,6 +2274,8 @@
         }
       }
       if (u.side === 'enemy') ctx.filter = 'saturate(0.9) brightness(0.99)';
+      /* v5.39 — 행동을 마친 부대는 스프라이트를 어둡게·저채도로 (턴이 돌아오면 원래 밝기) */
+      if (u.acted) ctx.filter = (ctx.filter && ctx.filter !== 'none' ? ctx.filter + ' ' : '') + 'brightness(0.62) grayscale(0.5)';
       /* v5.17 — 전직 단계가 높을수록 SD에 은은한 빛테를 두른다 */
       if (tier > 0) {
         ctx.shadowColor = tier >= 3 ? 'rgba(255,208,90,0.95)' : (tier === 2 ? 'rgba(220,230,240,0.9)' : 'rgba(198,140,60,0.85)');
@@ -2253,10 +2294,30 @@
       ctx.fillStyle = u.side === 'ally' ? '#40609a' : '#9a4038';
       ctx.fillRect(bx - 12, by - 40, 24, 38);
     }
-    // 행동 완료 표시
-    if (u.side === 'ally' && u.acted) {
-      ctx.fillStyle = 'rgba(20,26,40,0.26)';
-      ctx.beginPath(); ctx.ellipse(bx, by - 2, TILE * 0.31, TILE * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    // 행동 완료 표시 (v5.39 — 발치에 ✓ 배지를 붙인다)
+    if (u.acted) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(16,14,10,0.28)';
+      ctx.beginPath(); ctx.ellipse(bx, by - 2, TILE * 0.32, TILE * 0.145, 0, 0, Math.PI * 2); ctx.fill();
+      const ck = Math.max(6, Math.round(7 * clamp(1 / Math.max(0.5, cam.s), 1, 1.55)));
+      const chx = bx + TILE * 0.28, chy = by - TILE * 0.03;
+      ctx.beginPath(); ctx.arc(chx, chy, ck, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(26,22,14,0.88)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,214,120,0.9)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      /* v5.39 — 폰트 글꼴 대신 두 줄로 그린 체크 (어떤 기기에서도 같은 모양) */
+      ctx.strokeStyle = '#ffd97a';
+      ctx.lineWidth = Math.max(1.6, ck * 0.34);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(chx - ck * 0.42, chy + ck * 0.02);
+      ctx.lineTo(chx - ck * 0.10, chy + ck * 0.36);
+      ctx.lineTo(chx + ck * 0.46, chy - ck * 0.38);
+      ctx.stroke();
+      ctx.restore();
     }
     // 배지(아/적) + 병력 숫자 + 병력 바 — 화면 배율과 무관하게 읽히도록
     const k = clamp(1 / Math.max(0.5, cam.s), 1, 1.55);
@@ -2931,7 +2992,7 @@
     });
     tb.hidden = false;
     if (!list.length) {
-      tb.innerHTML = `<span class="bt-hint">${heal ? '사거리 안 아군' : '사거리 안 적'}이 없습니다 — 한 칸 더 붙으세요</span>`;
+      tb.innerHTML = `<span class="bt-hint">${heal ? '사거리 안 아군' : `사거리 ${rng}칸 안에 적`}이 없습니다 — 한 칸 더 붙으세요</span>`;
       return;
     }
     tb.innerHTML = `<span class="bt-hint">${heal ? '아군' : '적'} 선택</span>`
@@ -3699,12 +3760,18 @@
     if (u.rx == null) { u.rx = u.x; u.ry = u.y; }
     B.sel = u;
     trackTurn(u);
-    B.reachCache = { uid: u.id, set: reachSet(u) };
-    mode = u.side === 'ally' && !u.acted ? 'move' : 'idle';
+    /* v5.39 — 이미 이번 턴에 걸어간 부대는 다시 선택해도 이동 범위를 열지 않는다.
+       (예전에는 선택을 풀었다 다시 집으면 파란 칸이 되살아나 한 턴에 무한 재이동이 가능했다)
+       이동을 물리려면 폰의 뒤로가기 = 이동 취소. */
+    const canMoveNow = u.side === 'ally' && !u.acted && !u.movedThisTurn;
+    B.reachCache = canMoveNow ? { uid: u.id, set: reachSet(u) } : null;
+    mode = canMoveNow ? 'move' : (u.side === 'ally' && !u.acted ? 'act' : 'idle');
     pendingSkill = null;
     SKBattle.refreshUI();
     const t = SK.TERRAIN[B.tiles[u.y][u.x]];
-    $('#battle-tip').textContent = `${u.name} · ${SK.CLASSES[u.cls].name} · 이동 ${movOf(u)} · ${t.name} 방어 ${Math.round(t.def * 100)}%`;
+    $('#battle-tip').textContent = u.movedThisTurn && !u.acted
+      ? `${u.name} · 이동 완료 · 공격·책략·대기 중 선택 (뒤로가기 = 이동 취소)`
+      : `${u.name} · ${SK.CLASSES[u.cls].name} · 이동 ${movOf(u)} · ${t.name} 방어 ${Math.round(t.def * 100)}%`;
   }
 
   function clearSel() {
@@ -3726,6 +3793,10 @@
     busy = true;
     mode = 'idle';
     B.reachCache = null;
+    /* v5.39 — 이번 턴 이동을 쓴 부대로 표시한다 (재선택해도 이동 범위가 다시 열리지 않게) */
+    u.movedThisTurn = true;
+    lastMovedUid = u.id;
+    if (u.turnStartX == null) { u.turnStartX = u.x; u.turnStartY = u.y; }
     /* v5.30 — 돌격 보정(호표기창·청룡연월도)을 위해 이번 턴에 걸은 칸 수를 센다 */
     u.movedTiles = Math.max(0, path.length - 1);
     animatePath(u, path, { cam: true, step: path.length > 6 ? 92 : 108, onDone: () => {
@@ -3739,6 +3810,47 @@
       finishCheck();
     } });
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.39 — 뒤로가기 = 이동 취소 (아직 행동하지 않은 부대만)
+     · 공격·책략 대상을 고르던 중이면 그 선택부터 물린다
+     · 이동만 하고 행동을 확정하지 않은 부대는 턴 시작 좌표로 돌아간다
+     · 돌아오면 movedThisTurn=false가 되어 다시 걸을 수 있다
+     ══════════════════════════════════════════════════════════════ */
+  function undoMove() {
+    if (!B || B.over || !B.introDone || B.phase !== 'ally') return false;
+    if (busy) { SK.toast('이동 중입니다 — 잠시 뒤 다시 눌러 주세요'); return true; }
+    /* 공격·책략 대상을 고르는 중: 이동을 되돌리기 전에 그 선택만 먼저 물린다 */
+    if (mode === 'attack' || mode === 'skillTarget') {
+      mode = 'idle';
+      pendingSkill = null;
+      SKBattle.refreshUI();
+      $('#battle-tip').textContent = '대상 고르기를 취소했습니다 — 한 번 더 누르면 이동을 취소합니다';
+      SK.toast('대상 고르기를 취소했습니다');
+      return true;
+    }
+    const movedOk = (u) => !!u && u.alive && u.side === 'ally' && !u.acted && u.movedThisTurn && u.turnStartX != null;
+    let u = movedOk(B.sel) ? B.sel : null;
+    if (!u && lastMovedUid != null) {
+      const c = B.units.find((x) => x.id === lastMovedUid);
+      if (movedOk(c)) u = c;
+    }
+    if (!u) return false;
+    u.x = u.turnStartX; u.y = u.turnStartY;
+    u.rx = u.x; u.ry = u.y;
+    u.movedThisTurn = false;
+    u.movedTiles = 0;
+    lastMovedUid = null;
+    mode = 'idle';
+    B.reachCache = null;
+    pendingSkill = null;
+    SK.sfx.play('ui');
+    selectUnit(u);          // 다시 이동 범위(파란 칸)가 열린다
+    ensureVisible(u);
+    SK.toast('이동을 취소하고 제자리로 돌아왔습니다');
+    return true;
+  }
+  SK.battleUndoMove = undoMove;
 
   /* v5.29 — 치명타 확률은 한 곳에서만 계산한다 (예고·실제 전투가 같은 값을 쓰도록) */
   function critChanceOf(u) {
@@ -4229,7 +4341,9 @@
   }
 
   function nextUnitOrWait() {
-    const next = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
+    /* v5.39 — 아직 걷지 않은 부대를 먼저 고른다 (이동만 해 둔 부대는 뒤 순서) */
+    const next = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted && !u.movedThisTurn)
+      || B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
     if (next && next.ail && next.ail.confuse) {
       /* v5.31 — 혼란에 빠진 부대는 내가 조종하지 못한다 */
       selectUnit(next);
@@ -5269,6 +5383,9 @@
           u.dblUsed = false;
           if (u.dblCd > 0) u.dblCd -= 1;
           u.movedTiles = 0;
+          u.movedThisTurn = false;
+          u.turnStartX = u.x; u.turnStartY = u.y;
+          lastMovedUid = null;
           Object.keys(u.buffs).forEach((k) => { u.buffs[k].t -= 1; if (u.buffs[k].t <= 0) delete u.buffs[k]; });
           if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3 + Math.max(0, (u.tfx && u.tfx.mp) || 0));
           else u.mp = Math.min(u.maxMp, u.mp + 2);

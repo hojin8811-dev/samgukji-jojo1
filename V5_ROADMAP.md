@@ -1,6 +1,18 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=47`
+기준: 2026-11-22 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=55`
+
+## ✅ v5.39 — 연구소 → 첩보소(매달 자동 첩보·이간·유언비어) + 전투 조작 4건 (2026-11-22 · `?v=55`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 시설 개편 | `lab` → **첩보소**(지력 `ji`), 담당 없으면 `자동 첩보 정지`. 기술 연구는 시설과 무관하게 상단 메뉴 그대로 | `js/app.js` `SLOT_DEFS`·`SLOT_HALF` |
+| 자동 첩보 | 달마다 이웃 적성 1곳 금 없이 정찰 3개월(미정찰·만료임박 우선) | `js/app.js` `runSpyOffices` |
+| 자동 계략 | 정찰된 적성에 `0.30+0.07·Lv+(지력−60)·0.006` 확률로 이간계(충성 −) / 유언비어(민심 −), 같은 성은 2달 쉼, 월정산 `[첩보소 첩보]` 보고 | `js/app.js` `runSpyOffices`·`advanceMonth` |
+| 무한 이동 차단 | `movedThisTurn` — 이미 이동한 부대는 재선택해도 이동 범위 안 열림 | `js/battle.js` `selectUnit`·`moveUnit` |
+| 뒤로가기 이동 취소 | 턴 시작 좌표(`turnStartX/Y`)로 복귀, `SK.battleUndoMove()` | `js/battle.js` `undoMove`, `js/backguard.js` |
+| 공격 사거리 표시 | [공격] 시 적 유무와 무관하게 사거리 타일 표시(공격 중 파란 이동범위 숨김) | `js/battle.js` `drawHighlights`·`renderTargetBar` |
+| 행동 완료 표시 | `acted` 부대 스프라이트 어둡게 + 발치 ✓ 배지 | `js/battle.js` `drawUnit` |
 
 ## ✅ v5.33 — 9라운드: 조선·맹획군 주둔 0명, 도감 검색·보물 지역, 전투 중 EXP, 자동 턴 종료 (2026-11-22 · `?v=47`)
 
