@@ -17,7 +17,7 @@
 | 내정 AI | 훈련도 72 미만·징병 직후면 **훈련 먼저** (모든 방침) · 적 AI도 훈련도 복구(+3/+1) | `chooseAutoAction`·`chooseDelegatedAction`·`runAiDomestic` |
 | 전장 AI | 사기 60 미만 아군에게 사기 책략 우선 · 군악대 +5 / 무희 +4 · 사기 32 이하 적 우선 타격 · 내 사기 34 이하 반격 회피 | `planSupportSkill`·`planAuto`·`classAuraPhase` |
 | 도움말 | `HELP_TIPS.train` · 전장 `?` 3항목 · 📖 입문 가이드 **④ 사기·훈련** 탭 | `js/app.js` |
-| 검수 | `tools/qa_v556.py` a 57/57 · c 57/57 (b·d 라이브) | `preview/v556/` |
+| 검수 | `tools/qa_v556.py` a 57/57(로컬 844) · c 57/57(로컬 680) · b 54/54(라이브 844) · d 54/54(라이브 680) · 자동전투 6턴 무오류 | `preview/v556/` |
 
 ## ✅ v5.55 — 모든 초상화 테두리 등급색 통일 + 초상 이웃셀 번짐 제거 (2026-11-22 · `?v=72`)
 

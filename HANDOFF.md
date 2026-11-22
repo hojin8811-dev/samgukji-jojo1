@@ -30,7 +30,7 @@
 - **적 명장 특기**: `makeNamedEnemy`에 `passive`를 넣고 `enemyPhase`(턴 시작)·적 공격 시에도 `triggerPassive`를 부른다 — 예전 《장수 정보》의 "아직 붙지 않았습니다"는 적 부대였다.
 - **AI**: 내정 — 훈련도 72 미만·`trainAlert`면 어떤 방침이든 **훈련 먼저**(`chooseAutoAction` 맨 앞 삽입)·`chooseDelegatedAction` 동일·적 AI는 달마다 +3(72 미만)/+1. 전장 — 사기 60 미만 아군에게 **사기 +N 책략 우선**(`planSupportSkill`), **군악대 +5 / 무희 +4**(`classAuraPhase`), 사기 32 이하 적 가산·내 사기 34 이하 반격 회피(`planAuto`·`enemyAct`). `지휘`·`고무` 설명에 `사기 +6`을 넣어 실제로 사기를 올린다.
 - **도움말**: `HELP_TIPS.train`(50 기준·100 +12%·징병 희석 예시) · 전장 `?`에 `사기 — 80에서 시작`·`사기 붕괴 — 20 이하`·`훈련도 — 50이 기준` 추가 · 📖 입문 가이드 **④ 사기·훈련** 탭.
-- **검수**: `tools/qa_v556.py` a(로컬 844) 57/57 · c(로컬 680) 57/57 · b(라이브 844) · d(라이브 680). 화면 `preview/v556/`.
+- **검수**: `tools/qa_v556.py` a(로컬 844) 57/57 · c(로컬 680) 57/57 · b(라이브 844) 54/54 · d(라이브 680) 54/54 (라이브는 버전 검사 3항목 제외). 자동전투 6턴 무오류. 화면 `preview/v556/`.
 - **검수 훅**: `SKBattle.debug.moraleCurve()`·`trainCurve()`·`setMorale`·`setTrain`·`collapseTest`·`lastCollapse`·`passiveOf`·`passiveFire`·`moveAll`·`moraleAll`, `SK.debugAI.auto/delegated/lowTrain`, `SK.recruitTrainAfter`·`SK.cityPassivePct`·`SK.cityPassiveLines`·`SK.trainPctTxt`.
 
 ## 0.0 v5.55 — 모든 초상화 테두리 등급색 통일 + 초상 이웃셀 번짐 제거 (2026-11-22 · `?v=72`)
