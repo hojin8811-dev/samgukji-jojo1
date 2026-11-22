@@ -6306,7 +6306,7 @@
       <div class="fl-detail" hidden>${r.cities.map((c) => c.name).join(' · ')}<em>병력 ${fmt(r.troops)}</em></div>`;
     };
     const body = `
-      <p class="talent-note">성을 가진 세력 <b>${rows.length}곳</b> 가운데 휴전·동맹 <b>${pactN}</b> · 교전 <b>${rows.length - pactN - (mine ? 1 : 0)}</b>. 막대는 천하 ${totalCities}성 중 비중입니다. 줄을 누르면 가진 성이 펼쳐집니다.</p>
+      <p class="talent-note">세력을 가진 곳 <b>${rows.length}곳</b> 가운데 휴전·동맹 <b>${pactN}</b> · 교전 <b>${rows.length - pactN - (mine ? 1 : 0)}</b>. 막대는 세력이 가진 <b>${totalCities}성</b> 중 비중입니다. 줄을 누르면 가진 성이 펼쳐집니다.</p>
       ${mine ? rowOf(mine) : ''}
       <div class="dp-grp"><span>다른 세력</span><em>${others.length}</em><i>성 수가 많은 순</i></div>
       <div class="fl-list">${others.map(rowOf).join('')}</div>`;
@@ -6800,7 +6800,7 @@
         if (mf.rankGold) plus.push(`녹봉 ${fmt(mf.rankGold)}`);
         return `${plus.join(' + ')} − 봉급 ${fmt(mf.payroll)}`;
       })();
-      const fSub = `농원 +${fmt(mf.farm)} − 유지비 ${fmt(mf.upkeep)}`;
+      const fSub = `농원 +${fmt(mf.farm)} − 유지비 ${fmt(mf.upkeep)}${mf.upkeep !== Math.ceil((cs.troops || 0) / 1000 * ECON.upkeepPer1000) ? '(정산 병력)' : ''}`;
       const harvLine = mf.harvest ? (mf.harvestThisMonth
         ? ` · 🌾 이번 달 대수확 +${fmt(mf.harvest)}`
         : ` · 🌾 ${mf.monthsToHarvest}개월 뒤 대수확 +${fmt(mf.harvest)}`) : '';
