@@ -44,8 +44,9 @@
   let autoOn = false;           // v5.2 — 아군 턴 자동 진행
   let autoTimer = null;
   let autoPending = null;
-  /* v5.10 — 자동전투 배속. 기본 1x = 예전 속도의 절반(2배 느리게), 2x = 예전 속도
-     v5.26 — ×4 단계 추가. 한 판에서 고른 배속은 세션 동안 다음 전투에도 이어진다. */
+  /* v5.10 — 전투 배속(처음엔 자동전투에만). ×1 = 기본 속도, ×2·×3·×4 = 그만큼 빠르게.
+     v5.51 — 수동 전투에도 똑같이 건다(예전엔 ×1이 0.5배속·×2가 기본이었고, 수동에는 안 걸렸다).
+     한 판에서 고른 배속은 세션 동안 다음 전투에도 이어진다. */
   let autoSpeed = 1;
   let speedPref = 1;
   const LV_GROW = 0.018;        // 1레벨마다 공·방 +1.8% (아군·적군 공통)
@@ -4838,7 +4839,7 @@
     const btn = document.querySelector('#btn-speed, .act.speed');
     if (!btn) return;
     btn.classList.toggle('fast', autoSpeed >= 2);
-    if (btn) btn.title = `자동전투 배속 — 누를 때마다 ×1 → ×2 → ×3 → ×4 (지금 ×${autoSpeed})`;
+    if (btn) btn.title = `전투 배속 — 수동·자동 모두. 누를 때마다 ×1 → ×2 → ×3 → ×4 (지금 ×${autoSpeed})`;
     const sp = btn.querySelector('span');
     if (sp) sp.textContent = speedLabel();
     btn.setAttribute('aria-label', `전투 배속 ${speedLabel()}`);
@@ -4853,7 +4854,7 @@
     SK.toast(autoSpeed === 4 ? '전투 배속 ×4 — 연출을 줄여 가장 빠르게 돌립니다.'
       : autoSpeed === 3 ? '전투 배속 ×3 — 아주 빠르게 진행합니다.'
       : autoSpeed === 2 ? '전투 배속 ×2 — 빠르게 진행합니다.'
-      : '전투 배속 ×1 — 기본 속도(절반)로 돌아갑니다.');
+      : '전투 배속 ×1 — 기본 속도로 돌아갑니다.');
     if (autoOn) { autoClear(); autoTimer = wait(autoStep, 240); }
     return autoSpeed;
   }
@@ -7172,7 +7173,7 @@
       const act = b.dataset.act;
       if (act === 'endturn') { endTurn(); return; }
       if (act === 'auto') { toggleAuto(); return; }   // v5.2 — 아군 턴 자동 토글
-      if (act === 'speed') { toggleSpeed(); return; }  // v5.10 — 자동전투 배속 ×1 / ×2
+      if (act === 'speed') { toggleSpeed(); return; }  // v5.10 — 전투 배속 ×1 / ×2
       if (B.phase !== 'ally' || B.over) return;
       const u = B.sel;
       if (act === 'attack') {
