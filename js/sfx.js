@@ -99,6 +99,7 @@
       tone(115, 0.12, 'square', 0.075, { to: 58 });
     },
     bow: () => { tone(920, 0.09, 'triangle', 0.09, { to: 300 }); noise(0.035, 0.06, 3200); },
+    bolt: () => { noise(0.3, 0.22, 2400, { q: 0.6 }); tone(1400, 0.12, 'sawtooth', 0.05, { to: 260 }); },
     rock: () => { noise(0.24, 0.18, 340, { type: 'lowpass', to: 90 }); },
     spell: () => {
       tone(523, 0.16, 'sine', 0.075);

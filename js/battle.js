@@ -1050,7 +1050,9 @@
   window.addEventListener('resize', () => { if (B && canvas) { resizeCanvas(); camClamp(); } });
 
   /* ───────────── 렌더 ───────────── */
+  let frameNo = 0;   /* v5.60 — 검수용 렌더 프레임 수 (그리는 루프가 살아 있는지) */
   function loop(t) {
+    frameNo += 1;
     const dt = Math.min(60, t - lastT);
     lastT = t;
     /* v5.10 — 전투 배속은 대기 간격만이 아니라 이동·타격 연출에도 걸린다.
@@ -2877,6 +2879,9 @@
         const Z = Math.min(1.7, Math.max(1, 0.46 / Math.max(0.2, cam.s)));
         ctx.translate(mx, my); ctx.scale(Z, Z); ctx.translate(-mx, -my);
         drawUltFx(f, p);
+      } else if (f.kind === 'skillfx') {
+        /* v5.60 — 병과 책략 속성 이펙트 (독안개·지진·황금 파동·화염+버프 링 …) */
+        drawSkillFx(f, p);
       } else if (f.kind === 'bolt') {
         const top = f.y - TILE * 2.6;
         ctx.strokeStyle = `rgba(220,240,255,${(1 - p) * 0.95})`;
@@ -4544,6 +4549,8 @@
     if (sk && sk.confuse) out.push({ k: 'confuse', p: 0.7 });
     if (sk && sk.fear) out.push({ k: 'fear', p: 0.75 });
     if (sk && sk.slow) out.push({ k: 'slow', p: 1 });
+    /* v5.60 — 독무술·만독진: classes.json 의 poison:true 면 중독(턴마다 3%)을 건다 */
+    if (sk && sk.poison) out.push({ k: 'poison', p: 0.85 });
     const stun = desc.match(/기절\s*확률\s*(\d+)\s*%/);
     if (stun && !(sk && sk.stun)) out.push({ k: 'stun', p: Math.min(0.6, Number(stun[1]) / 100) });
     if (/혼란\s*상태\s*부여|혼란\s*유발|혼란\s*피해/.test(desc) && !(sk && sk.confuse)) out.push({ k: 'confuse', p: 0.7 });
@@ -5852,7 +5859,7 @@
     if (u.mp < sk.mp) return;
     pendingSkill = Object.assign({ key }, sk);
     mode = 'skillTarget';
-    if (sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffSelf') {
+    if (sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffSelf' || sk.kind === 'buffAllAllies') {
       castInstant(u, sk);
     } else {
       $('#battle-tip').textContent = `${sk.name} — 대상 지점을 선택하세요`;
@@ -5863,8 +5870,16 @@
   function castInstant(u, sk) {
     busy = true;
     u.mp -= mpCostOf(u, sk);
-    castCircle(u, sk.kind === 'buffSelf' ? '150,210,255' : '255,215,120');
-    SK.sfx.play(sk.kind === 'healArea' ? 'heal' : 'spell');
+    const auraCol = sk.kind === 'buffSelf' ? '150,210,255'
+      : sk.kind === 'buffAllAllies' ? '255,226,140' : '255,215,120';
+    castCircle(u, auraCol);
+    SK.sfx.play(sk.kind === 'healArea' ? 'heal' : sk.kind === 'buffAllAllies' ? 'drum' : 'spell');
+    /* v5.60 — 전장 전체 기술은 파동 반경을 전장 크기로 잡고, 화면도 한 번 금빛으로 물들인다 */
+    if (sk.kind === 'buffAllAllies') {
+      skillFxAt(u, sk, u.x, u.y, { radius: Math.max(6, Math.round((B.cols || N) / 3)) });
+      addFx({ kind: 'tint', life: 520, color: '255,214,120' });
+      shakeScreen(5);
+    } else skillFxAt(u, sk, u.x, u.y);
     if (sk.kind === 'healArea') {
       battleExp(u, 8);                       // v5.33 — 치유 책략도 실시간 경험치
       const rad = sk.radius + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
@@ -5883,9 +5898,35 @@
         }
       });
     } else if (sk.kind === 'buffSelf') {
-      u.buffs.def = { v: sk.def, t: sk.turns };
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '방어↑', '#9fd8ff');
-      addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 600, color: '150,210,255' });
+      /* v5.60 — 방어뿐 아니라 공격(기마돌격태세·무아지경)·사기까지 오른다 */
+      const tS = sk.turns || 3;
+      if (sk.atk) u.buffs.atk = { v: sk.atk, t: tS };
+      if (sk.def) u.buffs.def = { v: sk.def, t: tS };
+      const moS = skillMoraleOf(sk, true);
+      if (moS) moraleShift(u, moS);
+      const labS = sk.atk && sk.def ? '공격↑ 방어↑' : sk.atk ? '공격↑' : '방어↑';
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, labS, sk.atk ? '#ffe08a' : '#9fd8ff');
+      addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 600, color: sk.atk ? '255,226,150' : '150,210,255' });
+    } else if (sk.kind === 'buffAllAllies') {
+      /* v5.60 — 군주 천하호령: 전장에 있는 아군 전원(내 진영 전체)에게 공격·방어·사기.
+         한 번에 판 전체 아군이 강해지는 만큼 MP 30 · 3턴이다. */
+      const tA = sk.turns || 3;
+      const moA = skillMoraleOf(sk, true);
+      let hitN = 0;
+      B.units.forEach((t) => {
+        if (!t.alive || t.side !== u.side) return;
+        hitN += 1;
+        if (sk.atk) t.buffs.atk = { v: sk.atk, t: tA };
+        if (sk.def) t.buffs.def = { v: sk.def, t: tA };
+        if (moA) moraleShift(t, moA);
+        if (sk.cleanse) ailClear(t, 2);
+        addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 700, color: '255,226,150' });
+        if (hitN <= 14) addFx({ kind: 'skillfx', sub: 'pillar', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.95) * TILE, life: 1150, color: '255,236,170' });
+      });
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.05) * TILE, sk.name, '#ffe9a8', { back: true });
+      /* 화면 가운데 큰 콜아웃은 파동 이펙트를 가리므로 쓰지 않는다(피드 한 줄로 알린다) */
+      feed(`${u.name} — 「${sk.name}」 전장 아군 ${hitN}부대 강화`, u.side === 'ally' ? 'good' : 'bad');
+      shakeScreen(3);
     } else if (sk.kind === 'buffAreaAllies') {
       const rad = sk.radius + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
       const mo = skillMoraleOf(sk, true);
@@ -5940,6 +5981,7 @@
       u.mp -= mpCostOf(u, sk);
       castCircle(u, sk.kind === 'heal' ? '150,240,180' : '255,215,120');
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
+      skillFxAt(u, sk, x, y);
       if (sk.kind === 'heal') {
         battleExp(u, 8);                     // v5.33 — 치유할 때도 경험치가 바로 쌓인다
         const heal = Math.round(healAmount(sk, target, u) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 240)));
@@ -5964,6 +6006,7 @@
       u.mp -= mpCostOf(u, sk);
       castCircle(u, sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215');
       SK.sfx.play('spell');
+      skillFxAt(u, sk, x, y);
       const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
       const color = sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215';
       const moNeg = skillMoraleOf(sk, false);
@@ -5994,6 +6037,26 @@
       castCircle(u, u.cls === 'balseokcha' ? '230,200,150' : '255,170,120');
       SK.sfx.play(u.cls === 'balseokcha' ? 'rock' : 'spell');
       const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
+      skillFxAt(u, sk, x, y, { radius: rad });
+      /* v5.60 — 공격하면서 시전자·주변 아군을 강화하는 책략(팔진화공) */
+      const fxSelf = sk.selfBuff || null, fxAlly = sk.allyBuff || null;
+      if (fxSelf || fxAlly) {
+        const bRad = fxAlly ? (fxAlly.radius || 2) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0)) : 0;
+        B.units.forEach((t) => {
+          if (!t.alive || t.side !== u.side) return;
+          const isSelf = t === u;
+          if (!isSelf && !(fxAlly && manh(u.x, u.y, t.x, t.y) <= bRad)) return;
+          const src = isSelf ? (fxSelf || fxAlly) : fxAlly;
+          if (!src) return;
+          const tv = src.turns || 3;
+          if (src.atk) t.buffs.atk = { v: src.atk, t: tv };
+          if (src.def) t.buffs.def = { v: src.def, t: tv };
+          if (src.morale) moraleShift(t, Math.max(0, Number(src.morale) || 0));
+          addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.25) * TILE, src.atk ? '공격↑' : '방어↑', '#ffe0a0');
+          addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 700, color: '255,206,120' });
+          addFx({ kind: 'skillfx', sub: 'buffRing', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.6) * TILE, life: 900, color: '255,206,120' });
+        });
+      }
       wait(() => {
         if (!B || B.over) { finish(0); return; }
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 620, color: '255,150,80' });
@@ -6007,7 +6070,12 @@
             t.flash = 1; t.shake = 240;
             addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.4) * TILE, String(dmg), '#ffb36a');
             if (t.hp <= 0) downUnit(t);
-            else skillAilApply(u, t, sk);   // v5.31 — 낙뢰·천벌강림의 기절·혼란
+            else skillAilApply(u, t, sk);   // v5.31 — 낙뢰(기절)·독무술(중독)·천벌폭풍
+            /* v5.60 — 지진술 같은 '적 방어 -N%' 광역 약화 */
+            if (t.alive && sk.defDown && sk.defDown.amount) {
+              t.buffs.def = { v: sk.defDown.amount, t: sk.defDown.turns || 2 };
+              addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.22) * TILE, '방어↓', '#d8c08a');
+            }
             if (t.alive && skillMoraleOf(sk, false)) moraleShift(t, skillMoraleOf(sk, false));
           }
         });
@@ -6049,18 +6117,25 @@
       const tch = B.tiles[target.y][target.x];
       if (tch === 'G' || tch === 'D') mult += sk.siegeBonus;
     }
-    const ranged = ['yeonno', 'jipsajung', 'gwanse', 'pogyeok', 'yeonpo', 'tuseok', 'hwayeom', 'hwagye'].indexOf(sk.key) >= 0;
+    /* v5.60 — 이펙트 태그가 곧 투사체 종류다 (화살비·연노는 arrow/bolt, 포차는 rock) */
+    const pTag = skillFxTag(u, sk);
+    const ranged = ['arrow', 'arrowRain', 'bolt', 'boltStorm', 'rock'].indexOf(pTag) >= 0
+      || ['yeonno', 'jipsajung', 'gwanse', 'pogyeok', 'yeonpo', 'tuseok', 'hwayeom', 'hwagye'].indexOf(sk.key) >= 0;
     const forceKind = ranged
-      ? (u.cls === 'pocha' || u.cls === 'balseokcha' ? 'rock' : (u.cls === 'yeonnobyung' ? 'bolt' : 'arrow'))
+      ? (pTag === 'rock' || u.cls === 'pocha' || u.cls === 'balseokcha' ? 'rock'
+        : (pTag === 'bolt' || pTag === 'boltStorm' || u.cls === 'yeonnobyung' ? 'bolt' : 'arrow'))
       : null;
     addFloat((x + 0.5) * TILE, (y + 0.15) * TILE, sk.name, '#ffe6a8');
-    if (ranged) SK.sfx.play('spell');
+    skillFxAt(u, sk, x, y, { target: target });
+    if (ranged) SK.sfx.play(forceKind === 'rock' ? 'rock' : forceKind === 'bolt' ? 'bolt' : 'bow');
     const hits = sk.hits || 1;
     const apply = (n) => {
       attackUnit(u, target, { mult, ignoreTerrain: sk.ignoreTerrain, forceKind,
         defPierce: sk.defPierce || 0, noDodge: !!sk.ignoreEvade }, () => {
         /* v5.31 — 파천격(기절 35%)·방패돌진(기절 20%) */
         if (target.alive && B && !B.over) skillAilApply(u, target, sk);
+        /* v5.60 — 패왕참·산채습격처럼 '적 사기 -N'이 붙은 강타 */
+        if (target.alive && B && !B.over && sk.morale < 0) moraleShift(target, Math.max(-20, Number(sk.morale) || 0));
         if (n > 1 && target.alive && B && !B.over) {
           wait(() => { if (B && !B.over && target.alive) apply(n - 1); else finish(300); }, 160);
         } else {
@@ -6927,6 +7002,8 @@
 
   /* ───────────── 턴 종료·AI ───────────── */
   function endTurn() {
+    /* v5.60 — 검수용 잠금: 72종 책략을 차례로 펼치는 동안 턴이 넘어가지 않게 한다 */
+    if (B && B.lockTurn) { B.phase = 'ally'; return; }
     if (!B || B.over || B.phase !== 'ally' || busy) return;
     clearAutoEnd();
     B.phase = 'enemy';
@@ -7147,6 +7224,22 @@
       if (best) return best;
     }
 
+    /* 3-b) v5.60 — 전장 전체 아군 버프(군주 천하호령). 아군 다수가 아직 강화되지 않았으면
+       아군이 몰린 자리로 걸어가서 판 전체에 깔아 준다. */
+    const allBuf = skills.find((s) => s.kind === 'buffAllAllies');
+    if (allBuf && foes.length) {
+      const group = allies.filter((a) => !(a.buffs.atk && a.buffs.atk.t > 0) || (a.morale != null && a.morale <= 60));
+      if (group.length >= 2) {
+        let best = null;
+        tiles.forEach((t) => {
+          const near = allies.filter((a) => manh(t.x, t.y, a.x, a.y) <= 6).length;
+          const sc = near * 26 + group.length * 22 - dTo(t, u.x, u.y) * 0.2 - foeThreatAt(t.x, t.y, foes) * 0.8 + vBoost(t, true);
+          if (!best || sc > best.score) best = { kind: 'skill', mode: 'instant', key: allBuf.key, x: t.x, y: t.y, tx: t.x, ty: t.y, score: sc };
+        });
+        if (best && best.score > 70) return best;
+      }
+    }
+
     /* 4) 공격 책략 — 기대 피해가 기본 공격보다 확실히 크거나 처치 가능할 때 */
     const dmgs = skills.filter((s) => s.kind === 'power' || s.kind === 'magic' || s.kind === 'magicArea');
     if (dmgs.length && foes.length) {
@@ -7171,7 +7264,7 @@
               const hit = foes.filter((o) => manh(f.x, f.y, o.x, o.y) <= rad);
               let sum = 0, kill = false;
               hit.forEach((o) => { const e = estSkillDmg(u, o, sk); sum += e; if (e >= o.hp) kill = true; });
-              const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
+              const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) + (sk.allyBuff ? 40 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
               if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
             });
           });
@@ -7225,11 +7318,11 @@
     if (sk.kind === 'power' || sk.kind === 'magic') { if (!tgt || tgt.side === u.side) return false; }
     const dist = manh(u.x, u.y, x, y);
     if (sk.minRange && dist < sk.minRange) return false;
-    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && dist > skRange(u, sk)) return false;
+    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && sk.kind !== 'buffAllAllies' && dist > skRange(u, sk)) return false;
     B.sel = u;
     mode = 'skillTarget';
     pendingSkill = Object.assign({ key: sk.key }, sk);
-    if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea') { castInstant(u, sk); return true; }
+    if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies') { castInstant(u, sk); return true; }
     trySkillAt(x, y);
     return true;
   }
@@ -7363,7 +7456,7 @@
     let r = 3;
     try {
       (skillListOf(u) || []).forEach((s) => {
-        if (s.kind !== 'heal' && s.kind !== 'healArea' && s.kind !== 'buffAlly' && s.kind !== 'buffAreaAllies') return;
+        if (s.kind !== 'heal' && s.kind !== 'healArea' && s.kind !== 'buffAlly' && s.kind !== 'buffAreaAllies' && s.kind !== 'buffAllAllies') return;
         r = Math.max(r, Math.min(6, (s.range || r) + ((CASTER_RANGE_BONUS[u.cls]) ? 1 : 0)));
       });
     } catch (e) { /* ignore */ }
@@ -7944,6 +8037,515 @@
       } });
     };
     finishMove();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     v5.60 — 병과 책략 속성 이펙트
+     · classes.json 의 각 기술에 붙은 `fx` 태그 하나가 '어떤 그림이 터지는지'를 정한다.
+       독안개(독무술) · 황토 균열(지진술) · 황금 파동+빛기둥(천하호령) · 황금 참격(패왕참) ·
+       화염+버프 링(팔진화공)처럼 기술마다 색과 모양이 다르다.
+     · addFx({kind:'skillfx', sub})로 쌓이고 drawSkillFx 가 그린다(검수 훅: skillFxTags).
+     ════════════════════════════════════════════════════════════════════════ */
+  const SKILL_FX_TAGS = ('gold goldSlash goldWave auraDark slash wind arrow arrowRain thrust earth water fire ' +
+    'fireBuff quake poison bolt boltStorm fog buffRing dance music heal fist beast roar shield rock dark pillar areaRing').split(' ');
+  const SKILL_FX_COLOR = {
+    gold: '255,214,120', goldSlash: '255,236,160', goldWave: '255,206,90', auraDark: '188,140,235',
+    slash: '235,245,255', wind: '196,236,255', arrow: '255,240,200', arrowRain: '255,232,170',
+    thrust: '255,246,220', earth: '208,172,110', water: '150,220,245', fire: '255,150,80',
+    fireBuff: '255,196,110', quake: '214,176,110', poison: '150,225,120', bolt: '210,235,255',
+    boltStorm: '230,244,255', fog: '208,220,228', buffRing: '255,226,150', dance: '255,180,225',
+    music: '255,214,140', heal: '150,240,180', fist: '255,236,190', beast: '255,190,140',
+    roar: '255,170,140', shield: '170,200,240', rock: '200,180,140', dark: '170,130,210',
+    pillar: '255,232,170', areaRing: '255,214,150',
+  };
+  /* 태그가 없는 옛/외부 기술은 병과로 짐작한다 (설명과 그림이 어긋나지 않게) */
+  function skillFxTag(u, sk) {
+    const t = sk && sk.fx;
+    if (t && SKILL_FX_TAGS.indexOf(t) >= 0) return t;
+    const cls = (u && u.cls) || '';
+    if (cls === 'dosa') return sk && sk.poison ? 'poison' : 'bolt';
+    if (cls === 'chaeksa') return 'fire';
+    if (cls === 'pungsusa') return sk && (sk.kind === 'heal' || sk.kind === 'healArea') ? 'heal' : 'quake';
+    if (cls === 'gunwoong') return 'gold';
+    if (cls === 'sujeok') return 'water';
+    if (cls === 'muhui') return 'dance';
+    if (cls === 'gunakdae') return 'music';
+    if (cls === 'pocha' || cls === 'balseokcha') return 'rock';
+    if (cls === 'yeonnobyung' || cls === 'gungsu' || cls === 'gunggi') return 'arrow';
+    if (cls === 'yasubyung') return 'beast';
+    if (cls === 'sanjeok') return 'dark';
+    if (cls === 'deunggabyung') return 'shield';
+    if (cls === 'mudoga') return 'fist';
+    if (cls === 'gibi') return 'slash';
+    if (sk && (sk.kind === 'heal' || sk.kind === 'healArea')) return 'heal';
+    if (sk && /buff/.test(sk.kind || '')) return 'buffRing';
+    return 'slash';
+  }
+  /* 시전 지점(또는 착탄 지점)에 속성 이펙트를 깐다. 돌려주는 값은 태그(검수용) */
+  function skillFxAt(u, sk, x, y, opts) {
+    const tag = skillFxTag(u, sk);
+    const rad = (opts && opts.radius != null) ? opts.radius : ((sk && sk.radius) || 0);
+    const cx = (x + 0.5) * TILE, cy = (y + 0.5) * TILE;
+    const col = SKILL_FX_COLOR[tag] || '255,214,120';
+    const o = { kind: 'skillfx', sub: tag, x: cx, y: cy, life: 1150, color: col, radius: (rad + 1) * TILE, mag: (sk && sk.power) ? Math.min(2, sk.power / 400 + 0.4) : 1 };
+    if (opts && opts.target) { o.tx = (opts.target.x + 0.5) * TILE; o.ty = (opts.target.y + 0.55) * TILE; }
+    addFx(o);
+    /* 검수용 로그 — 이펙트가 수명(820ms)보다 늦게 읽혀도 '무엇이 터졌는지' 남는다 */
+    if (B) { B.skillFxLog = B.skillFxLog || []; B.skillFxLog.push(tag); }
+    if (rad > 0) addFx({ kind: 'skillfx', sub: 'areaRing', x: cx, y: cy, life: 1000, radius: rad * TILE + TILE * 0.55, color: col });
+    /* v5.60 — 큰 기술은 화면 전체가 한 번 물들어 '터졌다'는 것이 확실히 보인다 (화면 좌표계) */
+    const big = (sk && sk.kind === 'buffAllAllies') || (sk && sk.kind === 'magicArea')
+      || (sk && sk.power && sk.power >= 1.7) || (sk && sk.kind === 'buffSelf' && sk.atk);
+    if (big) addFx({ kind: 'tint', life: 420, color: col });
+    return tag;
+  }
+  SK.skillFxTag = skillFxTag;
+
+  function drawSkillFx(f, p) {
+    /* 좌표가 숫자가 아니면 그리지 않는다 (죽은 부대·화면 밖 좌표에서 캔버스가 예외를 내지 않게) */
+    if (!isFinite(f.x) || !isFinite(f.y)) { (window.__fxNaN = window.__fxNaN || []).push(f.sub); return; }
+    /* v5.60 — 폰 화면(배율 0.36~0.5)에서도 한눈에 보이도록 그림 자체를 1.9배로 그린다.
+       범위 윤곽(areaRing)은 실제 판정 범위를 가리켜야 하므로 확대하지 않는다. */
+    if (f.sub !== 'areaRing') {
+      ctx.translate(f.x, f.y); ctx.scale(1.9, 1.9); ctx.translate(-f.x, -f.y);
+    }
+    /* v5.60 — 폰 화면에서도 단번에 보이도록: 초반은 불투명하게 유지하고 뒤에서만 옅어진다 */
+    const A = Math.pow(1 - p, 0.7);
+    const T = TILE;
+    const col = f.color || '255,214,120';
+    const R = f.radius || T * 1.6;
+    const mag = f.mag || 1;
+    switch (f.sub) {
+      case 'areaRing': {
+        /* 영향을 받는 범위를 마름모 윤곽으로 먼저 밝힌다 */
+        ctx.strokeStyle = `rgba(${col},${Math.min(1, 0.85 * A)})`;
+        ctx.lineWidth = 6 * A + 1.5;
+        ctx.beginPath();
+        const dx = f.radius + T * 0.4;
+        ctx.moveTo(f.x - dx, f.y); ctx.lineTo(f.x, f.y - dx * 0.62);
+        ctx.lineTo(f.x + dx, f.y); ctx.lineTo(f.x, f.y + dx * 0.62); ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = `rgba(${col},${0.20 * A})`;
+        ctx.fill();
+        break;
+      }
+      case 'slash': {
+        ctx.strokeStyle = `rgba(${col},${0.9 * A})`;
+        ctx.lineWidth = 6 * A + 1.5;
+        ctx.beginPath(); ctx.arc(f.x, f.y, T * 0.55, -1.0, 1.15 + p * 0.4); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 * A})`;
+        ctx.lineWidth = 2 * A + 0.6;
+        ctx.beginPath(); ctx.arc(f.x, f.y, T * 0.34, 2.4, 4.3 + p * 0.5); ctx.stroke();
+        for (let i = 0; i < 6; i++) {
+          const a = -1 + i * 0.42;
+          const d = T * (0.3 + p * 0.55);
+          ctx.fillStyle = `rgba(255,244,210,${A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, 2.2 * A + 0.8, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'goldSlash': {
+        /* 군주 강타 — 두 겹 황금 참격이 크게 지나가고 중앙이 하얗게 번쩍인다 */
+        const gg = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, T * (1.0 + p * 1.3));
+        gg.addColorStop(0, `rgba(255,255,240,${Math.min(1, 1.05 * A)})`);
+        gg.addColorStop(0.4, `rgba(255,206,110,${0.62 * A})`);
+        gg.addColorStop(1, 'rgba(255,190,80,0)');
+        ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(f.x, f.y, T * (1.0 + p * 1.3), 0, Math.PI * 2); ctx.fill();
+        for (let i = 0; i < 2; i++) {
+          ctx.strokeStyle = `rgba(255,${236 - i * 26},${170 - i * 40},${Math.min(1, (1.0 - i * 0.22) * A)})`;
+          ctx.lineWidth = (26 - i * 9) * A + 3;
+          ctx.beginPath(); ctx.arc(f.x, f.y, T * (1.0 + i * 0.34), -1.45 - i * 0.12, 1.05 + p * 0.9); ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(255,255,250,${Math.min(1, 0.95 * A)})`;
+        ctx.lineWidth = 9 * A + 1.5;
+        ctx.beginPath(); ctx.arc(f.x, f.y, T * (1.05 + p * 0.3), -1.3, 0.9 + p * 0.7); ctx.stroke();
+        for (let i = 0; i < 14; i++) {
+          const a = i * 0.55 + f.x * 0.01;
+          const d = T * (0.35 + p * 1.25);
+          ctx.fillStyle = `rgba(255,240,175,${A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.8, 5.5 * A + 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'thrust': {
+        const ang = Math.atan2((f.ty == null ? f.y : f.ty) - f.y, (f.tx == null ? f.x : f.tx) - f.x);
+        ctx.strokeStyle = `rgba(${col},${0.9 * A})`;
+        ctx.lineWidth = 4 * A + 1;
+        for (let i = -1; i <= 1; i++) {
+          const off = i * 5;
+          ctx.beginPath();
+          ctx.moveTo(f.x + Math.cos(ang + 1.57) * off - Math.cos(ang) * T * 0.9, f.y + Math.sin(ang + 1.57) * off - Math.sin(ang) * T * 0.9);
+          ctx.lineTo(f.x + Math.cos(ang) * T * (0.4 + p * 0.7), f.y + Math.sin(ang) * T * (0.4 + p * 0.7));
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'fist': {
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4 + 0.2;
+          const d = T * (0.15 + p * 0.7);
+          ctx.strokeStyle = `rgba(${col},${0.85 * A})`;
+          ctx.lineWidth = 3.2 * A + 1;
+          ctx.beginPath();
+          ctx.moveTo(f.x + Math.cos(a) * d * 0.35, f.y + Math.sin(a) * d * 0.35);
+          ctx.lineTo(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(255,255,255,${0.7 * A})`;
+        ctx.lineWidth = 2 * A + 0.8;
+        ctx.beginPath(); ctx.arc(f.x, f.y, T * (0.2 + p * 0.5), 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'beast': {
+        for (let i = 0; i < 3; i++) {
+          ctx.strokeStyle = `rgba(${col},${(0.85 - i * 0.2) * A})`;
+          ctx.lineWidth = 4 * A + 1;
+          ctx.beginPath();
+          ctx.arc(f.x - T * 0.12 + i * 6, f.y, T * (0.38 + i * 0.06), -1.15, 0.55 + p * 0.5);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'shield': {
+        const w = T * (0.34 + p * 0.3), h = T * (0.42 + p * 0.3);
+        ctx.fillStyle = `rgba(${col},${0.28 * A})`;
+        ctx.strokeStyle = `rgba(230,244,255,${0.9 * A})`;
+        ctx.lineWidth = 3 * A + 1;
+        ctx.beginPath();
+        ctx.moveTo(f.x - w, f.y - h * 0.8); ctx.lineTo(f.x + w, f.y - h * 0.8);
+        ctx.lineTo(f.x + w, f.y + h * 0.1); ctx.quadraticCurveTo(f.x, f.y + h * 1.15, f.x - w, f.y + h * 0.1);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        break;
+      }
+      case 'wind': {
+        for (let i = 0; i < 4; i++) {
+          const d = T * (0.2 + p * 0.75) + i * 4;
+          ctx.strokeStyle = `rgba(${col},${(0.8 - i * 0.16) * A})`;
+          ctx.lineWidth = 3 * A + 0.8;
+          ctx.beginPath(); ctx.arc(f.x, f.y, d, -0.9 + i * 0.16, 0.9 + i * 0.16); ctx.stroke();
+        }
+        break;
+      }
+      case 'arrow': {
+        const ang = Math.atan2((f.ty == null ? f.y : f.ty) - f.y, (f.tx == null ? f.x : f.tx) - f.x);
+        for (let i = 0; i < 3; i++) {
+          const k = Math.max(0, p - i * 0.06);
+          const d = T * (0.2 + k * 0.8);
+          ctx.strokeStyle = `rgba(255,248,220,${(0.9 - i * 0.25) * (1 - p)})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + Math.cos(ang) * d, f.y + Math.sin(ang) * d); ctx.stroke();
+        }
+        break;
+      }
+      case 'arrowRain': {
+        /* 궁기 화살비 — 위에서 떨어지는 화살 여러 대 + 착탄 링 */
+        for (let i = 0; i < 12; i++) {
+          const a = i * 0.78 + (f.x % 17) * 0.1;
+          const rr = R * 0.72 * ((i % 5) / 5 + 0.2);
+          const px = f.x + Math.cos(a) * rr, py = f.y + Math.sin(a) * rr * 0.6;
+          const fall = Math.max(0, Math.min(1, (p - (i % 4) * 0.07) * 2.2));
+          ctx.strokeStyle = `rgba(255,240,190,${0.85 * (1 - p * 0.7)})`;
+          ctx.lineWidth = 2.2;
+          ctx.beginPath(); ctx.moveTo(px, py - T * 0.9 * (1 - fall)); ctx.lineTo(px, py - T * 0.9 * (1 - fall) + T * 0.42); ctx.stroke();
+          if (fall > 0.85) {
+            ctx.strokeStyle = `rgba(255,230,160,${0.6 * A})`;
+            ctx.beginPath(); ctx.arc(px, py, T * 0.12, 0, Math.PI * 2); ctx.stroke();
+          }
+        }
+        break;
+      }
+      case 'bolt': {
+        const top = f.y - T * 2.4;
+        ctx.strokeStyle = `rgba(210,238,255,${0.95 * A})`;
+        ctx.lineWidth = 4 * A + 1;
+        ctx.beginPath(); ctx.moveTo(f.x, top);
+        for (let i = 1; i <= 6; i++) ctx.lineTo(f.x + (i === 6 ? 0 : Math.sin(i * 2.7 + f.x) * 10), top + (f.y - top) * (i / 6));
+        ctx.stroke();
+        const g = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, T * 0.7);
+        g.addColorStop(0, `rgba(225,245,255,${0.8 * A})`);
+        g.addColorStop(1, 'rgba(190,225,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, T * 0.7, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'boltStorm': {
+        /* 천벌폭풍 — 굵은 번개 세 갈래가 번쩍이고 흰 충격 고리가 퍼진다 */
+        for (let k = -1; k <= 1; k++) {
+          const bx = f.x + k * T * 0.7;
+          const top = f.y - T * 2.6;
+          ctx.strokeStyle = k === 0 ? `rgba(255,255,255,${0.95 * A})` : `rgba(200,232,255,${0.75 * A})`;
+          ctx.lineWidth = (k === 0 ? 6 : 3.5) * A + 1;
+          ctx.beginPath(); ctx.moveTo(bx, top);
+          for (let i = 1; i <= 7; i++) ctx.lineTo(bx + (i === 7 ? 0 : Math.sin(i * 3.1 + k) * 12), top + (f.y - top) * (i / 7));
+          ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(235,248,255,${0.8 * A})`;
+        ctx.lineWidth = 4 * A + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.5 + p * 0.9), 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'fire': {
+        for (let i = 0; i < 14; i++) {
+          const a = i * 1.7;
+          const r = R * 0.6 * p * (0.5 + (i % 4) * 0.2);
+          ctx.fillStyle = `rgba(${240 - i * 4},${120 + (i % 5) * 12},40,${0.6 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r - p * T * 0.7, 6 * A + 2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.strokeStyle = `rgba(255,190,110,${0.8 * A})`;
+        ctx.lineWidth = 3 * A + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.45 + p * 0.55), 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'fireBuff': {
+        /* 팔진화공 — 불기둥이 솟고 그 위로 금빛 버프 링이 퍼진다 */
+        for (let i = 0; i < 12; i++) {
+          const a = i * 1.9;
+          const r = R * 0.55 * p;
+          ctx.fillStyle = `rgba(255,${140 + (i % 4) * 16},60,${Math.min(0.95, 0.95 * A + 0.05)})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * 0.8 - p * T * 0.9, 9 * A + 3, 0, Math.PI * 2); ctx.fill();
+        }
+        for (let i = 0; i < 2; i++) {
+          ctx.strokeStyle = `rgba(255,232,160,${Math.min(1, (1.0 - i * 0.22) * A)})`;
+          ctx.lineWidth = 7 - i * 2;
+          ctx.beginPath(); ctx.arc(f.x, f.y, T * (0.8 + i * 0.35 + p * 1.1), 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+      case 'poison': {
+        /* 독무술 — 초록·보라 독안개가 퍼지고 방울이 올라온다 */
+        for (let i = 0; i < 9; i++) {
+          const a = i * 1.1 + p * 0.6;
+          const r = R * (0.25 + p * 0.65) * (0.55 + (i % 3) * 0.2);
+          const c = i % 3 === 0 ? '176,140,225' : i % 3 === 1 ? '120,215,130' : '156,232,140';
+          ctx.fillStyle = `rgba(${c},${Math.min(0.62, 0.62 * A + 0.10)})`;
+          ctx.beginPath();
+          ctx.arc(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * 0.55 - p * T * 0.5, T * (0.46 + (i % 4) * 0.16) * (0.8 + p * 0.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        for (let i = 0; i < 10; i++) {
+          const a = i * 0.63;
+          const rr = R * 0.5 * (0.3 + (i % 4) * 0.22);
+          const rise = p * T * (1.1 + (i % 3) * 0.3);
+          ctx.fillStyle = i % 2 ? `rgba(196,255,170,${Math.min(1, 1.05 * A)})` : `rgba(210,170,250,${Math.min(1, 1.05 * A)})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr * 0.5 - rise, 5.2 * A + 2, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = `rgba(90,160,70,${0.55 * A})`; ctx.lineWidth = 1.4; ctx.stroke();
+        }
+        break;
+      }
+      case 'quake': {
+        /* 지진술 — 황토 균열이 갈라지고 돌파편이 튄다 */
+        ctx.fillStyle = `rgba(198,158,92,${0.34 * A + 0.06})`;
+        ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.55 + p * 0.8), 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = `rgba(96,66,30,${Math.min(1, 1.05 * A)})`;
+        ctx.lineWidth = 10 * A + 2;
+        for (let i = 0; i < 9; i++) {
+          const a = i * 0.9 + 0.3;
+          let px = f.x, py = f.y;
+          ctx.beginPath(); ctx.moveTo(px, py);
+          for (let k = 1; k <= 3; k++) {
+            px += Math.cos(a + Math.sin(k * 2 + i) * 0.5) * T * 0.42 * (1 + p);
+            py += Math.sin(a + Math.cos(k * 3 + i) * 0.4) * T * 0.26 * (1 + p);
+            ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+        }
+        for (let i = 0; i < 12; i++) {
+          const a = i * 0.7;
+          const d = R * p * (0.5 + (i % 3) * 0.2);
+          const up = Math.sin(Math.min(1, p * 1.4) * Math.PI) * T * 0.5;
+          ctx.fillStyle = `rgba(${196 + (i % 3) * 14},${164 + (i % 4) * 10},${104},${Math.min(1, 1.05 * A)})`;
+          ctx.save();
+          ctx.translate(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.6 - up);
+          ctx.rotate(a + p * 2);
+          ctx.fillRect(-6, -4, 12, 8);
+          ctx.strokeStyle = `rgba(70,46,20,${0.8 * A})`; ctx.lineWidth = 1.6; ctx.strokeRect(-6, -4, 12, 8);
+          ctx.restore();
+        }
+        ctx.strokeStyle = `rgba(214,176,110,${0.7 * A})`;
+        ctx.lineWidth = 3 * A + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.4 + p * 0.8), 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'earth': {
+        for (let i = 0; i < 10; i++) {
+          const a = i * 0.66;
+          const d = R * p * 0.7;
+          ctx.fillStyle = `rgba(196,168,116,${0.55 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.6 - Math.sin(p * Math.PI) * T * 0.3, 4.5 * A + 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'water': {
+        for (let i = 0; i < 3; i++) {
+          const rr = R * (0.3 + p * 0.8 + i * 0.18);
+          ctx.strokeStyle = `rgba(${col},${(0.85 - i * 0.22) * A})`;
+          ctx.lineWidth = 4 * A + 1;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y, rr, rr * 0.5, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+        for (let i = 0; i < 10; i++) {
+          const a = i * 0.8;
+          const d = R * 0.6 * p;
+          ctx.fillStyle = `rgba(220,246,255,${0.9 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.5 - Math.sin(p * Math.PI) * T * 0.35, 2.8 * A + 1, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'dark': {
+        for (let i = 0; i < 8; i++) {
+          const a = i * 0.9 + p * 2.2;
+          const r = R * (0.2 + p * 0.5) * (0.6 + (i % 3) * 0.2);
+          ctx.fillStyle = `rgba(${col},${0.34 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * 0.6 - p * T * 0.3, T * 0.28 * (0.8 + p * 0.4), 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'auraDark': {
+        /* 광역 약화 — 보라 파동이 두 번 퍼진다 */
+        for (let i = 0; i < 2; i++) {
+          const k = Math.max(0, Math.min(1, p * 1.4 - i * 0.25));
+          ctx.strokeStyle = `rgba(${col},${(0.8 - i * 0.25) * (1 - k)})`;
+          ctx.lineWidth = 4 * (1 - k) + 1;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y, R * (0.2 + k), R * (0.2 + k) * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+        for (let i = 0; i < 9; i++) {
+          const a = i * 0.7 - p * 1.8;
+          const d = R * 0.55 * (0.4 + p * 0.6);
+          ctx.fillStyle = `rgba(${col},${0.75 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.6 - p * T * 0.5, 2.6 * A + 1, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'gold': {
+        for (let i = 0; i < 2; i++) {
+          ctx.strokeStyle = `rgba(${col},${(0.9 - i * 0.3) * A})`;
+          ctx.lineWidth = 3 * A + 1;
+          ctx.beginPath(); ctx.arc(f.x, f.y, T * (0.3 + i * 0.22 + p * 0.5), 0, Math.PI * 2); ctx.stroke();
+        }
+        for (let i = 0; i < 7; i++) {
+          const a = i * 0.9 + p * 1.6;
+          const d = T * (0.3 + p * 0.5);
+          ctx.fillStyle = `rgba(255,238,180,${0.9 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.6 - p * T * 0.5, 2.4 * A + 1, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'goldWave': {
+        /* 천하호령 — 지휘관 발밑에서 전장 끝까지 황금 파동이 세 번 퍼진다 */
+        for (let i = 0; i < 3; i++) {
+          const k = Math.max(0, Math.min(1, p * 1.35 - i * 0.2));
+          if (k <= 0) continue;
+          ctx.strokeStyle = `rgba(255,${232 - i * 18},${150 - i * 20},${Math.min(1, (1.05 - i * 0.2) * (1 - k))})`;
+          ctx.lineWidth = (18 - i * 4) * (1 - k) + 3;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y, R * k, R * k * 0.62, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = `rgba(255,206,110,${0.20 * (1 - k)})`;
+          ctx.fill();
+        }
+        const g = ctx.createRadialGradient(f.x, f.y, 2, f.x, f.y, R * (0.35 + p * 0.8));
+        g.addColorStop(0, `rgba(255,248,215,${Math.min(1, 0.95 * A)})`);
+        g.addColorStop(0.55, `rgba(255,206,110,${0.5 * A})`);
+        g.addColorStop(1, 'rgba(255,190,90,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.35 + p * 0.8), 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'pillar': {
+        /* 아군 한 부대 위로 솟는 빛기둥 */
+        const h = T * (2.0 + p * 0.6);
+        const g = ctx.createLinearGradient(f.x, f.y - h, f.x, f.y + T * 0.3);
+        g.addColorStop(0, `rgba(${col},0)`);
+        g.addColorStop(0.45, `rgba(${col},${0.72 * A})`);
+        g.addColorStop(1, `rgba(255,252,230,${0.8 * A})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(f.x - T * 0.24 * (1 - p * 0.3), f.y - h, T * 0.48 * (1 - p * 0.3), h + T * 0.3);
+        ctx.strokeStyle = `rgba(255,250,225,${0.7 * A})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y + T * 0.28, T * (0.3 + p * 0.2), T * (0.14 + p * 0.1), 0, 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'buffRing': {
+        for (let i = 0; i < 2; i++) {
+          ctx.strokeStyle = `rgba(${col},${Math.min(1, (1.0 - i * 0.25) * A)})`;
+          ctx.lineWidth = 5 * A + 1.5;
+          ctx.beginPath(); ctx.arc(f.x, f.y, T * (0.25 + i * 0.2 + p * 0.55), 0, Math.PI * 2); ctx.stroke();
+        }
+        for (let i = 0; i < 6; i++) {
+          const a = i * 1.05 - p * 2;
+          const d = T * (0.22 + p * 0.4);
+          ctx.fillStyle = `rgba(255,240,190,${0.9 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.7 - p * T * 0.45, 2.4 * A + 0.8, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'dance': {
+        for (let i = 0; i < 8; i++) {
+          const a = i * 0.8 + p * 3.2;
+          const d = T * (0.3 + p * 0.7) * (0.6 + (i % 3) * 0.2);
+          ctx.fillStyle = `rgba(${col},${0.8 * A})`;
+          ctx.beginPath();
+          ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.5 - p * T * 0.6, 3.4 * A + 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.strokeStyle = `rgba(255,235,250,${0.6 * A})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(f.x, f.y, T * (0.35 + p * 0.6), 0, Math.PI * 2); ctx.stroke();
+        break;
+      }
+      case 'music': {
+        for (let i = 0; i < 3; i++) {
+          const k = Math.max(0, Math.min(1, p * 1.3 - i * 0.22));
+          if (k <= 0) continue;
+          ctx.strokeStyle = `rgba(${col},${(0.8 - i * 0.2) * (1 - k)})`;
+          ctx.lineWidth = 3 * (1 - k) + 1;
+          ctx.beginPath(); ctx.arc(f.x, f.y, R * k * 0.6, -0.6, 0.6); ctx.stroke();
+          ctx.beginPath(); ctx.arc(f.x, f.y, R * k * 0.6, 2.5, 3.7); ctx.stroke();
+        }
+        break;
+      }
+      case 'heal': {
+        for (let i = 0; i < 9; i++) {
+          const a = i * 0.7 + p * 2.4;
+          const d = T * (0.2 + p * 0.55);
+          ctx.fillStyle = `rgba(${col},${0.85 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.6 - p * T * 0.7, 2.6 * A + 1, 0, Math.PI * 2); ctx.fill();
+        }
+        for (let i = 0; i < 2; i++) {
+          ctx.strokeStyle = `rgba(${col},${(0.7 - i * 0.25) * A})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y, T * (0.3 + p * 0.5 + i * 0.15), T * (0.16 + p * 0.28), 0, 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+      case 'fog': {
+        for (let i = 0; i < 6; i++) {
+          const a = i * 1.05 + p * 0.7;
+          const r = R * (0.25 + p * 0.6) * (0.5 + (i % 3) * 0.25);
+          ctx.fillStyle = `rgba(${col},${0.24 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r * 0.5, T * 0.4 * (0.8 + p * 0.6), 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'roar': {
+        for (let i = 0; i < 3; i++) {
+          const k = Math.max(0, Math.min(1, p * 1.5 - i * 0.28));
+          if (k <= 0) continue;
+          ctx.strokeStyle = `rgba(${col},${(0.85 - i * 0.22) * (1 - k)})`;
+          ctx.lineWidth = 3.4 * (1 - k) + 1;
+          ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.2 + k * 0.7), -0.7, 0.7); ctx.stroke();
+          ctx.beginPath(); ctx.arc(f.x, f.y, R * (0.2 + k * 0.7), Math.PI - 0.7, Math.PI + 0.7); ctx.stroke();
+        }
+        break;
+      }
+      case 'rock': {
+        for (let i = 0; i < 7; i++) {
+          const a = i * 0.9;
+          const d = R * p * (0.35 + (i % 3) * 0.2);
+          const up = Math.sin(Math.min(1, p * 1.5) * Math.PI) * T * 0.55;
+          ctx.fillStyle = `rgba(150,132,96,${0.9 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d * 0.6 - up, 5 * A + 2, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = `rgba(255,238,190,${0.5 * A})`;
+          ctx.lineWidth = 1.4; ctx.stroke();
+        }
+        break;
+      }
+    }
   }
 
   function castCircle(u, color) {
@@ -9249,6 +9851,100 @@
           x: p.x, y: p.y, target: p.target ? p.target.name : null, score: p.score } : null;
       },
       hurtEnemies(n) { B.units.filter((u) => u.side === 'enemy').forEach((u) => { u.hp = n; if (n <= 0) u.alive = false; }); },
+      /* v5.60 — 병과 책략 72종 실행 점검 훅. MP·행동 여부를 무시하고 그 자리에서 펼친다.
+         (v5.49의 castSkill 은 MP가 모자라면 false 를 돌려주므로 검수에는 이 훅을 쓴다) */
+      castForce(name, key, tx, ty) {
+        if (!B) return { ok: false, why: 'no-battle' };
+        const u = B.units.find((o) => o.name === name && o.alive);
+        const sk = SK.SKILLS[key];
+        if (!u || !sk) return { ok: false, why: 'no-unit-or-skill' };
+        u.mp = Math.max(u.maxMp || 0, 999);
+        u.acted = false;
+        const snap = () => ({
+          foes: B.units.filter((o) => o.side !== u.side && o.alive).map((o) => ({ n: o.name, hp: Math.round(o.hp), atk: +(o.buffs.atk ? o.buffs.atk.v : 0).toFixed(3), def: +(o.buffs.def ? o.buffs.def.v : 0).toFixed(3), morale: Math.round(o.morale || 0), ail: Object.keys(o.ail || {}) })),
+          allies: B.units.filter((o) => o.side === u.side && o.alive).map((o) => ({ n: o.name, hp: Math.round(o.hp), atk: +(o.buffs.atk ? o.buffs.atk.v : 0).toFixed(3), def: +(o.buffs.def ? o.buffs.def.v : 0).toFixed(3), morale: Math.round(o.morale || 0) })),
+        });
+        const before = snap();
+        fx.length = 0;
+        B.sel = u; mode = 'skillTarget';
+        pendingSkill = Object.assign({ key }, sk);
+        const px = tx == null ? u.x : tx, py = ty == null ? u.y : ty;
+        if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies') castInstant(u, sk);
+        else trySkillAt(px, py);
+        return { ok: true, kind: sk.kind, fx: sk.fx || null, tag: skillFxTag(u, sk), mp: sk.mp, before };
+      },
+      placeDuel(casterName, foeName, gap) {
+        if (!B) return null;
+        const c = B.units.find((o) => o.name === casterName && o.alive);
+        const f = B.units.find((o) => o.name === foeName && o.alive);
+        if (!c || !f) return null;
+        const need = Math.max(1, Math.round(gap || 1));
+        let tx = f.x, ty = f.y + need;
+        if (!B.tiles[ty] || !B.tiles[ty][tx]) ty = f.y - need;
+        if (!B.tiles[ty] || !B.tiles[ty][tx]) return null;
+        B.units.forEach((u) => {
+          if (u === c || !u.alive) return;
+          if (u.x === tx && u.y === ty) { const alt = findFree(B.tiles, 2, 2); u.x = alt.x; u.y = alt.y; u.rx = alt.x; u.ry = alt.y; }
+        });
+        c.x = tx; c.y = ty; c.rx = tx; c.ry = ty;
+        return { x: tx, y: ty };
+      },
+      cluster() {
+        if (!B) return null;
+        const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
+        const foes = B.units.filter((u) => u.side === 'enemy' && u.alive);
+        const rows = [];
+        allies.forEach((a, i) => rows.push({ n: a.name, x: 8 + (i % 6), y: 20 + Math.floor(i / 6) }));
+        foes.forEach((f, i) => rows.push({ n: f.name, x: 8 + (i % 6), y: 17 + Math.floor(i / 6) }));
+        this.placeUnits(rows);
+        return { allies: allies.length, foes: foes.length };
+      },
+      castResult(name) {
+        if (!B) return null;
+        const u = B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return {
+          allies: B.units.filter((o) => o.side === u.side && o.alive).map((o) => ({ n: o.name, hp: Math.round(o.hp), atk: +(o.buffs.atk ? o.buffs.atk.v : 0).toFixed(3), def: +(o.buffs.def ? o.buffs.def.v : 0).toFixed(3), morale: Math.round(o.morale || 0) })),
+          foes: B.units.filter((o) => o.side !== u.side && o.alive).map((o) => ({ n: o.name, hp: Math.round(o.hp), atk: +(o.buffs.atk ? o.buffs.atk.v : 0).toFixed(3), def: +(o.buffs.def ? o.buffs.def.v : 0).toFixed(3), morale: Math.round(o.morale || 0), ail: Object.keys(o.ail || {}) })),
+          fx: (B.skillFxLog || []).slice(),
+        };
+      },
+      skillFxTags() { return fx.filter((f) => f.kind === 'skillfx').map((f) => f.sub); },
+      fxLog() { return B && B.skillFxLog ? B.skillFxLog.slice() : []; },
+      frameNo() { return frameNo; },
+      focusCam() { return { s: Math.round(cam.s * 1000) / 1000, x: Math.round(cam.x), y: Math.round(cam.y), tile: TILE }; },
+      /* v5.60 — 카메라를 한 부대에 붙이고 배율을 올린다 (이펙트 프레임 검수용) */
+      focusUnit(name, sc) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        cam.s = Math.max(0.2, Math.min(1.6, Number(sc) || 0.85));
+        centerCam(u.x, u.y);
+        return { s: cam.s, x: Math.round(cam.x), y: Math.round(cam.y) };
+      },
+      speedSet(v) { autoSpeed = Math.max(1, Math.min(4, Number(v) || 1)); speedPref = autoSpeed; paintSpeedBtn(); return autoSpeed; },
+      lockTurn(v) { if (B) B.lockTurn = v !== false; return B ? !!B.lockTurn : null; },
+      resetTurn() {
+        if (!B) return null;
+        B.phase = 'ally'; busy = false; mode = 'idle'; B.sel = null; pendingSkill = null;
+        B.units.forEach((u) => { if (u.side === 'ally') u.acted = false; });
+        return { turn: B.turn, phase: B.phase };
+      },
+      skillFxCount() { return fx.filter((f) => f.kind === 'skillfx').length; },
+      clearFx() { fx.length = 0; if (B) B.skillFxLog = []; },
+      setHp(name, v) { const u = B && B.units.find((o) => o.name === name); if (!u) return null; u.hp = v; return Math.round(u.hp); },
+      bulkUp() {
+        if (!B) return null;
+        B.units.forEach((u) => { u.maxHp = 40000; u.hp = u.side === 'ally' ? Math.round(u.maxHp * 0.5) : 40000; });
+        return B.units.length;
+      },
+      placeUnits(rows) {
+        if (!B || !rows) return null;
+        rows.forEach((r) => {
+          const u = B.units.find((o) => o.name === r.n);
+          if (u && B.tiles[r.y] && B.tiles[r.y][r.x]) { u.x = r.x; u.y = r.y; u.rx = r.x; u.ry = r.y; }
+        });
+        return B.units.filter((u) => u.alive).map((u) => ({ n: u.name, x: u.x, y: u.y }));
+      },
       finish() { finishCheck(); },
       closeBattle,
       openPrisoners(genIds) {

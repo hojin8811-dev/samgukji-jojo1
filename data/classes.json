@@ -21,21 +21,21 @@
         "turns": 3,
         "atk": 0.1,
         "morale": 15,
+        "fx": "gold",
         "name": "고무",
         "mp": 8,
         "unlockLv": 1,
         "effect": "2칸 안 아군 1명 공격 +10% (3턴) · 사기 +15"
       },
       {
-        "kind": "buffAreaAllies",
-        "radius": 2,
-        "turns": 3,
-        "atk": 0.12,
-        "morale": 8,
-        "name": "호령",
+        "kind": "power",
+        "power": 1.85,
+        "morale": -12,
+        "fx": "goldSlash",
+        "name": "패왕참",
         "mp": 16,
         "unlockLv": 10,
-        "effect": "주변 2칸 아군 공격 +12% (3턴) · 사기 +8"
+        "effect": "1칸 적 하나에게 185% 피해 · 적 사기 -12"
       },
       {
         "kind": "debuffAtk",
@@ -43,21 +43,23 @@
         "amount": -0.15,
         "turns": 3,
         "morale": -15,
+        "fx": "auraDark",
         "name": "제왕의 위엄",
         "mp": 24,
         "unlockLv": 20,
         "effect": "주변 2칸 범위 적 공격 -15% (3턴) · 적 사기 -15"
       },
       {
-        "kind": "buffAreaAllies",
-        "radius": 2,
+        "kind": "buffAllAllies",
         "turns": 3,
-        "atk": 0.25,
-        "morale": 20,
-        "name": "천하통일",
+        "atk": 0.18,
+        "def": 0.08,
+        "morale": 18,
+        "fx": "goldWave",
+        "name": "천하호령",
         "mp": 30,
         "unlockLv": 30,
-        "effect": "주변 2칸 아군 공격 +25% (3턴) · 사기 +20"
+        "effect": "전장 아군 전원 공격 +18%·방어 +8% (3턴) · 사기 +18"
       }
     ]
   },
@@ -80,35 +82,42 @@
       {
         "kind": "power",
         "power": 1.38,
-        "name": "돌격",
+        "fx": "slash",
+        "name": "마상돌격",
         "mp": 8,
         "unlockLv": 1,
         "effect": "1칸 적 하나에게 138% 피해"
       },
       {
         "kind": "power",
-        "power": 1.6,
+        "power": 1.55,
+        "slow": 1,
+        "fx": "wind",
         "name": "질풍참",
         "mp": 16,
         "unlockLv": 10,
-        "effect": "1칸 적 하나에게 160% 피해"
+        "effect": "1칸 적 하나에게 155% 피해 · 이동력 -1"
       },
       {
-        "kind": "power",
-        "power": 1.73,
-        "defPierce": 0.25,
-        "name": "천마돌파",
-        "mp": 24,
+        "kind": "buffSelf",
+        "turns": 2,
+        "atk": 0.3,
+        "morale": 8,
+        "fx": "buffRing",
+        "name": "기마돌격태세",
+        "mp": 14,
         "unlockLv": 20,
-        "effect": "1칸 적 하나에게 173% 피해 · 방어력 25% 관통"
+        "effect": "자신의 공격 +30% (2턴) · 사기 +8"
       },
       {
         "kind": "power",
-        "power": 2.1,
+        "power": 1.9,
+        "defPierce": 0.3,
+        "fx": "slash",
         "name": "철기돌파",
         "mp": 28,
         "unlockLv": 30,
-        "effect": "1칸 적 하나에게 210% 피해"
+        "effect": "1칸 적 하나에게 190% 피해 · 방어력 30% 관통"
       }
     ]
   },
@@ -132,6 +141,7 @@
         "kind": "power",
         "power": 1.38,
         "range": 3,
+        "fx": "arrow",
         "name": "속사",
         "mp": 8,
         "unlockLv": 1,
@@ -142,6 +152,7 @@
         "power": 0.92,
         "hits": 2,
         "range": 3,
+        "fx": "arrow",
         "name": "연사",
         "mp": 16,
         "unlockLv": 10,
@@ -152,19 +163,23 @@
         "power": 1.73,
         "range": 3,
         "defPierce": 0.2,
-        "name": "유성시",
+        "fx": "arrow",
+        "name": "관통사격",
         "mp": 24,
         "unlockLv": 20,
         "effect": "3칸 안 적 하나에게 173% 피해 · 방어력 20% 관통"
       },
       {
-        "kind": "power",
-        "power": 1.95,
-        "range": 4,
-        "name": "유성궁",
+        "kind": "magicArea",
+        "power": 420,
+        "range": 3,
+        "radius": 1,
+        "slow": 1,
+        "fx": "arrowRain",
+        "name": "화살비",
         "mp": 28,
         "unlockLv": 30,
-        "effect": "4칸 안 적 하나에게 195% 피해"
+        "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 이동력 -1"
       }
     ]
   },
@@ -189,6 +204,7 @@
         "power": 1.38,
         "range": 2,
         "vsMount": 0.25,
+        "fx": "thrust",
         "name": "창진",
         "mp": 8,
         "unlockLv": 1,
@@ -199,28 +215,34 @@
         "power": 1.5,
         "range": 2,
         "slow": 1,
+        "fx": "thrust",
         "name": "연격창",
         "mp": 16,
         "unlockLv": 10,
         "effect": "2칸 안 적 하나에게 150% 피해 · 이동력 -1"
       },
       {
-        "kind": "power",
-        "power": 2.1,
-        "defPierce": 0.25,
-        "name": "천장일섬",
-        "mp": 24,
+        "kind": "buffAreaAllies",
+        "radius": 2,
+        "turns": 3,
+        "def": 0.18,
+        "morale": 6,
+        "fx": "buffRing",
+        "name": "창벽진",
+        "mp": 18,
         "unlockLv": 20,
-        "effect": "1칸 적 하나에게 210% 피해 · 방어력 25% 관통"
+        "effect": "주변 2칸 아군 방어 +18% (3턴) · 사기 +6"
       },
       {
         "kind": "power",
         "power": 1.9,
         "range": 2,
+        "defPierce": 0.25,
+        "fx": "thrust",
         "name": "천장관통",
         "mp": 26,
         "unlockLv": 30,
-        "effect": "2칸 안 적 하나에게 190% 피해"
+        "effect": "2칸 안 적 하나에게 190% 피해 · 방어력 25% 관통"
       }
     ]
   },
@@ -243,6 +265,7 @@
       {
         "kind": "power",
         "power": 1.4,
+        "fx": "slash",
         "name": "일섬",
         "mp": 8,
         "unlockLv": 1,
@@ -250,29 +273,34 @@
       },
       {
         "kind": "power",
-        "power": 1.55,
-        "range": 2,
-        "name": "검기참",
-        "mp": 16,
-        "unlockLv": 10,
-        "effect": "2칸 안 적 하나에게 155% 피해"
-      },
-      {
-        "kind": "power",
         "power": 0.92,
         "hits": 2,
+        "fx": "slash",
         "name": "무형검무",
-        "mp": 24,
-        "unlockLv": 20,
+        "mp": 16,
+        "unlockLv": 10,
         "effect": "1칸 적 하나에게 92% 피해 (2회 · 합 184%)"
       },
       {
+        "kind": "buffSelf",
+        "turns": 3,
+        "atk": 0.25,
+        "morale": 10,
+        "fx": "buffRing",
+        "name": "무아지경",
+        "mp": 14,
+        "unlockLv": 20,
+        "effect": "자신의 공격 +25% (3턴) · 사기 +10"
+      },
+      {
         "kind": "power",
-        "power": 2.0,
+        "power": 2.1,
+        "ignoreEvade": true,
+        "fx": "slash",
         "name": "무쌍검무",
         "mp": 26,
         "unlockLv": 30,
-        "effect": "1칸 적 하나에게 200% 피해"
+        "effect": "1칸 적 하나에게 210% 피해 · 회피 무시"
       }
     ]
   },
@@ -295,6 +323,7 @@
       {
         "kind": "power",
         "power": 1.38,
+        "fx": "dark",
         "name": "기습",
         "mp": 8,
         "unlockLv": 1,
@@ -306,6 +335,7 @@
         "amount": -0.12,
         "turns": 3,
         "morale": -10,
+        "fx": "auraDark",
         "name": "약탈",
         "mp": 16,
         "unlockLv": 10,
@@ -313,20 +343,23 @@
       },
       {
         "kind": "power",
-        "power": 1.9,
+        "power": 1.85,
         "slow": 2,
+        "fx": "earth",
         "name": "산악매복",
         "mp": 24,
         "unlockLv": 20,
-        "effect": "1칸 적 하나에게 190% 피해 · 이동력 -2"
+        "effect": "1칸 적 하나에게 185% 피해 · 이동력 -2"
       },
       {
         "kind": "power",
         "power": 2.0,
+        "morale": -8,
+        "fx": "dark",
         "name": "산채습격",
         "mp": 26,
         "unlockLv": 30,
-        "effect": "1칸 적 하나에게 200% 피해"
+        "effect": "1칸 적 하나에게 200% 피해 · 적 사기 -8"
       }
     ]
   },
@@ -350,6 +383,7 @@
         "kind": "power",
         "power": 1.38,
         "waterBonus": true,
+        "fx": "water",
         "name": "수습",
         "mp": 8,
         "unlockLv": 1,
@@ -361,31 +395,35 @@
         "range": 2,
         "radius": 1,
         "slow": 1,
+        "fx": "water",
         "name": "파도격",
         "mp": 16,
         "unlockLv": 10,
         "effect": "2칸 안 지점 1칸 범위에 책략 피해 · 이동력 -1"
       },
       {
-        "kind": "magicArea",
-        "power": 456,
-        "range": 2,
-        "radius": 1,
-        "morale": -20,
-        "name": "해일충격",
-        "mp": 24,
+        "kind": "debuffDef",
+        "radius": 2,
+        "amount": -0.2,
+        "turns": 3,
+        "slow": 1,
+        "fx": "water",
+        "name": "물보라",
+        "mp": 20,
         "unlockLv": 20,
-        "effect": "2칸 안 지점 1칸 범위에 책략 피해 · 적 사기 -20"
+        "effect": "주변 2칸 범위 적 방어 -20% (3턴) · 이동력 -1"
       },
       {
         "kind": "magicArea",
         "power": 492,
         "range": 3,
         "radius": 2,
+        "morale": -18,
+        "fx": "water",
         "name": "해일강타",
         "mp": 28,
         "unlockLv": 30,
-        "effect": "3칸 안 지점 2칸 범위에 책략 피해"
+        "effect": "3칸 안 지점 2칸 범위에 책략 피해 · 적 사기 -18"
       }
     ]
   },
@@ -410,6 +448,7 @@
         "power": 330,
         "range": 3,
         "radius": 1,
+        "fx": "fire",
         "name": "화계",
         "mp": 10,
         "unlockLv": 1,
@@ -421,6 +460,7 @@
         "amount": -0.2,
         "turns": 3,
         "confuse": true,
+        "fx": "auraDark",
         "name": "혼란",
         "mp": 16,
         "unlockLv": 10,
@@ -428,20 +468,31 @@
       },
       {
         "kind": "magicArea",
-        "power": 492,
+        "power": 420,
         "range": 3,
         "radius": 1,
-        "morale": -12,
-        "name": "천지붕괴",
-        "mp": 28,
+        "selfBuff": {
+          "atk": 0.15,
+          "turns": 3
+        },
+        "allyBuff": {
+          "radius": 2,
+          "atk": 0.12,
+          "turns": 3,
+          "morale": 6
+        },
+        "fx": "fireBuff",
+        "name": "팔진화공",
+        "mp": 26,
         "unlockLv": 20,
-        "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 적 사기 -12"
+        "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 시전자 공격 +15% (3턴) · 주변 2칸 아군 공격 +12% (3턴) · 사기 +6"
       },
       {
         "kind": "magicArea",
         "power": 510,
         "range": 3,
         "radius": 2,
+        "fx": "fire",
         "name": "천지연화",
         "mp": 30,
         "unlockLv": 30,
@@ -469,32 +520,40 @@
         "kind": "heal",
         "range": 2,
         "healPct": 0.16,
+        "fx": "heal",
         "name": "지맥회복",
         "mp": 10,
         "unlockLv": 1,
         "effect": "2칸 안 아군 1명 병력 16% 회복"
       },
       {
-        "kind": "buffAreaAllies",
-        "radius": 2,
-        "turns": 3,
-        "atk": 0.1,
-        "morale": 10,
-        "name": "풍향조절",
-        "mp": 16,
+        "kind": "magicArea",
+        "power": 400,
+        "range": 3,
+        "radius": 1,
+        "slow": 1,
+        "defDown": {
+          "amount": -0.2,
+          "turns": 2
+        },
+        "fx": "quake",
+        "name": "지진술",
+        "mp": 20,
         "unlockLv": 10,
-        "effect": "주변 2칸 아군 공격 +10% (3턴) · 사기 +10"
+        "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 이동력 -1 · 적 방어 20%↓ (2턴)"
       },
       {
         "kind": "buffAreaAllies",
         "radius": 2,
         "turns": 3,
-        "def": 0.25,
+        "atk": 0.08,
+        "def": 0.15,
         "morale": 8,
+        "fx": "buffRing",
         "name": "산천진법",
-        "mp": 26,
+        "mp": 24,
         "unlockLv": 20,
-        "effect": "주변 2칸 아군 방어 +25% (3턴) · 사기 +8"
+        "effect": "주변 2칸 아군 공격 +8%·방어 +15% (3턴) · 사기 +8"
       },
       {
         "kind": "buffAreaAllies",
@@ -502,6 +561,7 @@
         "turns": 3,
         "def": 0.3,
         "morale": 10,
+        "fx": "buffRing",
         "name": "산천대진",
         "mp": 28,
         "unlockLv": 30,
@@ -531,10 +591,23 @@
         "range": 3,
         "radius": 1,
         "stun": 25,
+        "fx": "bolt",
         "name": "낙뢰",
         "mp": 10,
         "unlockLv": 1,
         "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 기절 확률 25%"
+      },
+      {
+        "kind": "magicArea",
+        "power": 300,
+        "range": 3,
+        "radius": 1,
+        "poison": true,
+        "fx": "poison",
+        "name": "독무술",
+        "mp": 16,
+        "unlockLv": 10,
+        "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 중독 상태 부여 (3턴)"
       },
       {
         "kind": "buffAreaAllies",
@@ -542,28 +615,18 @@
         "turns": 3,
         "def": 0.15,
         "morale": 6,
+        "fx": "fog",
         "name": "안개술",
         "mp": 16,
-        "unlockLv": 10,
-        "effect": "주변 2칸 아군 방어 +15% (3턴) · 사기 +6"
-      },
-      {
-        "kind": "magicArea",
-        "power": 492,
-        "range": 3,
-        "radius": 1,
-        "confuse": true,
-        "morale": -20,
-        "name": "천벌강림",
-        "mp": 28,
         "unlockLv": 20,
-        "effect": "3칸 안 지점 1칸 범위에 책략 피해 · 혼란 상태 부여 · 적 사기 -20"
+        "effect": "주변 2칸 아군 방어 +15% (3턴) · 사기 +6"
       },
       {
         "kind": "magicArea",
         "power": 510,
         "range": 3,
         "radius": 2,
+        "fx": "boltStorm",
         "name": "천벌폭풍",
         "mp": 30,
         "unlockLv": 30,
@@ -592,6 +655,7 @@
         "power": 1.38,
         "range": 3,
         "minRange": 2,
+        "fx": "arrow",
         "name": "조준사격",
         "mp": 8,
         "unlockLv": 1,
@@ -603,6 +667,7 @@
         "range": 3,
         "minRange": 2,
         "radius": 1,
+        "fx": "fire",
         "name": "화시",
         "mp": 16,
         "unlockLv": 10,
@@ -614,6 +679,7 @@
         "range": 3,
         "minRange": 2,
         "ignoreEvade": true,
+        "fx": "arrow",
         "name": "백발백중",
         "mp": 24,
         "unlockLv": 20,
@@ -624,10 +690,12 @@
         "power": 2.0,
         "range": 4,
         "minRange": 2,
+        "defPierce": 0.15,
+        "fx": "arrow",
         "name": "신궁",
         "mp": 26,
         "unlockLv": 30,
-        "effect": "2~4칸 적 하나에게 200% 피해"
+        "effect": "2~4칸 적 하나에게 200% 피해 · 방어력 15% 관통"
       }
     ]
   },
@@ -651,6 +719,7 @@
         "kind": "power",
         "power": 0.92,
         "hits": 2,
+        "fx": "fist",
         "name": "연환권",
         "mp": 8,
         "unlockLv": 1,
@@ -660,16 +729,19 @@
         "kind": "buffSelf",
         "turns": 3,
         "def": 0.3,
+        "morale": 6,
+        "fx": "buffRing",
         "name": "금강체",
-        "mp": 16,
+        "mp": 14,
         "unlockLv": 10,
-        "effect": "자신의 방어 +30% (3턴)"
+        "effect": "자신의 방어 +30% (3턴) · 사기 +6"
       },
       {
         "kind": "power",
         "power": 1.73,
         "defPierce": 0.35,
         "stun": 35,
+        "fx": "fist",
         "name": "파천격",
         "mp": 24,
         "unlockLv": 20,
@@ -678,6 +750,7 @@
       {
         "kind": "power",
         "power": 2.1,
+        "fx": "fist",
         "name": "천왕권",
         "mp": 26,
         "unlockLv": 30,
@@ -704,6 +777,7 @@
       {
         "kind": "power",
         "power": 1.38,
+        "fx": "beast",
         "name": "맹수습격",
         "mp": 8,
         "unlockLv": 1,
@@ -716,6 +790,7 @@
         "turns": 3,
         "fear": true,
         "morale": -15,
+        "fx": "roar",
         "name": "포효",
         "mp": 16,
         "unlockLv": 10,
@@ -727,6 +802,7 @@
         "turns": 2,
         "atk": 0.35,
         "morale": 10,
+        "fx": "buffRing",
         "name": "광폭화",
         "mp": 24,
         "unlockLv": 20,
@@ -735,6 +811,7 @@
       {
         "kind": "power",
         "power": 2.05,
+        "fx": "beast",
         "name": "맹수왕",
         "mp": 26,
         "unlockLv": 30,
@@ -764,6 +841,7 @@
         "turns": 3,
         "atk": 0.1,
         "morale": 20,
+        "fx": "dance",
         "name": "고무의 춤",
         "mp": 9,
         "unlockLv": 1,
@@ -775,6 +853,7 @@
         "amount": -0.2,
         "turns": 3,
         "morale": -15,
+        "fx": "dance",
         "name": "매혹의 선율",
         "mp": 16,
         "unlockLv": 10,
@@ -786,6 +865,7 @@
         "healPct": 0.13,
         "cleanse": true,
         "morale": 10,
+        "fx": "heal",
         "name": "천상의 가무",
         "mp": 26,
         "unlockLv": 20,
@@ -796,6 +876,7 @@
         "radius": 2,
         "amount": -0.3,
         "turns": 3,
+        "fx": "dance",
         "name": "유혹의 장막",
         "mp": 26,
         "unlockLv": 30,
@@ -824,6 +905,7 @@
         "power": 1.42,
         "range": 5,
         "minRange": 2,
+        "fx": "rock",
         "name": "투석",
         "mp": 10,
         "unlockLv": 1,
@@ -835,8 +917,9 @@
         "range": 5,
         "minRange": 2,
         "radius": 1,
+        "fx": "rock",
         "name": "작렬석",
-        "mp": 18,
+        "mp": 14,
         "unlockLv": 10,
         "effect": "2~5칸 지점 1칸 범위에 책략 피해"
       },
@@ -846,10 +929,12 @@
         "range": 5,
         "minRange": 2,
         "radius": 2,
+        "slow": 1,
+        "fx": "rock",
         "name": "벽력일격",
-        "mp": 28,
+        "mp": 24,
         "unlockLv": 20,
-        "effect": "2~5칸 지점 2칸 범위에 책략 피해"
+        "effect": "2~5칸 지점 2칸 범위에 책략 피해 · 이동력 -1"
       },
       {
         "kind": "power",
@@ -857,6 +942,7 @@
         "range": 5,
         "minRange": 2,
         "siegeBonus": 0.5,
+        "fx": "rock",
         "name": "천둥포차",
         "mp": 30,
         "unlockLv": 30,
@@ -886,6 +972,7 @@
         "hits": 2,
         "range": 4,
         "minRange": 2,
+        "fx": "bolt",
         "name": "연발사격",
         "mp": 9,
         "unlockLv": 1,
@@ -898,6 +985,7 @@
         "range": 4,
         "minRange": 2,
         "defPierce": 0.15,
+        "fx": "bolt",
         "name": "집중노사",
         "mp": 16,
         "unlockLv": 10,
@@ -910,6 +998,7 @@
         "minRange": 2,
         "radius": 1,
         "slow": 1,
+        "fx": "boltStorm",
         "name": "노우폭풍",
         "mp": 26,
         "unlockLv": 20,
@@ -917,14 +1006,16 @@
       },
       {
         "kind": "power",
-        "power": 0.7,
+        "power": 0.72,
         "hits": 3,
         "range": 4,
         "minRange": 2,
-        "name": "노우폭풍·극",
+        "ignoreEvade": true,
+        "fx": "bolt",
+        "name": "천노사격",
         "mp": 28,
         "unlockLv": 30,
-        "effect": "2~4칸 적 하나에게 70% 피해 (3회 · 합 210%)"
+        "effect": "2~4칸 적 하나에게 72% 피해 (3회 · 합 216%) · 회피 무시"
       }
     ]
   },
@@ -948,17 +1039,19 @@
         "kind": "buffSelf",
         "turns": 3,
         "def": 0.35,
+        "fx": "shield",
         "name": "철벽방어",
         "mp": 8,
         "unlockLv": 1,
-        "effect": "자신의 방어 +30% (3턴)"
+        "effect": "자신의 방어 +35% (3턴)"
       },
       {
         "kind": "power",
         "power": 1.38,
         "stun": 20,
+        "fx": "shield",
         "name": "방패돌진",
-        "mp": 16,
+        "mp": 14,
         "unlockLv": 10,
         "effect": "1칸 적 하나에게 138% 피해 · 기절 확률 20%"
       },
@@ -966,23 +1059,23 @@
         "kind": "buffAreaAllies",
         "radius": 2,
         "turns": 3,
-        "def": 0.25,
+        "def": 0.22,
         "morale": 8,
+        "fx": "buffRing",
         "name": "불침진형",
         "mp": 24,
         "unlockLv": 20,
-        "effect": "주변 2칸 아군 방어 +25% (3턴) · 사기 +8"
+        "effect": "주변 2칸 아군 방어 +22% (3턴) · 사기 +8"
       },
       {
-        "kind": "buffAreaAllies",
-        "radius": 2,
-        "turns": 3,
-        "def": 0.3,
-        "morale": 10,
-        "name": "철벽진형",
-        "mp": 24,
+        "kind": "power",
+        "power": 1.85,
+        "defPierce": 0.15,
+        "fx": "shield",
+        "name": "철벽진격",
+        "mp": 26,
         "unlockLv": 30,
-        "effect": "주변 2칸 아군 방어 +30% (3턴) · 사기 +10"
+        "effect": "1칸 적 하나에게 185% 피해 · 방어력 15% 관통"
       }
     ]
   },
@@ -1008,6 +1101,7 @@
         "turns": 3,
         "atk": 0.1,
         "morale": 12,
+        "fx": "music",
         "name": "진군북",
         "mp": 9,
         "unlockLv": 1,
@@ -1017,13 +1111,14 @@
         "kind": "buffAreaAllies",
         "radius": 2,
         "turns": 3,
-        "atk": 0.1,
+        "def": 0.1,
         "cleanse": true,
         "morale": 18,
+        "fx": "music",
         "name": "사기진작",
         "mp": 16,
         "unlockLv": 10,
-        "effect": "주변 2칸 아군 공격 +10% (3턴) · 사기 +18 · 상태이상 해제"
+        "effect": "주변 2칸 아군 방어 +10% (3턴) · 사기 +18 · 상태이상 해제"
       },
       {
         "kind": "healArea",
@@ -1031,6 +1126,7 @@
         "healPct": 0.13,
         "cleanse": true,
         "morale": 20,
+        "fx": "heal",
         "name": "승리의 교향곡",
         "mp": 26,
         "unlockLv": 20,
@@ -1041,11 +1137,13 @@
         "radius": 2,
         "turns": 3,
         "atk": 0.25,
+        "def": 0.08,
         "morale": 20,
+        "fx": "music",
         "name": "대승리의 교향곡",
         "mp": 28,
         "unlockLv": 30,
-        "effect": "주변 2칸 아군 공격 +25% (3턴) · 사기 +20"
+        "effect": "주변 2칸 아군 공격 +25%·방어 +8% (3턴) · 사기 +20"
       }
     ]
   }

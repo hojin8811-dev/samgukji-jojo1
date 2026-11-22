@@ -883,9 +883,11 @@ SK.applyClassData = function (list) {
           문구와 실제 동작이 어긋나는 기술이 40여 종 있었다) */
       if (sk.kind) {
         def.kind = sk.kind;
+        /* v5.60 — poison(중독 부여)·defDown(방어 약화)·selfBuff/allyBuff(공격+버프 복합)·fx(이펙트 태그)까지
+           classes.json 이 적은 그대로 넘긴다. 여기 빠지면 실행부가 없는 값을 보게 된다. */
         ['power', 'hits', 'range', 'minRange', 'radius', 'amount', 'turns', 'atk', 'def',
          'healPct', 'vsMount', 'waterBonus', 'siegeBonus', 'defPierce', 'ignoreEvade', 'slow',
-         'stun', 'confuse', 'fear', 'cleanse'].forEach((k) => {
+         'stun', 'confuse', 'fear', 'cleanse', 'poison', 'defDown', 'selfBuff', 'allyBuff', 'fx'].forEach((k) => {
           if (sk[k] != null) def[k] = sk[k];
         });
         if (sk.morale != null) def.morale = sk.morale;
