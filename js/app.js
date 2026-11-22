@@ -6118,7 +6118,11 @@
         const v = apply(k, raw, 'num');
         if (String(v) !== raw) e.num.value = String(v);
       };
-      e.num.onchange = () => apply(k, e.num.value, 'num');
+      e.num.onchange = () => {
+        const raw = String(e.num.value).trim();
+        if (raw === '' || raw === '-') return;   // 빈 칸은 blur 가 현재 값으로 되돌린다
+        apply(k, raw, 'num');
+      };
       e.num.onblur = () => { if (String(e.num.value).trim() === '' || e.num.value === '-') e.num.value = String(getV[k]()); };
     });
     m.el.querySelectorAll('.tp-max[data-fill]').forEach((b) => {

@@ -14,7 +14,7 @@
 | 전장 일관 | 적·일반 부대도 `maxMpBase(base, cls)`로 같은 표를 본다(적 책사 39 · 아군 책사 39) | `js/battle.js` `makeRegiment`·`makeBoss`·`makeNamedEnemy`·`makeEnemyCls` |
 | 보물 라벨 | `SK.TREASURE_FX_DOMESTIC`(income·food·loyalty·recruit·train·supply·diplo·spy·detect·techCost·buildCost) → **`내정·외교 적용`**, 나머지는 **`전장 적용`**. `SK.fxScopes`/`SK.treasureFxScopes` | `js/data.js` `fxSumLine(...,scope)` |
 | 보물 화면 | 카드·장수 정보·합계가 두 줄. `청동령` = `전장 적용 사기 +4` / `내정·외교 적용 징병량 +10%` (예전 `전장 적용 징병량 +10%` 삭제) | `app.js` `openTreasures`·`equipLines`, `battle.js` `giEquipHTML`, `css/game.css` `.tp-fx-line`·`.gi-sum-dom` |
-| 검수 | `tools/qa_v559.py` a **42/42**(로컬 844) · c **42/42**(로컬 680) · b/d 라이브 — 콘솔·4xx 0. 실측: 숫자→슬라이더·슬라이더→숫자·클램프(4808/0)·실제 수송 1234/2100/3300 병력·금·군량 일치, 실제 한 달 진행 가득 성 **+1,565** vs 보통 성 **+1,110**(1.41배, popMonthly 예상과 일치) | `preview/v559/` |
+| 검수 | `tools/qa_v559.py` a **47/47**(로컬 844) · c **47/47**(로컬 680) · b/d 라이브(버전·실제 턴 등 7항목 제외) — 콘솔·4xx 0. 실측: 숫자→슬라이더·슬라이더→숫자·클램프(4808/0)·실제 수송 1234/2100/3300 병력·금·군량 일치, 실제 한 달 진행 가득 성 **+1,565** vs 보통 성 **+1,110**(1.41배, popMonthly 예상과 일치) | `preview/v559/` |
 
 ## ✅ v5.58 — 보물 250종·책략 97·고유 특기 642·필살기 104 전수조사 · 공방/주점 6개월 · 계략 3칸 (2026-11-22 · `?v=75`)
 
