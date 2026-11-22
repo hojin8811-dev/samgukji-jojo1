@@ -169,5 +169,285 @@
     "id": 706,
     "portrait": "assets/portraits/v520/iyu.webp",
     "unit": "assets/units/v520/iyu.webp"
+  },
+  "원술": {
+    "id": 161,
+    "portrait": "assets/portraits/a_rank/161_yuanshu.webp",
+    "unit": null
+  },
+  "유표": {
+    "id": 164,
+    "portrait": "assets/portraits/a_rank/164_liubiao.webp",
+    "unit": null
+  },
+  "유언": {
+    "id": 521,
+    "portrait": "assets/portraits/a_rank/521_liuyan.webp",
+    "unit": null
+  },
+  "마등": {
+    "id": 166,
+    "portrait": "assets/portraits/a_rank/166_madeng.webp",
+    "unit": null
+  },
+  "공손찬": {
+    "id": 163,
+    "portrait": "assets/portraits/a_rank/163_gongsunzan.webp",
+    "unit": null
+  },
+  "도겸": {
+    "id": 169,
+    "portrait": "assets/portraits/a_rank/169_taoqian.webp",
+    "unit": null
+  },
+  "한수": {
+    "id": 167,
+    "portrait": "assets/portraits/a_rank/167_hansui.webp",
+    "unit": null
+  },
+  "공융": {
+    "id": 170,
+    "portrait": "assets/portraits/a_rank/170_gongrong.webp",
+    "unit": null
+  },
+  "장로": {
+    "id": 168,
+    "portrait": "assets/portraits/a_rank/168_zhanglu.webp",
+    "unit": null
+  },
+  "유장": {
+    "id": 165,
+    "portrait": "assets/portraits/a_rank/165_liuzhang.webp",
+    "unit": null
+  },
+  "유선": {
+    "id": 121,
+    "portrait": "assets/portraits/a_rank/121_liushan.webp",
+    "unit": null
+  },
+  "유종": {
+    "id": 499,
+    "portrait": "assets/portraits/a_rank/499_liucong.webp",
+    "unit": null
+  },
+  "황진이": {
+    "id": 379,
+    "portrait": "assets/portraits/a_rank/379_hwangjini.webp",
+    "unit": null
+  },
+  "소교": {
+    "id": 158,
+    "portrait": "assets/portraits/a_rank/158_xiaoqiao.webp",
+    "unit": null
+  },
+  "대교": {
+    "id": 157,
+    "portrait": "assets/portraits/a_rank/157_daqiao.webp",
+    "unit": null
+  },
+  "견희": {
+    "id": 91,
+    "portrait": "assets/portraits/a_rank/91_zhenji.webp",
+    "unit": null
+  },
+  "황월영": {
+    "id": 242,
+    "portrait": "assets/portraits/a_rank/242_huangyueying.webp",
+    "unit": null
+  },
+  "손상향": {
+    "id": 156,
+    "portrait": "assets/portraits/a_rank/156_sunshangxiang.webp",
+    "unit": null
+  },
+  "관은병": {
+    "id": 239,
+    "portrait": "assets/portraits/a_rank/239_guanyinping.webp",
+    "unit": null
+  },
+  "장성채": {
+    "id": 240,
+    "portrait": "assets/portraits/a_rank/240_zhangxingcai.webp",
+    "unit": null
+  },
+  "설총": {
+    "id": 373,
+    "portrait": "assets/portraits/a_rank/373_seolchong.webp",
+    "unit": null
+  },
+  "최영": {
+    "id": 372,
+    "portrait": "assets/portraits/a_rank/372_choeyeong.webp",
+    "unit": null
+  },
+  "을파소": {
+    "id": 186,
+    "portrait": "assets/portraits/a_rank/186_eulpaso.webp",
+    "unit": null
+  },
+  "장소": {
+    "id": 141,
+    "portrait": "assets/portraits/a_rank/141_zhangzhao.webp",
+    "unit": null
+  },
+  "원효": {
+    "id": 200,
+    "portrait": "assets/portraits/a_rank/200_wonhyo.webp",
+    "unit": null
+  },
+  "진군": {
+    "id": 117,
+    "portrait": "assets/portraits/a_rank/117_chenqun.webp",
+    "unit": null
+  },
+  "장완": {
+    "id": 127,
+    "portrait": "assets/portraits/a_rank/127_zhangwan.webp",
+    "unit": null
+  },
+  "종요": {
+    "id": 119,
+    "portrait": "assets/portraits/a_rank/119_zhongyao.webp",
+    "unit": null
+  },
+  "전풍": {
+    "id": 63,
+    "portrait": "assets/portraits/a_rank/63_tianfeng.webp",
+    "unit": null
+  },
+  "이자연": {
+    "id": 318,
+    "portrait": "assets/portraits/a_rank/318_yijayeon.webp",
+    "unit": null
+  },
+  "장굉": {
+    "id": 142,
+    "portrait": "assets/portraits/a_rank/142_zhanghong.webp",
+    "unit": null
+  },
+  "문앙": {
+    "id": 418,
+    "portrait": "assets/portraits/a_rank/418_wenyang.webp",
+    "unit": null
+  },
+  "안량": {
+    "id": 55,
+    "portrait": "assets/portraits/a_rank/55_yanliang.webp",
+    "unit": null
+  },
+  "저수": {
+    "id": 64,
+    "portrait": "assets/portraits/a_rank/64_jushou.webp",
+    "unit": null
+  },
+  "비의": {
+    "id": 128,
+    "portrait": "assets/portraits/a_rank/128_feiyi.webp",
+    "unit": null
+  },
+  "성삼문": {
+    "id": 350,
+    "portrait": "assets/portraits/a_rank/350_seongsammun.webp",
+    "unit": null
+  },
+  "고옹": {
+    "id": 145,
+    "portrait": "assets/portraits/a_rank/145_guoyong.webp",
+    "unit": null
+  },
+  "보연사": {
+    "id": 90,
+    "portrait": "assets/portraits/a_rank/90_buyeonsa.webp",
+    "unit": null
+  },
+  "조식": {
+    "id": 104,
+    "portrait": "assets/portraits/a_rank/104_caozhi.webp",
+    "unit": null
+  },
+  "문추": {
+    "id": 56,
+    "portrait": "assets/portraits/a_rank/56_wenchou.webp",
+    "unit": null
+  },
+  "정욱": {
+    "id": 120,
+    "portrait": "assets/portraits/a_rank/120_chengyu.webp",
+    "unit": null
+  },
+  "김부식": {
+    "id": 319,
+    "portrait": "assets/portraits/a_rank/319_kimbusik.webp",
+    "unit": null
+  },
+  "동화": {
+    "id": 434,
+    "portrait": "assets/portraits/a_rank/434_donghwa.webp",
+    "unit": null
+  },
+  "조준": {
+    "id": 342,
+    "portrait": "assets/portraits/a_rank/342_jojun.webp",
+    "unit": null
+  },
+  "허황옥": {
+    "id": 82,
+    "portrait": "assets/portraits/a_rank/82_heohwangok.webp",
+    "unit": null
+  },
+  "이규보": {
+    "id": 371,
+    "portrait": "assets/portraits/a_rank/371_igyubo.webp",
+    "unit": null
+  },
+  "보즐": {
+    "id": 144,
+    "portrait": "assets/portraits/a_rank/144_bozhe.webp",
+    "unit": null
+  },
+  "제갈각": {
+    "id": 160,
+    "portrait": "assets/portraits/a_rank/160_zhugeke.webp",
+    "unit": null
+  },
+  "한명회": {
+    "id": 352,
+    "portrait": "assets/portraits/a_rank/352_hanmyeonghoe.webp",
+    "unit": null
+  },
+  "성충": {
+    "id": 74,
+    "portrait": "assets/portraits/a_rank/74_seongchung.webp",
+    "unit": null
+  },
+  "조창": {
+    "id": 103,
+    "portrait": "assets/portraits/a_rank/103_caochang.webp",
+    "unit": null
+  },
+  "왕원희": {
+    "id": 236,
+    "portrait": "assets/portraits/a_rank/236_wangwonhee.webp",
+    "unit": null
+  },
+  "도선국사": {
+    "id": 314,
+    "portrait": "assets/portraits/a_rank/314_doseonguksa.webp",
+    "unit": null
+  },
+  "월명사": {
+    "id": 300,
+    "portrait": "assets/portraits/a_rank/300_wolmyeongsa.webp",
+    "unit": null
+  },
+  "화웅": {
+    "id": 61,
+    "portrait": "assets/portraits/a_rank/61_huaxiong.webp",
+    "unit": null
+  },
+  "신숭겸": {
+    "id": 309,
+    "portrait": "assets/portraits/a_rank/309_sinsunggyeom.webp",
+    "unit": null
   }
 }
