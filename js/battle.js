@@ -566,7 +566,8 @@
       /* v5.3 — 일반 부대는 Lv.1 C급 장수보다 약하게 (장수 부대가 확실히 우위) */
       atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
       wu: 52, ji: 50, tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
-      skills: C.skills.slice(), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
+      /* v5.62 — 일반 부대도 자기 레벨 미만의 책략은 펼치지 못한다 */
+      skills: SK.skillsFor(spec.cls, lv), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
       stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
       train: 45,
     };
@@ -581,7 +582,7 @@
       hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2, info.cls), maxMp: maxMpBase(C.mp + lv * 2, info.cls),
       atk: C.atk + lv * 1.15, def: C.def + lv * 0.8,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv, tong: 80, boss: true,
-      portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: C.skills.slice(),
+      portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: SK.skillsFor(info.cls, lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: 82,
     };
@@ -629,7 +630,7 @@
       /* v5.3 — 무명 일반 수비병도 아군 일반 부대와 같은 낮은 기준 (명장 부대가 확실히 강하다) */
       atk: C.atk - 1.5, def: C.def - 1.5,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48, tong: 50,
-      portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: C.skills.slice(),
+      portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: SK.skillsFor(cls, lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: 45,
     };
@@ -5831,22 +5832,36 @@
   SK.clearAutoEnd = clearAutoEnd;
 
   /* ───────────── 책략 ───────────── */
+  /* v5.62 — 병종의 책략 4종을 모두 보여 준다. 아직 레벨이 모자란 기술도
+     목록에 남겨 두되, 흐리게 + `🔒 Lv.N 해금` 배지로 눌리지 않게 한다.
+     실제 시전·AI는 u.skills(SK.skillsFor = 해금된 것만)만 쓰므로 미해금 기술은 나가지 않는다. */
   function openSkillMenu() {
     const u = B.sel;
     if (!u || u.acted) { SK.toast('먼저 이동할 부대를 선택하세요.'); return; }
-    if (!u.skills.length) { SK.toast('이 병과는 책략이 없습니다.'); return; }
-    const rows = u.skills.map((k) => {
+    const all = SK.allSkillsOf(u.cls);
+    if (!all.length) { SK.toast('이 병과는 책략이 없습니다.'); return; }
+    const lv = Number(u.lv) || 1;
+    let lockedN = 0, nextNeed = 0;
+    const rows = all.map((k) => {
       const sk = SK.SKILLS[k];
-      const dis = u.mp < sk.mp;
-      return `<button class="skill-row ${dis ? 'off' : ''}" data-k="${k}" ${dis ? 'disabled' : ''}>
+      const need = SK.skillLockLv(k, lv);
+      const poor = u.mp < sk.mp;
+      const dis = need > 0 || poor;
+      if (need > 0) { lockedN += 1; if (!nextNeed || need < nextNeed) nextNeed = need; }
+      const state = need > 0 ? 'lock' : (poor ? 'off' : '');
+      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>` : '';
+      return `<button class="skill-row ${state}" data-k="${k}" ${dis ? 'disabled' : ''}>
         <span class="sk-mp">${sk.mp}</span>
-        <div><b>${sk.name}<em class="sk-rng">사거리 ${skRange(u, sk)}</em></b><span>${sk.desc}</span></div>
+        <div><b>${sk.name}${badge}<em class="sk-rng">사거리 ${skRange(u, sk)}</em></b><span>${sk.desc}</span></div>
       </button>`;
     }).join('');
+    const lockNote = lockedN
+      ? `<p class="skill-locknote">🔒 미해금 ${lockedN}종 · 가장 가까운 해금 Lv.${nextNeed} <em>(이 부대 Lv.${lv})</em></p>`
+      : '';
     const m = SK.modal({
       kicker: `${u.name}의 책략`,
       title: '무엇을 펼칠까',
-      body: `<div class="skill-list">${rows}</div><p class="skill-mp">남은 책략 ${u.mp} / ${u.maxMp}</p>`,
+      body: `<div class="skill-list">${rows}</div><p class="skill-mp">남은 책략 ${u.mp} / ${u.maxMp}</p>${lockNote}`,
       actions: [{ label: '취소' }],
     });
     m.el.querySelectorAll('.skill-row').forEach((b) => {
@@ -5856,6 +5871,8 @@
 
   function beginSkill(u, key) {
     const sk = SK.SKILLS[key];
+    if (!sk) return;
+    if (SK.skillLockLv(key, u.lv)) { SK.toast(`Lv.${SK.SKILLS[key].unlockLv}에 해금되는 책략입니다.`); return; }
     if (u.mp < sk.mp) return;
     pendingSkill = Object.assign({ key }, sk);
     mode = 'skillTarget';
@@ -6839,13 +6856,17 @@
       uniq = u.uid ? '<p class="gi-note">이 장수의 고유 특기가 아직 없습니다.</p>'
         : '<p class="gi-note">이 부대는 병과 공용 부대라 고유 특기가 없습니다.</p>';
     }
-    const skills = (u.skills || []).map((k) => {
+    /* v5.62 — 병종 책략 4종을 모두 보여 주고, 이 부대 레벨에 아직 잠긴 기술은
+       흐리게 + `🔒 Lv.N 해금` 배지로 남긴다 (시전은 u.skills만 쓴다) */
+    const lvU = Number(u.lv) || 1;
+    const skills = SK.allSkillsOf(u.cls).map((k) => {
       const sk = SK.SKILLS[k];
-      if (!sk) return '';
+      const need = SK.skillLockLv(k, lvU);
       const rng = sk.radius ? `반경 ${sk.radius}` : `사거리 ${skRange(u, sk)}`;
-      const off = u.mp < sk.mp ? ' off' : '';
-      return `<div class="skill-row gi-skill${off}"><span class="sk-mp">${sk.mp}</span>
-        <div><b>${sk.name}<em class="sk-rng">${rng}</em></b><span>${sk.desc || ''}</span></div></div>`;
+      const state = need > 0 ? 'lock' : (u.mp < sk.mp ? 'off' : '');
+      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>` : '';
+      return `<div class="skill-row gi-skill ${state}"><span class="sk-mp">${sk.mp}</span>
+        <div><b>${sk.name}${badge}<em class="sk-rng">${rng}</em></b><span>${sk.desc || ''}</span></div></div>`;
     }).join('');
     const bonds = (SK.bondsOf ? SK.bondsOf(u.name) : []).map((b) => {
       const partner = SK.bondPartner(b, u.name);

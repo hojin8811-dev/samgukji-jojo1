@@ -695,6 +695,20 @@ SK.skillsFor = function (cls, lv) {
     return sk && (!sk.unlockLv || lv >= sk.unlockLv);
   });
 };
+/* v5.62 — 병종이 가진 책략 4종 전부(미해금 포함). 화면 미리보기에 쓴다.
+   시전·AI 판단은 여전히 SK.skillsFor(해금된 것만)를 쓴다. */
+SK.allSkillsOf = function (cls) {
+  const C = SK.CLASSES[cls];
+  if (!C) return [];
+  return (C.skills || []).filter((k) => SK.SKILLS[k]);
+};
+/* v5.62 — 그 레벨에 아직 잠긴 책략이면 해금 레벨을, 이미 열렸으면 0을 돌려준다 */
+SK.skillLockLv = function (key, lv) {
+  const sk = SK.SKILLS[key];
+  if (!sk) return 0;
+  const need = Number(sk.unlockLv) || 1;
+  return (Number(lv) || 1) >= need ? 0 : need;
+};
 SK.expNeed = function (lv) { return 100 + lv * 45; };
 /* v5.17 — 그 레벨에서 전직하는가 (10/20/30). battle.js·app.js의 전직 연출이 쓴다 */
 SK.isPromoLv = function (lv) { return SK.PROMO_AT.indexOf(Number(lv)) >= 0; };

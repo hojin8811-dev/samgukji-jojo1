@@ -3519,6 +3519,17 @@
     const nxOffice = SK.nextOfficeOf ? SK.nextOfficeOf(g) : null;
     const meritLine = `<p class="hi-merit">공훈치 <b>${fmt(merit)}</b>${nxOffice ? ` <em>· ${nxOffice.name}까지 ${fmt(Math.max(0, nxOffice.merit - merit))} 남음 (공훈 ${fmt(nxOffice.merit)})</em>` : ' <em>· 최고 관직</em>'}</p>`;
     const gag = SK.gagOf ? SK.gagOf(g.name, g.cls, g.tier) : '';
+    /* v5.62 — 성 내정의 장수 상세에도 병종 책략 4종을 모두 보여 준다.
+       이 장수 레벨에 아직 안 열린 기술은 흐리게 + `🔒 Lv.N 해금` 배지로 남긴다. */
+    const skRows = (SK.allSkillsOf ? SK.allSkillsOf(g.cls) : []).map((k) => {
+      const sk = SK.SKILLS[k];
+      const need = SK.skillLockLv ? SK.skillLockLv(k, g.lv) : 0;
+      const state = need > 0 ? ' lock' : ((g.mp || 0) < sk.mp ? ' off' : '');
+      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>` : '';
+      const rng = sk.radius ? `반경 ${sk.radius}` : `사거리 ${sk.range || 1}`;
+      return `<div class="skill-row${state}"><span class="sk-mp">${sk.mp}</span>
+        <div><b>${sk.name}${badge}<em class="sk-rng">${rng}</em></b><span>${sk.desc || ''}</span></div></div>`;
+    }).join('');
     SK.modal({
       title: `${g.name}`,          body: `<div class="hi-gag">
         <span class="gg-tag">꼬마영웅 개그 한마디</span>
@@ -3537,6 +3548,7 @@
           ${equipLines(g)}
           ${meritLine}
           <p class="hi-desc">${C.desc}</p>
+          ${skRows ? `<div class="hi-skills"><p class="hi-skills-head">보유 책략 <em>Lv.${g.lv}</em></p><div class="skill-list">${skRows}</div></div>` : ''}
           ${bondLines(g.name)}
           <p class="hi-quote">“${SK.quoteOf(g.name, 'deploy') || '필승을 기원한다.'}”</p>
         </div>

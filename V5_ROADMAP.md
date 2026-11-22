@@ -1,6 +1,19 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=78`
+기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=79`
+
+## ✅ v5.62 — 병종 스킬 4종 미리보기 · 레벨 잠금(`unlockLv`) (2026-11-23 · `?v=79`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 공용 부대 잠금 | 아군 병과부대(`makeRegiment`)·적 장수 부대(`makeBoss`)·적 일반 수비부대(`makeEnemyCls`)가 `C.skills.slice()`(레벨 무시 4종)를 받던 것을 **`SK.skillsFor(cls, lv)`** 로 통일 — 적·아군 일반 부대도 자기 레벨 미만의 책략을 시전하지 못한다 | `js/battle.js` |
+| 전투 `[책략]` 창 | 병종 책략 **4종을 모두** 보여 주고, `u.lv < sk.unlockLv` 인 기술은 **흐리게(잠금 스타일)·점선 테두리 + `🔒 Lv.N 해금` 배지 + `disabled`**. 아래에 `🔒 미해금 N종 · 가장 가까운 해금 Lv.N (이 부대 Lv.N)` 안내 | `openSkillMenu` · `.skill-row.lock` |
+| 《장수 정보》 특성·기술 | `보유 책략`에 4종 전부. 미해금은 같은 잠금 배지·흐림. MP 부족은 기존대로 `.off` | `giTraitHTML` |
+| 성 내정 장수 상세 | `성 → 장수`·`장수 명부`→ 장수 상세(`showHeroInfo`)에도 **보유 책략 4종 + `🔒 Lv.N 해금`** (MP 부족은 `.off`) | `js/app.js`·`css/game.css` |
+| 안전장치 | 시전·AI 판단은 그대로 `u.skills`(`SK.skillsFor`)만 사용. `beginSkill` 에도 잠금 레벨 방어 한 줄 | `js/battle.js` |
+| 공용 헬퍼 | `SK.allSkillsOf(cls)`(4종 전부) · `SK.skillLockLv(key, lv)`(잠김이면 해금 레벨, 열렸으면 0) | `js/data.js` |
+| 검수 | `tools/qa_v562.py` — 로컬 390×844 / 390×680 · 라이브(`?v=79`) 실플레이 (Lv.1~7 아군·적의 `[책략]` 창·《장수 정보》·성 내정 장수 상세에서 4종 표시 + 잠금 배지 + 클릭 불가) | `preview/v562/` |
+
 
 ## ✅ v5.61 — 외교·계략 전후 수치 명확화 · 정찰된 적성 등용 · 세력 멸망 배너 · 주점 방랑 유령 수정 (2026-11-23 · `?v=78`)
 

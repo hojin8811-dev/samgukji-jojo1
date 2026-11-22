@@ -923,6 +923,12 @@ b { font-weight: 700; }
 .skill-list { display: flex; flex-direction: column; gap: 6px; }
 .skill-row { display: flex; align-items: center; gap: 8px; border: 1px solid #cfb47d; border-radius: 9px; background: rgba(255, 252, 244, 0.8); padding: 7px 9px; text-align: left; }
 .skill-row.off { opacity: 0.42; }
+/* v5.62 — 아직 레벨이 모자란 책략: 미리 보여 주되 흐리게 + 잠금 배지 (누를 수 없다) */
+.skill-row.lock { opacity: 0.55; filter: grayscale(0.55); border-style: dashed; background: rgba(244, 238, 224, 0.75); }
+.skill-row.lock .sk-mp { background: #e6e0d1; border-color: #b9ad91; color: #7b6f57; }
+.skill-row b .sk-lock { font-style: normal; font-size: 8.5px; font-weight: 900; color: #6b5a3a; background: rgba(96, 80, 48, 0.12); border: 1px dashed #a8997a; border-radius: 6px; padding: 0 5px; margin-left: 5px; vertical-align: middle; }
+.skill-locknote { margin: 4px 0 0; font-size: 9px; color: #7a6a4a; text-align: right; }
+.skill-locknote em { font-style: normal; color: #9a8558; }
 .sk-mp { width: 28px; height: 28px; border-radius: 50%; background: #dbe9f5; border: 1px solid #8fb4d6; display: grid; place-items: center; font-size: 11px; font-weight: 900; color: #33587c; }
 .skill-row b { display: block; font-size: 12.5px; color: #2e2510; }
 .skill-row b em { font-size: 9px; color: #8a7448; margin-left: 3px; }
@@ -3527,6 +3533,14 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 /* ⑥ 장수 상세창 — 보물 +N·공훈치 */
 .hi-attrs b em.hi-plus { font-style: normal; font-size: 8.5px; font-weight: 800; color: #2e7d46; margin-left: 2px; }
 .hi-merit { margin: 4px 0 0; font-size: 10px; color: #5b4a27; }
+/* v5.62 — 성 내정 장수 상세의 보유 책략 4종 (미해금은 잠금 배지) */
+.hi-skills { margin: 7px 0 2px; }
+.hi-skills-head { margin: 0 0 4px; font-size: 9px; letter-spacing: 0.08em; font-weight: 800; color: #9a7b34; }
+.hi-skills-head em { font-style: normal; font-weight: 800; color: #8a7448; letter-spacing: 0; }
+.hi-skills .skill-row { padding: 5px 7px; gap: 7px; }
+.hi-skills .skill-row .sk-mp { width: 24px; height: 24px; font-size: 10px; }
+.hi-skills .skill-row b { font-size: 11.5px; }
+.hi-skills .skill-row span { font-size: 9px; line-height: 1.35; }
 .hi-merit b { color: #8a5a12; font-size: 11.5px; }
 .hi-merit em { font-style: normal; color: #7d6538; font-size: 9px; }
 .eq-chip i { font-style: normal; font-size: 7px; color: #8a7448; margin-right: 3px; }
