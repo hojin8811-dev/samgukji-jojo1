@@ -232,11 +232,18 @@ b { font-weight: 700; }
 }
 @keyframes targetPulse { 0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(0.85); } 50% { opacity: 1; transform: translateX(-50%) scale(1.2); } }
 
-/* v5.26 — 조작 버튼을 한 줄로 눕혀 지도 오른쪽 성(건업·회계 등)을 덜 가린다.
-   세로 5단(40px×5 + 간격)은 동쪽 해안 성과 라벨을 통째로 덮었다. */
-.map-controls { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: row; align-items: center; gap: 5px; z-index: 12; }
+/* v5.38 — 다시 오른쪽 세로 1열. 가로 한 줄(v5.26)은 성 정보 시트가 열렸을 때
+   [출진·공격]·[정찰 보내기]·[닫기] 버튼 위를 그대로 덮었다(사용자 실기기 스샷).
+   세로로 돌리되 버튼 34/27px·간격 4px로 묶어 v5.26이 걱정한 동쪽 해안 성 가림을
+   5단 40px(200px+)에서 165px로 덜어 낸다. 시트가 열리면 통째로 숨긴다. */
+.map-controls { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 12; }
 .map-controls .round-btn { width: 34px; height: 34px; font-size: 16px; background: rgba(38, 31, 18, 0.82); }
 .map-controls .round-btn.small { width: 27px; height: 27px; font-size: 12px; border-color: rgba(227, 189, 99, 0.5); }
+/* v5.38 — 성 정보 시트가 열려 있는 동안에는 지도 조작·범례가 비켜 준다 (시트 버튼을 가리지 않게) */
+#screen-map.sheet-open .map-controls,
+#screen-map:has(#city-sheet:not([hidden])) .map-controls { display: none; }
+#screen-map.sheet-open .map-legend,
+#screen-map:has(#city-sheet:not([hidden])) .map-legend { display: none; }
 /* v5.0.3 — 범례는 오른쪽 조작 버튼 위로 접어 둔다 (남쪽 거점을 가리지 않게) */
 .map-legend {
   position: absolute; right: 64px; bottom: 26px; z-index: 6;

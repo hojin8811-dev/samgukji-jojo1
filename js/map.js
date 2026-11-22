@@ -1594,6 +1594,21 @@
         lgBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       };
     }
+    /* v5.38 — 성 정보 시트가 열려 있는 동안 지도 조작 버튼·범례를 숨긴다.
+       가로 한 줄이던 시절 시트의 [출진·공격]·[정찰 보내기]·[닫기] 위를 덮었다(실기기 스샷).
+       시트는 여러 곳에서 hidden만 바꾸므로 속성 변화를 지켜 #screen-map.sheet-open을 맞춘다. */
+    const sheetEl = $('#city-sheet'), mapScreenEl = $('#screen-map');
+    const syncSheetOpen = () => {
+      if (!mapScreenEl) return;
+      mapScreenEl.classList.toggle('sheet-open', !!(sheetEl && !sheetEl.hidden));
+      labelAnchorDirty = true;
+    };
+    if (sheetEl) {
+      if (typeof MutationObserver !== 'undefined') {
+        new MutationObserver(syncSheetOpen).observe(sheetEl, { attributes: true, attributeFilter: ['hidden'] });
+      }
+      syncSheetOpen();
+    }
     window.addEventListener('resize', () => {
       if (!built) return;
       clampCam();
