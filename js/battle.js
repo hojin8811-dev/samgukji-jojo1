@@ -5651,6 +5651,8 @@
   function openGenInfo(u) {
     const panel = $('#gen-info');
     if (!panel || !u || !B) return null;
+    /* 창을 새로 열면 '능력' 탭부터 — [이전]/[다음]으로 부대를 넘길 때만 보던 탭을 유지한다 */
+    if (panel.hidden) giTab = 'stat';
     giUid = u.id;
     panel.hidden = false;
     panel.setAttribute('aria-hidden', 'false');
@@ -7738,7 +7740,8 @@
         const canAct = !!B.sel && B.sel.side === 'ally' && !B.sel.acted;
         document.querySelectorAll('.act').forEach((b) => b.classList.toggle('off', !canAct));
         /* v5.36 — [군량] 버튼에 이 부대의 남은 횟수를 보여 준다: 군량 (2) / 군량 (0) 잠김 */
-        paintItemButton(u);
+        /* v5.53 — 군량 버튼은 '실제로 명령을 받을 부대'(B.sel)의 남은 횟수를 보여 준다 */
+        paintItemButton(B.sel || (u.side === 'ally' ? u : null));
       } else {
         card.classList.remove('on');
         /* v5.40 — 선택한 부대가 없을 때 이전 초상·Lv·EXP·수치가 남지 않게 비운다 */
