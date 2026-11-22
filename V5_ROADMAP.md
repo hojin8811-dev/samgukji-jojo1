@@ -126,7 +126,7 @@
 | 동적 격자 | 요격 8종·소도시 24×24 · 중도시 28×28 · 대도시 32×32. `N`·`WORLD`를 `B.cols`·`B.rows`로 | `js/data.js` `SK.MAPS`·`SK.battleSizeFor`, `js/battle.js` |
 | 지도 생성 | 지도마다 `A`(아군 본진)·`E`(적 본진)·`V`(마을) 심기, `SK.MAP_META`에 좌표 기록 | `finishMap`·`placeSite` |
 | 1×1 본진·마을 | 본진 병력 +20%·MP+10·방어+25%, 마을 +10%·MP+5·방어+15%. 밟으면 점령(색·라벨) | `siteBonusOf`·`sitePhase`·`drawSites` |
-| 총대장 승패 | 적 총대장 격파/본진 점령=승, 아군 총대장/본진=패. `♛` 표시 | `finishCheck`·`B.winReason` |
+| 총대장 승패 | v5.32 총대장 격파=승 폐지 → v5.38 본진 점령도 폐지. 승패는 전멸만, 본진 점령은 사기 ±25 역전(1회). `♛` 표시 | `finishCheck`·`captureHQ`·`B.winReason` |
 | AI 역할 | 수비 `guard`(본진 사수) / 돍격 `assault`(마을→아군 본진), 수성전 전원 돍격 | `aiGoalOf`·`enemyAct` |
 | 3중 성곽 | 아래 가로 성벽+정문 → 가운데 성벽+정문 → 맨 위 네모(ㄷ자) 본성 성곽+문 안에 총대장 본진. 성문 2칸 두께 통로 | `siegeMap(3)` |
 | 단계 돌파 | 1단 문 파괴 → 외성 마당, 2단 → 중성, 3단 → 본진. **성문이 살아 있으면 성벽 너머 공격 불가** | `wallBlocked`·`canHit`·`planAuto` |

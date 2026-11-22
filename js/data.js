@@ -2330,27 +2330,27 @@ SK.battleSizeFor = function (type, rings) {
 /* 전장 유형 정보 */
 SK.BATTLE_TYPES = {
   siege: { name: '공성전', hanja: '', map: 'siege', img: 'siege', desc: '성벽과 성문을 뚫어라',
-    objective: '적을 전멸시키거나 적 본진을 점령하라', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
+    objective: '적을 전멸시켜라 — 적 본진을 점령하면 사기가 뒤집힌다', skill: '수적과 궁기병이 성문 돌파에 유리합니다.' },
   fortress: { name: '요새전', hanja: '', map: 'fortress', img: 'fortress', desc: '목책과 요새를 함락하라',
-    objective: '적을 전멸시키거나 적 본진을 점령하라', skill: '보병과 책사가 성문 공략에 적합합니다.' },
+    objective: '적을 전멸시켜라 — 적 본진을 점령하면 사기가 뒤집힌다', skill: '보병과 책사가 성문 공략에 적합합니다.' },
   /* v5.3 — 행군 요격전 8종 (v5.15에서 밀림·협곡·야영 3종 추가) */
   plain: { name: '평야전', hanja: '', map: 'plain', img: 'plain', desc: '넓은 들에서 적 요격대와 맞붙는다',
-    objective: '적을 전멸시키거나 적 본진을 점령하라', skill: '기병·무도가는 평지에서 강합니다.' },
+    objective: '적을 전멸시켜라 — 적 본진을 점령하면 사기가 뒤집힌다', skill: '기병·무도가는 평지에서 강합니다.' },
   ford: { name: '도하전', hanja: '', map: 'ford', img: 'ford', desc: '강 건널목을 사이에 두고 맞선다',
-    objective: '여울과 다리를 건너 적 본진을 점령하라', skill: '수적은 물 위를 걸을 수 있습니다.' },
+    objective: '여울과 다리를 건너 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   mountain: { name: '산전', hanja: '', map: 'mountain', img: 'mountain', desc: '산길을 사이에 두고 맞선다',
-    objective: '산허리 길을 따라 올라가 적 본진을 점령하라', skill: '산적·야수병은 산지에서 이동력이 +1입니다.' },
+    objective: '산허리 길을 따라 올라가 적을 전멸시켜라', skill: '산적·야수병은 산지에서 이동력이 +1입니다.' },
   forest: { name: '밀림 매복전', hanja: '', map: 'forest', img: 'forest', desc: '숲길에서 기습을 받았다',
-    objective: '오솔길을 뚫고 적 본진을 점령하라', skill: '산적·야수병은 숲에서 강하고 야수병은 숲에서 이동력 6급입니다.' },
+    objective: '오솔길을 뚫고 적을 전멸시켜라', skill: '산적·야수병은 숲에서 강하고 야수병은 숲에서 이동력 6급입니다.' },
   gorge: { name: '협곡 잔도전', hanja: '', map: 'gorge', img: 'gorge', desc: '절벽 사이 외길에서 길목을 다툰다',
-    objective: '잔도를 건너 적 본진을 점령하라', skill: '창병·등갑병이 길목을 막고 궁수·연노가 절벽 그늘에서 쏩니다.' },
+    objective: '잔도를 건너 적을 전멸시켜라', skill: '창병·등갑병이 길목을 막고 궁수·연노가 절벽 그늘에서 쏩니다.' },
   camp: { name: '야영 기습전', hanja: '', map: 'camp', img: 'camp', desc: '적 야영지를 기습했다',
-    objective: '막사와 보급로를 끊고 적 본진을 점령하라', skill: '기병·야수병의 돌격이 막사 사이에서 힘을 냅니다.' },
+    objective: '막사와 보급로를 끊고 적을 전멸시켜라', skill: '기병·야수병의 돌격이 막사 사이에서 힘을 냅니다.' },
   naval: { name: '수전', hanja: '', map: 'naval', img: 'naval', desc: '강을 건너 적선을 무찌르라',
-    objective: '다리와 물길을 이용해 적 본진을 점령하라', skill: '수적은 물 위를 걸을 수 있습니다.' },
+    objective: '다리와 물길을 이용해 적을 전멸시켜라', skill: '수적은 물 위를 걸을 수 있습니다.' },
   /* v5.7 — 수성전: 아군이 성 안에서 적 침공군을 맞는다 (지도는 공성전을 뒤집어 쓴다) */
   defense: { name: '수성전', hanja: '', map: 'siege', img: 'siege', desc: '성을 지켜 적을 물리쳐라',
-    objective: '성을 지켜라 — 적을 전멸시키거나 적 본진을 점령하라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
+    objective: '성을 지켜라 — 적을 전멸시켜라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
 };
 
 /* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.

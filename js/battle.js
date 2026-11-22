@@ -361,7 +361,8 @@
     /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
     if (SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
     B.objective = defense ? SK.BATTLE_TYPES.defense.objective : def.objective;
-    if (B.sites && B.sites.length) B.objective = '적 전멸 · 적 본진 점령';
+    /* v5.38 — 본진 점령이 즉시 승패가 아니므로 목표는 '전멸' 하나로 정리한다 */
+    if (B.sites && B.sites.length) B.objective = defense ? '성을 지켜라 — 적을 전멸시켜라' : '적 전멸';
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
     anims.length = 0;
@@ -1299,9 +1300,12 @@
     const sx = S / N, sy = S / N;
     /* 본진·마을 */
     (B.sites || []).forEach((s) => {
-      c.fillStyle = s.type === 'village'
-        ? (s.owner === 'ally' ? '#6fb6ff' : s.owner === 'enemy' ? '#ff7a5c' : '#7ee08a')
-        : (s.type === 'allyHQ' ? '#ffd35c' : '#e8b23c');
+      /* v5.38 — 점령된 본진은 미니맵에서도 점령한 진영 색 */
+      c.fillStyle = s.captured
+        ? (s.captured === 'ally' ? '#6fb6ff' : '#ff7a5c')
+        : s.type === 'village'
+          ? (s.owner === 'ally' ? '#6fb6ff' : s.owner === 'enemy' ? '#ff7a5c' : '#7ee08a')
+          : (s.type === 'allyHQ' ? '#ffd35c' : '#e8b23c');
       c.fillRect(s.x * sx + 0.5, s.y * sy + 0.5, Math.max(2.4, sx), Math.max(2.4, sy));
       c.strokeStyle = 'rgba(30,22,10,0.8)'; c.lineWidth = 0.8;
       c.strokeRect(s.x * sx + 0.5, s.y * sy + 0.5, Math.max(2.4, sx), Math.max(2.4, sy));
@@ -1794,11 +1798,14 @@
       const key = s.type === 'allyHQ' ? 'hq_ally' : s.type === 'enemyHQ' ? 'hq_enemy' : 'village';
       const img = loadImg(`assets/battle/${key}.webp`);
       const x = s.x * TILE, y = s.y * TILE;
-      const col = s.type === 'village'
-        ? (s.owner === 'ally' ? '90,160,255' : s.owner === 'enemy' ? '255,90,60' : '126,196,132')
-        : (s.type === 'allyHQ' ? '90,160,255' : '255,90,60');
+      /* v5.38 — 점령된 본진은 점령한 진영 색으로 간다 (한 번 점령되면 고정) */
+      const cap = s.captured || null;
+      const col = cap ? (cap === 'ally' ? '90,160,255' : '255,90,60')
+        : s.type === 'village'
+          ? (s.owner === 'ally' ? '90,160,255' : s.owner === 'enemy' ? '255,90,60' : '126,196,132')
+          : (s.type === 'allyHQ' ? '90,160,255' : '255,90,60');
       ctx.save();
-      ctx.fillStyle = `rgba(${col},0.16)`;
+      ctx.fillStyle = `rgba(${col},${cap ? '0.30' : '0.16'})`;
       ctx.fillRect(x, y, TILE, TILE);
       ctx.strokeStyle = `rgba(${col},${(0.55 + 0.22 * Math.sin(t * 3)).toFixed(3)})`;
       ctx.lineWidth = 2.4;
@@ -1807,16 +1814,33 @@
         const w = TILE * (s.type === 'village' ? 0.84 : 1.45);
         ctx.drawImage(img, x + TILE / 2 - w / 2, y + TILE - w, w, w);
       }
-      const label = s.type === 'allyHQ' ? '본진' : s.type === 'enemyHQ' ? '적 본진'
+      /* v5.38 — 점령 깃발: 타일 오른쪽 위에 점령한 진영 색 깃발을 꽂는다 */
+      if (cap) {
+        const px = x + TILE * 0.80, py = y + TILE * 0.10;
+        ctx.strokeStyle = 'rgba(22,16,8,0.94)';
+        ctx.lineWidth = Math.max(1.8, 2.1 * k);
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + TILE * 0.40); ctx.stroke();
+        ctx.fillStyle = cap === 'ally' ? '#6fb0ff' : '#ff7a5c';
+        ctx.beginPath();
+        ctx.moveTo(px, py + 0.6);
+        ctx.lineTo(px + TILE * 0.30, py + TILE * 0.11);
+        ctx.lineTo(px, py + TILE * 0.21);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(20,14,6,0.9)';
+        ctx.lineWidth = Math.max(1, 1.1 * k);
+        ctx.stroke();
+      }
+      const base = s.type === 'allyHQ' ? '본진' : s.type === 'enemyHQ' ? '적 본진'
         : (s.owner === 'ally' ? '마을 · 아군' : s.owner === 'enemy' ? '마을 · 적' : '마을');
+      const label = cap ? `${base} · 점령` : base;
       ctx.font = `800 ${Math.round(9.4 * k)}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const tw = ctx.measureText(label).width + 11 * k;
       const th = Math.round(13.5 * k);
-      ctx.fillStyle = 'rgba(24,19,11,0.82)';
+      ctx.fillStyle = cap ? (cap === 'ally' ? 'rgba(30,64,112,0.94)' : 'rgba(112,34,24,0.94)') : 'rgba(24,19,11,0.82)';
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x + TILE / 2 - tw / 2, y - th - 2 * k, tw, th, th / 2); ctx.fill(); }
       else ctx.fillRect(x + TILE / 2 - tw / 2, y - th - 2 * k, tw, th);
-      ctx.fillStyle = s.type === 'village' && !s.owner ? '#cfeccf' : '#fff3d8';
+      ctx.fillStyle = s.type === 'village' && !s.owner ? '#cfeccf' : (cap ? '#ffffff' : '#fff3d8');
       ctx.fillText(label, x + TILE / 2, y - th / 2 - 2 * k + 0.5);
       ctx.restore();
     });
@@ -4144,6 +4168,48 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.38 — 본진 점령은 즉시 승패가 아니라 '사기 역전'
+     · 밟은 쪽 전군 사기 +25 (상한 110) · 빼앗긴 쪽 전군 사기 −25 (하한 0)
+     · 한 번 점령된 본진은 다시 뒤집히지 않는다 (1회 처리)
+     · 승패는 오직 전멸로만 갈린다 → 목표도 '적 전멸'
+     ══════════════════════════════════════════════════════════════ */
+  const HQ_MORALE = 25;
+  function hqMoraleShift(u, d) {
+    if (!u || !u.alive || !d) return 0;
+    const before = u.morale == null ? 100 : u.morale;
+    /* 점령 사기는 상태이상 저항(moraleSave)을 타지 않는다 — 판을 뒤집는 사건이라 그대로 준다 */
+    u.morale = Math.round(clamp(before + d, 0, 110) * 10) / 10;
+    const diff = u.morale - before;
+    if (Math.abs(diff) >= 1) {
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE,
+        `${diff > 0 ? '사기↑' : '사기↓'} ${Math.round(Math.abs(diff))}`, diff > 0 ? '#a8f0b8' : '#ff9a86');
+    }
+    return Math.round(diff);
+  }
+  function captureHQ(site, by) {
+    if (!B || B.over || !site || site.captured) return false;
+    site.captured = by;
+    const mine = by === 'ally' ? 'ally' : 'enemy';
+    B.units.forEach((u) => {
+      if (!u.alive) return;
+      hqMoraleShift(u, u.side === mine ? HQ_MORALE : -HQ_MORALE);
+    });
+    const hqLabel = site.type === 'enemyHQ' ? '적 본진' : '본진';
+    const swing = by === 'ally' ? '아군 사기 +25 · 적군 사기 −25' : '적군 사기 +25 · 아군 사기 −25';
+    const line = `${hqLabel} 점령! ${swing}`;
+    feed(line, by === 'ally' ? 'good' : 'bad');
+    banner(by === 'ally' ? '적 본진 점령!' : '본진 점령당했다!', by === 'ally' ? 'ally' : 'enemy');
+    addFloat((site.x + 0.5) * TILE, (site.y + 0.42) * TILE, by === 'ally' ? '본진 점령!' : '본진 함락!', by === 'ally' ? '#ffe08a' : '#ff9a86');
+    addFx({ kind: 'buff', x: (site.x + 0.5) * TILE, y: (site.y + 0.5) * TILE, life: 620, color: by === 'ally' ? '150,200,255' : '255,140,110' });
+    addFx({ kind: 'buff', x: (site.x + 0.5) * TILE, y: (site.y + 0.5) * TILE, life: 900 });
+    shakeScreen(6);
+    SK.sfx.play('drum');
+    if (SK.toast) SK.toast(line);
+    SKBattle.refreshUI();
+    return true;
+  }
+
   function finishCheck() {
     if (B.over) return;
     sitePhase(false);          // v5.17 — 밟고 선 마을 점령 반영
@@ -4152,12 +4218,13 @@
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
     if (!enemies.length) { B.winReason = '적군 전멸'; return victory(); }
     if (!allies.length) { B.winReason = '아군 전멸'; return defeat(); }
-    /* v5.32 — 총대장(군주·선봉) 격파로 끝나는 규칙 제거. 승패는 오직 전멸 또는 본진 점령.
-       예전에는 선봉 장수 한 명이 퇴각해도 아군 13,935명이 남은 채로 즉시 패배했다. */
+    /* v5.32 — 총대장(군주·선봉) 격파로 끝나는 규칙 제거. 승패는 오직 전멸.
+       예전에는 선봉 장수 한 명이 퇴각해도 아군 13,935명이 남은 채로 즉시 패배했다.
+       v5.38 — 본진 점령도 즉시 승패에서 빼고 사기 역전으로 바꿨다. */
     const eHQ = (B.sites || []).find((s) => s.type === 'enemyHQ');
     const aHQ = (B.sites || []).find((s) => s.type === 'allyHQ');
-    if (eHQ && allies.some((u) => u.x === eHQ.x && u.y === eHQ.y)) { B.winReason = '적 본진 점령'; return victory(); }
-    if (aHQ && enemies.some((u) => u.x === aHQ.x && u.y === aHQ.y)) { B.winReason = '아군 본진 점령당함'; return defeat(); }
+    if (eHQ && !eHQ.captured && allies.some((u) => u.x === eHQ.x && u.y === eHQ.y)) captureHQ(eHQ, 'ally');
+    if (aHQ && !aHQ.captured && enemies.some((u) => u.x === aHQ.x && u.y === aHQ.y)) captureHQ(aHQ, 'enemy');
     SKBattle.refreshUI();
   }
 
@@ -6390,9 +6457,12 @@
           : B.objective;
         goalChip.classList.toggle('gate', !!(gate && gate.hp > 0));
       }
-      $('#battle-turn').textContent = B.turn + '턴';
+      /* v5.38 — 턴 표시를 '2턴째'로 명확히 + 페이즈 배지와 함께 상단에서 한눈에 들어오게 */
+      $('#battle-turn').textContent = B.turn + '턴째';
       $('#battle-phase').textContent = B.phase === 'ally' ? '아군' : '적군';
       $('#battle-phase').className = B.phase;
+      const turnBox = document.querySelector('.battle-turnbox');
+      if (turnBox) turnBox.classList.toggle('enemy', B.phase !== 'ally');
       /* v5.0.1 — 상단은 부대 수가 아니라 총 병력 수 + 병력 비율 게이지 */
       const allyHp = B.units.filter((u) => u.side === 'ally' && u.alive).reduce((sum, u) => sum + Math.max(0, u.hp), 0);
       const enemyHp = B.units.filter((u) => u.side === 'enemy' && u.alive).reduce((sum, u) => sum + Math.max(0, u.hp), 0);
