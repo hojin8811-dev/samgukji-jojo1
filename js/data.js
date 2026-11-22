@@ -68,6 +68,20 @@ SK.CLASSES = {
     skills: ['tuseok'], weapon: 'catapult', siege: true, desc: '3~7칸(◇ 마름모) 먼 곳을 범위로 때리는 투석기. 성문 공략의 결정타.' },
 };
 
+/* ───────────── v5.59 — 최대 MP 배율 ─────────────
+   v5.49에서 책략(기술)에 반격이 없는 대신 모든 부대의 최대 MP를 절반(0.5)으로 줄였다.
+   그러자 평타가 약한 문관 계열(책사·도사·풍수사)이 핵심 책략을 한두 번 쓰고 바로 말라,
+   기력 회복(+8/턴)을 기다리며 서 있게 됐다. 이 세 병과(와 상위 전직 — 전직은 이름만
+   바뀌고 cls는 그대로다)만 0.65로 살짝 올려 책략을 한두 번 더 쓸 수 있게 한다.
+   예: 책사 Lv.1 60 → 39 · 도사 64 → 42 · 풍수사 70 → 46 · 예전엔 30·32·35.
+   나머지 병과는 0.5 그대로다. app.js maxMpOf 와 battle.js maxMpBase 가 이 표를 함께 쓴다. */
+SK.MP_SCALE = 0.5;
+SK.MP_SCALE_BY_CLASS = { chaeksa: 0.65, dosa: 0.65, pungsusa: 0.65 };
+SK.mpScaleOf = function (cls) {
+  const v = SK.MP_SCALE_BY_CLASS[cls];
+  return v == null ? SK.MP_SCALE : v;
+};
+
 /* ───────────── 책략 ─────────────
    v5.14 — 사거리·범위는 전부 마름모(맨해튼) 거리 기준이다. 대각선 1칸 = 거리 2.
    위력 예산: MP 8~9 ≈ 140%, MP 10 ≈ 150%, MP 12 ≈ 175~185%, MP 14 ≈ 195%, MP 16+ ≈ 210~230%.
@@ -2044,12 +2058,24 @@ SK.TREASURE_FX_NEG = { taken: 1, magicTaken: 1, mpCost: 1, nightTaken: 1, morale
 /* v5.31 — '−N'으로 읽어야 자연스러운 문구 (군량 유지비 −N%, 적 사기 −N) */
 SK.TREASURE_FX_NEG_LABEL = { supply: '성 군량 유지비', moraleHit: '적 사기', lossCut: '패전 병력 손실',
   techCost: '기술 연구 비용', buildCost: '건축·성벽 수리 비용', meleeTaken: '근접 받는 피해', nightTaken: '야간 받는 피해' };   // 이름만 바꾸고 −단위는 같다   // 값이 클수록 '−'(상대를 깎거나 덜 받는다)
-SK.fxSumLine = function (fx, asArray) {
+/* v5.59 — 보물 효과를 '어디에 붙는가'로 나눈다.
+   예전에는 모든 수치를 "전장 적용" 한 줄로 묶어, 청동령의 `징병량 +10%`·`외교 성공률`·
+   `내정 수입` 같은 성·나라 효과까지 "전장 적용 징병량 +10%"로 보였다(사용자 제보).
+   아래 표에 든 훅만 내정·외교 쪽이고, 나머지는 전부 전장(공격·방어·책랕·사기·상태이상·이동)이다.
+   · income 성 내정 수입 · food 군량 생산 · loyalty 민심·충성 · recruit 징병량 · train 훈련 효율
+   · supply 군량 유지비 · diplo 외교·등용 · spy 첨보·정찰 · detect 정찰 범위
+   · techCost 기술 연구비 · buildCost 건축·성벽 수리비 */
+SK.TREASURE_FX_DOMESTIC = { income: 1, food: 1, loyalty: 1, recruit: 1, train: 1, supply: 1,
+  diplo: 1, spy: 1, detect: 1, techCost: 1, buildCost: 1 };
+SK.TREASURE_SCOPE_LABEL = { battle: '전장 적용', domestic: '내정·외교 적용' };
+SK.treasureScopeOf = function (k) { return SK.TREASURE_FX_DOMESTIC[k] ? 'domestic' : 'battle'; };
+SK.fxSumLine = function (fx, asArray, scope) {
   const parts = [];
   if (fx) {
     SK.TREASURE_FX_KEYS.forEach((k) => {
       const v = fx[k] || 0;
       if (!v) return;
+      if (scope && SK.treasureScopeOf(k) !== scope) return;
       const lab = SK.TREASURE_FX_LABEL[k];
       if (k === 'doubleAct' || k === 'pierce' || k === 'immuneFC' || k === 'immunePoison' ||
           k === 'immuneDisarm' || k === 'rngPlus' || k === 'moveShot') { parts.push(lab); return; }
@@ -2064,9 +2090,16 @@ SK.fxSumLine = function (fx, asArray) {
       if (k === 'radius' || k === 'detect') { parts.push(`${lab} +${v}${k === 'radius' ? '칸' : ''}`); return; }
       parts.push(`${lab} ${v > 0 ? '+' : ''}${v}%`);
     });
-    if (fx.rough) parts.push('험지 이동 페널티 무효');
+    if (fx.rough && (!scope || scope === 'battle')) parts.push('험지 이동 페널티 무효');
   }
   return asArray ? parts : parts.join(' · ');
+};
+/* v5.59 — 한 보물/장수의 효과를 { battle:[…], domestic:[…] } 로 나눠 돌려준다 (UI 공용) */
+SK.fxScopes = function (fx) {
+  return { battle: SK.fxSumLine(fx, true, 'battle'), domestic: SK.fxSumLine(fx, true, 'domestic') };
+};
+SK.treasureFxScopes = function (t) {
+  return SK.fxScopes(SK.treasureFx(t).fx);
 };
 SK.treasureFxLine = function (t) {
   const { fx } = SK.treasureFx(t);

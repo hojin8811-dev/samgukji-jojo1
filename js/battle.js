@@ -54,8 +54,16 @@
      아군 장수는 SK.maxMpOf(app.js)가 절반으로 계산하고, 일반 부대·적 부대는 여기서
      병종 기본 MP에 같은 비율(0.5)을 걸어 맞춘다. 최소 12 — 가장 싼 책략(8~10) 한 번은 가능. */
   const MP_SCALE = 0.5, MP_FLOOR = 12;
-  function maxMpBase(base) { return Math.max(MP_FLOOR, Math.round((Number(base) || 0) * MP_SCALE)); }
+  /* v5.59 — 배율표는 data.js `SK.mpScaleOf(cls)` 하나다. 책사·도사·풍수사 0.65 · 나머지 0.5.
+     적·일반 부대도 같은 표를 쓰므로 아군 장수(SK.maxMpOf)와 값이 어궸나지 않는다. */
+  function mpScaleOf(cls) {
+    if (SK.mpScaleOf) return SK.mpScaleOf(cls);
+    if (SK.MP_SCALE_BY_CLASS && SK.MP_SCALE_BY_CLASS[cls] != null) return SK.MP_SCALE_BY_CLASS[cls];
+    return MP_SCALE;
+  }
+  function maxMpBase(base, cls) { return Math.max(MP_FLOOR, Math.round((Number(base) || 0) * mpScaleOf(cls))); }
   SK.maxMpBase = maxMpBase;
+  SK.battleMpScaleOf = mpScaleOf;
   /* v5.10 — 전투 배속(처음엔 자동전투에만 걸었다).
      v5.51 — 수동 전투에도 실제로 걸린다. 예전 paceMs는 autoOn일 때만 계산해서
      수동 조작 중(적군 페이즈 포함)에 ×2·×3·×4를 눌러도 아무것도 빨라지지 않았고,
@@ -554,7 +562,7 @@
     const lv = 3;
     return {
       id: 'r' + i, side: 'ally', uid: null, name: spec.name, hanja: '', cls: spec.cls, lv,
-      hp: spec.troops, maxHp: spec.troops, mp: maxMpBase(C.mp), maxMp: maxMpBase(C.mp),
+      hp: spec.troops, maxHp: spec.troops, mp: maxMpBase(C.mp, spec.cls), maxMp: maxMpBase(C.mp, spec.cls),
       /* v5.3 — 일반 부대는 Lv.1 C급 장수보다 약하게 (장수 부대가 확실히 우위) */
       atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
       wu: 52, ji: 50, tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
@@ -570,7 +578,7 @@
     const troops = Math.round(per * 1.5);
     return {
       id: 'boss', side: 'enemy', name: info.name, hanja: info.hanja, cls: info.cls, lv,
-      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2), maxMp: maxMpBase(C.mp + lv * 2),
+      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2, info.cls), maxMp: maxMpBase(C.mp + lv * 2, info.cls),
       atk: C.atk + lv * 1.15, def: C.def + lv * 0.8,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv, tong: 80, boss: true,
       portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: C.skills.slice(),
@@ -589,7 +597,7 @@
     const lvMul = 1 + LV_GROW * (lv - 1);
     return {
       id: 'ng' + g.id, side: 'enemy', name: g.name, hanja: '', cls, lv, genId: g.id,
-      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2), maxMp: maxMpBase(C.mp + lv * 2),
+      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2, cls), maxMp: maxMpBase(C.mp + lv * 2, cls),
       /* v5.17 — 적 명장도 아군과 같은 모양의 계산을 쓴다 (능력치 60 기준).
          예전에는 g.war를 그대로 더해 A급 적장이 아군보다 1.8배 강했다 — 반격까지 겹쳐
          아군이 4배 이상 손해를 보던 원인. */
@@ -617,7 +625,7 @@
     return {
       id: 'e' + i, side: 'enemy', name: `${SK.factionName(faction).replace(/군$/, '')} ${C.name}대`,
       hanja: '', cls, lv,
-      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv), maxMp: maxMpBase(C.mp + lv),
+      hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv, cls), maxMp: maxMpBase(C.mp + lv, cls),
       /* v5.3 — 무명 일반 수비병도 아군 일반 부대와 같은 낮은 기준 (명장 부대가 확실히 강하다) */
       atk: C.atk - 1.5, def: C.def - 1.5,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48, tong: 50,
@@ -6725,10 +6733,12 @@
       [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['politics', '정치'], ['charm', '매력'], ['move', '이동력'], ['rng', '사거리']]
         .forEach(([k, lab]) => { if (eq[k]) sum.push(`${lab} +${eq[k]}`); });
     }
-    let fxLine = '';
-    if (h && SK.heroTreasureFx && SK.fxSumLine) {
-      const parts = SK.fxSumLine(SK.heroTreasureFx(h), true) || [];
-      if (parts.length) fxLine = parts.join(' · ');
+    /* v5.59 — 전장 적용과 내정·외교 적용을 나눠 적는다 (보물 창과 같은 문구) */
+    let fxBattle = [], fxDomestic = [];
+    if (h && SK.heroTreasureFx && SK.fxScopes) {
+      const sc = SK.fxScopes(SK.heroTreasureFx(h));
+      fxBattle = sc.battle || [];
+      fxDomestic = sc.domestic || [];
     }
     return `<p class="gi-sec">장비</p>
       <div class="gi-eq">
@@ -6736,7 +6746,8 @@
         ${rows}
       </div>
       <p class="gi-sum">보물 보정 — ${sum.length ? sum.join(' · ') : '없음'}</p>
-      ${fxLine ? `<p class="gi-sum">전장 적용 — ${fxLine}</p>` : ''}
+      ${fxBattle.length ? `<p class="gi-sum">${SK.TREASURE_SCOPE_LABEL.battle} — ${fxBattle.join(' · ')}</p>` : ''}
+      ${fxDomestic.length ? `<p class="gi-sum gi-sum-dom">${SK.TREASURE_SCOPE_LABEL.domestic} — ${fxDomestic.join(' · ')}</p>` : ''}
       ${h ? '' : '<p class="gi-note">적군 부대와 일반 부대는 보물을 장착하지 않습니다.</p>'}`;
   }
 

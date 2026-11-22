@@ -35,6 +35,8 @@
      v5.49 — 책략(기술)에는 반격이 없는 대신, 모든 부대의 최대 MP를 절반으로
      · 한 전투에 책략을 2~3번만 쓰게 되어 점령한 마을(MP +8)·본진(+10)의 값이 커진다
      · 아군 장수는 maxMpOf, 일반·적 부대는 battle.js maxMpBase가 같은 비율(0.5)
+     v5.59 — 문관(책사·도사·풍수사)만 0.65 — 평타가 약해 책략이 마르면 할 일이 없다.
+     배율은 data.js `SK.mpScaleOf` 한 곳에 있다.
      ══════════════════════════════════════════════════════════════ */
 
   /* ══════════════════════════════════════════════════════════════
@@ -213,6 +215,24 @@
 
   /* v5.5 — 매달 인구 증감. 민심·치안·농업·상업·시설 Lv 합이 오를수록 더 빨리 늘고,
      민심·치안이 무너지면 줄어든다. 성 화면 (+N/월)과 월정산이 같은 함수를 쓴다. */
+  /* v5.59 — 주둔병이 최대 병력(인구 17%)에 가득 차면 징병은 더 못 하지만,
+     병영이 놀지 않게 **인구가 더 빨리 는다**. 병영 Lv이 높을수록 조금 더 붙는다.
+       Lv.0(병영 없음) ×1.35 · Lv.1 ×1.38 · Lv.2 ×1.41 · Lv.3 ×1.44 · Lv.4 ×1.47 · Lv.5 ×1.50
+     기존 민심·치안 가속(최대 ×1.7)과는 곰해지므로 함께 오르면 더 빠르다.
+     (인구가 늘면 상한도 함께 올라 다음 달에 다시 징병할 수 있게 된다) */
+  function barracksLvOf(cs) {
+    const sl = ((cs && cs.slots) || []).find((x) => x && x.key === 'barracks');
+    return sl ? clamp(Math.round(Number(sl.lv) || 1), 1, 5) : 0;
+  }
+  SK.barracksLvOf = barracksLvOf;
+  function popFullMul(cs) {
+    if (!cs) return 1;
+    const full = (cs.troops || 0) >= cityCap(cs);
+    if (!full) return 1;
+    return Math.min(1.5, 1.35 + 0.03 * barracksLvOf(cs));
+  }
+  SK.popFullMul = popFullMul;
+  SK.cityFullPop = function (cs) { return popFullMul(cs) > 1; };
   function popMonthly(cs, c) {
     if (!cs) return 0;
     const morale = cs.loyalty == null ? 50 : cs.loyalty;
@@ -230,7 +250,9 @@
        60을 넘는 순간부터 비례해 붙고, 둘 다 90 이상이면 +70%(1.7배)까지.
        한쪽만 높아서는 보너스가 없다 — 다스림이 고르게 좋아야 사람이 모인다. */
     const calm = Math.max(0, Math.min(1, (morale - 60) / 30)) * Math.max(0, Math.min(1, (order - 60) / 30));
-    const rate = baseRate * (1 + 0.70 * calm);
+    /* v5.59 — 주둔병 가득 보너스 (×1.35~1.50). 민심·치안 가속과 곰해서 붙는다. */
+    const full = popFullMul(cs);
+    const rate = baseRate * (1 + 0.70 * calm) * full;
     const r = clamp(rate, -0.012, 0.032);
     const cap = cityPopCap(c || CITY[cs.id] || { type: 'town' });
     const raw = Math.round((cs.pop || 0) * r);
@@ -1269,8 +1291,14 @@
   /* v5.49 — 책략(기술)에는 반격이 없는 대신, 모든 부대의 최대 MP를 절반으로 낮춘다
      (제갈량 64 → 32, 1선 장수 16~26 → 12~14). 한 전투에 책략을 2~3번만 쓰게 되어
      마을(+8 MP)·본진(+10 MP)에서 MP를 채우는 판단이 중요해진다.
-     최소 12 — 가장 싼 책략(8~10)을 적어도 한 번은 쓸 수 있게. */
-  function maxMpOf(cls, lv) { return Math.max(12, Math.round((SK.CLASSES[cls].mp + (lv - 1) * 2) * 0.5)); }
+     최소 12 — 가장 싼 책략(8~10)을 적어도 한 번은 쓸 수 있게.
+     v5.59 — 책사·도사·풍수사(와 상위 전직)만 0.65로 조금 올린다 (SK.mpScaleOf).
+       책사 Lv.1 60 → 30 → 39 · 도사 64 → 32 → 42 · 풍수사 70 → 35 → 46.
+       화계(10)·혼란(16)을 섞어 3~4번은 쓸 수 있게 되고, 나머지 병과는 그대로다. */
+  function maxMpOf(cls, lv) {
+    const scale = SK.mpScaleOf ? SK.mpScaleOf(cls) : 0.5;
+    return Math.max(12, Math.round((SK.CLASSES[cls].mp + (lv - 1) * 2) * scale));
+  }
   SK.maxHpOf = maxHpOf; SK.maxMpOf = maxMpOf;
 
   /* v5.10 — 공훈치. 경험치와 함께 쌓이는 장수 개인의 공적 (관직 서임 기준) */
@@ -3133,11 +3161,14 @@
     if (eq.charm) bonus.push(`매력+${eq.charm}`);
     if (eq.move) bonus.push(`이동+${eq.move}`);
     if (eq.rng) bonus.push(`사거리+${eq.rng}`);
-    /* v5.29 — 보물 문구가 전장 계산에 실제로 넣는 값 (같은 파서를 쓴다) */
+    /* v5.29 — 보물 문구가 전장 계산에 실제로 넣는 값 (같은 파서를 쓴다)
+       v5.59 — 전장 효과와 내정·외교 효과를 나눠 적는다 (청동령 `징병량 +10%`가
+         "전장 적용 징병량 +10%"로 보이던 것을 고쳤다) */
     const fx = SK.heroTreasureFx ? SK.heroTreasureFx(g) : null;
-    const parts = fx ? SK.fxSumLine(fx, true) : [];
+    const sc = fx ? SK.fxScopes(fx) : { battle: [], domestic: [] };
     return `<div class="hi-equip">${rows}</div>${bonus.length ? `<p class="hi-bonus">보물 보정 — ${bonus.join(' · ')}</p>` : '<p class="hi-bonus">보물 보정 — 없음</p>'}
-      ${parts.length ? `<p class="hi-bonus hi-fx">전장 적용 — ${parts.join(' · ')}</p>` : ''}`;
+      ${sc.battle.length ? `<p class="hi-bonus hi-fx">${SK.TREASURE_SCOPE_LABEL.battle} — ${sc.battle.join(' · ')}</p>` : ''}
+      ${sc.domestic.length ? `<p class="hi-bonus hi-fx">${SK.TREASURE_SCOPE_LABEL.domestic} — ${sc.domestic.join(' · ')}</p>` : ''}`;
   }
 
   function openTreasures(hero) {
@@ -3169,13 +3200,16 @@
         return b.join(' · ');
       };
       /* v5.29 — 문구 → 전장 적용/미적용을 같은 파서 결과로 보여 준다
-         v5.30 — 숫자가 없어 기본값으로 옮긴 절도 밝힌다 */
+         v5.30 — 숫자가 없어 기본값으로 옮긴 절도 밝힌다
+         v5.59 — 전장 적용과 내정·외교 적용을 두 줄로 나눈다 */
       const fxLine = (t, cls) => {
-        const line = SK.treasureFxLine(t);
+        const sc = SK.treasureFxScopes(t);
         const notes = SK.treasureFxNotes(t);
         const dflt = SK.treasureFxDefaults(t);
-        if (!line && !notes.length) return '';
-        return `<span class="${cls}">${line ? `<b>전장 적용</b> ${line}` : ''}${dflt.length ? ` <em class="tr-dflt">(숫자 없는 ${dflt.length}절은 기본값)</em>` : ''}${notes.length ? `${line ? ' · ' : ''}<i>미적용: ${notes.join(' / ')}</i>` : ''}</span>`;
+        const line = (label, arr) => (arr.length ? `<span class="tp-fx-line"><b>${label}</b> ${arr.join(' · ')}</span>` : '');
+        const body = line(SK.TREASURE_SCOPE_LABEL.battle, sc.battle) + line(SK.TREASURE_SCOPE_LABEL.domestic, sc.domestic);
+        if (!body && !notes.length) return '';
+        return `<span class="${cls}">${body}${dflt.length ? ` <em class="tr-dflt">(숫자 없는 ${dflt.length}절은 기본값)</em>` : ''}${notes.length ? `<i>미적용: ${notes.join(' / ')}</i>` : ''}</span>`;
       };
       const slots = Object.keys(SK.SLOT_NAMES).map((sl) => {
         const id = hero.equip[sl];
@@ -3196,14 +3230,16 @@
         </button>`).join('') : `<p class="tr-empty">${SK.SLOT_NAMES[slot]} 보물이 없습니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>`;
       const cur = hero.equip[slot] ? `<button class="btn btn-paper tr-unequip" id="tr-unequip">${SK.SLOT_NAMES[slot]} 해제</button>` : '';
       const sum = SK.heroTreasureFx(hero);
-      const sumLine = SK.fxSumLine(sum);
+      const sumSc = SK.fxScopes(sum);
+      const sumLine = [SK.TREASURE_SCOPE_LABEL.battle + (sumSc.battle.length ? ` ${sumSc.battle.join(' · ')}` : ' — 없음'),
+        SK.TREASURE_SCOPE_LABEL.domestic + (sumSc.domestic.length ? ` ${sumSc.domestic.join(' · ')}` : ' — 없음')].join(' / ');
       m.el.querySelector('#tr-body').innerHTML = `
         <div class="tr-slots">${slots}</div>
-        ${sumLine ? `<div class="tr-sum"><span>${hero.name}의 전장 적용 합계</span><b>${sumLine}</b></div>` : ''}
+        <div class="tr-sum"><span>${hero.name}의 적용 합계</span><b>${sumLine}</b></div>
         <div class="tr-inv-head"><span>보유 ${SK.SLOT_NAMES[slot]}</span>${cur}</div>
         <div class="tr-list">${list}</div>
         <p class="tr-note">보물은 무기·방어구·명마·병법서 한 자리씩 장착됩니다. 전장이나 [탐색]으로 얻을 수 있습니다.</p>
-        <p class="tr-note tr-fxnote">카드의 <b>전장 적용</b> 수치는 공격·방어·책략·치명·회피·반격·회복과 사기·상태이상(기절·혼란·위축·중독·화상·둔화) 판정에 실제로 들어갑니다. 게임에 그 판정이 없는 문구는 가장 가까운 판정으로 옮겨 적었습니다.</p>
+        <p class="tr-note tr-fxnote"><b>전장 적용</b> 은 공격·방어·책략·치명·회피·반격·회복과 사기·상태이상(기절·혼란·위축·중독·화상·둔화) 판정에 실제로 들어갑니다. <b>내정·외교 적용</b> 은 그 장수가 있는 성의 세수·군량·민심·징병·훈련과 사자·첩보·연구·건축 비용에 들어갑니다. 게임에 그 판정이 없는 문구는 가장 가까운 판정으로 옮겨 적었습니다.</p>
         <p class="tr-note">숫자가 없는 문구는 기본값으로 적용되고 카드에 그 절 수를 적었습니다. <b>내정 수입</b>은 그 장수가 있는 성의 세수, <b>외교 성공률</b>은 사자를 보낸 장수의 협상 확률에 붙습니다.</p>`;
       m.el.querySelectorAll('.tr-slot').forEach((b) => { b.onclick = () => { slot = b.dataset.slot; render(); }; });
       m.el.querySelectorAll('.tr-item').forEach((b) => {
@@ -5941,6 +5977,7 @@
     if (!ok) SK.toast('수송할 다른 아군 성이 없습니다.');
   }
   SK.openTransport = openTransport;
+  SK.openTransportAmount = openTransportAmount;   // v5.59 — 검수에서 지도 선택 없이 바로 여는 훅
   function openTransportAmount(from, to) {
     SK.setPurse(from);
     const s = SK.state;
@@ -5951,7 +5988,6 @@
     const maxG = Math.floor(s.gold * 0.5);
     const maxF = Math.floor(s.food * 0.5);
     const room = Math.max(0, cityCap(dst) - dst.troops);
-    let t = Math.min(maxT, 3000, room), g = Math.min(maxG, 600), f = Math.min(maxF, 1200);
     const heroPool = cityGens(from);
     const move = {};
     /* v5.11 — 호송 장수 1명을 직접 고른다 (통솔이 높으면 더 많이 실어 나른다) */
@@ -5962,13 +5998,32 @@
       const h = s.heroes.find((x) => x.uid === escortUid);
       return Math.round(maxTBase * (h ? clamp(1 + ((h.tong || 60) - 60) * 0.006, 0.9, 1.25) : 0.85));
     };
+    /* v5.59 — 병력·금·군량 세 줄 모두 **숫자 직접 입력 + 슬라이더**가 서로 즉시 맞물린다.
+       · inputmode=numeric — 폰에서 숫자 키패드만 올라온다
+       · 예전 병력 옆에 붙어 있던 −1/＋1 스피너 버튼은 없애고, 오른쪽에 ‘최대’ 한 칸만 남겼다
+       · 값은 0 ~ 최대 가능치로 클램프된다 (병력은 받는 성의 빈자리·호송 장수 한도까지) */
+    const tMaxNow = () => {
+      const capE = escortUid ? escortCap() : maxT;
+      return Math.max(0, Math.min(maxT, room, capE));
+    };
+    const maxOf = { t: () => tMaxNow(), g: () => maxG, f: () => maxF };
+    let t = Math.min(tMaxNow(), 3000), g = Math.min(maxG, 600), f = Math.min(maxF, 1200);
+    const getV = { t: () => t, g: () => g, f: () => f };
+    const setV = { t: (v) => { t = v; }, g: (v) => { g = v; }, f: (v) => { f = v; } };
+    const amtRow = (name, key, val, unit) => `<div class="tp-row" data-row="${key}">
+        <div class="tp-head">
+          <span class="tp-name">${name}</span>
+          <button type="button" class="tp-max" data-fill="${key}">최대 ${fmt(maxOf[key]())}</button>
+          <span class="tp-box"><input class="tp-num" id="tp-${key}n" type="number" inputmode="numeric" min="0" max="${maxOf[key]()}" step="1" value="${val}" autocomplete="off" enterkeyhint="done" aria-label="${name} 직접 입력"><em class="tp-unit">${unit}</em></span>
+        </div>
+        <input class="tp-range" id="tp-${key}" type="range" min="0" max="${maxOf[key]()}" step="1" value="${val}" aria-label="${name} 슬라이더">
+      </div>`;
     const m = SK.modal({
       kicker: `${CITY[from].name} → ${CITY[to].name}`, title: '수송품을 정하세요',
-      body: `<div class="transport">
-        <label>병력 <input id="tp-t" type="range" min="0" max="${maxT}" step="1" value="${t}"><b id="tp-tv">${fmt(t)}</b>
-          <span class="tp-step"><button id="tp-tminus" aria-label="1 줄이기">−1</button><button id="tp-tplus" aria-label="1 늘리기">＋1</button></span></label>
-        <label>금 <input id="tp-g" type="range" min="0" max="${maxG}" step="50" value="${g}"><b id="tp-gv">${fmt(g)}</b></label>
-        <label>군량 <input id="tp-f" type="range" min="0" max="${maxF}" step="100" value="${f}"><b id="tp-fv">${fmt(f)}</b></label>
+      body: `<div class="transport tp2">
+        ${amtRow('병력', 't', t, '명')}
+        ${amtRow('금', 'g', g, '')}
+        ${amtRow('군량', 'f', f, '')}
         <p class="talent-note">보내는 성 병력 ${fmt(src.troops)} / ${fmt(cityCap(src))} · 받는 성 병력 ${fmt(dst.troops)} / ${fmt(cityCap(dst))} — 남는 자리 <b>${fmt(room)}</b>.</p>
       </div>
       <div class="deploy-section"><span>호송 장수</span><em>한 명을 고르십시오 — 통솔이 높으면 많이 실어 나릅니다</em></div>
@@ -6014,9 +6069,8 @@
       b.onclick = () => {
         escortUid = b.dataset.esc;
         m.el.querySelectorAll('[data-esc]').forEach((x) => x.classList.toggle('on', x === b));
-        const tEl2 = m.el.querySelector('#tp-t');
-        const cap = Math.max(0, Math.min(Math.floor(src.troops * 0.6), escortCap()));
-        if (tEl2) { tEl2.max = String(cap); if (Number(tEl2.value) > cap) { tEl2.value = String(cap); t = cap; const lab = m.el.querySelector('#tp-tv'); if (lab) lab.textContent = fmt(cap); } }
+        SK.sfx.play('ui');
+        syncMaxT();
       };
     });
     m.el.querySelectorAll('[data-mv]').forEach((b) => {
@@ -6027,25 +6081,49 @@
         b.textContent = move[uid] ? '같이 감' : '이동';
       };
     });
-    void g; void f; void maxG; void maxF;
-    const bindRange = (id, valId, setter) => {
-      const el = m.el.querySelector(id);
-      const lab = m.el.querySelector(valId);
-      if (el) el.oninput = () => { setter(Number(el.value)); lab.textContent = fmt(Number(el.value)); };
+    /* ── v5.59 — 숫자 입력 ↔ 슬라이더 양방향 ────────────────────── */
+    const q = (sel) => m.el.querySelector(sel);
+    const els = {
+      t: { rng: q('#tp-t'), num: q('#tp-tn') },
+      g: { rng: q('#tp-g'), num: q('#tp-gn') },
+      f: { rng: q('#tp-f'), num: q('#tp-fn') },
     };
-    bindRange('#tp-t', '#tp-tv', (v) => { t = v; });
-    const tEl = m.el.querySelector('#tp-t');
-    const tLab = m.el.querySelector('#tp-tv');
-    const stepT = (d) => {
-      t = Math.max(0, Math.min(maxT, Math.round(t) + d));
-      if (tEl) tEl.value = String(t);
-      if (tLab) tLab.textContent = fmt(t);
+    const clampVal = (k, raw) => Math.max(0, Math.min(maxOf[k](), Math.round(Number(raw) || 0)));
+    /* src: 'num' = 숫자 칸에서 들어옴 · 'rng' = 슬라이더 · 'fill' = 최대 버튼 */
+    const apply = (k, raw, src) => {
+      const v = clampVal(k, raw);
+      setV[k](v);
+      const e = els[k];
+      if (!e) return v;
+      if (src !== 'num' && e.num) e.num.value = String(v);
+      if (src !== 'rng' && e.rng) e.rng.value = String(v);
+      return v;
     };
-    const tm = m.el.querySelector('#tp-tminus'), tp = m.el.querySelector('#tp-tplus');
-    if (tm) tm.onclick = () => stepT(-1);
-    if (tp) tp.onclick = () => stepT(1);
-    bindRange('#tp-g', '#tp-gv', (v) => { g = v; });
-    bindRange('#tp-f', '#tp-fv', (v) => { f = v; });
+    const syncMaxT = () => {
+      const mx = tMaxNow();
+      if (els.t.rng) els.t.rng.max = String(mx);
+      if (els.t.num) els.t.num.max = String(mx);
+      const b = q('.tp-max[data-fill="t"]');
+      if (b) b.textContent = `최대 ${fmt(mx)}`;
+      if (t > mx) apply('t', mx, 'fill');
+    };
+    ['t', 'g', 'f'].forEach((k) => {
+      const e = els[k];
+      if (e.rng) e.rng.oninput = () => apply(k, e.rng.value, 'rng');
+      if (!e.num) return;
+      /* 숫자를 지우는 중(빈 칸)에 0을 덮어쓰지 않고 기다린다 — 포커스를 잃으면 현재 값으로 돌린다 */
+      e.num.oninput = () => {
+        const raw = String(e.num.value).trim();
+        if (raw === '' || raw === '-') return;
+        const v = apply(k, raw, 'num');
+        if (String(v) !== raw) e.num.value = String(v);
+      };
+      e.num.onchange = () => apply(k, e.num.value, 'num');
+      e.num.onblur = () => { if (String(e.num.value).trim() === '' || e.num.value === '-') e.num.value = String(getV[k]()); };
+    });
+    m.el.querySelectorAll('.tp-max[data-fill]').forEach((b) => {
+      b.onclick = () => { SK.sfx.play('ui'); apply(b.dataset.fill, maxOf[b.dataset.fill](), 'fill'); };
+    });
   }
 
   /* ───────────── 명성과 관작 ───────────── */
@@ -6102,7 +6180,7 @@
     ] },
     harvest: { t: '10월 대수확', lines: ['한 해 군량은 10월에 한 번에 들어옵니다. 농업도·민심·농원 Lv가 많을수록 많이 걷습니다.', '그 전까지는 [개간]·[탐색]·[군량 상인]으로 버티고, 병력 유지비는 매달 나갑니다.'] },
     tax: { t: '세율', lines: ['세금을 많이 걷으면 금은 빨리 모이지만 민심이 달마다 떨어집니다.', '낮게 두면 당장 금은 줄어도 민심이 올라 다음 달 세수와 인구가 늘어납니다.'] },
-    pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.', '<b>민심·치안이 함께 60을 넘는 순간부터 인구 증가가 비례해 붙고, 둘 다 90 이상이면 최대 1.7배(＋70%)</b>까지 빨라집니다. 인구 상한은 성 등급이 정합니다.'] },
+    pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.', '<b>민심·치안이 함께 60을 넘는 순간부터 인구 증가가 비례해 붙고, 둘 다 90 이상이면 최대 1.7배(＋70%)</b>까지 빨라집니다. 인구 상한은 성 등급이 정합니다.', '<b>주둔병이 최대 병력까지 가득 차면</b> 징병은 멈추지만, 그동안 <b>인구가 ×1.35~×1.50으로 더 빨리</b> 늘어나 상한이 올라갑니다(병영 Lv.5 ×1.50 · 병영이 없으면 ×1.35). 민심·치안 가속과 함께 적용됩니다.'] },
     agri: { t: '농업', lines: ['<b>10월 대수확 때 들어오는 군량(쌀) 양</b>을 키웁니다.', '[개간]이나 [농원] 담당 배속으로 올립니다.'] },
     comm: { t: '상업', lines: ['<b>매달 들어오는 금(세금) 수입</b>을 키웁니다.', '[상업 진흥]이나 [시장] 담당 배속으로 올립니다.'] },
     office: { t: '관아 — 성의 본부', lines: [
@@ -6250,11 +6328,14 @@
     const pd = popMonthly(cs, c);
     const popCap = cityPopCap(c);
     const order = cs.order == null ? 55 : cs.order;
+    /* v5.59 — 주둔병이 가득 차면 인구 가속 중임을 머리에 적어 준다 */
+    const fullMul = popFullMul(cs);
+    const fullTxt = fullMul > 1 ? `×${fullMul.toFixed(2).replace(/0$/, '')}` : '';
     dev.innerHTML = `
       <div class="dev-head">
         <span class="dev-lv">Lv.${lv}<em>/5</em></span>
         <b class="dev-name">${LV_TEXT[lv]}</b>
-        <span class="dev-note">병력 상한 = 인구 17%</span>
+        <span class="dev-note${fullMul > 1 ? ' dev-full' : ''}"${fullMul > 1 ? ' title="주둔병이 최대 병력에 찬 동안 징병 대신 인구가 빨리 늡니다"' : ''}>${fullMul > 1 ? `주둔병 가득 · 인구 ${fullTxt}` : '병력 상한 = 인구 17%'}</span>
       </div>
       <div class="dev-grid">
         ${devCard({ label: '인구', icon: 'pop', val: fmt(Math.round(cs.pop)), delta: `${pd >= 0 ? '+' : '−'}${fmt(Math.abs(pd))}/월`, pct: popCap ? cs.pop / popCap * 100 : 0, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'pop' })}
@@ -6278,7 +6359,7 @@
       info.innerHTML = `<div class="ci-head"><b>성 요약</b><span>${c.name} · ${typeName(c.type)}</span></div>
         <div class="ci-grid">
           <div class="ci-cell"><span>최대 병력</span><b>${fmt(cap)}</b><em>인구 17%</em></div>
-          <div class="ci-cell"><span>주둔병</span><b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b><em>${pct}%</em></div>
+          <div class="ci-cell"><span>주둔병</span><b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b><em>${pct}%${pct >= 100 ? ` · 가득 ${fullTxt}` : ''}</em></div>
           <div class="ci-cell wound${wound ? ' on' : ''}"><span>부상병</span><b>${fmt(wound)}</b>${wound ? `<button class="ci-heal" id="btn-heal-wounded" type="button">치료</button>` : '<em>없음</em>'}</div>
           <div class="ci-cell"><span>훈련도${helpDot('train')}</span><b title="전장 공·방 ${trainPctTxt(cs.train)} · 징병하면 신병(훈련도 25)만큼 내려갑니다">${Math.round(cs.train == null ? 50 : cs.train)}<i class="ci-train-pct">${trainPctTxt(cs.train)}</i></b></div>
           <div class="ci-cell"><span>월 군량 유지</span><b class="minus">−${fmt(Math.ceil((cs.troops || 0) / 1000 * ECON.upkeepPer1000))}</b><em>이 성 병력 기준 · 1,000당 ${ECON.upkeepPer1000}</em></div>
@@ -11590,6 +11671,8 @@
     // 달이 바뀌기 전에 태수들이 남은 행동으로 내정을 마친다 (본성·태수 없는 성 제외)
     const autoLog = runAutoDomestic(s);
     let tax = 0, pop = 0, popGrowth = 0, popLoss = 0, unrest = 0, growCities = 0, shrinkCities = 0;
+    /* v5.59 — 주둔병이 가득 차 징병 대신 인구가 가속된 성 (월정산 보고용) */
+    let fullCities = 0;
     const gPct = 1 + (SK.techPct ? SK.techPct('goldPct') : 0) / 100;
     const taxRate = taxRateOf(s);
     SK.CITY_LIST.forEach((c) => {
@@ -11608,6 +11691,8 @@
       tax += cityTax;
       st.gold = (st.gold || 0) + cityTax;   // v5.11 — 세수는 그 성 금고로
       // v5.5 — 인구는 민심·치안·농업·상업·시설 Lv 합을 함께 본다 (popMonthly)
+      // v5.59 — 주둔병이 가득 찬 성은 징병을 멈추는 대신 인구가 더 빨리 는다(popFullMul)
+      if (popFullMul(st) > 1) fullCities += 1;
       const growing = popMonthly(st, c);
       if (growing > 0) { popGrowth += growing; growCities += 1; }
       else if (growing < 0) { popLoss += -growing; shrinkCities += 1; }
@@ -11878,6 +11963,7 @@
           ${growth.length > 6 ? `<p class="mr-note">${growth.length - 6}곳 더 있습니다.</p>` : ''}
         </div>` : ''}
         <div class="mr-row"><span>인구 <em>성장 ${growCities}곳 · 감소 ${shrinkCities}곳</em></span><b class="${popGrowth - popLoss >= 0 ? 'plus' : 'minus'}">${popGrowth - popLoss >= 0 ? '＋' : '−'}${fmt(Math.abs(popGrowth - popLoss))}</b></div>
+        ${fullCities ? `<div class="mr-row"><span>주둔병 가득 <em>${fullCities}곳 — 징병 대신 인구 ×1.35~1.50</em></span><b class="plus">인구 가속</b></div>` : ''}
         ${gmVisit ? `<div class="mr-auto"><p class="mr-auto-title">대상인 방문</p>
           <div class="mr-auto-row"><b>${gmVisit.city}</b><span>먼 길을 걸어온 대상인이 2개월 머뭅니다 — 군량 특가 · 보물 판매</span></div></div>` : ''}
         ${unrest ? `<div class="mr-row"><span>민심 흔들리는 성</span><b class="minus">${unrest}곳</b></div>` : ''}

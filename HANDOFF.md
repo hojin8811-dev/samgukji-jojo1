@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.58** 보물 250종·책략 97·고유 특기 642·필살기 104 전수조사 · 공방/주점 6개월 · 계략 3칸 · 2026-11-22 · 라이브 `?v=75`
+> 기준: **v5.59** 수송 숫자 직접 입력 · 주둔병 가득 인구 가속 · 문관 MP 상향 · 보물 적용 라벨 구분 · 2026-11-23 · 라이브 `?v=76`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,22 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=75`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=76`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **701장수**(json 596 + 시나리오·재야 인물 105, 한국 181) · 19병과(군주 포함) · **고유특기 642**(전투형 510·내정형 132) · **보물 250** · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
 
 ---
+
+## 0.0 v5.59 — 수송 숫자 직접 입력 · 주둔병 가득 인구 가속 · 문관 MP 상향 · 보물 적용 라벨 구분 (2026-11-23 · `?v=76`)
+
+- **수송 모달**(`js/app.js` `openTransportAmount`): `병력·금·군량` 세 줄이 **숫자 칸 + 슬라이더** 쌍이다. 숫자 칸은 `type=number` + `inputmode=numeric`(폰에서 숫자 키패드)이고, 오른쪽에 `최대 N` 버튼. 값은 `0 ~ 최대 가능치`로 클램프되어 **슬라이더가 즉시 따라오고**, 슬라이더를 밀면 숫자 칸도 즉시 바뀐다. 병력 상한은 `min(이 성 병력의 60~75%, 받는 성 빈자리, 호송 장수 통솔 한도)`. 예전 병력 옆 `−1/＋1` 버튼(`.tp-step`)은 **없앴고**, `type=number`의 기본 스피너도 CSS로 감췄다(`-webkit-appearance:none` · `-moz-appearance:textfield`). 검수 실측: 숫자 777→슬라이더 777 · 슬라이더 512→숫자 512 · 99999999 입력 → 4,808(최대) · −50 → 0 · 실제 `수송 보내기`로 1,234명·금 2,100·군량 3,300이 그대로 실려 나갔다.
+- **주둔병 가득 인구 가속**(`popMonthly`·`popFullMul`): `troops >= cityCap(cs)`(인구 17%)이면 인구 증가율에 **×1.35~×1.50** — 병영 Lv.0 **1.35** · 1 1.38 · 2 1.41 · 3 1.44 · 4 1.47 · 5 **1.50**(`1.35 + 0.03 × 병영 Lv`, 상한 1.5). 민심·치안 가속(최대 ×1.7)과 **곰해진다**. 인구가 늘면 상한(17%)도 같이 올라 다음 달에 다시 징병할 수 있어 병영이 놀지 않는다. 안내는 세 곳 — 성 화면 머리 배지 `주둔병 가득 · 인구 ×1.41`, 성 요약 `주둔병 … · 가득 ×1.41`, 월정산 `주둔병 가득 N곳 — 징병 대신 인구 ×1.35~1.50`, 도움말 `pop` 4번째 줄. 검수: 실제 `SK.advanceMonth()` 한 달에서 가득 성 **+1,565** vs 같은 조건 보통 성 **+1,110**(1.41배, `popMonthly` 예상치와 일치).
+- **문관 MP**(`js/data.js` `SK.mpScaleOf`): 배율표를 data.js 한 곳에 두고 `app.js maxMpOf` 와 `battle.js maxMpBase` 가 함께 본다. **책사·도사·풍수사(상위 전직 포함 — 전직은 이름만 바뀌고 cls는 그대로)** 만 `0.65`, 나머지는 `0.5` 그대로. Lv.1 책사 30→**39** · 도사 32→**42** · 풍수사 35→**46**(Lv.30 77·79·83). 적·일반 부대도 `maxMpBase(base, cls)` 로 cls를 넘겨 같은 값(적 책사 39). 화계(10)·혼란(16)을 섮어 3~4회 — 예전 2~3회.
+- **보물 적용 라벨**(`js/data.js` `SK.TREASURE_FX_DOMESTIC`·`SK.fxScopes`): `income`·`food`·`loyalty`·`recruit`·`train`·`supply`·`diplo`·`spy`·`detect`·`techCost`·`buildCost` 는 **`내정·외교 적용`**, 나머지는 **`전장 적용`**. `SK.fxSumLine(fx, asArray, scope)` 에 scope를 넣고 `SK.treasureFxScopes(t)` 가 `{battle:[…], domestic:[…]}` 를 돌려준다. 보물 창 카드(`tr-slot`·`tr-item`)·합계(`tr-sum`)·《장수 정보》 장비 탭(`giEquipHTML`)이 모두 두 줄 — `청동령` = `전장 적용 사기 +4` + `내정·외교 적용 징병량 +10%` (예전의 `전장 적용 징병량 +10%` 삭제).
+- **CRITICAL**: MP 배율을 바꿀 때는 `js/data.js`의 `SK.MP_SCALE_BY_CLASS` 한 곳만 고친다(주석 포함). 보물 훅을 새로 넣을 때는 `SK.TREASURE_FX_KEYS`·`SK.TREASURE_FX_LABEL` 은 물론 **`SK.TREASURE_FX_DOMESTIC` 에 넣을지**를 반드시 정한다 — 안 정하면 내정 효과가 `전장 적용` 으로 보인다.
+- **검수**: `tools/qa_v559.py` a(로컬 844) **42/42** · c(로컬 680) **42/42** · b/d 라이브. 화면 `preview/v559/` (`transport_844/680.png`·`treasure_label_*.png`·`month_*.png`·`city_full_*.png`·`heroinfo.png`).
+- **검수 훅**: `SK.openTransportAmount(from,to)`(지도 선택 없이 바로) · `SK.popFullMul(cs)` · `SK.barracksLvOf(cs)` · `SK.cityFullPop(cs)` · `SK.mpScaleOf(cls)` · `SK.maxMpBase(base, cls)`·`SK.battleMpScaleOf(cls)` · `SK.treasureFxScopes(t)`·`SK.fxScopes(fx)`·`SK.treasureScopeOf(key)`.
 
 ## 0.0 v5.58 — 보물 250종·책략 97·고유 특기 642·필살기 104 전수조사 · 공방 6개월 · 주점 6개월 · 계략 3칸 (2026-11-22 · `?v=75`)
 
