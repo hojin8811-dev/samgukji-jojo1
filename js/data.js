@@ -495,9 +495,8 @@ SK.EXTRA_GENERALS = {
   '고람': { job: '기병', tier: 'B', war: 62, intel: 50, lead: 56 },
   '고정': { job: '창병', tier: 'B', war: 60, intel: 52, lead: 54 },
   /* v5.19 — 1막 주 세력 드림팀·한현군·맹획군 보강 인물 (generals.json에 없는 이름만 여기 둔다) */
-  '서서': { job: '책사', tier: 'A', war: 52, intel: 92, lead: 81, pol: 84, charm: 89, birth: 170, debut: 192 },
+  /* v5.43 — 서서(595)·한현(596)은 data/generals.json으로 옮겼다 (촉·군웅 소속, 전용 초상·SD 유지) */
   '우보': { job: '기병', tier: 'B', war: 72, intel: 38, lead: 60, birth: 155, debut: 175 },
-  '한현': { job: '군주', tier: 'C', war: 62, intel: 50, lead: 57, birth: 155, debut: 180 },
   '양령': { job: '창병', tier: 'B', war: 74, intel: 42, lead: 63, birth: 160, debut: 180 },
   '형도영': { job: '창병', tier: 'B', war: 80, intel: 35, lead: 62, birth: 160, debut: 190 },
   '진응': { job: '궁수', tier: 'C', war: 66, intel: 38, lead: 56, birth: 165, debut: 190 },

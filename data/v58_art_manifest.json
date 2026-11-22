@@ -141,7 +141,7 @@
     "portrait": "assets/portraits/korea/ondal.webp"
   },
   "서서": {
-    "id": 701,
+    "id": 595,
     "portrait": "assets/portraits/v520/seoseo.webp",
     "unit": "assets/units/v520/seoseo.webp"
   },
@@ -156,7 +156,7 @@
     "unit": "assets/units/v520/gongsunkang.webp"
   },
   "한현": {
-    "id": 704,
+    "id": 596,
     "portrait": "assets/portraits/v520/hanhyeon.webp",
     "unit": "assets/units/v520/hanhyeon.webp"
   },
