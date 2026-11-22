@@ -8631,8 +8631,23 @@
       s.purseCity = c.id;          // v5.11 — 이 성 금고로 내정한다
       const pol = policyOf(cs);
       const acts = [];
+      const upActs = [];
       const done = {};
       let idle = null;
+      /* v5.7 — 태수가 스스로 증축. v5.50 — 내정보다 **먼저** 증축한다.
+         (예전엔 개간·징병으로 금을 쓴 뒤라, 금 1,014가 있어도 Lv.2(700) 증축이 막혔다)
+         한 달 최대 2칸, 시장·농원·병영·순찰소… 순서. */
+      const upUsed = [];
+      for (let u = 0; u < AUTO_UPGRADE_MAX; u++) {
+        const up = pickAutoUpgrade(cs, s, upUsed);
+        if (!up) break;
+        const from = up.sl.lv, to = from + 1;
+        s.gold -= up.cost;
+        up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(from));
+        up.sl.lv = to;
+        upUsed.push(up.sl);
+        upActs.push({ key: 'upgrade', name: '증축', short: `${up.name} Lv.${from}→${to} · 금 −${fmt(up.cost)}` });
+      }
       let guard = 0;
       while (guard++ < 8) {
         const actor = cityGens(c.id).find((g) => !g.actedThisMonth);
@@ -8696,20 +8711,9 @@
             acts.push({ key: 'supply', name: '수송', short: `${CITY[to].name} 병력 +${fmt(send)}` });
           }
         }
-        if (!sent && !acts.length && !idle) idle = '보낼 잉여 병력이 없습니다';
+        if (!sent && !acts.length && !upActs.length && !idle) idle = '보낼 잉여 병력이 없습니다';
       }
-      /* v5.7 — 태수가 스스로 증축 (v5.50 한 달에 최대 2칸, 준비된 시설부터) */
-      const upUsed = [];
-      for (let u = 0; u < AUTO_UPGRADE_MAX; u++) {
-        const up = pickAutoUpgrade(cs, s, upUsed);
-        if (!up) break;
-        const from = up.sl.lv, to = from + 1;
-        s.gold -= up.cost;
-        up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(from));
-        up.sl.lv = to;
-        upUsed.push(up.sl);
-        acts.push({ key: 'upgrade', name: '증축', short: `${up.name} Lv.${from}→${to} · 금 −${fmt(up.cost)}` });
-      }
+      acts.push(...upActs);        // 보고는 '한 일 먼저, 증축은 끝에'
       if (!acts.length && !idle && cs.slots && cs.slots.some((sl) => sl.key && sl.lv < 5 && (sl.exp || 0) >= slotExpNeed(sl.lv)))
         idle = '증축할 금이 모자랍니다';
       if (acts.length) SK.gainExp(gov, 8 * acts.length);

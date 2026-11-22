@@ -29,11 +29,11 @@
 | --- | --- | --- |
 | ① 위임 거점 보고 | 월정산 **맨 위**에 `위임 거점 보고` — 성 이름 · 태수 · 방침 배지 + 이번 달 한 일 칩. 일한 성 먼저, **아무 일 없는 성도 `대기 — 이유`로 남김**. 4곳까지 펼치고 나머지는 `N곳 더 보기`. 제목에 `태수 N곳 · 활동 M곳` | `js/app.js` `govReportHtml`·`runAutoDomestic`, `css/game.css` `.mr-gov`·`.mgc*` |
 | ② 한 일 기록 | `runAutoDomestic`이 `{key,name,short}`로 남김 — `백성 위로 민심 +6` · `징병 병력 +1,508 · 민심 −6` · `개간 농업 +6 · 군량 +300` · `상업 상업 +6 · 금 +240` · `성벽 보수 +10` · `수송 성도 병력 +N` · `증축 시장 Lv.1→2 · 금 −350` | `js/app.js` `AUTO_ACT_NAME`·`tidy`·`extraOf` |
-| ③ 자동 증축 수정 | 남기는 금 **400 → 100**, 한 달 **최대 2칸**, 우선순위 **시장→농원→병영→순찰소→연병장→성벽→주점→첩보소**. 금 1,014에서도 Lv.1→2(350)가 막히지 않음. 준비된 칸을 못 올리면 `대기 — 증축할 금이 모자랍니다` | `js/app.js` `AUTO_UPGRADE_RESERVE`·`AUTO_UPGRADE_MAX`·`AUTO_UP_PRIORITY`·`pickAutoUpgrade` |
+| ③ 자동 증축 수정 | 남기는 금 **400 → 100**, **내정보다 먼저** 증축, 한 달 **최대 2칸**, 우선순위 **시장→농원→병영→순찰소→연병장→성벽→주점→첩보소**. 금 1,014에서도 Lv.1→2(350)가 막히지 않음. 준비된 칸을 못 올리면 `대기 — 증축할 금이 모자랍니다` | `js/app.js` `AUTO_UPGRADE_RESERVE`·`AUTO_UPGRADE_MAX`·`AUTO_UP_PRIORITY`·`pickAutoUpgrade` |
 | ④ 성 이름 잘림 | `#city-name`을 `flex:0 0 auto`·말줄임 해제, `◀▶` 22→20px·간격 3px, **세력 배지를 아래 줄로 이동**, 380px 이하 이름 17px, `text-size-adjust:100%` | `index.html` `.ct-line1`, `css/game.css` `.city-step`·`#city-name` |
 | ⑤ 보관 보물 상세 | `장수 명부 → 보물 → 보관 중인 보물` 칩을 전부 **버튼**으로(8점 제한 해제) → 이름·등급·부위(`명마 슬롯`)·능력치·효과·장착 안내·[확인] | `js/app.js` `openStoredTreasure`·`renderItem`, `css/game.css` `.rs-inv-chip`·`.tr-det*` |
 | ⑥ 앱 설치 SW | `sw.js`(통과 서비스 워커 — install skipWaiting, activate claim, **빈 fetch**) + `register('./sw.js?v=67')`. 캐시 0이라 열 때마다 최신판 | `sw.js`, `index.html` |
-| ⑦ 검수 | 로컬 390×844 `tools/qa_v550.py` **30/30** — 3달 연속(천수·관우) 보고↔실제 1:1(민심 0·병력 +1,747/+1,775/+1,585·성벽 +10·슬롯 `[1,1,1]→[2,2,2]`), 증축 3회 −350씩, 6곳 보고·접기·UI 임명·수송·대기 이유, 금 1,014에서 증축, 360/390 이름 잘림 0, 보물 상세, SW `activated`, 콘솔·pageerror·4xx 0. 캡처 `preview/v550_local/` | `tools/qa_v550.py` |
+| ⑦ 검수 | 로컬 390×844 `tools/qa_v550.py` **32/32** — 3달 연속(천수·관우) 보고↔실제 1:1(민심 0·병력 +1,747/+1,775/+1,585·성벽 +10·슬롯 `[1,1,1]→[2,2,2]`), 증축 3회 −350씩, 6곳 보고·접기·UI 임명·수송·대기 이유, 금 1,014에서 Lv.2→3 증축, 360/390 이름 잘림 0, 보물 상세, SW `activated`, 콘솔·pageerror·4xx 0. 캡처 `preview/v550_local/` | `tools/qa_v550.py` |
 
 ---
 
