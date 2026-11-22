@@ -5340,6 +5340,7 @@
       name: '외교·계략', sub: '이간·항복·동맹',
       items: [
         { key: 'scout', label: '정찰 — 적성 첩보(어느 지역이든)', desc: `금 ${scoutCost()} + 대기 장수 1명의 행동 — 3~5개월 동안 적성 내부를 봅니다` },
+        { key: 'recruitScout', label: '정찰된 적성 등용 — 적장 회유', desc: '금 100 · 3칸 안에서 정찰해 둔 적성의 장수를 충성도·성공률 보고 데려옵니다 (이간계로 충성을 깎으면 확률↑)' },
         { key: 'estrange', label: '이간계 — 적 장수 지목', desc: `금 ${ESTRANGE_COST} · 적 성의 장수 한 명을 지목해 충성을 깎고, 50 이하면 바로 회유합니다` },
         { key: 'surrender', label: '항복 권고 — 싸움 없이 성 받기', desc: '금 300 · 규모 차가 큰 약소 세력에 사자를 보내 성을 넘겨받습니다' },
         { key: 'spy', label: '계략 — 적성 수비 약화', desc: '금 100 · 적성 수비병과 성벽을 깎습니다' },
@@ -5394,6 +5395,7 @@
     if (k === 'train') { openTrain(cityId); return; }
     if (k === 'tech') { openTech(); return; }
     if (k === 'scout') { openScoutPick(cityId); return; }
+    if (k === 'recruitScout') { openRecruitScouted(cityId); return; }
     if (k === 'estrange') { openEstrange(cityId); return; }
     if (k === 'surrender') { openSurrenderAdvice(cityId); return; }
     if (k === 'spy') { openSpy(cityId, 'spy'); return; }
@@ -5516,6 +5518,94 @@
     });
   };
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.61 — 외교·계략을 '숫자로' 보여 준다
+     · 실행 전: 사자로 나설 장수(이름·지력/매력)와 예상 성사 확률(%)
+     · 실행 후: 성공/실패와 함께 정확한 전후 수치(before → after)
+     · 확률식은 여기에만 두고 미리보기와 실제 판정이 같은 식을 쓴다
+     ══════════════════════════════════════════════════════════════ */
+  const pctOf = (p) => `${Math.round(clamp(p, 0, 1) * 100)}%`;
+  /* 이번 달 [계략]을 맡을 장수 — pickActor와 같은 규칙(도시 선택 장수 → 대기 순)으로 미리 본다 */
+  function previewActor(cityId) {
+    if (!cityGens(cityId).length) return null;
+    const ready = dispatchPool(cityId);
+    if (!ready.length) return null;
+    return ready.find((g) => g.uid === cityActorUid) || ready[0];
+  }
+  SK.previewActor = previewActor;
+  /* 계략·유언비어 성사 확률 (spyStrike와 같은 식) */
+  function spyChance(kind, cityId, actor) {
+    if (!actor) return 0;
+    const base = kind === 'spy' ? 0.55 : 0.65;
+    const bonus = Math.min(0.25, Math.max(0, ((actor.ji || 60) - 60) * 0.005));
+    const spyM = 1 + Math.min(0.5, cityTfx(cityId, 'spy', 50) / 100);
+    return Math.min(0.95, (base + bonus) * spyM * (1 + officeBonusOf(cityId).ji));
+  }
+  SK.spyChance = spyChance;
+  /* 이간계 성사 확률 */
+  function estrangeChance(cityId, actor, g) {
+    if (!actor || !g) return 0;
+    return clamp((0.52 + ((actor.ji || 60) - 60) * 0.009 - ((g.intel || 60) - 60) * 0.005) * (1 + officeBonusOf(cityId).ji), 0.12, 0.88);
+  }
+  SK.estrangeChance = estrangeChance;
+  /* 회유·등용 성사 확률 — 충성이 낮을수록, 사자 매력이 높을수록 오른다.
+     v5.61 — 바닥(10%)에 눌려 모든 적장이 똑같이 10%로 보이던 것을 고쳤다.
+     이제 충성 92는 10%, 72는 16%, 50은 43%, 30은 67%처럼 충성 차이가 그대로 드러나고,
+     이간계로 충성을 깎으면 같은 장수의 확률이 크게 오른다 (이간계→회유 / 정찰 등용 공통). */
+  function lureChance(g, actor) {
+    if (!actor || !g) return 0;
+    const s = SK.state;
+    const loy = enemyLoyal(g);
+    return clamp(0.44 + ((actor.cha || 60) - 60) * 0.008 + (35 - loy) * 0.012 + Math.min(0.1, (s.fame || 0) * 0.00002), 0.1, 0.9);
+  }
+  SK.lureChance = lureChance;
+  /* 항복 권고 성사 확률 */
+  function surrenderChance(cityId, actor, tid) {
+    const s = SK.state;
+    if (!actor || !s || !s.cities[tid]) return 0;
+    const fid = s.cities[tid].owner;
+    const fCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
+    const fTroops = fCities.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
+    const mine = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
+    const ratio = mine / Math.max(1, fTroops);
+    return clamp(0.1 + ((actor.cha || 60) - 60) * 0.008 + Math.max(0, ratio - 1.4) * 0.14 + Math.max(0, 3 - fCities.length) * 0.07, 0.05, 0.85);
+  }
+  SK.surrenderChance = surrenderChance;
+  /* 휴전·동맹 성사 확률 */
+  function peaceChance(actor, term) {
+    const s = SK.state;
+    if (!actor || !term) return 0;
+    const fx = heroTfx(actor) || {};
+    const diploB = Math.min(0.25, (fx.diplo || 0) / 100);
+    return clamp(term.base + Math.min(0.3, ((actor.cha || 60) - 60) * 0.006) + Math.min(0.1, (s.fame || 0) * 0.00002) + diploB, 0.08, 0.95);
+  }
+  SK.peaceChance = peaceChance;
+  /* N개월 뒤가 몇 년차 몇 월인지 (휴전·동맹 만료 시점) */
+  function monthLabelAfter(months) {
+    const s = SK.state;
+    const by = s.year || 1;
+    const total = by * 12 + (s.month || 0) + months;
+    const y = Math.floor(total / 12), m = total % 12;
+    const era = (s.eraYear || (195 + by)) + (y - by);
+    return SK.dateLabel(era, m, s);
+  }
+  SK.monthLabelAfter = monthLabelAfter;
+  /* 결과 창 공통 — 전후 수치 한 줄 (before → after, 변화량) */
+  function deltaRow(label, before, after, opts) {
+    const o = opts || {};
+    const d = after - before;
+    const unit = o.unit || '';
+    const sign = d > 0 ? '+' : d < 0 ? '−' : '';
+    const cls = d > 0 ? (o.goodUp ? 'up' : 'down') : d < 0 ? (o.goodUp ? 'down' : 'up') : 'flat';
+    return `<div><span>${label}</span><b>${fmt ? fmt(before) : before}${unit}</b><i>→</i><strong>${fmt ? fmt(after) : after}${unit}</strong><em class="${cls}">${d === 0 ? '변화 없음' : `${sign}${fmt ? fmt(Math.abs(d)) : Math.abs(d)}`}</em></div>`;
+  }
+  SK.deltaRow = deltaRow;
+  function actorLine(actor, stat) {
+    if (!actor) return '<b>사자</b> 없음 — 이번 달 파견할 대기 장수가 없습니다';
+    const v = stat === 'ji' ? `지력 ${actor.ji}` : stat === 'cha' ? `매력 ${actor.cha}` : `지력 ${actor.ji} · 매력 ${actor.cha}`;
+    return `<b>사자 ${actor.name}</b> · ${v}`;
+  }
+
   /* 계략 — 이간계·유언비어 */
   function openSpy(cityId, kind) {
     SK.setPurse(cityId);
@@ -5524,6 +5614,10 @@
     /* v5.58 — 내 성에서 3칸 이내 적성(중립 제외), 가까운 순 */
     const targets = citiesWithinHops(cityId, { maxHop: SCHEME_HOPS, enemyOnly: true }).map((x) => x.id);
     if (!targets.length) { SK.toast('계략을 펼칠 적성이 3칸 안에 없습니다.'); return; }
+    /* v5.61 — 누가 가는지·성사가 몇 %인지 고르기 전에 보여 준다 */
+    const actor = previewActor(cityId);
+    if (!actor) { SK.sfx.play('deny'); SK.toast('이번 달 파견할 대기 장수가 없습니다. [다음 달]로 넘어가세요.'); return; }
+    const p = spyChance(kind, cityId, actor);
     /* v5.36 — 계략을 펼 성은 지도에서 고른다 (배지: 성벽·민심) */
     const chips = {};
     targets.forEach((id) => {
@@ -5533,8 +5627,8 @@
     });
     const ok = pickCityOnMap({
       kicker: `${CITY[cityId].name} 계략`,
-      title: kind === 'spy' ? '이간계를 펼 성' : '유언비어를 풀 성',
-      hint: `${kind === 'spy' ? '적 장수 사이를 갈라 수비병과 성벽을 약화시킵니다.' : '거짓 소문을 풀어 적성 민심을 흔듭니다.'} 금 ${cost} — 실패해도 금은 나갑니다.`,
+      title: kind === 'spy' ? '계략을 펼 성' : '유언비어를 풀 성',
+      hint: `${actorLine(actor, 'ji')} · 예상 성사 <b>${pctOf(p)}</b><br>${kind === 'spy' ? '적 장수 사이를 갈라 수비병과 성벽을 약화시킵니다.' : '거짓 소문을 풀어 적성 민심을 흔듭니다.'} 금 ${cost} · 장수 1명의 이번 달 행동 — 실패해도 금은 나갑니다.`,
       origin: cityId, ids: targets, chips,
       block: '내 성에서 3칸 이내 적성에만 계략을 펼칠 수 있습니다.',
       onPick: (id) => spyStrike(cityId, kind, id),
@@ -5547,25 +5641,35 @@
     const s = SK.state;
     const cost = kind === 'spy' ? 100 : 80;
     if (s.gold < cost) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${cost})`); SK.openCity(cityId); return; }
-    s.gold -= cost;
-    const st = s.cities[targetId];
+    /* v5.61 — 사자를 먼저 정하고 금을 낸다 (예전에는 장수가 없어도 금이 먼저 나갔다) */
     const actor = pickActor(cityId);
-    const base = kind === 'spy' ? 0.55 : 0.65;
-    const bonus = actor ? Math.min(0.25, Math.max(0, ((actor.ji || 60) - 60) * 0.005)) : 0;
-    /* v5.40 — 보물의 첩보 성공률(+N%) */
-    const spyM = 1 + Math.min(0.5, cityTfx(cityId, 'spy', 50) / 100);
-    /* v5.48 — 관아 머리의 지력 → 계략 성공률 (최대 +6%) */
-    const ok = Math.random() < Math.min(0.95, (base + bonus) * spyM * (1 + officeBonusOf(cityId).ji));
-    if (actor) { consumeDispatch(cityId, actor); SK.gainExp(actor, 14); }
+    if (!actor) { SK.openCity(cityId); return; }
+    const st = s.cities[targetId];
+    const before = { troops: Math.round(st.troops), def: Math.round(st.def), loyalty: Math.round(st.loyalty) };
+    const p = spyChance(kind, cityId, actor);
+    const ok = Math.random() < p;
+    s.gold -= cost;
+    consumeDispatch(cityId, actor);
+    SK.gainExp(actor, 14);
     if (ok) {
       if (kind === 'spy') { st.troops = Math.max(200, Math.round(st.troops * 0.88)); st.def = Math.max(20, st.def - 4); }
       else { st.loyalty = Math.max(10, st.loyalty - 8); st.troops = Math.max(200, Math.round(st.troops * 0.94)); }
     }
+    const after = { troops: Math.round(st.troops), def: Math.round(st.def), loyalty: Math.round(st.loyalty) };
     SK.save(); SK.refreshHud(); SK.openCity(cityId);
     SK.sfx.play(ok ? 'ui' : 'deny');
+    const rows = kind === 'spy'
+      ? deltaRow('성벽', before.def, after.def) + deltaRow('수비병', before.troops, after.troops)
+      : deltaRow('민심', before.loyalty, after.loyalty) + deltaRow('수비병', before.troops, after.troops);
     SK.modal({
-      kicker: `${CITY[cityId].name} 계략`, title: ok ? '계략이 통했습니다' : '계략이 들통났습니다',
-      body: `<p class="modal-p">${ok ? (kind === 'spy' ? `${CITY[targetId].name}의 장수들이 서로를 의심해 수비병과 성벽이 흔들렸습니다.` : `${CITY[targetId].name}에 거짓 소문이 퍼져 민심이 흔들렸습니다.`) : '상대가 첩자를 붙잡았습니다. 이번 일은 수포로 돌아갔습니다.'}</p>`,
+      kicker: `${CITY[cityId].name} 계략`, title: ok ? (kind === 'spy' ? '계략이 통했습니다' : '유언비어가 퍼졌습니다') : '계략이 들통났습니다',
+      body: `<div class="scheme-result">
+        <p class="sr-head">${actorLine(actor, 'ji')} · ${CITY[targetId].name} · 예상 성사 ${pctOf(p)}</p>
+        <div class="sr-rows">${rows}</div>
+        <p class="sr-note">${ok
+          ? (kind === 'spy' ? `${CITY[targetId].name}의 장수들이 서로를 의심했습니다. 금 −${cost} · ${actor.name}의 이번 달 행동을 썼습니다.` : `${CITY[targetId].name}에 거짓 소문이 퍼졌습니다. 금 −${cost} · ${actor.name}의 이번 달 행동을 썼습니다.`)
+          : `상대가 첩자를 붙잡았습니다. 성의 수치는 그대로이고 금 ${cost}과 ${actor.name}의 이번 달 행동만 나갔습니다.`}</p>
+      </div>`,
       actions: [{ label: '확인', primary: true }],
     });
   }
@@ -5622,41 +5726,49 @@
     const st = s.cities[targetId];
     const gens = (st.genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
     if (!gens.length) { SK.toast('이 성에는 흔들 장수가 없습니다.'); return; }
+    /* v5.61 — 누가 가고, 그 장수에게 이간계가 몇 % 통하는지 고르기 전에 보여 준다 */
+    const actor = previewActor(cityId);
+    if (!actor) { SK.sfx.play('deny'); SK.toast('이번 달 파견할 대기 장수가 없습니다. [다음 달]로 넘어가세요.'); return; }
     const rows = gens.map((g) => {
       const loy = enemyLoyal(g);
+      const p = estrangeChance(cityId, actor, g);
       return `<button class="target-card estr" data-g="${g.id}">
         <img class="tc-portrait ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="tc-main"><b>${g.name}</b><span>${SK.CLASSES[SK.genClass(g)].name} · ${g.tier}급 · 지력 ${g.intel}</span>
           <span class="estr-bar"><i style="width:${loy}%"></i><em>충성 ${loy}</em></span></div>
+        <div class="tc-troops"><span>이간 성사</span><b>${pctOf(p)}</b></div>
         <span class="tc-go">▸</span></button>`;
     }).join('');
     const m = SK.modal({
       kicker: `${CITY[targetId].name} 이간계`, title: '누구를 흔들까',
-      body: `<p class="talent-note">충성이 50 이하로 떨어지면 그 자리에서 회유를 시도합니다. 지력이 높은 장수를 보내면 성사가 쉽습니다. (금 ${ESTRANGE_COST})</p>
+      body: `<p class="talent-note">${actorLine(actor, 'ji')} — 금 ${ESTRANGE_COST}과 이번 달 행동을 씁니다. 성사하면 충성이 26~41 떨어지고(실패하면 +4), 50 이하가 되면 그 자리에서 회유를 권합니다.</p>
         <div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }],
     });
     m.el.querySelectorAll('.target-card[data-g]').forEach((b) => {
       b.onclick = () => {
         if (s.gold < ESTRANGE_COST) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${ESTRANGE_COST})`); return; }
         const g = SK.GEN_BY_ID[Number(b.dataset.g)];
-        const actor = pickActor(cityId);
-        if (!actor) return;
+        const p = estrangeChance(cityId, actor, g);
+        const before = enemyLoyal(g);
         s.gold -= ESTRANGE_COST;
         consumeDispatch(cityId, actor);
         SK.gainExp(actor, 12);
-        const p = clamp((0.52 + ((actor.ji || 60) - 60) * 0.009 - ((g.intel || 60) - 60) * 0.005) * (1 + officeBonusOf(cityId).ji), 0.12, 0.88);
         const ok = Math.random() < p;
-        let after = enemyLoyal(g);
-        if (ok) after = setEnemyLoyal(g.id, after - (26 + Math.floor(Math.random() * 16)));
-        else setEnemyLoyal(g.id, Math.min(100, after + 4));
+        if (ok) setEnemyLoyal(g.id, before - (26 + Math.floor(Math.random() * 16)));
+        else setEnemyLoyal(g.id, Math.min(100, before + 4));
+        const after = enemyLoyal(g);
         SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
         SK.sfx.play(ok ? 'ui' : 'deny');
         const lure = ok && after <= 50;
         const res = SK.modal({
           kicker: `${CITY[targetId].name} 이간계`, title: ok ? `${g.name}의 충성이 흔들렸다` : '이간계가 들통났다',
-          body: `<p class="modal-p">${ok
-            ? `${josa(actor.name, 'i')} 적진에 거짓 편지를 풀어 ${josa(g.name, 'ui')} 의심하게 만들었습니다. 충성 ${after} — ${lure ? '지금 회유하면 넘어올 수 있습니다.' : '아직은 마음이 굳습니다.'}`
-            : `${josa(g.name, 'i')} 보낸 사람을 의심했습니다. 이번 일은 수포로 돌아갔습니다.`}</p>`,
+          body: `<div class="scheme-result">
+            <p class="sr-head">${actorLine(actor, 'ji')} · 대상 <b>${g.name}</b> (${CITY[targetId].name}) · 예상 성사 ${pctOf(p)}</p>
+            <div class="sr-rows">${deltaRow(`${g.name} 충성`, before, after, { goodUp: false })}</div>
+            <p class="sr-note">${ok
+              ? `${josa(actor.name, 'i')} 적진에 거짓 편지를 풀었습니다. ${lure ? `지금 회유하면 성사 ${pctOf(lureChance(g, actor))} — 넘어올 수 있습니다.` : `지금 회유하면 성사 ${pctOf(lureChance(g, actor))} — 아직은 마음이 굳습니다.`} 명성 변화 없음 · 금 −${ESTRANGE_COST}`
+              : `${josa(g.name, 'i')} 보낸 사람을 의심해 충성이 오히려 올랐습니다. 금 ${ESTRANGE_COST}과 ${actor.name}의 이번 달 행동만 나갔습니다.`}</p>
+          </div>`,
           actions: lure ? [
             { label: '나중에' },
             { label: `${g.name} 회유`, primary: true, onClick: () => lureGen(cityId, targetId, g, actor) },
@@ -5667,13 +5779,16 @@
     });
   }
   /* 충성이 떨어진 적장을 회유 — 매력 대결. 성공하면 내 장수가 된다 */
-  function lureGen(cityId, targetId, g, actor) {
+  function lureGen(cityId, targetId, g, actor, opts) {
     const s = SK.state;
+    const o = opts || {};
+    const costNote = o.cost ? ` · 금 −${o.cost}` : '';
     const loy = enemyLoyal(g);
-    const p = clamp(0.34 + ((actor.cha || 60) - 60) * 0.008 + (35 - loy) * 0.015 + Math.min(0.1, (s.fame || 0) * 0.00002), 0.1, 0.9);
+    const p = lureChance(g, actor);
     const ok = Math.random() < p;
     if (ok) {
       const st = s.cities[targetId];
+      const fameBefore = s.fame || 0;
       st.genIds = (st.genIds || []).filter((id) => id !== g.id);
       const hero = makeHero(g.name, cityId, SK.genLv(g));
       if (hero) {
@@ -5687,22 +5802,106 @@
       SK.modal({
         kicker: '회유 성공', title: `${g.name}, 우리에게로`, wide: true,
         body: `<div class="lure-card"><img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
-          <div><b>${g.name}</b><span>${SK.CLASSES[SK.genClass(g)].name} · ${g.tier}급</span>
-          <p>충성 ${loy}이던 장수가 사자를 따라 ${CITY[cityId].name}으로 왔습니다. 충성 55로 시작합니다 — [포상]으로 마음을 잡으십시오.</p></div></div>`,
+          <div><b>${g.name}</b><span>${SK.CLASSES[SK.genClass(g)].name} · ${g.tier}급 · ${CITY[targetId].name} → ${CITY[cityId].name}</span></div></div>
+          <div class="scheme-result">
+            <p class="sr-head">${actorLine(actor, 'cha')} · 예상 성사 ${pctOf(p)}</p>
+            <div class="sr-rows">${deltaRow(`${g.name} 충성`, loy, 55, { goodUp: false })}${deltaRow('명성', fameBefore, s.fame || 0, { goodUp: true })}</div>
+            <p class="sr-note">${josa(g.name, 'i')} 사자를 따라 ${CITY[cityId].name}으로 왔습니다 — 아군 장수로 합류했고 충성 55로 시작합니다. [포상]으로 마음을 잡으십시오.${costNote}</p>
+          </div>`,
         actions: [{ label: '맞이한다', primary: true }],
       });
     } else {
-      setEnemyLoyal(g.id, Math.min(100, loy + 12));
-      s.fame = Math.max(0, (s.fame || 0) - 2);
+      const after = setEnemyLoyal(g.id, Math.min(100, loy + 12));
+      const fameBefore = s.fame || 0;
+      s.fame = Math.max(0, fameBefore - 2);
       SK.save();
       SK.sfx.play('deny');
       SK.modal({
-        kicker: '회유 실패', title: '마음을 돌리지 못했다',
-        body: `<p class="modal-p">${josa(g.name, 'i')} 사자를 돌려보냈습니다. 충성이 오히려 올라 이제 쉽지 않습니다.</p>`,
+        kicker: '회유 실패', title: '마음을 돌리지 못했다', wide: true,
+        body: `<div class="scheme-result">
+          <p class="sr-head">${actorLine(actor, 'cha')} · 대상 <b>${g.name}</b> (${CITY[targetId].name}) · 예상 성사 ${pctOf(p)}</p>
+          <div class="sr-rows">${deltaRow(`${g.name} 충성`, loy, after, { goodUp: false })}${deltaRow('명성', fameBefore, s.fame, { goodUp: true })}</div>
+          <p class="sr-note">${josa(g.name, 'i')} 사자를 돌려보냈습니다. 충성이 오히려 올라 다음에는 더 어렵습니다.${costNote}</p>
+        </div>`,
         actions: [{ label: '확인', primary: true }],
       });
     }
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.61 — 정찰된 적성 등용(회유)
+     · 정찰(첩보)로 성안을 들여다본 적성(3칸 이내)의 장수를 한 줄로 세운다
+     · 충성도와 예상 등용 성공률(%)을 보고 금 100으로 회유를 시도한다
+     · 이간계로 충성을 깎아 둔 장수는 같은 식(lureChance)으로 성공률이 크게 오른다
+     ══════════════════════════════════════════════════════════════ */
+  const RECRUIT_COST = 100;
+  SK.RECRUIT_COST = RECRUIT_COST;
+  function openRecruitScouted(cityId) {
+    SK.setPurse(cityId);
+    const s = SK.state;
+    const targets = citiesWithinHops(cityId, { maxHop: SCHEME_HOPS, enemyOnly: true })
+      .map((x) => x.id)
+      .filter((id) => isScouted(s.cities[id]) && (s.cities[id].genIds || []).length);
+    if (!targets.length) {
+      SK.sfx.play('deny');
+      SK.toast('3칸 안에 정찰해 둔 적성이 없습니다. [정찰]로 적성 내부를 먼저 살피십시오.');
+      return;
+    }
+    const actor = previewActor(cityId);
+    if (!actor) { SK.sfx.play('deny'); SK.toast('이번 달 사자로 나설 대기 장수가 없습니다. [다음 달]로 넘어가세요.'); return; }
+    const chips = {};
+    targets.forEach((id) => { chips[id] = `장수 ${(s.cities[id].genIds || []).length}`; });
+    const ok = pickCityOnMap({
+      kicker: `${CITY[cityId].name} 외교`,
+      title: '어느 성의 장수를 데려올까',
+      hint: `${actorLine(actor, 'cha')} · 금 ${RECRUIT_COST}과 이번 달 행동을 씁니다. <b>정찰해 둔 적성</b>만 명단을 볼 수 있고, 3칸 안의 적성만 고를 수 있습니다.`,
+      origin: cityId, ids: targets, chips,
+      block: '3칸 안의, 정찰해 둔 적성에만 사자를 보낼 수 있습니다.',
+      onPick: (id) => openRecruitScoutedGen(cityId, id),
+      onCancel: () => SK.openCity(cityId),
+    });
+    if (!ok) SK.toast('3칸 안에 정찰해 둔 적성이 없습니다.');
+  }
+  function openRecruitScoutedGen(cityId, targetId) {
+    SK.setPurse(cityId);
+    const s = SK.state;
+    const st = s.cities[targetId];
+    const gens = (st.genIds || []).map((id) => SK.GEN_BY_ID[id]).filter(Boolean);
+    if (!gens.length) { SK.toast('이 성에는 데려올 장수가 없습니다.'); return; }
+    if (!isScouted(st)) { SK.toast('정찰 기간이 끝났습니다. 다시 [정찰]로 살핀 뒤 시도하십시오.'); return; }
+    const actor = previewActor(cityId);
+    if (!actor) { SK.sfx.play('deny'); SK.toast('이번 달 사자로 나설 대기 장수가 없습니다. [다음 달]로 넘어가세요.'); return; }
+    const rows = gens.map((g) => {
+      const loy = enemyLoyal(g);
+      const p = lureChance(g, actor);
+      return `<button class="target-card estr" data-g="${g.id}">
+        <img class="tc-portrait ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <div class="tc-main"><b>${g.name}</b><span>${SK.CLASSES[SK.genClass(g)].name} · ${g.tier}급 · 무력 ${g.war} · 지력 ${g.intel}</span>
+          <span class="estr-bar"><i style="width:${loy}%"></i><em>충성 ${loy}</em></span></div>
+        <div class="tc-troops"><span>등용 성사</span><b>${pctOf(p)}</b></div>
+        <span class="tc-go">▸</span></button>`;
+    }).join('');
+    const m = SK.modal({
+      kicker: `${CITY[targetId].name} 장수 등용`, title: '누구를 데려올까',
+      body: `<p class="talent-note">${actorLine(actor, 'cha')} — 금 ${RECRUIT_COST}과 이번 달 행동을 씁니다. 충성이 낮을수록 성사가 크게 오르며, <b>[이간계]로 충성을 먼저 깎아 두면 같은 장수의 확률이 올라갑니다.</b> 실패하면 그 장수의 충성이 +12 오르고 명성 −2입니다.</p>
+        <div class="target-list">${rows}</div>`, wide: true, actions: [{ label: '취소' }],
+    });
+    m.el.querySelectorAll('.target-card[data-g]').forEach((b) => {
+      b.onclick = () => {
+        if (s.gold < RECRUIT_COST) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${RECRUIT_COST})`); return; }
+        const g = SK.GEN_BY_ID[Number(b.dataset.g)];
+        if (!g) return;
+        s.gold -= RECRUIT_COST;
+        consumeDispatch(cityId, actor);
+        SK.gainExp(actor, 10);
+        m.close();
+        SK.openCity(cityId);
+        lureGen(cityId, targetId, g, actor, { cost: RECRUIT_COST });
+      };
+    });
+  }
+  SK.openRecruitScouted = openRecruitScouted;
+  SK.openRecruitScoutedGen = openRecruitScoutedGen;
 
   /* 항복 권고 — 규모 차이가 큰 약소 세력·고립된 한 성을 싸움 없이 받는다 */
   function openSurrenderAdvice(cityId) {
@@ -5723,13 +5922,16 @@
       SK.toast('항복을 권할 만한 약소 세력이 이웃에 없습니다. (보유 3성 이하이거나 병력 2배 우위일 때)')
       return;
     }
-    /* v5.36 — 항복을 권할 성은 지도에서 고른다 (배지: 우리 병력 대비 배수) */
+    /* v5.36 — 항복을 권할 성은 지도에서 고른다 (배지: 우리 병력 대비 배수 · 예상 성사) */
+    /* v5.61 — 사자로 나설 장수와 성사 확률을 먼저 보여 준다 */
+    const actor = previewActor(cityId);
+    if (!actor) { SK.sfx.play('deny'); SK.toast('이번 달 파견할 대기 장수가 없습니다. [다음 달]로 넘어가세요.'); return; }
     const chips = {};
-    cand.forEach((c) => { chips[c.id] = `${c.ratio.toFixed(1)}배`; });
+    cand.forEach((c) => { chips[c.id] = `${c.ratio.toFixed(1)}배 · ${pctOf(surrenderChance(cityId, actor, c.id))}`; });
     const ok = pickCityOnMap({
       kicker: `${CITY[cityId].name} 외교`,
       title: '어느 세력에 항복을 권할까',
-      hint: `금 300과 사자를 보냅니다. 배지는 우리 병력 대비 그 세력 전체 병력의 배수입니다. 클수록 성사가 쉽습니다.`,
+      hint: `${actorLine(actor, 'cha')} · 금 300을 들여 사자를 보냅니다. 배지는 우리 병력 대비 그 세력 전체 병력의 배수와 예상 성사입니다. 배수가 클수록·세력이 작을수록 쉽습니다.`,
       origin: cityId, ids: cand.map((c) => c.id), chips,
       block: '지금은 항복을 권할 수 없는 거점입니다.',
       onPick: (id) => surrenderStrike(cityId, id, mine),
@@ -5748,9 +5950,11 @@
     const ratio = mine / Math.max(1, fTroops);
     const actor = pickActor(cityId);
     if (!actor) { SK.openCity(cityId); return; }
+    const p = surrenderChance(cityId, actor, tid);
+    const tsTroopsBefore = Math.round(ts.troops || 0);
+    const tsDefBefore = Math.round(ts.def || 50);
     s.gold -= 300;
     consumeDispatch(cityId, actor);
-    const p = clamp(0.1 + ((actor.cha || 60) - 60) * 0.008 + Math.max(0, ratio - 1.4) * 0.14 + Math.max(0, 3 - fCities.length) * 0.07, 0.05, 0.85);
     const ok = Math.random() < p;
     if (ok) {
       const join = [];
@@ -5776,8 +5980,14 @@
       syncFactionCities(s);
       /* v5.8 — 세력을 모두 잃으면 명부에서 지우므로, 이름은 지우기 전에 적어 둔다 */
       const fname = SK.factionName(fid);
-      const leftF = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid).length;
-      if (!leftF) delete s.factions[fid];
+      /* v5.61 — 마지막 성을 넘겨받아 0성이 된 세력은 그 자리에서 정리하고(유령 세력 방지),
+         승전 창에 멸망 배너를 띄운다. 그 세력이 사로잡고 있던 아군 포로도 함께 센다. */
+      const freedByFall = (s.captured || []).filter((c) => c.by === fid).map((c) => c.name);
+      let prunedNames = [];
+      if (SK.pruneLandlessFactions) { try { prunedNames = SK.pruneLandlessFactions(s) || []; } catch (e) { /* ignore */ } }
+      const fallen = !(s.factions && s.factions[fid]);
+      const factionsLeft = Object.keys(s.factions || {}).filter((k) => k !== 'neutral').length;
+      void prunedNames;
       SK.save(); SK.refreshHud();
       if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
       SK.sfx.play('ui');
@@ -5785,18 +5995,27 @@
       if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 700);
       SK.modal({
         kicker: '항복 권고 성사', title: `${SK.josa(CITY[tid].name, 'i')} 문을 열었다`, wide: true,
-        body: `<div class="surr-card"><span class="surr-seal">降</span>
+        body: `${fallen ? `<div class="rm-fall-banner"><b>🏆 ${fname} 멸망!</b><span>마지막 성을 넘겨받아 ${josa(fname, 'i')} 천하에서 사라졌습니다 · 남은 세력 ${factionsLeft}곳</span></div>` : ''}
+          <div class="surr-card"><span class="surr-seal">降</span>
           <div><b>${fname}</b>
-          <p>${josa(actor.name, 'i')} 설득한 끝에 상대가 싸우지 않고 성을 넘겼습니다. 명성 +8 · 병력 ${fmt(ts.troops)}을 그대로 받았습니다.</p>
-          ${join.length ? `<em>성안 장수 ${join.map((id) => (SK.GEN_BY_ID[id] || {}).name).filter(Boolean).join(' · ')} 항복</em>` : '<em>성안 장수는 성을 떠났습니다</em>'}</div></div>`,
+          <p>${josa(actor.name, 'i')} 설득한 끝에 상대가 싸우지 않고 성을 넘겼습니다. 명성 +8 · 성안 병력의 70%(${fmt(ts.troops)}명)를 받았습니다.</p>
+          ${join.length ? `<em>성안 장수 ${join.map((id) => (SK.GEN_BY_ID[id] || {}).name).filter(Boolean).join(' · ')} 항복</em>` : '<em>성안 장수는 성을 떠났습니다</em>'}</div></div>
+          <div class="scheme-result">
+            <p class="sr-head">${actorLine(actor, 'cha')} · 대상 ${fname} (${CITY[tid].name}) · 예상 성사 ${pctOf(p)}</p>
+            <div class="sr-rows">${deltaRow('성안 병력', tsTroopsBefore, Math.round(ts.troops || 0), { goodUp: true })}${deltaRow('성벽', tsDefBefore, Math.round(ts.def || 0), { goodUp: true })}</div>
+            <p class="sr-note">금 −300 · 명성 +8${freedByFall.length ? ` · 해방된 아군 포로 ${freedByFall.join(' · ')}` : ''}</p>
+          </div>`,
         actions: [{ label: '성으로', primary: true }],
       });
     } else {
       SK.save(); SK.refreshHud();
       SK.sfx.play('deny');
       SK.modal({
-        kicker: '항복 권고', title: '상대가 거절했습니다',
-        body: `<p class="modal-p">${josa(SK.factionName(fid), 'i')} 사자의 말을 받아들이지 않았습니다. 금 300만 나갔습니다.</p>`,
+        kicker: '항복 권고', title: '상대가 거절했습니다', wide: true,
+        body: `<div class="scheme-result">
+          <p class="sr-head">${actorLine(actor, 'cha')} · 대상 ${SK.factionName(fid)} (${CITY[tid].name}) · 예상 성사 ${pctOf(p)}</p>
+          <p class="sr-note">${josa(SK.factionName(fid), 'i')} 사자의 말을 받아들이지 않았습니다. 사자 ${actor.name}은 빈손으로 돌아왔고, 금 300과 이번 달 행동만 나갔습니다.</p>
+        </div>`,
         actions: [{ label: '확인', primary: true }],
       });
     }
@@ -5911,28 +6130,30 @@
     const s = SK.state;
     const f = SK.factionInfo(fid);
     const left = (s.truce && s.truce[fid]) ? Math.max(0, s.truce[fid] - s.turn) : 0;
+    const kindNow = (s.pacts && s.pacts[fid]) ? s.pacts[fid].kind : null;
+    /* v5.61 — 사자와 성사 확률을 청하기 전에 보여 준다 */
+    const actor = previewActor(cityId);
+    if (!actor) { SK.sfx.play('deny'); SK.toast('이번 달 사자로 나설 대기 장수가 없습니다. [다음 달]로 넘어가세요.'); return; }
     const rows = Object.keys(PEACE_TERMS).map((k) => {
       const t = PEACE_TERMS[k];
       return `<button class="grp-row" data-t="${k}">
-        <div><b>${t.label} — ${t.months}개월</b><span>${t.desc} · 금 ${t.gold}</span></div>
+        <div><b>${t.label} — ${t.months}개월</b><span>${t.desc} · 금 ${t.gold} · 예상 성사 ${pctOf(peaceChance(actor, t))} · 만료 ${monthLabelAfter(t.months)}</span></div>
         <span class="grp-go">▸</span></button>`;
     }).join('');
     const m = SK.modal({
       kicker: `${f.name} ${left ? `· ${left}개월 남음` : ''}`, title: '무엇을 청할까',
-      body: `<p class="talent-note">기간이 끝나면 다시 적이 됩니다. 동맹은 사신 값이 비싸지만 두 배로 깁니다.</p><div class="grp-list">${rows}</div>`,
+      body: `<p class="talent-note">${actorLine(actor, 'cha')} — 매력이 높으면 성사가 쉽습니다. 기간이 끝나면 다시 적이 됩니다. 동맹은 사신 값이 비싸지만 두 배로 깁니다.${left ? `<br><b>지금 ${kindNow === 'pact' ? '동맹' : '휴전'} 중 — ${left}개월 남았습니다.</b> 다시 청하면 남은 기간을 갱신합니다.` : ''}</p><div class="grp-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }],
     });
     m.el.querySelectorAll('[data-t]').forEach((b) => {
       b.onclick = () => {
         const term = PEACE_TERMS[b.dataset.t];
         if (s.gold < term.gold) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${term.gold})`); return; }
-        const actor = pickActor(cityId);
-        if (!actor) return;
+        const p = peaceChance(actor, term);
+        const untilLabel = monthLabelAfter(term.months);
+        const wasLeft = (s.truce && s.truce[fid]) ? Math.max(0, s.truce[fid] - s.turn) : 0;
         s.gold -= term.gold;
         consumeDispatch(cityId, actor);
-        /* v5.31 — 사자를 보낸 장수의 '외교 성공률·호감도' 보물이 그대로 확률에 붙는다 */
-        const diploB = Math.min(0.25, (heroTfx(actor).diplo || 0) / 100);
-        const p = clamp(term.base + Math.min(0.3, ((actor.cha || 60) - 60) * 0.006) + Math.min(0.1, (s.fame || 0) * 0.00002) + diploB, 0.08, 0.95);
         const ok = Math.random() < p;
         s.truce = s.truce || {};
         s.pacts = s.pacts || {};
@@ -5942,9 +6163,20 @@
         }
         SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
         SK.sfx.play(ok ? 'ui' : 'deny');
+        const stillLeft = ok ? term.months : ((s.truce && s.truce[fid]) ? Math.max(0, s.truce[fid] - s.turn) : 0);
         SK.modal({
           kicker: '외교', title: ok ? `${SK.josa(term.label, 'i')} 성립했습니다` : '사자가 빈손으로 돌아왔습니다',
-          body: `<p class="modal-p">${ok ? `${josa(f.name, 'gwa')} ${term.months}개월 ${josa(term.label, 'eul')} 맺었습니다. 그동안 상대는 먼저 치지 않습니다.` : `${josa(f.name, 'i')} 사자를 물리쳤습니다. 금 ${term.gold}만 나갔습니다.`}</p>`,
+          body: `<div class="scheme-result">
+            <p class="sr-head">${actorLine(actor, 'cha')} · 대상 ${f.name} · 예상 성사 ${pctOf(p)}</p>
+            <div class="sr-rows">
+              ${ok
+                ? `<div><span>${term.label} 기간</span><b>${wasLeft ? `잔여 ${wasLeft}개월` : '없음'}</b><i>→</i><strong>${term.months}개월</strong><em class="up">${untilLabel}까지</em></div>`
+                : (stillLeft ? `<div><span>${term.label} 기간</span><b>잔여 ${stillLeft}개월</b><em class="flat">그대로</em></div>` : '')}
+            </div>
+            <p class="sr-note">${ok
+              ? `${josa(f.name, 'gwa')} ${term.months}개월 ${josa(term.label, 'eul')} 맺었습니다 — <b>${untilLabel}까지</b> 상대는 먼저 치지 않습니다. 금 −${term.gold}`
+              : `${josa(f.name, 'i')} 사자 ${actor.name}을 물리쳤습니다. 금 ${term.gold}과 이번 달 행동만 나갔습니다.${stillLeft ? ` 이미 ${(s.pacts && s.pacts[fid] && s.pacts[fid].kind === 'pact') ? '동맹' : '휴전'} 중이며 <b>${stillLeft}개월</b> 남아 있습니다.` : ''}`}</p>
+          </div>`,
           actions: [{ label: '확인', primary: true }],
         });
       };
@@ -7445,10 +7677,10 @@
     const lordSet = SK.lordNameSet(st);
     const take = (g, fromId, here) => {
       if (!g || seen.has(g.id)) return;
-      /* v5.23 — 이 성에 앉아 있는 재야(here)도 같은 지역 인물만 보여 준다.
-         (v5.22에서 예외로 둔 탓에 옛 세이브·긴급 보충으로 들어온 중국 인재가
-          한국 성 주점에 그대로 남아 있었다. 한국 풀이 두터워진 지금은 예외가 필요 없다.) */
-      if (genPoolGroup(g) !== grp) return;
+      /* v5.61 — 이 성 주점에 이미 앉아 있는 장수(here)는 계열 검사를 건너뛰고 그대로 보여 준다.
+         runWanderers가 같은 계열이 고갈됐을 때 다른 계열(중국↔한국) 재야를 cs.talents에 넣기 때문에,
+         여기서 genPoolGroup으로 걸러 버리면 주점에 사람이 앉아 있는데도 화면이 비어 보였다. */
+      if (!here && genPoolGroup(g) !== grp) return;
       if (SK.isLordOnly(g, lordSet)) return;   // v5.20 — 군주·왕은 재야 인재가 아니다
       if (!SK.debutOk(g, eraYearOf(st))) return;
       if (SK.isDead(g.id, g.name)) return;          // v5.8 — 처형한 장수는 다시 나오지 않는다
@@ -11796,7 +12028,7 @@
     /* v5.52 — 주점이 빈 성에 방랑 재야가 들어오면 주점 소식으로 먼저 알린다 */
     runWanderers(s).slice().reverse().forEach((w) => {
       tavernLog.unshift({ city: w.city, kind: 'wander',
-        text: `방랑 재야 — ${SK.josa(w.name, 'i')} 먼 고을에서 찾아와 주점(${w.tier}급)에 앉았습니다` });
+        text: `방랑 재야 — ${SK.josa(w.name, 'i')} 먼 고을에서 찾아와 ${w.city} 주점(${w.tier}급)에 앉았습니다` });
     });
     /* v5.39 — 첩보소: 달마다 자동 첩보·이간·유언비어 (AI 첩보소 소식은 천하 소식에 합침) */
     const spyRun = runSpyOffices(s);

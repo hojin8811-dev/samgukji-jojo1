@@ -9147,6 +9147,16 @@
       }
     }
     s.purseCity = B.targetId;      // v5.11 — 함락한 성의 금고·창고를 차지한다
+    /* v5.61 — 마지막 성을 빼앗긴 세력은 그 자리에서 정리하고(유령 세력 방지),
+       남은 세력 수를 승전 창의 멸망 배너에 적는다. AI끼리 성을 주고받아 0성이 된
+       세력도 이때 함께 걷어낸다. */
+    if (SK.pruneLandlessFactions) {
+      try {
+        const goneNow = SK.pruneLandlessFactions(s) || [];
+        if (!fallenFaction && goneNow.length) fallenFaction = goneNow[0];
+      } catch (e) { /* ignore */ }
+    }
+    const factionsLeft = Object.keys(s.factions || {}).filter((k) => k !== 'neutral').length;
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
@@ -9186,8 +9196,8 @@
         <div class="rm-seal">승</div>
         ${B.winReason ? `<p class="rm-reason">승리 사유: ${B.winReason}</p>` : ''}
         <p class="rm-line">${SK.josa(prevOwnerName, 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
-        ${fallenFaction ? `<p class="rm-fall">${SK.josa(fallenFaction, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다.</p>` : ''}
-        ${freedCaptives.length ? `<p class="rm-release">사로잡혀 있던 ${freedCaptives.join(' · ')} — 풀려나 ${c.name}으로 돌아왔습니다.</p>` : ''}
+        ${fallenFaction ? `<div class="rm-fall-banner"><b>🏆 ${fallenFaction} 멸망!</b><span>마지막 성을 잃고 천하에서 사라졌습니다 · 남은 세력 ${factionsLeft}곳${freedCaptives.length ? ` · 해방된 아군 포로 ${freedCaptives.join(' · ')}` : ''}</span></div>` : ''}
+        ${freedCaptives.length && !fallenFaction ? `<p class="rm-release">사로잡혀 있던 ${freedCaptives.join(' · ')} — 풀려나 ${c.name}으로 돌아왔습니다.</p>` : ''}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
