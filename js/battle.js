@@ -6318,7 +6318,7 @@
     const isS = !!(u && unitTier(u) === 'S');
     const used = !!(u && u.ultUsed);
     const canUse = !!(u && u.side === 'ally' && !u.acted && spec && !used);
-    if (em) em.textContent = spec ? (used ? '0/1' : '1/1') : (isS ? '—' : 'S급');
+    if (em) em.textContent = !u ? '—' : (spec ? (used ? '0/1' : '1/1') : (isS ? '—' : 'S급'));
     btn.classList.toggle('ready', canUse);
     btn.classList.toggle('off', !canUse);
     btn.classList.toggle('active', mode === 'ultTarget' && canUse);
@@ -8807,7 +8807,7 @@
         /* v5.53 — 군량 버튼은 '실제로 명령을 받을 부대'(B.sel)의 남은 횟수를 보여 준다 */
         paintItemButton(B.sel || (u.side === 'ally' ? u : null));
         /* v5.54 — 필살기 버튼: S급이고 아직 안 썼으면 1/1, 쓰면 0/1 */
-        paintUltButton(B.sel || (u.side === 'ally' ? u : null));
+        paintUltButton(B.sel || null);
       } else {
         card.classList.remove('on');
         /* v5.40 — 선택한 부대가 없을 때 이전 초상·Lv·EXP·수치가 남지 않게 비운다 */
