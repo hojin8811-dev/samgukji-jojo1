@@ -74,7 +74,7 @@ SK.CLASSES = {
    2연타는 한 대 92%(합 184%), 3연타는 한 대 72%(합 216%)를 넘기지 않는다. */
 SK.SKILLS = {
   jihwi: { name: '지휘', hanja: '指揮', mp: 12, kind: 'buffAreaAllies', radius: 2, atk: 0.2, turns: 3,
-    desc: '주변 2칸(마름모) 아군 전원 공격 +20% (3턴)' },
+    desc: '주변 2칸(마름모) 아군 전원 공격 +20% (3턴) · 사기 +6' },
   dolpa: { name: '돌파', hanja: '突破', mp: 10, kind: 'power', range: 1, power: 1.55,
     desc: '한 명에게 강력한 돌격 (공격력 155%)' },
   jipsajung: { name: '집중사격', hanja: '集中射擊', mp: 9, kind: 'power', range: 3, power: 1.4,
@@ -86,7 +86,7 @@ SK.SKILLS = {
   daebogeup: { name: '대보급', hanja: '大補給', mp: 22, kind: 'healArea', radius: 2, healPct: 0.12,
     desc: '주변 2칸(마름모) 아군 전원을 최대 병력의 12% 회복' },
   gomu: { name: '고무', hanja: '鼓舞', mp: 12, kind: 'buffAlly', range: 2, atk: 0.3, turns: 3,
-    desc: '2칸 안 아군 1명 공격 +30% (3턴)' },
+    desc: '2칸 안 아군 1명 공격 +30% (3턴) · 사기 +6' },
   pungsu: { name: '풍수', hanja: '風水', mp: 15, kind: 'debuffDef', range: 3, radius: 2, turns: 3, amount: -0.25,
     desc: '3칸 앞 지점의 2칸(마름모) 안 적 방어 -25% (3턴)' },
   hwagye: { name: '화계', hanja: '火計', mp: 12, kind: 'magic', range: 3, power: 240,

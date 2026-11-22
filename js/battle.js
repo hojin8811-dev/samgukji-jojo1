@@ -332,14 +332,14 @@
         u.moraleMax = (u.moraleMax || 100) + b;
         u.morale = Math.min(u.moraleMax, (u.morale == null ? 100 : u.morale) + b);
       } else {
-        u.morale = clamp((u.morale == null ? 100 : u.morale) + b, 25, u.moraleMax || 100);
+        u.morale = clamp((u.morale == null ? MORALE_BASE : u.morale) + b, 0, u.moraleMax || 100);
       }
     });
     B.surprise = !!opts.surprise;
     if (B.surprise) {
       B.units.forEach((u) => {
         if (u.side !== 'enemy' || !u.alive) return;
-        u.morale = clamp((u.morale == null ? 100 : u.morale) - 8, 25, u.moraleMax || 100);
+        u.morale = clamp((u.morale == null ? MORALE_BASE : u.morale) - 8, 0, u.moraleMax || 100);
       });
     }
     /* v5.17 — 1×1 본진·마을. 수성전은 진영이 뒤집히므로 본진 자리도 바꿔 단다 */
@@ -598,6 +598,7 @@
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel, tong: g.leadership,
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
+      passive: (SK.PASSIVES && SK.PASSIVES[g.name]) || null, pUsed: {},
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: trainOf(lv, g.tier),
     };
@@ -2008,6 +2009,8 @@
   const BEAST_TERRAIN_TYPES = { mountain: 1, forest: 1, ambush: 1, gorge: 1 };
   function movOf(u) {
     if (!u) return 0;
+    /* v5.56 — 이동불가(사기 붕괴): 이번 턴에는 한 칸도 걷지 못한다 */
+    if (u.ail && u.ail.root > 0) return 0;
     let m = Number(u.mov) || 0;
     /* v5.31 — 둔화(이동 −1) */
     if (u.slow) m -= 1;
@@ -4337,11 +4340,13 @@
 
   /* ══════════════════════════════════════════════════════════════
      v5.31 — 사기(morale)와 상태이상(ailment)
-     · 사기: 100이 기준. 높으면 공격이 세지고(최대 +16%), 낮으면 약해진다(최대 −18%).
-       큰 타격을 받거나 아군 부대가 무너지면 떨어지고, 턴마다 조금씩 회복된다.
-       v5.32 — 사기 하한 25(항복하지 않는다) · 턴 회복 2(50 미만이면 3)
+     · 사기: v5.56 — 양쪽 모두 80에서 시작. 80 이상은 100% 전투력(과다 보너스 없음),
+       80 아래로 떨어질수록 공격·방어가 함께 완만하게 약해진다(60 −5% · 40 −10% · 20 −15% · 0 −20%).
+       큰 타격·전우 전사(3칸 안 −8 · 그 밖 −4)로 떨어지고, 턴마다 2(50 미만이면 3)씩 회복된다.
+       **20 이하로 떨어지면 그 자리에서 사기 붕괴** — 기절·혼란·중독·이동불가 중 하나 + 사기 50 복귀.
+       (v5.32의 사기 하한 25는 폐지 — 붕괴가 그 역할을 대신한다)
      · 상태이상: 기절(이번 턴 행동 불가) · 혼란(아군·적을 가리지 않고 가까운 부대 공격) ·
-       위축(공격 −20%) · 중독·화상(턴마다 병력 감소) · 둔화(이동 −1)
+       위축(공격 −20%) · 중독·화상(턴마다 병력 감소) · 둔화(이동 −1) · 이동불가(사기 붕괴, 이동 0)
        v5.32 — 같은 상태이상이 반복되면 저항 누적 · 기절에서 깬 뒤 2턴 기절 면역
      · v5.31 보물 70절의 사기·상태이상 문구와 병과 책략(낙뢰·파천격·혼란·포효 등)이
        여기에 실제로 붙는다.
@@ -4353,12 +4358,17 @@
     poison:  { n: '중독', c: '143,220,122', t: 3 },
     burn:    { n: '화상', c: '255,154,92', t: 2 },
     slow:    { n: '둔화', c: '159,216,255', t: 2 },
+    /* v5.56 — 사기 붕괴 전용: 이동불가 (그 턴 움직이지 못하고 제자리에서 싸운다) */
+    root:    { n: '이동불가', c: '226,196,140', t: 2 },
   };
   SK.BATTLE_AIL = AIL;
+  /* v5.56 — 사기 기준점. 양쪽 모두 80에서 시작하고, 80 이상은 정직하게 100% 전투력 */
+  const MORALE_BASE = 80;
+  const MORALE_LOW = 20;         // 이 아래로 떨어지면 붕괴(상태이상 + 50 복귀)
   function initStatus(u) {
     const f = u.tfx || {};
     u.moraleMax = 100 + Math.max(0, Math.round(f.moraleMax || 0));
-    u.morale = Math.min(u.moraleMax, 100 + Math.max(0, Math.round(f.morale || 0)));
+    u.morale = Math.min(u.moraleMax, MORALE_BASE + Math.max(0, Math.round(f.morale || 0)));
     u.ail = {};
     /* v5.32 — 같은 상태이상이 거듭 걸릴수록 저항이 붙는다(ailRes) · 기절에서 깬 직후 면역(stunCd) */
     u.ailRes = {};
@@ -4366,24 +4376,69 @@
     u.slow = 0;
     u.aboard = false;
   }
+  /* v5.56 — 사기 → 전투력. 80이 기준(100%). 80 위로는 더 세지지 않고(과다 보너스 없음),
+     80 아래로 떨어질수록 공·방이 함께 완만하게 약해진다.
+     60 → −5% · 40 → −10% · 20 → −15% · 0 → −20% */
   function moraleMul(u) {
-    const m = (u && u.morale != null) ? u.morale : 100;
-    return clamp(1 + (m - 100) * 0.004, 0.82, 1.16);
+    const m = (u && u.morale != null) ? u.morale : MORALE_BASE;
+    if (m >= MORALE_BASE) return 1;
+    return Math.max(0.8, 1 - (MORALE_BASE - m) * 0.0025);
+  }
+  /* v5.56 — 훈련도 → 전투력. 50이 기준(100%)이고 50을 중심으로 **연속 비례**한다.
+     (훈련도를 항상 100으로 맞출 수 없으니 중간값도 차등으로 힘을 낸다)
+     50 → 1.00 · 60 +2.4% · 75 +6.0% · 90 +9.6% · 100 +12.0% · 25 −5.0% · 0 −10.0% */
+  function trainValOf(u) {
+    if (!u) return 50;
+    if (u.train != null) return clamp(Number(u.train) || 0, 0, 100);
+    return trainOf(u.lv, u.tier);
+  }
+  function trainMul(u) {
+    const t = trainValOf(u);
+    return t >= 50 ? 1 + (t - 50) * 0.0024 : 1 - (50 - t) * 0.0020;
+  }
+  /* 훈련도 → 치명타 확률. 100에서 +4%p */
+  function trainCritBonus(u) {
+    const t = trainValOf(u);
+    return t > 50 ? (t - 50) * 0.0008 : 0;
+  }
+  /* v5.56 — 사기 붕괴. 사기가 20 이하로 떨어지면 그 자리에서 무너진다.
+     기절(1턴)·혼란(2턴)·중독(2턴)·이동불가(2턴) 중 하나가 붙고, 사기는 50으로 돌아온다.
+     (50에서 다시 쌓이므로 같은 부대가 연달아 붕괴해 판이 잠기는 일은 없다) */
+  const COLLAPSE_AIL = [['stun', 1], ['confuse', 2], ['poison', 2], ['root', 2]];
+  function moraleCollapse(u) {
+    if (!u || !u.alive) return null;
+    const pick = COLLAPSE_AIL[Math.floor(Math.random() * COLLAPSE_AIL.length)];
+    const kind = pick[0];
+    u.ail = u.ail || {};
+    u.ail[kind] = Math.max(u.ail[kind] || 0, pick[1]);
+    if (kind === 'slow') u.slow = Math.max(u.slow || 0, 1);
+    u.ailRes = u.ailRes || {};
+    u.ailRes[kind] = (u.ailRes[kind] || 0) + 1;
+    if (kind === 'stun') u.stunCd = 3;
+    u.collapseN = (u.collapseN || 0) + 1;
+    addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE, `사기 붕괴! ${AIL[kind].n}`, `rgb(${AIL[kind].c})`, { back: true });
+    addFx({ kind: 'burst', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 560, color: AIL[kind].c });
+    addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520, color: AIL[kind].c });
+    shakeScreen(4);
+    feed(`${u.name}의 사기가 무너졌다 — ${AIL[kind].n} (사기 50으로 복귀)`, u.side === 'ally' ? 'bad' : 'good');
+    B.lastCollapse = { name: u.name, side: u.side, ail: kind, turn: B.turn, morale: 50 };
+    u.morale = 50;
+    return kind;
   }
   function moraleShift(u, d) {
     if (!u || !u.alive || !d) return;
-    const before = u.morale == null ? 100 : u.morale;
+    const before = u.morale == null ? MORALE_BASE : u.morale;
     const cut = d < 0 ? Math.max(0, Math.min(0.7, fxPct(u, 'moraleSave'))) : 0;
-    /* v5.32 — 사기 하한 25. 부대는 항복하지 않는다 — 몇 번의 큰 타격·연쇄 붕괴로
-       0까지 떨어져도 더 나빠지지 않으므로, 한 번 무너진 부대가 판 전체를 버티지 못하는 일은 없다. */
-    const floor = d < 0 ? 25 : 0;
-    const next = clamp(before + (d < 0 ? d * (1 - cut) : d), floor, u.moraleMax || 100);
+    /* v5.56 — 하한 25를 없앴다. 20 이하까지 내려가면 그 자리에서 '사기 붕괴'(위 moraleCollapse)가
+       터지므로, 부대가 0에서 판을 버티는 일도 잠기는 일도 없다. */
+    const next = clamp(before + (d < 0 ? d * (1 - cut) : d), 0, u.moraleMax || 100);
     u.morale = Math.round(next * 10) / 10;
     const diff = u.morale - before;
     if (Math.abs(diff) >= 3) {
       addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE,
         `${diff > 0 ? '사기↑' : '사기↓'} ${Math.round(Math.abs(diff))}`, diff > 0 ? '#a8f0b8' : '#ff9a86');
     }
+    if (u.morale <= MORALE_LOW) moraleCollapse(u);
   }
   function ailImmune(u, kind) {
     const f = u.tfx || {};
@@ -4518,6 +4573,11 @@
         u.ail.slow -= 1;
         if (u.ail.slow <= 0) { delete u.ail.slow; u.slow = 0; }
       } else u.slow = 0;
+      /* v5.56 — 이동불가(사기 붕괴)도 턴이 지나면 풀린다 */
+      if (u.ail.root) {
+        u.ail.root -= 1;
+        if (u.ail.root <= 0) delete u.ail.root;
+      }
       if (u.morale < u.moraleMax) {
         /* v5.32 — 기본 회복을 1→2로, 사기가 50 아래면 3으로 올린다.
            예전에는 사기 40에서 6턴을 버텨도 46밖에 안 올라, 한 번 꺾인 부대가 판 내내 회복하지 못했다. */
@@ -4530,7 +4590,7 @@
         if (ailClear(u, 1)) addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.24) * TILE, '상태이상 해제', '#bfe8ff');
         else ailNearClear(u, 1, 1);
       }
-      ['fear', 'confuse', 'poison', 'burn'].forEach((k) => {
+      ['fear', 'confuse', 'poison', 'burn', 'root'].forEach((k) => {
         if (!u.ail[k]) return;
         u.ail[k] -= 1;
         if (u.ail[k] <= 0) delete u.ail[k];
@@ -4598,7 +4658,8 @@
     /* v5.31 — 사기·위축·조각배(수전) 보정 */
     const fear = (u.ail && u.ail.fear) ? 0.8 : 1;
     const boat = (u.aboard && u.cls !== 'sujeok') ? 0.82 : 1;
-    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb + terrFxPct(u)) * bondAllyMul(u) * moraleMul(u) * fear * boat;
+    return u.atk * troopPower(u) * (1 + buffVal(u, 'atk') + aff.atk * 1.3 + typeBonus(u) * 1.25 + tb + terrFxPct(u))
+      * bondAllyMul(u) * moraleMul(u) * trainMul(u) * fear * boat;
   }
   function effDef(u) {
     const ch = B.tiles[u.y][u.x];
@@ -4615,7 +4676,9 @@
     const tdef = fxPct(u, 'def') + wall + terrFxPct(u);
     /* v5.31 — 조각배 위에서는 방어도 조금 떨어진다 (수적 제외) */
     const boat = (u.aboard && u.cls !== 'sujeok') ? 0.88 : 1;
-    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef) * mul * hold * sit * boat;
+    /* v5.56 — 사기·훈련도는 방어에도 그대로 붙는다 (낮은 사기는 공·방을 함께 깎는다) */
+    return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef)
+      * mul * hold * sit * boat * moraleMul(u) * trainMul(u);
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -4841,10 +4904,13 @@
     /* v5.31 — 사기: 최대 병력의 15% 이상을 한 번에 잃으면 흔들린다 */
     if (d.maxHp && dmg >= d.maxHp * 0.15) moraleShift(d, -4);
     if (wasAlive && d.hp <= 0) {
-      moraleShift(a, 5);
+      /* v5.56 — 전우가 쓰러지면 **전장의 모든 아군 부대**가 흔들린다.
+         (예전에는 3칸 안 아군만 −4라, 멀리 있던 부대는 "사기가 떨어졌다고 나오는데 그대로"였다)
+         · 3칸 안 동료 −8 · 그 밖의 살아 있는 아군 −4 · 쓰러뜨린 쪽 +6 */
+      moraleShift(a, 6);
       B.units.forEach((o) => {
         if (!o.alive || o === d || o.side !== d.side) return;
-        if (manh(o.x, o.y, d.x, d.y) <= 3) moraleShift(o, -4);
+        moraleShift(o, manh(o.x, o.y, d.x, d.y) <= 3 ? -8 : -4);
       });
     }
     if (a) statOf(a).dealt += dmg;
@@ -5139,7 +5205,8 @@
 
   /* v5.29 — 치명타 확률은 한 곳에서만 계산한다 (예고·실제 전투가 같은 값을 쓰도록) */
   function critChanceOf(u) {
-    return 0.05 + (u.wu - 60) * 0.0011 + (u.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(u, 'crit')) + fxPct(u, 'crit');
+    return 0.05 + (u.wu - 60) * 0.0011 + (u.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(u, 'crit'))
+      + fxPct(u, 'crit') + trainCritBonus(u);
   }
   /* 조조전식 전투 예고 — 피해·반격·지형·인연 배지를 먼저 보여준다 */
   function openAttackPreview(a, d) {
@@ -5345,6 +5412,8 @@
     const p = u && u.passive;
     if (!p || !u.alive || B.over) return;
     const trig = p.trigger || 'on_attack';
+    /* v5.56 — 내정형 특기(domestic)는 전장에서 발동하지 않는다 (성에 주둔했을 때만 힘을 낸다) */
+    if (trig === 'domestic') return;
     if (when === 'turn_start' ? trig !== 'turn_start' : trig === 'turn_start') return;
     if (when !== 'turn_start' && u.pUsed && u.pUsed[trig]) {
       /* v5.31 — 사기병법서·육도비록: '전술 발동 확률 +N%'는 한 번 쓴 고유특기가 다시 터질 확률 */
@@ -5414,8 +5483,14 @@
         o.buffs.atk = { v: Math.max(0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
         addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (rxOf(o) + 0.5) * TILE, life: 360, color: '255,214,140' });
       });
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 MP+4 · 공+8%', '#ffe08a', { back: true });
-      feed(`${u.name}의 군악 — 주변 아군 MP +4 · 공격 +8%`, side === 'ally' ? 'good' : 'bad');
+      /* v5.56 — 사기가 55 아래로 기운 아군이 곁에 있으면 북을 쳐 사기를 올린다(붕괴 20을 막는다) */
+      const shaky = list.filter((o) => o.morale != null && o.morale < 55).sort((a, b) => a.morale - b.morale)[0];
+      if (shaky) {
+        moraleShift(shaky, 5);
+        addFloat((rxOf(shaky) + 0.5) * TILE, (ryOf(shaky) + 0.15) * TILE, '북소리 — 사기 +5', '#ffe08a', { back: true });
+      }
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 MP+4 · 공+8%' + (shaky ? ' · 사기 +5' : ''), '#ffe08a', { back: true });
+      feed(`${u.name}의 군악 — 주변 아군 MP +4 · 공격 +8%${shaky ? ` · ${shaky.name} 사기 +5` : ''}`, side === 'ally' ? 'good' : 'bad');
     });
     dancers.forEach((u) => {
       const allies = B.units.filter((o) => o.side === side && inDia(o, u));
@@ -5428,8 +5503,14 @@
       foes.forEach((o) => {
         o.buffs.atk = { v: Math.min(-0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
       });
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 회피·치명 +8%', '#f0b8e0', { back: true });
-      feed(`${u.name}의 춤 — 아군 회피·치명 +8%, 적 공격 −8%`, side === 'ally' ? 'good' : 'bad');
+      /* v5.56 — 춤으로 기운을 돌려 준다: 사기 55 미만 아군 한 부대 +4 */
+      const low = allies.filter((o) => o.morale != null && o.morale < 55).sort((a, b) => a.morale - b.morale)[0];
+      if (low) {
+        moraleShift(low, 4);
+        addFloat((rxOf(low) + 0.5) * TILE, (ryOf(low) + 0.15) * TILE, '춤사위 — 사기 +4', '#f0b8e0', { back: true });
+      }
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 회피·치명 +8%' + (low ? ' · 사기 +4' : ''), '#f0b8e0', { back: true });
+      feed(`${u.name}의 춤 — 아군 회피·치명 +8%, 적 공격 −8%${low ? ` · ${low.name} 사기 +4` : ''}`, side === 'ally' ? 'good' : 'bad');
     });
   }
 
@@ -6435,7 +6516,27 @@
     staff: '지팡이', fist: '맨손', trident: '삼지창', claw: '발톱', ribbon: '채찍',
     catapult: '투석기', ram: '충차', drum: '북',
   };
-  const GI_TRIGGER = { passive: '상시', turn_start: '턴 시작', on_attack: '공격 시' };
+  const GI_TRIGGER = { passive: '상시', turn_start: '턴 시작', on_attack: '공격 시', domestic: '내정', on_kill: '처치 시', after_action: '행동 후' };
+  /* v5.56 — 등급 배지 (장수 등급 그대로: S>A>B>C) + 내정 특기 표시 */
+  const GI_TIER_CLASS = { S: 'tier-S', A: 'tier-A', B: 'tier-B', C: 'tier-C' };
+  function giTierOf2(u) {
+    if (u.tier) return u.tier;
+    const h = SK.state && SK.state.heroes ? SK.state.heroes.find((x) => x.uid === u.uid) : null;
+    if (h && h.tier) return h.tier;
+    const g = SK.GEN_BY_NAME ? SK.GEN_BY_NAME[u.name] : null;
+    return (g && g.tier) || 'C';
+  }
+  function giPassiveNote(p) {
+    if (!p) return '';
+    /* 내정형은 effect 문구에 이미 '이 성에 주둔하면 … +N%'가 들어 있다 */
+    if (p.kind === 'domestic') return '';
+    /* applied = data/unique_passives.json 에 적힌 **실제 전장 적용 수치** (문구와 별개로 코드가 하는 일) */
+    if (p.applied) return `<p class="gi-trait-note"><b>${p.applied}</b></p>`;
+    const tr = p.trigger;
+    if (tr === 'passive') return '<p class="gi-trait-note">전투 내내 적용 (공격·방어 양쪽)</p>';
+    if (tr === 'turn_start') return '<p class="gi-trait-note">매 아군 페이즈 시작에 자동 발동</p>';
+    return '<p class="gi-trait-note">이 부대가 공격할 때 전투당 1회 자동 발동</p>';
+  }
 
   function giStateChips(u, kind) {
     const out = [];
@@ -6504,8 +6605,11 @@
   function giStatHTML(u) {
     const tr = SK.TERRAIN[B.tiles[u.y][u.x]] || SK.TERRAIN.P;
     const five = giFive(u);
-    const morale = Math.round(u.morale == null ? 100 : u.morale);
+    const morale = Math.round(u.morale == null ? 80 : u.morale);
     const moralePct = Math.round((moraleMul(u) - 1) * 100);
+    const trainV = Math.round(trainValOf(u));
+    const trainPct = Math.round((trainMul(u) - 1) * 1000) / 10;
+    const critP = Math.round(trainCritBonus(u) * 1000) / 10;
     const tile = B.tiles[u.y][u.x];
     const hold = tile === 'T' ? '<span class="gi-st good">망루 방어↑·회복</span>'
       : tile === 'K' ? '<span class="gi-st good">본성 방어↑·회복</span>' : '';
@@ -6517,7 +6621,7 @@
       ['이동력', movOf(u)],
       ['사거리', (u.minRng || 1) > 1 ? `${u.minRng}~${effRng(u)}` : effRng(u)],
       ['사기', morale],
-      ['훈련도', u.train == null ? trainOf(u.lv, u.tier) : u.train],
+      ['훈련도', trainV],
     ].map(([k, v]) => `<span class="gi-cell"><i>${k}</i><b>${v}</b></span>`).join('');
     const fiveNames = [['통솔', 'tong'], ['무력', 'wu'], ['지력', 'ji'], ['정치', 'pol'], ['매력', 'cha']];
     const fiveHtml = five ? fiveNames.map(([lab, k]) => {
@@ -6531,13 +6635,15 @@
       <p class="gi-sec">기본 능력</p>
       ${five ? `<div class="gi-grid five">${fiveHtml}</div>`
         : '<p class="gi-note">일반 부대 — 통솔·무력·지력·정치·매력은 이름 있는 장수만 가집니다.</p>'}
-      <p class="gi-sec">지형·사기</p>
+      <p class="gi-sec">지형·사기·훈련도</p>
       <div class="gi-state">
         <span class="gi-st">${tr.name}</span>
         <span class="gi-st ${tr.def >= 0 ? 'good' : 'bad'}">방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</span>
         ${hold}
-        <span class="gi-st ${morale >= 100 ? 'good' : (morale >= 80 ? '' : 'bad')}">사기 ${morale} <em>공격 ${moralePct >= 0 ? '+' : ''}${moralePct}%</em></span>
+        <span class="gi-st ${morale >= 80 ? 'good' : 'bad'}">사기 ${morale} <em>공·방 ${moralePct >= 0 ? '+' : ''}${moralePct}%</em></span>
+        <span class="gi-st ${trainV >= 50 ? 'good' : ''}">훈련도 ${trainV} <em>공·방 ${trainPct >= 0 ? '+' : ''}${trainPct}% · 치명 +${critP}%p</em></span>
       </div>
+      <p class="gi-note">사기는 <b>80이 기준(100%)</b>입니다 — 80 위로는 더 세지지 않고, 80 아래로 떨어질수록 공·방이 함께 약해집니다(20 → −15%). <b>20 이하가 되면 그 자리에서 사기 붕괴</b> — 기절·혼란·중독·이동불가 중 하나가 붙고 사기 50으로 돌아옵니다. 훈련도는 <b>50이 기준</b>이고 그 위로는 최대 +12%(100) · 치명 +4%p까지 붙습니다.</p>
       <p class="gi-sec">현재 상태</p>
       <div class="gi-state">${giStateChips(u, 'ail')}</div>`;
   }
@@ -6587,11 +6693,13 @@
     const p = u.passive;
     let uniq;
     if (p) {
-      uniq = `<div class="gi-trait"><b>「${p.title || u.skillName || '고유 특기'}」<em>${GI_TRIGGER[p.trigger] || '공격 시'}</em></b><p>${p.effect || ''}</p></div>`;
+      const tier = p.tier || giTierOf2(u);
+      uniq = `<div class="gi-trait"><b>「${p.title || u.skillName || '고유 특기'}」<em class="gi-trait-tier ${GI_TIER_CLASS[tier] || 'tier-C'}">${tier}급</em><em>${GI_TRIGGER[p.trigger] || '공격 시'}</em></b><p>${p.effect || ''}</p>${giPassiveNote(p)}</div>`;
     } else if (u.skillName) {
       uniq = `<div class="gi-trait"><b>「${u.skillName}」</b><p>열전에 기록된 특기입니다. 전장 수치 효과는 아직 붙지 않았습니다.</p></div>`;
     } else {
-      uniq = '<p class="gi-note">고유 특기 없음 — 상위 100명 장수만 고유 특기를 가집니다.</p>';
+      uniq = u.uid ? '<p class="gi-note">이 장수의 고유 특기가 아직 없습니다.</p>'
+        : '<p class="gi-note">이 부대는 병과 공용 부대라 고유 특기가 없습니다.</p>';
     }
     const skills = (u.skills || []).map((k) => {
       const sk = SK.SKILLS[k];
@@ -6880,6 +6988,32 @@
     /* v5.49 — 마을을 밟으면서 책략을 펼칠 수 있으면 그 자리를 고른다 (점령 값의 절반만 반영) */
     const vBoost = (t, canStrike) => villageValueAt(u, t.x, t.y, { foes, canStrike }) * 0.6;
 
+    /* v5.56 — 사기 지원. 아군 사기가 60 아래로 내려간 부대가 있으면,
+       사기를 올리는 책략(군악·호령·포효처럼 '사기 +N'이 붙은 기술)을 그 부대에 먼저 쓴다.
+       20 밑으로 떨어지면 붕괴하므로 붕괴 직전 부대의 값이 가장 크다. */
+    const moraleSkills = skills.filter((s) => skillMoraleOf(s, true) > 0);
+    const shaky = allies.filter((a) => a.alive && a.morale != null && a.morale <= 60)
+      .sort((a, b) => a.morale - b.morale);
+    if (moraleSkills.length && shaky.length && u.morale != null && u.morale >= 25) {
+      let best = null;
+      moraleSkills.forEach((sk) => {
+        const reach = sk.radius ? sk.radius : skRange(u, sk);
+        tiles.forEach((t) => {
+          const hit = shaky.filter((a) => manh(t.x, t.y, a.x, a.y) <= reach);
+          if (!hit.length) return;
+          let sc = 0;
+          hit.forEach((a) => { sc += (60 - a.morale) * (a.morale <= 30 ? 4.2 : 2.4); });
+          sc -= dTo(t, u.x, u.y) * 0.3;
+          sc -= foeThreatAt(t.x, t.y, foes) * 0.6;
+          if (!best || sc > best.score) {
+            best = { kind: 'skill', mode: hit[0].side === u.side && sk.kind === 'buffAlly' ? 'buff' : 'support',
+              key: sk.key, x: t.x, y: t.y, tx: hit[0].x, ty: hit[0].y, target: hit[0], score: sc };
+          }
+        });
+      });
+      if (best && best.score > 16) return best;
+    }
+
     /* 1) 회복 — HP 85% 이하 아군이 있으면 최우선 */
     const heals = skills.filter((s) => s.kind === 'heal' || s.kind === 'healArea');
     const hurt = allies.filter((a) => a.hp < a.maxHp * 0.85).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
@@ -7000,9 +7134,11 @@
       let best = null;
       tiles.forEach((t) => {
         allies.forEach((a) => {
-          if (a.buffs.atk && a.buffs.atk.t > 0) return;
+          if (a.buffs.atk && a.buffs.atk.t > 0 && a.morale != null && a.morale > 55) return;
           if (dTo(t, a.x, a.y) > skRange(u, allyBuf)) return;
-          const sc = 22 + effAtk(a) * 0.5 + (1 - a.hp / a.maxHp) * 30 - dTo(t, u.x, u.y) * 0.3;
+          /* v5.56 — 사기가 낮은 아군은 이 미약한 강화라도 먼저 받는다 */
+          const sc = 22 + effAtk(a) * 0.5 + (1 - a.hp / a.maxHp) * 30
+            + (a.morale != null && a.morale < 60 ? (60 - a.morale) * 1.6 : 0) - dTo(t, u.x, u.y) * 0.3;
           if (!best || sc > best.score) best = { kind: 'skill', mode: 'buff', key: allyBuf.key, x: t.x, y: t.y, tx: a.x, ty: a.y, target: a, score: sc };
         });
       });
@@ -7309,6 +7445,13 @@
         if (wallBlocked({ x: t.x, y: t.y }, e) && !canShootOut({ x: t.x, y: t.y, cls: u.cls, side: u.side })) return;
         const est = calcDamage(u, e, {}).dmg;
         let score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
+        /* v5.56 — 사기 20 밑으로 몰린 적을 한 대 더 때려 '사기 붕괴'를 유도한다 */
+        if (e.morale != null && e.morale <= 32) score += (33 - e.morale) * 2.6;
+        /* v5.56 — 우리 사기가 낮으면(붕괴 위험) 반격이 아픈 적은 피긴다 */
+        if (u.morale != null && u.morale <= 34) {
+          const ret = calcDamage(e, u, {}).dmg;
+          if (ret > u.maxHp * 0.1) score -= 24;
+        }
         /* v5.49 — 같은 적을 칠 수 있는 칸이라면 마을을 밟고 치는 쪽을 고른다 */
         score += vv(t, true);
         /* v5.33 — 후방 문관·보조에게 3칸 안으로 붙은 적을 먼저 친다 (전투 병과만) */
@@ -7487,6 +7630,8 @@
     finishCheck();
     if (!B || B.over) return;
     classAuraPhase('enemy');
+    /* v5.56 — 적 장수도 고유 특기(턴 시작형)를 쓴다 (아군과 같은 규칙) */
+    B.units.forEach((u) => { if (u.side === 'enemy' && u.alive) triggerPassive(u, 'turn_start'); });
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
     let i = 0;
     const step = () => {
@@ -7584,6 +7729,8 @@
       const d = manh(e.x, e.y, t.x, t.y);
       let sc = d;
       if (!SUPPORT_CLS_SET[e.cls] && B.units.some((o) => o.alive && o.side === e.side && SUPPORT_CLS_SET[o.cls] && manh(t.x, t.y, o.x, o.y) <= 3)) sc -= 2;
+      /* v5.56 — 사기가 낮은 아군을 먼저 노려 붕괴를 만든다 */
+      if (t.morale != null && t.morale <= 32) sc -= 2.5;
       return !best || sc < best.sc ? { t, d, sc } : best;
     }, null).t;
     const aiGoal = aiGoalOf(e);
@@ -7712,6 +7859,7 @@
           if (dist >= (e.minRng || 1) && dist <= rng && !wallBlocked(e, target)) {
             attackUnit(e, target, { duel: true }, () => {
               if (!B || B.over) { done(); return; }
+              triggerPassive(e, 'on_attack');
               if (target.alive && manh(target.x, target.y, e.x, e.y) <= effRng(target) && Math.random() < 0.7) {
                 wait(() => {
                   if (!B || B.over) { done(); return; }
@@ -8780,7 +8928,12 @@
         if (ex) ex.style.width = hero ? Math.max(0, Math.min(100, Math.round(exVal / needExp * 100))) + '%' : '0%';
         if (exT) exT.textContent = hero ? `EXP ${exVal}/${needExp}` : 'EXP —';
         $('#uc-troops').textContent = `${Math.round(u.hp).toLocaleString('ko-KR')} / ${Math.round(u.maxHp).toLocaleString('ko-KR')}`;
-        $('#uc-train').textContent = `${u.train == null ? trainOf(u.lv, u.tier) : u.train}`;
+        /* v5.56 — 훈련도는 숫자만 찍고, 전장 보정은 title(롱프레스)에 적는다 (카드 폭 유지) */
+        const tV = Math.round(trainValOf(u));
+        const tPct = Math.round((trainMul(u) - 1) * 1000) / 10;
+        const ucTr = $('#uc-train');
+        ucTr.textContent = `${tV}`;
+        ucTr.title = `훈련도 ${tV} — 전장 공·방 ${tPct >= 0 ? '+' : ''}${tPct}% · 치명 +${Math.round(trainCritBonus(u) * 1000) / 10}%p`;
         $('#uc-atk').textContent = Math.round(effAtk(u));
         $('#uc-def').textContent = Math.round(effDef(u));
         const ma = $('#uc-matk'), md = $('#uc-mdef');
@@ -8796,8 +8949,8 @@
             pills.push(`<span class="bf ${pct >= 0 ? 'good' : 'bad'}">${k === 'atk' ? '공' : '방'}${pct >= 0 ? '+' : ''}${pct}% (${b.t}턴)</span>`);
           });
           /* v5.31 — 사기·상태이상·조각배 상태 */
-          const mv = Math.round(u.morale == null ? 100 : u.morale);
-          pills.push(`<span class="bf ${mv >= u.moraleMax ? 'good' : (mv >= 80 ? '' : 'bad')}">사기 ${mv}</span>`);
+          const mv = Math.round(u.morale == null ? 80 : u.morale);
+          pills.push(`<span class="bf ${mv >= 80 ? 'good' : 'bad'}">사기 ${mv}${mv >= 80 ? ' · 100%' : ` · 공·방 ${Math.round((moraleMul(u) - 1) * 100)}%`}</span>`);
           if (u.ail) {
             Object.keys(AIL).forEach((k) => {
               const t = u.ail[k];
@@ -9076,6 +9229,57 @@
       },
       giveAil(name, kind, turns) { const u = B && B.units.find((o) => o.name === name); return u ? ailApply(u, kind, null, turns) : null; },
       giveMorale(name, d) { const u = B && B.units.find((o) => o.name === name); if (!u) return null; moraleShift(u, d); return Math.round(u.morale); },
+      /* v5.56 — 사기·훈련도 개편 검수 훅 */
+      moraleCurve() {
+        const f = (m) => Math.round(moraleMul({ morale: m }) * 1000) / 1000;
+        return { base: MORALE_BASE, low: MORALE_LOW, m100: f(100), m80: f(80), m60: f(60), m40: f(40), m20: f(20), m0: f(0) };
+      },
+      setMorale(name, v) { const u = B && B.units.find((o) => o.name === name); if (!u) return null; u.morale = v; SKBattle.refreshUI(); return Math.round(u.morale * 10) / 10; },
+      collapseTest(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        u.ail = {};
+        u.morale = 24;
+        moraleShift(u, -6);
+        return { morale: Math.round(u.morale), ail: Object.assign({}, u.ail || {}), collapseN: u.collapseN || 0,
+          mov: movOf(u), tiles: moveTiles(u).filter((t) => t.x !== u.x || t.y !== u.y).length };
+      },
+      lastCollapse() { return B ? (B.lastCollapse || null) : null; },
+      trainCurve() {
+        const f = (t) => Math.round(trainMul({ train: t }) * 1000) / 1000;
+        const c = (t) => Math.round(trainCritBonus({ train: t }) * 1000) / 10;
+        return { t100: f(100), t75: f(75), t60: f(60), t50: f(50), t25: f(25), t0: f(0), c100: c(100), c50: c(50) };
+      },
+      setTrain(name, v) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        u.train = v; SKBattle.refreshUI();
+        return this.magStats(name);
+      },
+      passiveOf(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const p = u.passive;
+        return p ? { title: p.title, tier: p.tier || u.tier || null, kind: p.kind || 'combat',
+          trigger: p.trigger, effect: p.effect, valuePct: p.valuePct, dom: p.dom || null } : null;
+      },
+      /* v5.56 — 고유 특기가 전장에서 실제로 발동하는지 (on_attack/turn_start) */
+      passiveFire(name, when) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        triggerPassive(u, when || 'on_attack');
+        const mates = B.units.filter((o) => o.alive && o.side === u.side && o !== u && cheb(o.x, o.y, u.x, u.y) <= 2)
+          .map((o) => ({ n: o.name, atk: o.buffs.atk || null, def: o.buffs.def || null, hp: Math.round(o.hp) }));
+        return { name: u.name, trigger: (u.passive && u.passive.trigger) || null, used: !!(u.pUsed && u.pUsed.on_attack), mates };
+      },
+      moveAll(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { mov: movOf(u), tiles: moveTiles(u).filter((t) => t.x !== u.x || t.y !== u.y).length, ail: Object.assign({}, u.ail || {}) };
+      },
+      moraleAll() {
+        return B.units.filter((u) => u.alive).map((u) => ({ n: u.name, side: u.side, m: Math.round(u.morale), train: Math.round(trainValOf(u)) }));
+      },
       place(name, x, y) {
         const u = B && B.units.find((o) => o.name === name);
         if (!u) return null;

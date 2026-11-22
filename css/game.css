@@ -841,6 +841,16 @@ b { font-weight: 700; }
 .duty-pick-head em { font-style: normal; font-weight: 600; font-size: 10px; color: #8a7448; margin-left: 4px; }
 .tc-troops span { display: block; font-size: 8.5px; color: #8a7448; }
 .tc-troops b { font-family: var(--serif); font-size: 14px; color: #3a2c10; }
+/* v5.56 — 징병 미리보기의 훈련도 변화 */
+.tc-troops .tc-train-down { display: block; font-style: normal; font-size: 8.5px; font-weight: 800; color: #c0562a; }
+.tc-troops .tc-train-down.flat { color: #7c9a52; }
+/* v5.56 — 고유 특기 등급 배지 */
+.gi-trait-tier { font-style: normal; font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 7px; margin-left: 4px; background: #efe0bd; color: #6b5324; }
+.gi-trait-tier.tier-S { background: linear-gradient(180deg,#e8453a,#b8201a); color: #fff6e0; }
+.gi-trait-tier.tier-A { background: linear-gradient(180deg,#9b62c8,#7742a3); color: #fff6e0; }
+.gi-trait-tier.tier-B { background: linear-gradient(180deg,#3d7ddb,#2559ab); color: #fff6e0; }
+.gi-trait-tier.tier-C { background: linear-gradient(180deg,#4f9c66,#33764a); color: #fff6e0; }
+.gi-trait-note { margin: 3px 0 0; font-size: 9.5px; color: #6b5324; }
 .tc-go { color: #b8862f; font-size: 16px; }
 /* v5.27 — 외교 화면: 상태 배지·관련도순 묶음 */
 .dp-grp { display: flex; align-items: baseline; gap: 6px; margin: 9px 1px 1px; }
@@ -1667,6 +1677,13 @@ b { font-weight: 700; }
 .hi-passive b { display: block; font-size: 12px; color: #7a3a12; font-family: var(--serif); }
 .hi-passive p { margin: 2px 0 0; font-size: 10px; line-height: 1.45; color: #5b4a27; }
 .gp-passive { display: inline-block; font-style: normal; font-size: 8.5px; color: #8a5a12; background: #fbf0d6; border: 1px solid #e0c58c; border-radius: 8px; padding: 0 5px; margin-top: 2px; }
+/* v5.56 — 장수 상세 고유 특기: 등급 배지 + 실제 적용 수치 */
+.hi-passive .gp-tier { font-style: normal; font-size: 8px; font-weight: 900; border-radius: 7px; padding: 0 5px; margin-left: 3px; color: #fff6e0; background: #8a6a34; }
+.hi-passive .gp-tier.tS { background: linear-gradient(180deg,#e8453a,#b8201a); }
+.hi-passive .gp-tier.tA { background: linear-gradient(180deg,#9b62c8,#7742a3); }
+.hi-passive .gp-tier.tB { background: linear-gradient(180deg,#3d7ddb,#2559ab); }
+.hi-passive .gp-tier.tC { background: linear-gradient(180deg,#4f9c66,#33764a); }
+.hi-passive .hi-passive-applied { margin-top: 3px; font-size: 9.5px; font-weight: 800; color: #7a5a12; }
 .gc-age { font-style: normal; font-size: 8px; color: #8a7448; margin-left: 3px; font-weight: 700; }
 .rs-age { font-style: normal; font-size: 8px; color: #8a7448; margin-left: 2px; font-weight: 700; }
 .gen-chip.duty { border-color: #b98a2c; background: #fdf6e4; }
@@ -3153,6 +3170,8 @@ b { font-weight: 700; }
 .ci-cell + .ci-cell { border-left: 1px dotted rgba(160, 130, 70, 0.25); }
 .ci-cell:nth-child(odd) { border-left: 0; }
 .ci-cell:nth-child(n+3) { border-top: 1px dotted rgba(160, 130, 70, 0.22); }
+/* v5.56 — 훈련도 옆 전장 보정 (+6.0%) */
+.ci-cell .ci-train-pct { font-style: normal; font-size: 8.5px; font-weight: 800; color: #8a6a34; margin-left: 3px; }
 .ci-cell > span { display: inline-flex; align-items: center; gap: 2px; font-size: 9px; color: #7d6739; white-space: nowrap; letter-spacing: -0.02em; }
 .ci-cell > span .help-dot { width: 11px; height: 11px; font-size: 8px; flex: 0 0 auto; }
 .ci-cell > b { margin-left: auto; font-family: var(--serif); font-size: 12px; color: #2f240e; letter-spacing: -0.02em; white-space: nowrap; }

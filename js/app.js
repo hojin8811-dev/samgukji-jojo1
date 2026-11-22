@@ -302,6 +302,38 @@
   SK.cityTfx = cityTfx;
   SK.heroTfx = heroTfx;
 
+  /* v5.56 — 성에 주둔한 장수의 **내정형 고유 특기**(data/unique_passives.json 의 kind:'domestic')가
+     그 성의 금 수입·군량 수확·훈련도·징병량을 키운다. (태수·군사·건물 담당 모두 포함, 합계 상한 15%) */
+  function cityPassivePct(cityId, key) {
+    const s = SK.state;
+    if (!s || !s.heroes || !SK.PASSIVES) return 0;
+    let v = 0;
+    s.heroes.forEach((h) => {
+      if (h.city !== cityId || h.captured) return;
+      const p = SK.PASSIVES[h.name];
+      if (!p || !p.dom || !p.dom[key]) return;
+      v += Number(p.dom[key]) || 0;
+    });
+    return Math.min(0.15, v / 100);
+  }
+  SK.cityPassivePct = cityPassivePct;
+  /* 화면·보고용 — 이 성에서 도는 내정 특기 한눈에 */
+  function cityPassiveLines(cityId) {
+    const s = SK.state;
+    if (!s || !s.heroes || !SK.PASSIVES) return [];
+    const label = { gold: '금 수입', food: '군량 수확', train: '훈련도', recruit: '징병량' };
+    const out = [];
+    s.heroes.forEach((h) => {
+      if (h.city !== cityId || h.captured) return;
+      const p = SK.PASSIVES[h.name];
+      if (!p || !p.dom) return;
+      Object.keys(p.dom).forEach((k) => out.push({ name: h.name, title: p.title, key: k, v: p.dom[k],
+        text: `${label[k] || k} +${p.dom[k]}%` }));
+    });
+    return out;
+  }
+  SK.cityPassiveLines = cityPassiveLines;
+
   /* 행군 중인 병력 — 성에서 빠져나갔지만 군량은 먹는다 */
   function marchTroopsOf(s) {
     return (s.marches || []).reduce((a, m) => a + (m.units || []).reduce((b, u) => b + (u.troops || 0), 0), 0);
@@ -367,9 +399,11 @@
       /* v5.40 — 정책(농업 중시 +30%)·보물(군량 생산 +N%)이 대수확에 붙는다 */
       const polM = 1 + (policyFxOf(cs).harvest || 0);
       const foodM = 1 + Math.min(0.4, cityTfx(c.id, 'food', 40) / 100);
+      /* v5.56 — 내정형 고유 특기 (예: 유언 「지역 개발」 — 그 성에 주둔하면 금·군량이 는다) */
+      const domM = 1 + cityPassivePct(c.id, 'food');
       /* v5.48 — 관아 머리(군주·태수)의 정치가 대수확에도 그대로 붙는다 */
       const officeM = 1 + officeBonusOf(c.id).pol;
-      const v = Math.round(c.food * ECON.harvestBase * agriM * morM * (1 + farmM) * fPct * polM * foodM * officeM);
+      const v = Math.round(c.food * ECON.harvestBase * agriM * morM * (1 + farmM) * fPct * polM * foodM * officeM * domM);
       if (v > 0) { total += v; rows.push({ id: c.id, city: c.name, food: v, farm: Math.round(farmM * 100) }); }
     });
     return { total: total, rows: rows };
@@ -396,7 +430,9 @@
       const foodM = 1 + (pol.food || 0);
       /* v5.48 — 관아 머리의 정치 가산점 (금 수입·농원 수확·병영 징병) */
       const obM = 1 + officeBonusOf(c.id).pol;
-      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxMul * incMul * goldM * obM);
+      /* v5.56 — 내정형 고유 특기의 금 수입 배율 */
+      const domGold = 1 + cityPassivePct(c.id, 'gold');
+      tax += Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxMul * incMul * goldM * obM * domGold);
       (st.slots || []).forEach((sl) => {
         if (!sl.key) return;
         const mul = slotMul(st, sl, slotOwner(c.id, sl)) * incMul * (sl.key === 'farm' ? foodM : goldM) * obM;
@@ -3395,7 +3431,7 @@
         <div class="hi-body">
           <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}</p>
           ${g.skillName ? `<p class="hi-skill">특기 — ${g.skillName}</p>` : ''}
-          ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기</span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p></div>` : ''}
+          ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${(SK.PASSIVES[g.name].tier || g.tier || 'C')}">${SK.PASSIVES[g.name].tier || g.tier || 'C'}급</i></span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p>${SK.PASSIVES[g.name].applied ? `<p class="hi-passive-applied">${SK.PASSIVES[g.name].applied}</p>` : ''}</div>` : ''}
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
           <p class="hi-next">${SK.nextPromo(g.lv) ? `다음 승급 Lv.${SK.nextPromo(g.lv)} · ${SK.PROMO[g.cls] ? SK.PROMO[g.cls].names[Math.min(4, SK.PROMO[g.cls].names.length - 1)] : ''}` : '최고 승급 단계'}</p>
           <div class="hi-bars"><span class="hi-hp">출진 최소 ${fmt(SK.DEPLOY_MIN)} · 기본 ${fmt(SK.DEPLOY_BASE)} / 상한 ${SK.troopCapOf(g).toLocaleString('ko-KR')}</span><span class="hi-mp">MP ${g.mp}/${mpM}</span></div>
@@ -5010,16 +5046,19 @@
     const rows = pool.map((g, i) => {
       const want = est(g);
       const drop = clamp(5 - Math.round(((g.cha || 60) - 60) * 0.04), 2, 7);
+      /* v5.56 — 이 장수를 보내면 성의 훈련도가 얼마나 내려가는지 미리 보여 준다 */
+      const tch = recruitTrainAfter(st, want);
       return `<button class="target-card" data-uid="${g.uid}">
         <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
         <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
           <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
-        <div class="tc-troops"><span>통솔 ${g.tong} · 매력 ${g.cha || 60}</span><b>+${fmt(want)}명 · 민심 -${drop}</b></div>
+        <div class="tc-troops"><span>통솔 ${g.tong} · 매력 ${g.cha || 60}</span><b>+${fmt(want)}명 · 민심 -${drop}</b>
+          ${tch.down ? `<em class="tc-train-down">훈련도 ${tch.before}→${tch.after} (−${tch.down})</em>` : `<em class="tc-train-down flat">훈련도 ${tch.before} 유지</em>`}</div>
         <span class="tc-go">▸</span></button>`;
     }).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 징병`, title: '누구를 보낼까',
-      body: `<p class="talent-note">금 150 · 군량 120이 들고, 보낸 장수의 이번 달 행동을 씁니다. 통솔·매력이 높을수록 더 많이 뽑고 민심 타격도 적습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>
+      body: `<p class="talent-note">금 150 · 군량 120이 들고, 보낸 장수의 이번 달 행동을 씁니다. 통솔·매력이 높을수록 더 많이 뽑고 민심 타격도 적습니다. <b>새로 뽑은 신병은 훈련도 ${RECRUIT_TRAIN}</b>이라, 많이 뽑을수록 성의 평균 훈련도(지금 ${Math.round(st.train == null ? 50 : st.train)})가 내려갑니다 — 전장 공·방 보정(지금 <b>${trainPctTxt(st.train)}</b>)도 그만큼 줄어듭니다. 뽑은 뒤 [병영 → 훈련]으로 다시 올리세요. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>
         <div class="target-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }],
     });
@@ -5066,7 +5105,7 @@
     }).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 훈련`, title: '누구를 지휘관으로 세울까',
-      body: `<p class="talent-note">금 80이 들고, 고른 장수가 이번 달 행동을 씁니다. 훈련도 ${trainNow} — 한 번에 병사 훈련도 +7~11이 오르고, 통솔·무력이 높은 장수가 지휘하면 더 오릅니다. 주둔 장수 전원이 경험치를 얻습니다. (연병장 담당자도 이 훈련으로 성장합니다)</p>
+      body: `<p class="talent-note">금 80이 들고, 고른 장수가 이번 달 행동을 씁니다. 훈련도 ${trainNow} <b>(전장 공·방 ${trainPctTxt(trainNow)})</b> — 한 번에 병사 훈련도 +7~11이 오르고, 통솔·무력이 높은 장수가 지휘하면 더 오릅니다. <b>훈련도는 50이 기준</b>이고 100이면 공·방 +12%·치명 +4%p까지 붙습니다. 징병으로 신병이 섞여 내려간 훈련도를 이걸로 되돌리세요. 주둔 장수 전원이 경험치를 얻습니다. (연병장 담당자도 이 훈련으로 성장합니다)</p>
         <div class="target-list">${rows}</div>`,
       wide: true, actions: [{ label: '취소' }],
     });
@@ -5950,7 +5989,11 @@
     loyal: { t: '민심', lines: ['백성이 다스림을 따르는 마음입니다. 세수와 인구가 민심을 따라 오르내립니다.', '40 아래로 떨어지면 소란이 나 병력이 줄고, 70을 넘으면 세수 15%가 붙습니다. [관아 → 백성 위로]로 올립니다.', '<b>치안과 함께 60을 넘으면 인구가 더 빨라지고, 둘 다 90이면 인구 증가가 최대 1.7배</b>까지 붙습니다.'] },
     order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.', '<b>민심과 함께 60을 넘으면 인구가 빨리 늘고, 둘 다 90이면 최대 1.7배</b> — 다스림이 고를수록 사람이 모입니다.'] },
     wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>, <b>관아 머리의 지력이 최대 +6%</b>를 더하지만, 모두 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.'] },
-    train: { t: '훈련도', lines: ['이 성 병사들의 숙련도입니다. 높을수록 전장에서 같은 병력으로 더 강합니다.', '[병영 → 훈련]이나 연병장으로 올립니다. 출진할 때 이 수치가 부대에 그대로 넘어갑니다.'] },
+    train: { t: '훈련도', lines: [
+      '이 성 병사들의 숙련도입니다. <b>전장에서는 50이 기준(100%)</b>이고, 50을 중심으로 <b>연속 비례</b>해서 공·방이 오르내립니다. <b>100 → 공·방 +12% · 치명 +4%p</b>, 75 → +6%, 50 → 0%, 25 → −5%, 0 → −10%.',
+      '<b>[병영 → 훈련]</b> 또는 연병장으로 올립니다. 출진할 때 이 수치가 부대 훈련도로 그대로 넘어갑니다.',
+      '<b>징병하면 훈련도가 내려갑니다.</b> 새로 뽑은 신병은 훈련도 <b>25</b>이라, 기존 수비병과 병력 비례로 섮입니다 — 예: 훈련도 80에 3,000명이 있는 성에서 1,200명을 뽑으면 <b>80 → 64</b>. 뽑은 뒤에는 [훈련]으로 다시 올리세요. (태수 자동 내정도 훈련도가 72 밑으로 떨어지면 훈련을 먼저 합니다)',
+    ] },
     harvest: { t: '10월 대수확', lines: ['한 해 군량은 10월에 한 번에 들어옵니다. 농업도·민심·농원 Lv가 많을수록 많이 걷습니다.', '그 전까지는 [개간]·[탐색]·[군량 상인]으로 버티고, 병력 유지비는 매달 나갑니다.'] },
     tax: { t: '세율', lines: ['세금을 많이 걷으면 금은 빨리 모이지만 민심이 달마다 떨어집니다.', '낮게 두면 당장 금은 줄어도 민심이 올라 다음 달 세수와 인구가 늘어납니다.'] },
     pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.', '<b>민심·치안이 함께 60을 넘는 순간부터 인구 증가가 비례해 붙고, 둘 다 90 이상이면 최대 1.7배(＋70%)</b>까지 빨라집니다. 인구 상한은 성 등급이 정합니다.'] },
@@ -6131,7 +6174,7 @@
           <div class="ci-cell"><span>최대 병력</span><b>${fmt(cap)}</b><em>인구 17%</em></div>
           <div class="ci-cell"><span>주둔병</span><b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b><em>${pct}%</em></div>
           <div class="ci-cell wound${wound ? ' on' : ''}"><span>부상병</span><b>${fmt(wound)}</b>${wound ? `<button class="ci-heal" id="btn-heal-wounded" type="button">치료</button>` : '<em>없음</em>'}</div>
-          <div class="ci-cell"><span>훈련도${helpDot('train')}</span><b>${Math.round(cs.train == null ? 50 : cs.train)}</b></div>
+          <div class="ci-cell"><span>훈련도${helpDot('train')}</span><b title="전장 공·방 ${trainPctTxt(cs.train)} · 징병하면 신병(훈련도 25)만큼 내려갑니다">${Math.round(cs.train == null ? 50 : cs.train)}<i class="ci-train-pct">${trainPctTxt(cs.train)}</i></b></div>
           <div class="ci-cell"><span>월 군량 유지</span><b class="minus">−${fmt(Math.ceil((cs.troops || 0) / 1000 * ECON.upkeepPer1000))}</b><em>이 성 병력 기준 · 1,000당 ${ECON.upkeepPer1000}</em></div>
           <div class="ci-cell"><span>${s.month === ECON.harvestMonth ? '가을 대수확' : '대수확'}${helpDot('harvest')}</span><b>${s.month === ECON.harvestMonth ? '거둠' : `${monthsUntilHarvest(s)}개월`}</b><em>대수확 예상 +${fmt(harvestFood)}</em></div>
           <div class="ci-cell"><span>태수</span><b>${govName}${govIsLord ? ' <em>(군주)</em>' : ''}</b></div>
@@ -7032,6 +7075,32 @@
   SK.openComfort = openComfort;
 
   /* ── 명령 정의 ── */
+  /* v5.56 — 징병은 성의 평균 훈련도를 병력 비례로 끌어내린다.
+     새로 뽑은 신병은 훈련도 25이라, 1,200명을 뽑으면 기존 수비병의 훈련도가 희석된다.
+     (예전에는 병력만 늘고 훈련도는 그대로여서, 뽑을수록 공짜로 강해졌다) */
+  const RECRUIT_TRAIN = 25;
+  function recruitTrainAfter(cs, add) {
+    const old = Math.max(0, Math.round(cs.troops || 0));
+    const oldT = cs.train == null ? 50 : cs.train;
+    const addN = Math.max(0, Math.round(add || 0));
+    const tot = old + addN;
+    if (!tot || !addN) return { before: Math.round(oldT), after: Math.round(oldT), down: 0, raw: RECRUIT_TRAIN };
+    const after = clamp(Math.round((old * oldT + addN * RECRUIT_TRAIN) / tot), 0, 100);
+    return { before: Math.round(oldT), after, down: Math.max(0, Math.round(oldT) - after), raw: RECRUIT_TRAIN };
+  }
+  SK.recruitTrainAfter = recruitTrainAfter;
+  /* 전장에서 쓰는 훈련도 배율 (50 기준 ±, battle.js와 같은 식) */
+  function trainMulOf(v) {
+    const t = clamp(Number(v) || 0, 0, 100);
+    return t >= 50 ? 1 + (t - 50) * 0.0024 : 1 - (50 - t) * 0.0020;
+  }
+  function trainPctTxt(v) {
+    const p = Math.round((trainMulOf(v) - 1) * 1000) / 10;
+    return `${p >= 0 ? '+' : ''}${p}%`;
+  }
+  SK.trainMulOf = trainMulOf;
+  SK.trainPctTxt = trainPctTxt;
+
   const CMDS = {
     farm: { name: '개간', run(cityId, actor) {
       const s = SK.state; const st = s.cities[cityId];
@@ -7071,17 +7140,25 @@
       /* v5.21 — 징병량 절반(2,500 → 1,200 · 보너스 800 → 350). 비용은 금 150 · 군량 120 그대로 */
       /* v5.40 — 정책·보물의 징병 배율 (전시 체제 +30% · 상업 중시 -15%) */
       const recM = 1 + (policyFxOf(st).recruit || 0) + Math.min(0.4, cityTfx(cityId, 'recruit', 40) / 100);
+      /* v5.56 — 내정형 고유 특기 중 징병량 계열 */
+      const recDom = 1 + cityPassivePct(cityId, 'recruit');
       /* v5.48 — 관아 머리의 통솔 → 징병량 (최대 +6%) */
       const recOff = 1 + officeBonusOf(cityId).tong;
-      const want = Math.min(Math.round((1200 + (roll(0.2) ? 350 : 0)) * m * rPct * recM * recOff), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
+      const want = Math.min(Math.round((1200 + (roll(0.2) ? 350 : 0)) * m * rPct * recM * recOff * recDom), cap - st.troops, Math.floor((st.pop - 6000) * 0.9));
       if (want < 300) return fail('징병할 수 있는 인구가 부족합니다.');
       const drop = clamp(5 - Math.round(((actor ? actor.cha : 60) - 60) * 0.04), 2, 7);
       s.gold -= 150; s.food -= 120;
+      /* v5.56 — 신병이 섞여 훈련도가 내려간다 (병력 비례 가중 평균) */
+      const tch = recruitTrainAfter(st, want);
       st.troops += want;
+      st.train = tch.after;
+      /* 훈련도가 70 아래로 내려가면 다음 달 AI·태수가 훈련을 먼저 챙긴다 */
+      st.trainAlert = tch.after < 70 ? 1 : 0;
       st.pop = Math.max(6000, st.pop - Math.round(want * 0.8));
       st.loyalty = clamp(st.loyalty - drop, 0, 100);
-      return { msg: `징병 완료 — 수비병 +${fmt(want)} · 인구 -${fmt(Math.round(want * 0.8))} · 민심 -${drop}`,
-        hotKey: 'repair', hot: `병력 +${fmt(want)}`, exp: 12 };
+      return { msg: `징병 완료 — 수비병 +${fmt(want)} · 인구 -${fmt(Math.round(want * 0.8))} · 민심 -${drop}`
+        + (tch.down ? ` · 훈련도 ${tch.before}→${tch.after}` : ''),
+        hotKey: 'repair', hot: `병력 +${fmt(want)}${tch.down ? ` · 훈련도 −${tch.down}` : ''}`, exp: 12, train: tch.after };
     } },
     train: { name: '훈련', run(cityId, actor) {
       const s = SK.state;
@@ -7097,8 +7174,11 @@
       /* v5.32 — 병사 훈련도를 한 번에 +7~+11 올린다 (예전 +2~+4는 체감이 없었다) */
       /* v5.40 — 정책·보물의 훈련 배율 */
       const trM = 1 + (policyFxOf(cs).train || 0) + Math.min(0.4, cityTfx(cityId, 'train', 40) / 100);
+      /* v5.56 — 내정형 고유 특기 중 훈련 계열 */
+      const trDom = 1 + cityPassivePct(cityId, 'train');
       const trnOff = 1 + officeBonusOf(cityId).tong;   /* v5.48 — 관아 머리의 통솔 → 훈련 효율 (최대 +6%) */
-      cs.train = clamp(beforeTrain + Math.max(5, Math.round(8 * eff * trM * trnOff)), 0, 100);
+      cs.train = clamp(beforeTrain + Math.max(5, Math.round(8 * eff * trM * trnOff * trDom)), 0, 100);
+      if (cs.train >= 70) cs.trainAlert = 0;
       const trainGain = Math.round(cs.train) - Math.round(beforeTrain);
       const bonus = roll(0.2) ? 60 : 0;
       const rows = gens.map((h) => {
@@ -7123,7 +7203,7 @@
                 <b>${Math.round(beforeTrain)} <em>→</em> ${Math.round(cs.train)}</b>
                 <em class="tb-gain">${trainGain > 0 ? `+${trainGain}` : '최고'}</em></div>
               <i class="tb-bar"><s style="width:${clamp(Math.round(cs.train), 0, 100)}%"></s><u style="left:${clamp(Math.round(beforeTrain), 0, 100)}%"></u></i>
-              <p class="tb-note">${trainGain > 0 ? '이 성에서 출진하는 부대의 전장 훈련도가 함께 올라갑니다.' : '이미 최고 훈련도입니다 — 장수 경험치만 올랐습니다.'}</p>
+              <p class="tb-note">${trainGain > 0 ? `이 성에서 출진하는 부대의 전장 훈련도가 함께 올라갑니다 — 공·방 <b>${trainPctTxt(cs.train)}</b> (50 기준).` : '이미 최고 훈련도입니다 — 장수 경험치만 올랐습니다.'}</p>
             </div>
             <div class="train-list">${rows}</div>`,
           actions: [{ label: '확인', primary: true }] }),
@@ -7487,6 +7567,10 @@
     const cap = cityCap(cs);
     const room = Math.max(0, cap - Math.round(cs.troops || 0));
     const healCost = SK.healCostOf(Math.min(wound, room));
+    /* v5.56 — 징병하면 성 훈련도가 내려간다는 것을 누르기 전에 알려 준다 */
+    const tnow = Math.round(cs.train == null ? 50 : cs.train);
+    const estAdd = Math.min(1550, room);
+    const tch = recruitTrainAfter(cs, estAdd);
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 병영`,
       title: '군사를 일으킨다',
@@ -7495,6 +7579,7 @@
         <button data-b="train">훈련 — 금 80 · 병사 훈련도 +7~11 · 장수 경험치</button>
         ${wound ? `<button data-b="heal">부상병 치료 — ${fmt(wound)}명 회복중 · 금 ${fmt(healCost)}</button>` : ''}
       </div>
+      <p class="talent-note">지금 훈련도 <b>${tnow}</b> (전장 공·방 <b>${trainPctTxt(tnow)}</b>). 신병(훈련도 ${RECRUIT_TRAIN})이 섞이면 <b>훈련도 ${tch.before}→${tch.after}</b>로 내려갑니다 — 뽑은 뒤 [훈련]으로 다시 올리세요.</p>
       ${wound ? `<p class="talent-note">부상병은 달이 바뀌면 35%(최소 200명)씩 저절로 돌아옵니다. 지금 금을 내면 한 번에 치료합니다.</p>` : ''}`,
       actions: [{ label: '닫기' }],
     });
@@ -8611,7 +8696,10 @@
     const cap = cityCap(cs);
     const n = done || {};
     const once = (k) => !n[k];
+    const trNow = Math.round(cs.train == null ? 50 : cs.train);
     if (cs.troops < cap * 0.7 && s.gold >= 150 && s.food >= 120 && cs.pop > 12000 && once('recruit')) return 'recruit';
+    /* v5.56 — 징병으로 훈련도가 내려갔거나 72 아래면 훈련을 먼저 챙긴다 */
+    if ((cs.trainAlert || trNow < 72) && s.gold >= 80 && once('train')) return 'train';
     if (cs.def < 65 && s.gold >= 120 && once('repair')) return 'repair';
     if (s.food < upkeepOf(s) * 4 && s.gold >= 100 && once('farm')) return 'farm';   // v5.4 — 유지비 4개월치 아래면 비상 개간
     if (s.gold < 6000 && s.food >= 80 && (n.trade || 0) < 2) return 'trade';
@@ -8623,6 +8711,16 @@
   }
 
   SK.openOffice = openOffice;
+  /* v5.56 — 검수용: 내정 AI가 다음에 고를 일과 위임 태수의 선택을 그대로 돌려준다 */
+  SK.debugAI = {
+    auto: (cityId, done) => chooseAutoAction(cityId, done || {}),
+    delegated: (cityId, done) => chooseDelegatedAction(cityId, done || {}),
+    lowTrain: (cityId) => {
+      const cs = SK.state.cities[cityId];
+      const t = Math.round(cs.train == null ? 50 : cs.train);
+      return { train: t, alert: !!cs.trainAlert, pct: trainPctTxt(t) };
+    },
+  };
 
   /* 달이 바뀔 때 태수가 남은 행동으로 고르는 내정 — 태수 위임 방침에 따라 순서가 달라진다 */
   function chooseAutoAction(cityId, done) {
@@ -8636,16 +8734,18 @@
     const poor = s.gold < 5000;
     const thin = cs.troops < cap * 0.75;
     const canRecruit = s.gold >= 150 && s.food >= 120 && cs.pop > 12000 && cs.troops < cap * 0.98;
-    const lowTrain = (cs.train == null ? 50 : cs.train) < 70;
+    /* v5.56 — 징병 직후(trainAlert) 또는 훈련도 72 미만이면 태수가 훈련을 먼저 챙긴다 */
+    const trainNow = Math.round(cs.train == null ? 50 : cs.train);
+    const lowTrain = trainNow < 72 || !!cs.trainAlert;
     const weakWall = cs.def < 70;
     const rows = {
       balanced: [
         [cs.loyalty < 55 && s.gold >= 100 && !n.comfort, 'comfort'],
         [thin && canRecruit && !n.recruit, 'recruit'],
+        [lowTrain && s.gold >= 80 && !n.train, 'train'],
         [weakWall && s.gold >= 120 && !n.repair, 'repair'],
         [lowFood && s.gold >= 100 && (n.farm || 0) < 2, 'farm'],
         [poor && s.food >= 80 && (n.trade || 0) < 2, 'trade'],
-        [lowTrain && s.gold >= 80 && !n.train, 'train'],
         [cs.def < 95 && s.gold >= 120 && !n.repair, 'repair'],
         [cs.loyalty < 70 && s.gold >= 100 && !n.comfort, 'comfort'],
         [s.gold >= 100 && (n.farm || 0) < 2, 'farm'],
@@ -8664,9 +8764,9 @@
         [cs.loyalty < 65 && s.gold >= 100 && !n.comfort, 'comfort'],
         [s.gold >= 100 && (n.farm || 0) < 2, 'farm'],
         [thin && canRecruit && !n.recruit, 'recruit'],
+        [lowTrain && s.gold >= 80 && !n.train, 'train'],
         [weakWall && s.gold >= 120 && !n.repair, 'repair'],
         [s.food >= 200 && s.gold < 4000 && (n.trade || 0) < 1, 'trade'],
-        [lowTrain && s.gold >= 80 && !n.train, 'train'],
       ],
       war: [
         [thin && canRecruit && !n.recruit, 'recruit'],
@@ -8677,11 +8777,18 @@
       ],
       supply: [
         [cs.loyalty < 60 && s.gold >= 100 && !n.comfort, 'comfort'],
+        [lowTrain && s.gold >= 80 && !n.train, 'train'],
         [lowFood && s.gold >= 100 && (n.farm || 0) < 1, 'farm'],
         [s.food >= 120 && s.gold < 4500 && (n.trade || 0) < 1, 'trade'],
-        [lowTrain && s.gold >= 80 && !n.train, 'train'],
       ],
     }[pol] || [];
+    /* v5.56 — 징병으로 훈련도가 내려갔거나(trainAlert) 65 밑으로 떨어졌다면, 무엇보다 먼저 훈련을 챙긴다.
+       (단, 민심이 급하게 무너진 성은 백성 위로를 먼저 둔다) */
+    const urgentTrain = (cs.trainAlert || trainNow < 65) && s.gold >= 80 && !n.train;
+    if (urgentTrain) {
+      const at = (rows[0] && rows[0][1] === 'comfort' && rows[0][0]) ? 1 : 0;
+      rows.splice(at, 0, [true, 'train']);
+    }
     const hit = rows.find((r) => r[0]);
     return hit ? hit[1] : null;
   }
@@ -10435,7 +10542,18 @@
       const st = s.cities[c.id];
       if (!st || st.owner === PF() || st.owner === 'neutral') return;
       /* 군비 */
-      st.troops = Math.min(cityCap(st), Math.round((st.troops || 0) * 1.04 + 120));
+      const tBefore = Math.round(st.troops || 0);
+      const tAfter = Math.min(cityCap(st), Math.round((st.troops || 0) * 1.04 + 120));
+      st.troops = tAfter;
+      /* v5.56 — 적 AI도 징병한 신병만큼 훈련도가 내려가고, 그래서 훈련을 챙긴다.
+         훈련도가 72 미만이면 달마다 +3, 그 위면 +1 (아군 태수 자동 내정과 같은 마음쓰기) */
+      const addT = Math.max(0, tAfter - tBefore);
+      if (addT > 0) {
+        const tch = recruitTrainAfter(st, addT);
+        st.train = tch.after;
+      }
+      const trNow = st.train == null ? 50 : Math.round(st.train);
+      st.train = clamp(trNow + (trNow < 72 ? 3 : 1), 0, 100);
       st.pop = Math.round((st.pop || 10000) * 1.003);
       if (st.def < 95 && Math.random() < 0.4) st.def = Math.min(95, st.def + 1);
       /* 내정 — 농업·상업·치안 */
@@ -11806,15 +11924,25 @@
         <div class="bg-step"><span class="bg-num">3</span><div><b>출진해서 성 하나 차지</b><p>[군사 → 출진]에서 지도로 목표 성을 고르면 전장이 열립니다. 이웃한 성만 칠 수 있고, 미정찰 성은 [외교·계략 → 정찰]로 먼저 살피세요.</p></div></div>
       </div>
       <div class="bg-rule"><b>달을 넘기는 법</b><p>아래 <b>[다음 달]</b>을 누르면 세수·군량·건물 결산이 들어오고 장수의 행동이 새로 생깁니다. 장수는 한 달에 <b>한 번</b> — 건물 담당이거나 직접 명령 하나입니다.</p></div>`;
+    const p4 = `<div class="bg-card blue"><span class="bg-ico">💪</span><div class="bg-body"><div class="bg-head"><b>사기</b><em>80에서 시작</em><span class="bg-tag">80↑ 100% · 20↓ 붕괴</span></div>
+        <p>전투는 <b>양쪽 모두 사기 80</b>으로 시작합니다. <b>80 이상은 그대로 100% 전투력</b>이고, 80 아래로 떨어질수록 <b>공격과 방어가 함께</b> 완만하게 약해집니다 — 60 → −5%, 40 → −10%, 20 → −15%.</p></div></div>
+      <div class="bg-card rose"><span class="bg-ico">💥</span><div class="bg-body"><div class="bg-head"><b>사기 붕괴</b><em>20 이하</em><span class="bg-tag">상태이상 + 사기 50 복귀</span></div>
+        <p>사기가 <b>20 이하</b>로 떨어지면 그 자리에서 <b>붕괴</b>합니다 — 기절(1턴)·혼란(2턴)·중독(2턴)·이동불가(2턴) 중 <b>하나</b>가 붙고, 사기는 <b>50</b>으로 돌아와 다시 쌓입니다. 한 번 무너진 부대가 판 내내 잠기지는 않습니다.</p></div></div>
+      <div class="bg-rule"><b>사기가 내려가는 때 · 올리는 때</b><p>한 번에 최대 병력의 15% 이상을 잃으면 사기 −4, <b>전우가 쓰러지면 3칸 안 아군 −8 · 전장의 다른 아군 −4</b>(쓰러뜨린 쪽 +6)입니다. 올리려면 <b>군악대(북)</b>·<b>무희(춤)</b>를 곁에 두고(주변 아군 사기 +), <b>지휘·고무</b> 책략을 쓰세요. 사기가 55 밑으로 기운 아군이 있으면 군악대·무희가 먼저 사기를 올려 줍니다.</p></div>
+      <div class="bg-card green"><span class="bg-ico">🎯</span><div class="bg-body"><div class="bg-head"><b>훈련도</b><em>50이 기준</em><span class="bg-tag">100 → 공·방 +12%</span></div>
+        <p>성의 훈련도가 출진 부대에 그대로 넘어갑니다. <b>50이 기준(100%)</b>이고 <b>100이면 공·방 +12% · 치명 +4%p</b>, 25면 −5%입니다. 올리려면 <b>[병영 → 훈련]</b>·연병장. <b>징병하면 신병(훈련도 25)이 섮여 훈련도가 내려가니</b>, 뽑은 뒤에는 꼭 훈련으로 되돌리세요.</p></div></div>
+      <div class="bg-rule"><b>장수 고유 특기</b><p>모든 이름 있는 장수는 <b>등급(S&gt;A&gt;B&gt;C)에 따른 고유 특기</b>를 가집니다 — 전투형은 공격·방어·사기·회복에, 내정형은 그 성의 <b>금 수입·군량 수확·훈련도·징병량</b>에 붙습니다. 《장수 정보》의 「특기」에 실제 수치가 적혀 있습니다.</p></div>`;
     return `<div class="bg-wrap">
       <div class="bg-tabs">
-        <button type="button" data-bg="1" class="on">① 자원·민심·치안</button>
-        <button type="button" data-bg="2">② 건물 9종</button>
-        <button type="button" data-bg="3">③ 징병·출진</button>
+        <button type="button" data-bg="1" class="on">① 자원·민심</button>
+        <button type="button" data-bg="2">② 건물</button>
+        <button type="button" data-bg="3">③ 출진</button>
+        <button type="button" data-bg="4">④ 사기·훈련</button>
       </div>
       <div class="bg-pane on" data-bgpane="1">${p1}</div>
       <div class="bg-pane" data-bgpane="2">${p2}</div>
       <div class="bg-pane" data-bgpane="3">${p3}</div>
+      <div class="bg-pane" data-bgpane="4">${p4}</div>
     </div>`;
   }
 
@@ -11897,7 +12025,10 @@
         <div class="help-item"><b>군악대·무희</b><p>매 턴 시작에 마름모 2칸 아군을 돕습니다 — 군악대는 <b>MP +4 · 공격 +8%</b>, 무희는 아군 <b>회피·치명 +8%</b>에 적 공격 <b>−8%</b>. 세워 두기만 해도 밥값을 합니다.</p></div>
         <div class="help-item"><b>소리</b><p>상단 ♪ 버튼으로 효과음을 끄고 켜고 할 수 있습니다. 첫 터치 때 소리가 준비됩니다.</p></div>
         <div class="help-item"><b>마을 점령</b><p>마을은 전장 한가운데·성문 앞·다리 어귀에 있습니다. 밟으면 <b>그 자리에서 점령</b>되고, 점령한 부대는 바로 <b>사기 +10</b>(상한까지) · <b>MP +8</b> · <b>최대 병력 10% 회복</b>을 받습니다. 점령한 마을 위에 서 있는 동안은 <b>방어 +20% · 매 턴 최대 병력 15% 회복 · MP +5</b>. 전투에서 이기면 <b>아군이 차지한 마을 하나당 금 +150</b>이 결산에 더해집니다. 적이 다시 밟으면 빼앗기니, 한 번 잡은 마을은 지켜 두는 쪽이 이득입니다.</p></div>
-        <div class="help-item"><b>본진과 사기</b><p>본진을 밟으면 그 자리에서 <b>1회</b> 점령됩니다 — 점령한 쪽 전군 <b>사기 +25</b>(상한 110), 빼앗긴 쪽 전군 <b>사기 −25</b>(하한 0). 사기가 높으면 공격이 최대 +16%, 낮으면 −18%까지 약해집니다. 점령된 본진에는 점령한 진영 색 깃발과 <b>[점령]</b> 표시가 남고, 그 뒤로는 다시 뒤집히지 않습니다.</p></div>
+        <div class="help-item"><b>사기 — 80에서 시작</b><p>전투는 <b>양쪽 모두 사기 80</b>으로 시작합니다. <b>80 이상은 정직하게 100% 전투력</b>이고, 80 아래로 떨어질수록 <b>공격·방어가 함께</b> 완만하게 약해집니다(60 → −5%, 40 → −10%, 20 → −15%). 전우가 쓰러지면 <b>3칸 안 아군 사기 −8, 전장의 다른 아군 −4</b>이고, 쓰러뜨린 쪽은 +6입니다. 턴마다 2(사기 50 아래면 3)씩 회복합니다.</p></div>
+        <div class="help-item"><b>사기 붕괴 — 20 이하</b><p>사기가 <b>20 이하</b>로 떨어지면 그 자리에서 붕괴합니다 — <b>기절(1턴)·혼란(2턴)·중독(2턴)·이동불가(2턴)</b> 중 하나가 붙고 사기는 <b>50으로 복귀</b>합니다. 기절은 그 턴 행동 불가, 혼란은 아군·적을 가리지 않고 사거리 안 부대를 칩니다. 사기를 20 밑으로 몰아넣는 쪽이 싸움을 푸는 지름길입니다.</p></div>
+        <div class="help-item"><b>훈련도 — 50이 기준</b><p>출진한 성의 훈련도가 부대에 그대로 넘어갑니다. <b>50 = 100%</b>이고 <b>연속 비례</b>합니다 — 60 → +2.4%, 75 → +6%, 90 → +9.6%, <b>100 → +12%</b>(치명 +4%p), 25 → −5%, 0 → −10%. 징병하면 신병(훈련도 <b>25</b>)이 섮여 <b>병력 비례로 훈련도가 내려가니</b>, 뽑은 뒤에는 [병영 → 훈련]으로 되돌리세요.</p></div>
+        <div class="help-item"><b>본진과 사기</b><p>본진을 밟으면 그 자리에서 <b>1회</b> 점령됩니다 — 점령한 쪽 전군 <b>사기 +25</b>(상한 110), 빼앗긴 쪽 전군 <b>사기 −25</b>(하한 0). 사기 80이 100%이고 20 이하로 떨어지면 그 자리에서 붕괴하니, 본진을 먼저 밟아 상대 사기를 꺾은 뒤 미는 길이 가장 쌈니다. 점령된 본진에는 점령한 진영 색 깃발과 <b>[점령]</b> 표시가 남고, 그 뒤로는 다시 뒤집히지 않습니다.</p></div>
         <div class="help-item"><b>승리</b><p>본진 점령만으로는 전투가 끝나지 않습니다 — 적을 모두 쓰러뜨리면 성을 차지합니다. 본진을 먼저 밟아 사기를 꺾은 뒤 마무리하는 길도 있습니다. 성문·다리·숲의 지형 보정을 활용하세요.</p></div>
       </div>`,
       actions: [{ label: '알겠다', primary: true }],
