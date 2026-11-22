@@ -1,0 +1,6 @@
+/* v5.50 — 안드로이드 크롬 '앱 설치'(standalone 전체화면) 요건용 통과 서비스 워커.
+   캐시를 전혀 하지 않는다(fetch 리스너가 그냥 돌려보냄) → 열 때마다 서버의 최신판을 받는다.
+   ※ 아래 fetch 리스너가 있어야 크롬이 WebAPK 설치(주소창 없는 앱)를 내어 준다. */
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', () => {});

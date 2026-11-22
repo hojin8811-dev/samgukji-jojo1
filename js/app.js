@@ -3270,9 +3270,12 @@
           <em>관리 ▸</em>
         </button>`;
       }).join('');
-      m.el.querySelector('#rs-body').innerHTML = `<div class="rs-inv"><b>보관 중인 보물 ${inv.length}점</b>
-          <span>${inv.slice(0, 8).map((t) => `<i style="--gc:${SK.GRADE_COLOR[t.grade]}">${t.name}</i>`).join('') || '없음'}</span></div>
+      m.el.querySelector('#rs-body').innerHTML = `<div class="rs-inv"><b>보관 중인 보물 ${inv.length}점 <em>칩을 누르면 자세히</em></b>
+          <span>${inv.map((t) => `<button type="button" class="rs-inv-chip" data-tid="${t.id}" style="--gc:${SK.GRADE_COLOR[t.grade]}">${t.name}</button>`).join('') || '없음'}</span></div>
         <div class="rs-items">${rowsHtml}</div>`;
+      m.el.querySelectorAll('.rs-inv-chip').forEach((b) => {
+        b.onclick = () => openStoredTreasure(b.dataset.tid);
+      });
       m.el.querySelectorAll('.rs-item').forEach((b) => {
         b.onclick = () => {
           const h = SK.state.heroes.find((x) => x.uid === b.dataset.uid);
@@ -8301,6 +8304,36 @@
   }
 
 
+  /* v5.50 — 보관 중인 보물 한 점 상세 (장수 명부 → 보물 → '보관 중인 보물' 칩을 누를 때).
+     등급·부위·능력치 보너스·특수 효과를 한 화면에 보여 주고 [확인]으로 닫는다. */
+  function openStoredTreasure(tid) {
+    const t = SK.TREASURE_BY_ID[tid];
+    if (!t) return;
+    const slot = SK.SLOT_NAMES[SK.treasureSlot(t)] || t.type || '보조';
+    const st = SK.treasureStats(t) || {};
+    const statMap = [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['charm', '매력'], ['politics', '정치'], ['move', '이동'], ['rng', '사거리']];
+    const stats = statMap.filter(([k]) => st[k]).map(([k, n]) => `${n} ${st[k] > 0 ? '+' : ''}${st[k]}`);
+    const gc = SK.GRADE_COLOR[t.grade] || '#8a6a2a';
+    const holders = ((SK.state && SK.state.heroes) || [])
+      .filter((h) => Object.values(h.equip || {}).includes(t.id)).map((h) => h.name);
+    SK.modal({
+      kicker: `보관 중인 보물 · ${t.grade}`, title: t.name,
+      body: `<div class="tr-det">
+        <div class="tr-det-top">
+          <span class="tr-gd" style="--gc:${gc}">${t.grade}</span>
+          <b>${t.type || slot}</b><em>${slot} 슬롯</em>
+        </div>
+        ${stats.length ? `<p class="tr-det-stat">${stats.join(' · ')}</p>` : '<p class="tr-det-stat none">능력치 보너스 없음</p>'}
+        <p class="tr-det-effect">${t.effect || '특수 효과 없음'}</p>
+        <p class="tr-det-hint">${holders.length
+          ? `${holders.join(' · ')} 님이 장착 중입니다.`
+          : `지금은 보물고에 있습니다. [장수 명부 → 장수 → 관리]에서 같은 부위(${slot})와 바꿔 장착할 수 있습니다.`}</p>
+      </div>`,
+      actions: [{ label: '확인', primary: true }],
+    });
+  }
+  SK.openStoredTreasure = openStoredTreasure;
+
   function openCodexGen(gid) {
     const g = SK.GEN_BY_ID[gid];
     if (!g) return;
@@ -8553,23 +8586,39 @@
     return hit ? hit[1] : null;
   }
 
-  /* 위임 성 태수 자동 증축 — 경험이 찬 시설 하나를 금이 넉넉할 때 올린다 */
-  const AUTO_UPGRADE_RESERVE = 400;
-  function pickAutoUpgrade(cs, s) {
+  /* 위임 성 태수 자동 증축 — 경험이 찬 시설을 금이 닿는 만큼 올린다.
+     v5.50 — 예전에는 남기는 금을 400으로 크게 잡아, 금 1,014가 있어도 Lv.1→2(350)조차
+     올리지 못하는 일이 있었다(사용자 제보: '영안' 6칸이 다 준비됐는데 방치).
+     남기는 금은 100으로 낮추고, 수입이 큰 시설(시장·병원·병영·순활소…)부터
+     한 달에 최대 2칸까지 올린다. */
+  const AUTO_UPGRADE_RESERVE = 100;
+  const AUTO_UPGRADE_MAX = 2;
+  const AUTO_UP_PRIORITY = { market: 0, farm: 1, barracks: 2, patrol: 3, training: 4, wall: 5, tavern: 6, lab: 7 };
+  function pickAutoUpgrade(cs, s, used) {
     if (!cs || !Array.isArray(cs.slots)) return null;
     let best = null;
     cs.slots.forEach((sl) => {
       if (!sl.key || sl.lv >= 5) return;
+      if (used && used.indexOf(sl) >= 0) return;
       if ((sl.exp || 0) < slotExpNeed(sl.lv)) return;
       const cost = buildCost(sl);
       if (s.gold - cost < AUTO_UPGRADE_RESERVE) return;
+      const pri = AUTO_UP_PRIORITY[sl.key] != null ? AUTO_UP_PRIORITY[sl.key] : 8;
       const r = (sl.exp || 0) / slotExpNeed(sl.lv) + sl.lv * 0.01;
-      if (!best || r > best.r) best = { sl, cost, r, name: (SLOT_DEFS[sl.key] || {}).name || sl.key };
+      if (!best || pri < best.pri || (pri === best.pri && r > best.r)) {
+        best = { sl, cost, r, pri, name: (SLOT_DEFS[sl.key] || {}).name || sl.key };
+      }
     });
     return best;
   }
 
-  /* 태수 자동 내정 — 본성과 태수가 없는 성은 움직이지 않는다 */
+  /* v5.50 — 위임 거점 보고에 쓰는 행동 이름 (CMDS의 짧은 이름 대신 화면에 익숙한 말로) */
+  const AUTO_ACT_NAME = { farm: '개간', trade: '상업', recruit: '징병', train: '훈련', repair: '성벽 보수', comfort: '백성 위로', supply: '수송', upgrade: '증축' };
+
+  /* 태수 자동 내정 — 본성과 태수가 없는 성은 움직이지 않는다.
+     v5.50 — 이번 달에 태수가 실제로 한 일(또는 아무 일도 못 한 이유)을 한 일마다
+     이름·수치로 남겨 월정산 '위임 거점 보고'에 그대로 넘긴다. 한 일이 없는 성도
+     한 줄 남겨서 '보고가 빠진 것처럼' 보이지 않게 한다. */
   function runAutoDomestic(s) {
     const out = [];
     SK.CITY_LIST.forEach((c) => {
@@ -8580,34 +8629,60 @@
       const gov = officerOf(c.id, 'gov');
       if (!gov) return;
       s.purseCity = c.id;          // v5.11 — 이 성 금고로 내정한다
+      const pol = policyOf(cs);
       const acts = [];
       const done = {};
+      let idle = null;
       let guard = 0;
       while (guard++ < 8) {
         const actor = cityGens(c.id).find((g) => !g.actedThisMonth);
-        if (!actor) break;
+        if (!actor) { idle = '일할 장수가 남지 않았습니다'; break; }
         const key = chooseAutoAction(c.id, done);
-        if (!key) break;
+        if (!key) {
+          idle = (s.gold < 200) ? '군자금 200 미만이라 아껴 두었습니다' : '지금 시킬 내정이 없습니다';
+          break;
+        }
+        const name = AUTO_ACT_NAME[key] || (CMDS[key] && CMDS[key].name) || '내정';
+        /* 칩에 '상업 상업 +6'처럼 같은 말이 두 번 찍히지 않게 다듬는다 */
+        const tidy = (txt, nm) => {
+          let t = String(txt || '').trim();
+          ['성벽', '훈련도'].forEach((w) => { if (t.indexOf(w + ' ') === 0) t = t.slice(w.length).trim(); });
+          if (nm && t.indexOf(nm + ' ') === 0) t = t.slice(nm.length).trim();
+          return t || String(txt || '');
+        };
+        /* v5.50 — 한 일의 곁들임 수치도 칩에 붙인다 (개간=군량, 상업=금, 징병=민심 −)
+           그래야 보고와 달마다 실제 변화가 어꺻나지 않는다 */
+        const extraOf = (msg, keys) => {
+          const tail = String(msg || '').split('—')[1] || '';
+          const segs = tail.split(/\s*,\s*|\s*·\s*/).map((x) => x.trim()).filter(Boolean);
+          const hit = segs.find((x) => keys.some((k) => x.indexOf(k) === 0));
+          return hit ? hit.replace(/\s*-\s*/g, ' −') : '';
+        };
         let res;
         if (key === 'comfort') {
           res = comfortCity(c.id, gov);
-          if (!res.ok) break;
+          if (!res.ok) { idle = '금이 모자라 백성 위로를 못 했습니다'; break; }
           res.exp = 6;
           res.short = `민심 +${res.gain}`;
         } else {
           res = CMDS[key].run(c.id, actor);
           if (res && res.short == null) res.short = res.hot || CMDS[key].name;
         }
-        if (!res || res.pending) break;
+        if (!res) { idle = '금·군량이 모자라 다음 내정을 못 했습니다'; break; }
+        if (res.pending) break;
         done[key] = (done[key] || 0) + 1;
         actor.actedThisMonth = true;
         if (res.exp) SK.gainExp(actor, res.exp);
-        acts.push({ key, short: res.short });
+        let shortTxt = tidy(res.short, name);
+        const extraKeys = { farm: ['군량'], trade: ['금'], recruit: ['민심'] }[key];
+        if (extraKeys) { const ex = extraOf(res.msg, extraKeys); if (ex) shortTxt += ` · ${ex}`; }
+        acts.push({ key, name, short: shortTxt });
       }
       /* v5.7 — 수송 중시: 남는 병력을 지정한 성으로 매달 보낸다 */
-      if (policyOf(cs) === 'supply') {
+      if (pol === 'supply') {
         const to = cs.supplyTo;
         const dst = to && s.cities[to];
+        let sent = false;
         if (dst && dst.owner === PF() && to !== c.id) {
           /* v5.40 — 수송 중시: 남기는 병력 45% → 40% (더 많이 보낸다) */
           const keep = Math.max(700, Math.floor(cityCap(cs) * 0.40));
@@ -8617,26 +8692,61 @@
           if (send >= 300) {
             cs.troops = Math.max(0, cs.troops - send);
             dst.troops += send;
-            acts.push({ key: 'supply', short: `${CITY[to].name} 병력 +${fmt(send)} 수송` });
+            sent = true;
+            acts.push({ key: 'supply', name: '수송', short: `${CITY[to].name} 병력 +${fmt(send)}` });
           }
         }
+        if (!sent && !acts.length && !idle) idle = '보낼 잉여 병력이 없습니다';
       }
-      /* v5.7 — 태수가 스스로 증축 (한 달에 한 곳) */
-      const up = pickAutoUpgrade(cs, s);
-      if (up) {
+      /* v5.7 — 태수가 스스로 증축 (v5.50 한 달에 최대 2칸, 준비된 시설부터) */
+      const upUsed = [];
+      for (let u = 0; u < AUTO_UPGRADE_MAX; u++) {
+        const up = pickAutoUpgrade(cs, s, upUsed);
+        if (!up) break;
+        const from = up.sl.lv, to = from + 1;
         s.gold -= up.cost;
-        up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(up.sl.lv));
-        up.sl.lv += 1;
-        acts.push({ key: 'upgrade', short: `${up.name} Lv.${up.sl.lv} 증축 (금 −${fmt(up.cost)})` });
+        up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(from));
+        up.sl.lv = to;
+        upUsed.push(up.sl);
+        acts.push({ key: 'upgrade', name: '증축', short: `${up.name} Lv.${from}→${to} · 금 −${fmt(up.cost)}` });
       }
-      if (acts.length) {
-        SK.gainExp(gov, 8 * acts.length);
-        out.push({ city: CITY[c.id].name, gov: gov.name, acts });
-      }
+      if (!acts.length && !idle && cs.slots && cs.slots.some((sl) => sl.key && sl.lv < 5 && (sl.exp || 0) >= slotExpNeed(sl.lv)))
+        idle = '증축할 금이 모자랍니다';
+      if (acts.length) SK.gainExp(gov, 8 * acts.length);
+      out.push({
+        city: CITY[c.id].name, cityId: c.id, gov: gov.name, govUid: gov.uid,
+        policy: POLICIES[pol].name, policyKey: pol, acts, idle,
+      });
     });
     return out;
   }
   SK.runAutoDomestic = runAutoDomestic;
+
+  /* v5.50 — 월정산 '위임 거점 보고'.
+     태수가 앉은 성마다 성 이름 · 태수 · 방침을 머리에 두고, 이번 달에 실제로 한 일을
+     작은 칩으로 늘어놓는다. 성이 많으면 4곳까지 펼치고 나머지는 접어 둔다
+     (스크롤을 잡아먹지 않으면서도 보고가 빠진 성이 없게). */
+  function govReportHtml(rows) {
+    if (!rows || !rows.length) return '';
+    const acted = rows.filter((r) => r.acts.length);
+    const idle = rows.filter((r) => !r.acts.length);
+    const order = acted.concat(idle);   // 일한 성을 먼저, 대기한 성을 뒤에
+    const LIMIT = 4;
+    const rowHtml = (r) => `<div class="mgc${r.acts.length ? '' : ' idle'}">
+        <div class="mgc-head"><b>${r.city}</b><span>${r.gov}</span><i class="mgc-pol">${r.policy}</i></div>
+        <div class="mgc-acts">${r.acts.length
+          ? r.acts.map((a) => `<span class="mgc-chip"><i>${a.name}</i>${a.short}</span>`).join('')
+          : `<span class="mgc-chip rest">대기 — ${r.idle || '한 일이 없습니다'}</span>`}</div>
+      </div>`;
+    const shown = order.slice(0, LIMIT).map(rowHtml).join('');
+    const folded = order.slice(LIMIT).map(rowHtml).join('');
+    return `<div class="mr-auto mr-gov">
+        <p class="mr-auto-title">위임 거점 보고 <em>태수 ${rows.length}곳 · 활동 ${acted.length}곳</em></p>
+        ${shown}
+        ${folded ? `<details class="mgc-more"><summary>${order.length - LIMIT}곳 더 보기</summary>${folded}</details>` : ''}
+      </div>`;
+  }
+  SK.govReportHtml = govReportHtml;
 
   /* v5.11 — 성이 많아져도 피로하지 않게: 굶주리거나 금고가 빈 성은
      길로 이어진 여유 있는 내 성이 스스로 보급 수송한다 (태수 위임 공통 규칙). */
@@ -11392,6 +11502,7 @@
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
+        ${govReportHtml(autoLog)}
         <div class="mr-sec"><span>금</span><em>세수 · 녹봉 − 봉급</em></div>
         <div class="mr-row"><span>도시 세수</span><b class="plus">금 +${fmt(tax)}</b></div>
         ${marketGold ? `<div class="mr-row"><span>시장 · 공방</span><b class="plus">금 +${fmt(marketGold)}</b></div>` : ''}
@@ -11430,10 +11541,6 @@
           <div class="mr-auto-row"><b>${gmVisit.city}</b><span>먼 길을 걸어온 대상인이 2개월 머뭅니다 — 군량 특가 · 보물 판매</span></div></div>` : ''}
         ${unrest ? `<div class="mr-row"><span>민심 흔들리는 성</span><b class="minus">${unrest}곳</b></div>` : ''}
         <div class="mr-row"><span>명성</span><b>+3</b></div>
-        ${autoLog.length ? `<div class="mr-auto">
-          <p class="mr-auto-title">태수 내정 보고</p>
-          ${autoLog.map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.gov}</b><span>${l.acts.map((a) => a.short).join(' · ')}</span></div>`).join('')}
-        </div>` : ''}
         ${crewLog.length ? `<div class="mr-auto"><p class="mr-auto-title">연병장 수련</p>
           ${crewLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.name}</b><span>EXP +${l.gain}</span></div>`).join('')}${crewLog.length > 6 ? `<p class="mr-note">${crewLog.length - 6}명 더 수련했습니다.</p>` : ''}</div>` : ''}
         ${aiNews.length ? `<div class="mr-ai"><p class="mr-ai-title">천하 소식 — 다른 세력의 움직임</p>

@@ -9,10 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=66" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=67" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=66" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=66" />
+<link rel="stylesheet" href="css/game.css?v=67" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=67" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -237,12 +237,12 @@
       <div class="city-lord"><img id="city-lord-img" src="assets/portraits/v2/caocao.webp" alt="" /></div>
       <div class="city-title-wrap">
         <div class="ct-line1">
-          <span class="faction-tag" id="city-faction">위</span>
           <button id="btn-city-prev" class="city-step" type="button" aria-label="이전 성">◀</button>
           <h2 id="city-name" title="보유 거점 고르기">허창</h2>
           <button id="btn-city-go" class="city-step" type="button" aria-label="다음 성">▶</button>
         </div>
         <div class="ct-line2">
+          <span class="faction-tag" id="city-faction">위</span>
           <span id="city-hanja">대도시</span>
           <span id="city-level" class="city-level">Lv.1</span>
           <span id="city-rank" class="rank-chip sm">현령</span>
@@ -414,15 +414,22 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=66"></script>
-<script src="js/mapmask.js?v=66"></script>
-<script src="js/city_geo.js?v=66"></script>
-<script src="js/data.js?v=66"></script>
-<script src="js/bgm.js?v=66"></script>
-<script src="js/sfx.js?v=66"></script>
-<script src="js/app.js?v=66"></script>
-<script src="js/map.js?v=66"></script>
-<script src="js/battle.js?v=66"></script>
-<script src="js/backguard.js?v=66"></script>
+<script src="js/mapgeo.js?v=67"></script>
+<script src="js/mapmask.js?v=67"></script>
+<script src="js/city_geo.js?v=67"></script>
+<script src="js/data.js?v=67"></script>
+<script src="js/bgm.js?v=67"></script>
+<script src="js/sfx.js?v=67"></script>
+<script src="js/app.js?v=67"></script>
+<script src="js/map.js?v=67"></script>
+<script src="js/battle.js?v=67"></script>
+<script src="js/backguard.js?v=67"></script>
+<script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js?v=67').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+    });
+  }
+</script>
 </body>
 </html>

@@ -22,6 +22,9 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #26200f; }
+/* v5.50 — 삼성 인터넷·안드로이드 크롬의 글자 자동 확대(auto text inflate)가
+   고정 폭 머리줄(성 이름·◀▶)을 밀어내 "영.."으로 자르던 문제를 막는다 */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; }
 #app { position: fixed; inset: 0; overflow: hidden; height: 100dvh; }
 /* dvh 를 모르는 브라우저는 inset:0 그대로 — 아래 height 선언이 무시된다 */
@@ -436,13 +439,16 @@ b { font-weight: 700; }
 .city-lord img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
 .city-title-wrap { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ct-line1, .ct-line2 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ct-line1 { gap: 3px; overflow: visible; }
 .ct-line2 { flex-wrap: wrap; row-gap: 2px; }
 .ct-line1 > *, .ct-line2 > * { flex: 0 0 auto; }
 .city-title-wrap h2 { margin: 0; font-family: var(--serif); font-size: 19px; letter-spacing: 0.01em; color: #2c2412; white-space: nowrap; cursor: pointer; }
+/* v5.50 — 2~4자 성 이름이 '영..'으로 잘리지 않게: 이름은 줄지 않고, 앞뒤 ◀▶만 작게 */
+@media (max-width: 380px) { .city-title-wrap h2 { font-size: 17px; } }
 .city-title-wrap h2:active { color: #8a5f2a; }
 /* v5.7 — 성 화면 안에서 내 거점을 ◀ ▶ 로 넘긴다 */
 .city-step {
-  width: 22px; height: 22px; flex: 0 0 22px; padding: 0; display: grid; place-items: center;
+  width: 20px; height: 20px; flex: 0 0 20px; padding: 0; display: grid; place-items: center;
   border-radius: 6px; border: 1px solid #c3a568; background: #f7e9ca; color: #7a5f24;
   font-size: 9px; line-height: 1; box-shadow: 0 1px 2px rgba(90, 70, 30, 0.18);
 }
@@ -474,9 +480,9 @@ b { font-weight: 700; }
 /* v5.18 — 성 이름 옆 '대도시 · 3중 성벽' 배지가 우측 금/군량 숫자와 붙지 않게:
    제목 줄은 넘칠 때 배지를 줄이고(줄임표), 배지와 자원 열 사이에 숨 쉴 틈을 둔다 */
 .city-title-wrap { min-width: 0; }
-.ct-line1 { min-width: 0; overflow: hidden; }
+.ct-line1 { min-width: 0; overflow: visible; }
 .ct-line1 #city-hanja { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 92px; margin-left: 2px; }
-.ct-line1 #city-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ct-line1 #city-name, .city-title-wrap #city-name { flex: 0 0 auto; min-width: 0; overflow: visible; text-overflow: clip; }
 .city-top .city-res { padding-left: 4px; }
 .faction-tag {
   align-self: center; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
@@ -1362,6 +1368,28 @@ b { font-weight: 700; }
 .mr-auto-row { display: flex; gap: 6px; align-items: baseline; font-size: 10px; color: #4a3d20; }
 .mr-auto-row b { flex: 0 0 auto; font-size: 10px; color: #2f4728; }
 .mr-auto-row span { flex: 1; min-width: 0; font-size: 9.5px; color: #5c6b46; }
+/* v5.50 — 월정산 '위임 거점 보고': 태수가 앉은 성마다 이번 달에 한 일 */
+.mr-gov { gap: 4px; border-color: #9fbb84; background: linear-gradient(100deg, #f7fbef, #e7f1d4); }
+.mr-gov .mr-auto-title { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.mr-gov .mr-auto-title em { font-style: normal; font-size: 8.5px; font-weight: 700; letter-spacing: 0; color: #6f8557; }
+.mgc { padding: 5px 7px; border-radius: 8px; border: 1px solid #d2dfba; background: rgba(255, 253, 246, 0.85); }
+.mgc.idle { border-style: dashed; border-color: #ddd2b8; background: rgba(253, 250, 241, 0.7); }
+.mgc-head { display: flex; align-items: baseline; gap: 5px; }
+.mgc-head b { font-family: var(--serif); font-size: 11.5px; font-weight: 800; color: #2f4728; }
+.mgc-head span { font-size: 9.5px; color: #5c6b46; }
+.mgc-pol { margin-left: auto; flex: 0 0 auto; font-style: normal; font-size: 8.5px; font-weight: 800; color: #7b6538;
+  padding: 1px 5px; border-radius: 6px; background: #f5ecd4; border: 1px solid #ddc9a0; }
+.mgc-acts { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.mgc-chip { display: inline-flex; align-items: baseline; gap: 3px; font-size: 9px; line-height: 1.3; color: #4a3d20;
+  padding: 2px 5px; border-radius: 6px; background: #eef4e0; border: 1px solid #cfdcb4; }
+.mgc-chip i { font-style: normal; font-weight: 800; color: #3f6b34; }
+.mgc-chip.rest { background: transparent; border-style: dashed; border-color: #ddd2b8; color: #8a7448; }
+.mgc-more { margin-top: 1px; }
+.mgc-more summary { font-size: 9px; font-weight: 700; color: #6b5830; cursor: pointer; padding: 2px 1px; list-style: none; }
+.mgc-more summary::-webkit-details-marker { display: none; }
+.mgc-more summary::before { content: '▸ '; }
+.mgc-more[open] summary::before { content: '▾ '; }
+.mgc-more[open] { display: flex; flex-direction: column; gap: 4px; }
 .menu-list button:disabled { opacity: 0.45; }
 .menu-list button.primary { border-color: #47673c; background: #f2f7e6; color: #2f4728; box-shadow: inset 0 0 0 1px #8fae7a; }
 
@@ -1460,6 +1488,23 @@ b { font-weight: 700; }
 .rs-inv b { font-size: 10.5px; color: #5a4415; }
 .rs-inv span { display: flex; flex-wrap: wrap; gap: 4px; font-size: 8.5px; color: #8a7448; }
 .rs-inv i { font-style: normal; font-weight: 700; color: var(--gc, #6b5830); border: 1px solid var(--gc, #c3a568); border-radius: 10px; padding: 1px 6px; background: #fffaf0; }
+/* v5.50 — '보관 중인 보물' 칩을 누르면 상세 창 */
+.rs-inv b em { font-style: normal; font-size: 8.5px; font-weight: 600; color: #8a7448; margin-left: 4px; }
+.rs-inv-chip { font-family: inherit; font-size: 9.5px; font-weight: 700; line-height: 1.35; color: var(--gc, #6b5830);
+  border: 1px solid var(--gc, #c3a568); border-radius: 11px; padding: 3px 8px; min-height: 22px; background: #fffaf0; cursor: pointer; }
+.rs-inv-chip:active { background: #f6e8c8; transform: scale(0.97); }
+.tr-det { display: flex; flex-direction: column; gap: 7px; }
+.tr-det-top { display: flex; align-items: baseline; gap: 6px; }
+.tr-gd { font-size: 9px; font-weight: 900; letter-spacing: 0.04em; color: #fffaf0; background: var(--gc, #8a6a2a);
+  border-radius: 7px; padding: 2px 7px; }
+.tr-det-top b { font-family: var(--serif); font-size: 13px; color: #3a2d15; }
+.tr-det-top em { font-style: normal; margin-left: auto; font-size: 9px; font-weight: 800; color: #7b6538;
+  background: #f5ecd4; border: 1px solid #ddc9a0; border-radius: 7px; padding: 1px 6px; }
+.tr-det-stat { margin: 0; padding: 7px 9px; border-radius: 8px; background: #f2f7e6; border: 1px solid #cfdcb4;
+  font-family: var(--serif); font-size: 13px; font-weight: 800; color: #2f4728; }
+.tr-det-stat.none { font-family: var(--sans); font-size: 10px; font-weight: 600; color: #7b6538; background: #faf6ea; border-color: #e0d4b6; }
+.tr-det-effect { margin: 0; font-size: 11px; line-height: 1.55; color: #4a3d20; }
+.tr-det-hint { margin: 0; font-size: 9px; line-height: 1.5; color: #8a7448; }
 .rs-items { display: flex; flex-direction: column; gap: 4px; max-height: 42vh; overflow-y: auto; }
 .rs-item { display: flex; align-items: center; gap: 7px; border: 1px solid #dcc9a0; border-radius: 9px; background: rgba(255, 252, 244, 0.76); padding: 5px 8px; text-align: left; }
 .rs-item img { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; object-position: 50% 18%; border: 1px solid #c3a568; }
