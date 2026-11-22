@@ -4575,7 +4575,7 @@
         }
         if (sl.key === 'market') { gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul * goldM * obProdM); if (g) comm += statGrowOf(sl, g); if (dep) comm += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
         else if (sl.key === 'farm') { food += Math.round(ECON.farmTrickle * lv * mul * econMul(c) * foodM * obProdM); if (g) agri += statGrowOf(sl, g); if (dep) agri += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
-        else if (sl.key === 'barracks') troops += Math.round((70 + lv * 50) * mul * recM * obProdM * obTrainM);
+        else if (sl.key === 'barracks') troops += Math.round((140 + lv * 100) * mul * recM * obProdM * obTrainM);   /* v5.57 — 병영 징병량 2배(Lv.1 240 · Lv.5 640) */
         else if (sl.key === 'training') { train += 0.5 * lv * mul * trnM; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
         else if (sl.key === 'patrol') { order += 1.1 * lv * mul * obPatrolM; loyalty += 0.25 * lv * mul; }
         else if (sl.key === 'wall') def += 0.6 * lv * mul * wallM;
