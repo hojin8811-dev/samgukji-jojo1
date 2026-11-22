@@ -55,9 +55,19 @@
   const MP_SCALE = 0.5, MP_FLOOR = 12;
   function maxMpBase(base) { return Math.max(MP_FLOOR, Math.round((Number(base) || 0) * MP_SCALE)); }
   SK.maxMpBase = maxMpBase;
-  /* v5.10 — 전투 배속: ×1이면 전장의 모든 대기·연출이 2배 느려지고 ×2면 예전 그대로.
-     수동 조작 중(autoOn=false)에는 아무 영향이 없다. */
-  function paceMs(ms) { return autoOn ? Math.round((Number(ms) || 0) * (2 / autoSpeed) * (autoSpeed >= 4 ? 0.85 : 1)) : (Number(ms) || 0); }
+  /* v5.10 — 전투 배속(처음엔 자동전투에만 걸었다).
+     v5.51 — 수동 전투에도 실제로 걸린다. 예전 paceMs는 autoOn일 때만 계산해서
+     수동 조작 중(적군 페이즈 포함)에 ×2·×3·×4를 눌러도 아무것도 빨라지지 않았고,
+     autoOn일 때도 `2 / 배속`이라 ×1이 0.5배속·×2가 1.0배속이었다.
+     이제 ×1=그대로 · ×2=÷2 · ×3=÷3 · ×4=÷4.
+     너무 짧아져 연출이 사라지거나 턴 처리가 겹치지 않게 하한만 둔다(×2 16ms · ×3 12ms · ×4 8ms). */
+  function paceMs(ms) {
+    const n = Math.round(Number(ms) || 0);
+    const sp = autoSpeed || 1;
+    if (sp <= 1 || n <= 0) return n;
+    const floor = sp >= 4 ? 8 : (sp === 3 ? 12 : 16);
+    return Math.max(floor, Math.round(n / sp));
+  }
   function wait(fn, ms) { return setTimeout(fn, paceMs(ms)); }
   SK.battlePace = paceMs;
   const anims = [];            // 타일 단위 이동 · 돌격 애니메이션
@@ -376,6 +386,12 @@
     fx.length = 0;
     floats.length = 0;
     shakeT = 0;
+    /* v5.51 — 새 전장을 열 때 연출 잠금을 푼다. 예전엔 앞 전투의 애니메이션이
+       도중에 끊기면(anims만 비우고 done을 부르지 않음) busy가 true로 남아
+       다음 전투에서 아무것도 누를 수 없게 됐다 — [자동]도 이 플래그에 막혀 멈춘다. */
+    busy = false;
+    mode = 'idle';
+    autoOn = false;
     autoStop();
     autoPending = null;
     autoSpeed = speedPref || 1;   // v5.26 — 지난 전투에서 고른 배속을 이어 쓴다 (처음엔 ×1)
@@ -982,10 +998,15 @@
   function loop(t) {
     const dt = Math.min(60, t - lastT);
     lastT = t;
-    /* v5.10 — 자동전투 배속은 대기 간격만이 아니라 이동·타격 연출에도 걸린다.
-       ×1이면 전장 전체가 절반 속도로 흐르고, ×2면 예전 그대로다. */
-    const sdt = dt * timeScale * (autoOn ? 1 / autoSpeed : 1);
-    updateFx(sdt);
+    /* v5.10 — 전투 배속은 대기 간격만이 아니라 이동·타격 연출에도 걸린다.
+       v5.51 — 수동 전투에서도 똑같이 건다. 예전 식은 `dt / 배속`이라 배속을 올릴수록
+       애니메이션 시계가 **느려져** 걸음·돌진이 오히려 길어졌다(그래서 ×4가 ×1보다 느렸다).
+       이제 전장의 시계가 배속만큼 빨리 흐른다 — 보행·돌진·타격·이펙트·진동이 모두 ÷배속.
+       피해 숫자는 ×4에서도 읽히도록 배속을 2배까지만 적용한다(fdt). */
+    const spd = autoSpeed || 1;
+    const sdt = dt * timeScale * spd;
+    const fdt = dt * timeScale * Math.min(2, spd);
+    updateFx(sdt, fdt);
     updateAnims(sdt);
     updateUnits(sdt);
     updateBonds(sdt);
@@ -2591,7 +2612,7 @@
     floats.push({ x, y, text, color, life: 950, t: 0, back: !!(opts && opts.back) });
   }
 
-  function updateFx(dt) {
+  function updateFx(dt, fdt) {
     for (let i = fx.length - 1; i >= 0; i--) {
       const f = fx[i];
       f.t += dt;
@@ -2600,7 +2621,9 @@
         if (f.onEnd) { const cb = f.onEnd; f.onEnd = null; try { cb(); } catch (e) { console.error(e); } }
       }
     }
-    for (let i = floats.length - 1; i >= 0; i--) { floats[i].t += dt; if (floats[i].t > floats[i].life) floats.splice(i, 1); }
+    /* v5.51 — 피해 숫자(float)는 배속을 2배까지만 받는다 (×4에서도 470ms 남아 읽힌다) */
+    const fdtv = fdt == null ? dt : fdt;
+    for (let i = floats.length - 1; i >= 0; i--) { floats[i].t += fdtv; if (floats[i].t > floats[i].life) floats.splice(i, 1); }
   }
 
   function drawFx() {
@@ -2906,6 +2929,8 @@
     const done = opts.onDone || function () { };
     if (!path || !path.length) { done(); return; }
     u.rx = u.x; u.ry = u.y;
+    /* v5.51 — 보폭은 dt(프레임) 쪽에서 ÷배속되므로 여기서는 원래 ms를 그대로 넣는다.
+       (양쪽에 모두 나누면 서로 상쇄돼 연출이 빨라지지 않는다) */
     anims.push({ kind: 'walk', u, path, i: 0, t: 0, dur: opts.step || 105, cam: !!opts.cam, done });
   }
 
@@ -2914,8 +2939,31 @@
       const a = anims[k];
       a.t += dt;
       if (a.kind === 'walk') {
+        if (a.i >= a.path.length) { a.u.rx = a.u.x; a.u.ry = a.u.y; anims.splice(k, 1); a.done(); continue; }
+        /* v5.51 — 배속 ×3·×4에서는 한 프레임에 두 칸 이상 지나간다. 예전것은 프레임마다
+           1칸만 넘겨서, 프레임이 느린 기기·헤드리스에서 걸음이 배속을 못 따라갔다.
+           남은 시간(a.t)만큼 칸을 이어서 넘기고, 남은 시간은 버리지 않고 다음 칸에 쓴다. */
+        let stepped = 0;
+        while (a.t >= a.dur && a.i < a.path.length && stepped < 40) {
+          const s = a.path[a.i];
+          a.t -= a.dur;
+          a.u.x = s[0]; a.u.y = s[1];
+          a.u.rx = a.u.x; a.u.ry = a.u.y;
+          syncBoat(a.u);
+          a.i += 1; stepped += 1;
+        }
+        if (stepped) {
+          addFx({ kind: 'step', x: (a.u.x + 0.5) * TILE, y: (a.u.y + 0.95) * TILE, life: 300 });
+          SK.sfx.play('step');
+        }
+        if (a.i >= a.path.length) {
+          a.u.rx = a.u.x; a.u.ry = a.u.y;
+          anims.splice(k, 1);
+          addFx({ kind: 'dust', x: (a.u.x + 0.5) * TILE, y: (a.u.y + 0.9) * TILE, life: 430 });
+          a.done();
+          continue;
+        }
         const seg = a.path[a.i];
-        if (!seg) { a.u.rx = a.u.x; a.u.ry = a.u.y; anims.splice(k, 1); a.done(); continue; }
         const from = a.i === 0
           ? { x: a.path.length ? a.u.rx : a.u.x, y: a.path.length ? a.u.ry : a.u.y }
           : { x: a.path[a.i - 1][0], y: a.path[a.i - 1][1] };
@@ -2923,19 +2971,6 @@
         a.u.rx = from.x + (seg[0] - from.x) * p;
         a.u.ry = from.y + (seg[1] - from.y) * p;
         if (a.cam) followCam(a.u);
-        if (p >= 1) {
-          a.u.x = seg[0]; a.u.y = seg[1];
-          a.u.rx = a.u.x; a.u.ry = a.u.y;
-          syncBoat(a.u);
-          a.i += 1; a.t = 0;
-          addFx({ kind: 'step', x: (a.u.x + 0.5) * TILE, y: (a.u.y + 0.95) * TILE, life: 300 });
-          SK.sfx.play('step');
-          if (a.i >= a.path.length) {
-            anims.splice(k, 1);
-            addFx({ kind: 'dust', x: (a.u.x + 0.5) * TILE, y: (a.u.y + 0.9) * TILE, life: 430 });
-            a.done();
-          }
-        }
       } else if (a.kind === 'lunge') {
         const p = Math.min(1, a.t / a.dur);
         const swing = Math.sin(p * Math.PI);
@@ -3037,7 +3072,8 @@
     d.textContent = text;
     el.appendChild(d);
     requestAnimationFrame(() => d.classList.add('in'));
-    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, 3800);
+    /* v5.51 — 피드 글자는 배속이 높아도 읽을 수 있게 최소 1.2초는 남긴다 */
+    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, Math.max(1200, paceMs(3800)));
     while (el.children.length > 3) el.firstChild.remove();
   }
 
@@ -3085,7 +3121,7 @@
     el.textContent = text;
     el.className = 'battle-callout show ' + (kind || '');
     clearTimeout(calloutTimer);
-    calloutTimer = wait(() => el.classList.remove('show'), 1750);
+    calloutTimer = wait(() => el.classList.remove('show'), Math.max(700, paceMs(1750)));
   }
 
   function shakeScreen(amp) { shakeAmp = amp || 5; shakeT = 240; }
@@ -4119,7 +4155,7 @@
       done();
     };
     if (plan.x !== e.x || plan.y !== e.y) {
-      animatePath(e, findPath(e, plan.x, plan.y), { step: paceMs(88), onDone: () => wait(go, 150) });
+      animatePath(e, findPath(e, plan.x, plan.y), { step: 88, onDone: () => wait(go, 150) });
     } else go();
   }
 
@@ -5615,7 +5651,7 @@
         wait(() => { if (!B || B.over) { done(); return; } finishCheck(); done(); }, 760);
       };
       if (sup.x !== e.x || sup.y !== e.y) {
-        animatePath(e, findPath(e, sup.x, sup.y), { step: paceMs(88), onDone: () => wait(go, 150) });
+        animatePath(e, findPath(e, sup.x, sup.y), { step: 88, onDone: () => wait(go, 150) });
       } else go();
       return;
     }
@@ -5695,7 +5731,7 @@
       && (best.t.x !== e.x || best.t.y !== e.y)) moveTo = best.t;
     const finishMove = () => {
       const path = moveTo ? findPath(e, moveTo.x, moveTo.y) : [];
-      animatePath(e, path, { step: paceMs(88), onDone: () => {
+      animatePath(e, path, { step: 88, onDone: () => {
         wait(() => {
           if (!B || B.over) { done(); return; }
           const dist = manh(e.x, e.y, target.x, target.y);
