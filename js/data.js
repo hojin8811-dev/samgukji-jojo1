@@ -696,6 +696,10 @@ SK.TROOP_CAP = {
   base: { lord: 10000, named: 5000 },
   general: { lord: 10000, named: 5000 },
 };
+/* v5.41 — 출진 편성의 기본값을 한 곳에 둔다. 장수 상세 화면의 '출진 병력' 안내가
+   실제 편성 기본값(2,000 / 최소 1,000)과 달랐던 문제를 막는다. */
+SK.DEPLOY_MIN = 1000;
+SK.DEPLOY_BASE = 2000;
 /* v5.8 — 관직(교위 → 중랑장 → 진동·진서장군 → 대장군).
    군주 명성이 오르면 휘하 장수에게 내리고, 출진 병력 상한이 5,000 → 10,000까지 열린다.
    봉급은 조금 오르고(달마다 금 지출), 임명할 때 충성이 오른다. */
@@ -1209,18 +1213,41 @@ SK.EVENT_ALIASES = {
   '한산도': ['busan', 'tamna'], '노량': ['busan'], '진포': ['busan'], '계양': ['guiyang'],
   '장사': ['changsha'], '강동': ['jianye'], '성도': ['chengdu'], '천수': ['tianshui'],
 };
+/* v5.41 — 이벤트 트리거에 나오는 장수 이름 목록 (긴 이름부터 비교해 짧은 이름의 오탐을 줄인다) */
+let evGenNames = null;
+function eventGenNames() {
+  if (evGenNames) return evGenNames;
+  evGenNames = (SK.GENERALS || []).map((g) => g && g.name).filter((n) => n && n.length >= 2)
+    .sort((a, b) => b.length - a.length);
+  return evGenNames;
+}
+SK.eventGenNames = eventGenNames;
 SK.pickEvent = function (city, generals) {
   if (!SK.EVENTS.length) return null;
-  const gn = (generals || []).map((g) => g.name);
+  const defs = (generals || []).map((g) => g && g.name).filter(Boolean);
+  const mine = ((SK.state && SK.state.heroes) || []).map((h) => h.name).filter(Boolean);
+  const gnames = eventGenNames();
   let best = null, bestScore = 0;
   SK.EVENTS.forEach((ev) => {
     const text = (ev.title || '') + ' ' + (ev.trigger || '') + ' ' + (ev.dialogue || '');
+    /* 조건 판정은 제목·트리거만 본다 (대사에는 인물 이름이 흔히 등장한다) */
+    const cond = (ev.title || '') + ' ' + (ev.trigger || '');
     let score = 0;
     Object.keys(SK.EVENT_ALIASES).forEach((key) => {
       if (text.includes(key) && SK.EVENT_ALIASES[key].includes(city.id)) score += 3;
     });
     if (text.includes(city.name)) score += 4;
-    gn.forEach((n) => { if (n && text.includes(n)) score += 5; });
+    defs.forEach((n) => { if (n && text.includes(n)) score += 5; });
+    /* v5.41 — 트리거의 '조건'을 본다.
+       ① 제목·트리거에 나오는 장수가 우리 군에 있으면 이 이벤트는 적 장수 연출로 쓰지 않는다
+          (아군 양만춘이 '적 장수 / 안시성의 화살 양만춘'으로 나오던 모순)
+       ② 그 장수가 이 전투의 수비 장수가 아니면 성 이름만으로는 채택하지 않는다
+          (재야 안시성처럼 지휘하는 사람이 없는 곳에서 떠던 문제) */
+    const named = gnames.filter((n) => cond.includes(n));
+    if (named.length) {
+      if (named.some((n) => mine.indexOf(n) >= 0)) score = 0;
+      else if (!named.some((n) => defs.indexOf(n) >= 0)) score = Math.min(score, 2);
+    }
     if (score > bestScore) { bestScore = score; best = ev; }
   });
   return bestScore >= 3 ? best : null;
@@ -1231,6 +1258,7 @@ SK.GEN_BY_ID = {};
 SK.GEN_BY_NAME = {};
 SK.setGenerals = function (list) {
   SK.GENERALS = list || [];
+  evGenNames = null;   // v5.41 — 장수 목록이 바뀌면 이벤트 조건 이름 목록도 다시 만든다
   SK.GEN_BY_ID = {}; SK.GEN_BY_NAME = {};
   SK.GENERALS.forEach((g) => { SK.GEN_BY_ID[g.id] = g; SK.GEN_BY_NAME[g.name] = g; });
   SK.registerExtras();

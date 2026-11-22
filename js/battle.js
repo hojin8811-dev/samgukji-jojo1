@@ -791,13 +791,22 @@
       const a = B.units.filter((u) => u.side === 'ally');
       const cx = a.reduce((s2, u) => s2 + u.x, 0) / Math.max(1, a.length);
       const cy = a.reduce((s2, u) => s2 + u.y, 0) / Math.max(1, a.length);
-      /* v5.17 — 화면에 약 11칸이 들어오게 맞추고 아군 본진 쪽을 비춘다 */
       const base = (B.sites || []).find((s) => s.type === 'allyHQ');
-      const focus = base ? [base.x, base.y - 1] : [cx, cy];
-      cam.s = clamp(stage.clientWidth / (11 * TILE), 0.42, 0.8);
-      centerCam(focus[0], focus[1]);
+      /* v5.41 — 시작 시야에 모든 부대(아군 본진·적 1선 포함)를 담는다.
+         예전에는 아군 본진만 기준으로 11칸 폭을 맞춰, 적 1선(y=6~8)의 상반신과 HP 알약이
+         화면 위쪽에서 잘리고 지도를 끌어 올려야 적 편성이 보였다. */
+      const pts = (base ? [{ x: base.x, y: base.y }] : [{ x: cx, y: cy }])
+        .concat(B.units.filter((u) => u.alive !== false).map((u) => ({ x: u.x, y: u.y })));
+      const minX = Math.min.apply(null, pts.map((p) => p.x)) - 1;
+      const maxX = Math.max.apply(null, pts.map((p) => p.x)) + 1;
+      const minY = Math.min.apply(null, pts.map((p) => p.y)) - 1;
+      const maxY = Math.max.apply(null, pts.map((p) => p.y)) + 1;
+      const vw = stage.clientWidth, vh = stage.clientHeight * 0.94;
+      const fit = Math.min(vw / ((maxX - minX + 1) * TILE), vh / ((maxY - minY + 1) * TILE));
+      cam.s = clamp(Math.min(fit, 0.8), 0.42, 0.8);
+      centerCam((minX + maxX) / 2, (minY + maxY) / 2);
       /* v5.33 — 미니맵 확대를 기억한 채 전투가 열리면 본성이 미니맵 뒤에 서지 않게 비킨다 */
-      if (mmBig) shiftCamForMinimap(true);
+      if (mmBig && mmOpen) shiftCamForMinimap(true);
     }
     if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(loop); }
   }
@@ -1400,6 +1409,17 @@
       legend.style.display = (on && (tiny || mmBig)) ? 'flex' : 'none';
     };
     mmNote = note;
+    /* v5.41 — 390px 폰에서는 미니맵이 우측 상단 적 부대·HP를 덮었다('적 94…' 알약이 패널 뒤로).
+       좁은 화면(450px 미만)은 기본을 '접힘'으로 시작하고, 토글로 언제든 펼친다. */
+    const narrow = (window.innerWidth || document.documentElement.clientWidth || 390) < 450;
+    mmOpen = !narrow;
+    if (box) box.style.display = mmOpen ? '' : 'none';
+    if (tog) {
+      tog.textContent = mmOpen ? '◧' : '◨';
+      tog.setAttribute('aria-label', mmOpen ? '미니맵 접기' : '미니맵 펼치기');
+      tog.title = mmOpen ? '미니맵 접기' : '미니맵 펼치기';
+    }
+    if (stage) stage.classList.toggle('mm-collapsed', !mmOpen);
     try { mmSetBig(localStorage.getItem('jojo-mm-big') === '1', true); } catch (e) { /* ignore */ }
     if (tog && box) {
       tog.onclick = (e) => {
@@ -1408,6 +1428,9 @@
         box.style.display = mmOpen ? '' : 'none';
         tog.textContent = mmOpen ? '◧' : '◨';
         tog.setAttribute('aria-label', mmOpen ? '미니맵 접기' : '미니맵 펼치기');
+        tog.title = mmOpen ? '미니맵 접기' : '미니맵 펼치기';
+        if (stage) stage.classList.toggle('mm-collapsed', !mmOpen);
+        if (!mmOpen) { const lg = document.getElementById('mm-legend'); if (lg) lg.style.display = 'none'; }
       };
     }
     const size = document.getElementById('mm-size');

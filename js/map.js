@@ -988,7 +988,9 @@
     const { w, h } = viewSize();
     const sw = MAPW * cam.s, sh = MAPH * cam.s;
     cam.s = clamp(cam.s, minScale(), MAX_SCALE);
-    const padX = Math.min(90, w * 0.22), padY = Math.min(90, h * 0.22);
+    /* v5.41 — 예전에는 지도 밖으로 90px까지 밀 수 있어 화면 위쪽에 검은 띠가 남았다.
+       지도 끝은 화면 끝에 딱 맞춘다 (더 밀어낼 여백 없음). */
+    const padX = 0, padY = 0;
     if (sw <= w) cam.tx = (w - sw) / 2;
     else cam.tx = clamp(cam.tx, w - sw - padX, padX);
     if (sh <= h) cam.ty = (h - sh) / 2;
@@ -1631,6 +1633,12 @@
     img.onload = () => {
       bgImg = img;
       bgState = 'ready';
+      /* v5.41 — 지도 밖 여백에는 같은 그림을 흐리게 깔아 검은 띠 대신 지도가 이어진 것처럼 보이게 한다 */
+      const vpEl = vp || $('#world-viewport');
+      if (vpEl) {
+        vpEl.style.backgroundImage = `url("${url}")`;
+        vpEl.classList.add('has-bleed');
+      }
       if (!built) return;
       renderTerrain(renderScale || 1.25);
       renderFeatures(featScale || 1.25);

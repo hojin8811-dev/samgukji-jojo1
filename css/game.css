@@ -163,7 +163,17 @@ b { font-weight: 700; }
 .world-viewport {
   position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none;
   background: radial-gradient(ellipse at 50% 42%, #3a2f1c 0%, #241d10 62%, #171207 100%);
+  background-size: cover; background-position: center;
 }
+/* v5.41 — 지도 그림이 준비되면 지도 밖 여백을 같은 그림을 흡리게 이어 붙여 채운다.
+   (예전에는 90px짜리 검은 띠가 지도 위쪽에 그대로 보였다) */
+.world-viewport::before {
+  content: ''; position: absolute; inset: -28px; pointer-events: none; z-index: 0;
+  background-image: inherit; background-size: cover; background-position: center;
+  filter: blur(16px) brightness(0.82) saturate(0.92);
+  opacity: 0; transition: opacity 0.35s ease;
+}
+.world-viewport.has-bleed::before { opacity: 1; }
 .world-layer {
   position: absolute; left: 0; top: 0; width: 2000px; height: 1333px; transform-origin: 0 0;
   will-change: transform; backface-visibility: hidden;
@@ -3101,8 +3111,10 @@ b { font-weight: 700; }
 .slot-grid .sc-exp { display: block; height: 4px; margin: 3px 0 3px; border-radius: 3px; background: #e0cda6; overflow: hidden; }
 .slot-grid .sc-exp i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6f9a4a, #a8cf72); }
 .slot-grid .sc-exp.full i { background: linear-gradient(90deg, #d0a02a, #f2cf6a); }
-.sc-owner { display: flex; align-items: center; gap: 3px; font-size: 8px; color: #7d6739; min-width: 0; }
-.sc-owner em { font-size: 7.5px; color: #a3906a; }
+.sc-owner { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; font-size: 8px; color: #7d6739; min-width: 0; }
+.sc-owner em { min-width: 0; max-width: 100%; font-size: 7.5px; color: #a3906a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* v5.41 — 담당·부장·배속 배지가 한 줄에 몰려 '수입 50'처럼 잘리지 않게 줄바꿈을 허용한다 */
+.sc-owner .sc-dep, .sc-owner .sc-dep-empty, .sc-owner .sc-need, .sc-owner .sc-up { flex: 0 0 auto; }
 .sc-owner .sc-face { width: 12px; height: 12px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; border: 1px solid #c9a24e; }
 .sc-up { margin-left: auto; font-size: 7.5px; font-weight: 900; color: #8a5f1d; background: #f6e2b0; border: 1px solid #c9a24e; border-radius: 6px; padding: 0 3px; white-space: nowrap; }
 /* v5.40 — 배속 배지는 .sc-up과 같은 알약 모양. (규칙이 없어 '배/속'이 두 줄로 쪼개져 카드 밖으로 넘쳤다) */
@@ -3116,6 +3128,8 @@ b { font-weight: 700; }
 /* v5.40 — 공방 제작·성벽 방첩 배지·상세 창 */
 .sc-top .sc-craft { font-style: normal; font-size: 7px; font-weight: 900; color: #5f6f45; background: #eef2dc;
   border: 1px solid #b7c48e; border-radius: 5px; padding: 0 3px; white-space: nowrap; margin-left: 2px; }
+/* v5.41 — 첩보소가 살필 이웃 성이 없을 때 */
+.sc-top .sc-craft.warn { color: #8a3a2a; background: #f9e0d6; border-color: #d3a074; }
 .ws-craft { margin: 6px 0 2px; padding: 6px 8px; border-radius: 8px; background: rgba(246, 238, 218, 0.8);
   border: 1px dashed rgba(150, 120, 60, 0.45); }
 .wc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
@@ -3917,11 +3931,13 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .mm-legend i.ml-e { background: #ff5a3c; margin-left: 6px; }
 .mm-legend i.ml-w { background: none; border: 1.2px solid #ffe28c; margin-left: 6px; }
 .mm-toggle {
-  width: 22px; height: 22px; padding: 0; border-radius: 6px; line-height: 1;
-  font-size: 11px; font-weight: 900; color: #ffe9b8; cursor: pointer;
+  width: 26px; height: 26px; padding: 0; border-radius: 7px; line-height: 1;
+  font-size: 12px; font-weight: 900; color: #ffe9b8; cursor: pointer;
   background: rgba(36, 28, 14, 0.86); border: 1.5px solid rgba(226, 186, 92, 0.8);
   box-shadow: 0 1px 4px rgba(10, 8, 4, 0.5);
 }
+/* v5.41 — 좁은 화면은 미니맵이 접힌 채 시작한다 (우측 상단 적 부대·HP를 덮지 않게) */
+.battle-stage.mm-collapsed .battle-minimap { opacity: 0.94; }
 .mm-toggle:active { transform: scale(0.94); }
 /* 미니맵이 목표 띠와 겹치지 않게 목표 띠를 살짝 아래로 */
 .battle-objective { top: 42px; }
