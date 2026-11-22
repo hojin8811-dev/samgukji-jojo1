@@ -239,6 +239,11 @@ b { font-weight: 700; }
 .map-controls { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 12; }
 .map-controls .round-btn { width: 34px; height: 34px; font-size: 16px; background: rgba(38, 31, 18, 0.82); }
 .map-controls .round-btn.small { width: 27px; height: 27px; font-size: 12px; border-color: rgba(227, 189, 99, 0.5); }
+/* v5.40 — 수도로 버튼: 세력 글자 대신 성·깃발 아이콘 + 작은 세력 배지 */
+#go-capital { position: relative; display: grid; place-items: center; }
+#go-capital .cap-ic { width: 15px; height: 15px; display: block; }
+#go-capital .cap-mark { position: absolute; right: 0; bottom: -1px; font-size: 6.5px; font-style: normal; font-weight: 900;
+  line-height: 1; text-shadow: 0 0 2px rgba(20, 14, 4, 0.95), 0 0 2px rgba(20, 14, 4, 0.95); }
 /* v5.38 — 성 정보 시트가 열려 있는 동안에는 지도 조작·범례가 비켜 준다 (시트 버튼을 가리지 않게).
    `:has()`를 모르는 브라우저에서는 콤마 선택자가 통째로 무시되므로 규칙을 나눠 둔다 —
    JS가 달아 주는 `#screen-map.sheet-open`만으로도 동작한다. */
@@ -3098,7 +3103,32 @@ b { font-weight: 700; }
 .sc-owner { display: flex; align-items: center; gap: 3px; font-size: 8px; color: #7d6739; min-width: 0; }
 .sc-owner em { font-size: 7.5px; color: #a3906a; }
 .sc-owner .sc-face { width: 12px; height: 12px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; border: 1px solid #c9a24e; }
-.sc-up { margin-left: auto; font-size: 7.5px; font-weight: 900; color: #8a5f1d; background: #f6e2b0; border: 1px solid #c9a24e; border-radius: 6px; padding: 0 3px; }
+.sc-up { margin-left: auto; font-size: 7.5px; font-weight: 900; color: #8a5f1d; background: #f6e2b0; border: 1px solid #c9a24e; border-radius: 6px; padding: 0 3px; white-space: nowrap; }
+/* v5.40 — 배속 배지는 .sc-up과 같은 알약 모양. (규칙이 없어 '배/속'이 두 줄로 쪼개져 카드 밖으로 넘쳤다) */
+.sc-need { margin-left: auto; flex: 0 0 auto; font-size: 7.5px; font-weight: 900; color: #7a4f3a; background: #fbe6cf;
+  border: 1px solid #d3a074; border-radius: 6px; padding: 0 3px; white-space: nowrap; line-height: 1.35; }
+/* v5.40 — 250종의 갈래 칩 8개는 가로 스크롤 대신 두 줄로 접어 모두 보이게 */
+.cdx-filters > div.cdx-types { flex-wrap: wrap; overflow-x: visible; }
+/* v5.39에서 남아 있던 '담당이 빈 건물 N곳' 안내가 본문 크기로 커져 화면을 덮었다 */
+.slot-hint { margin: 2px 0 5px; font-size: 9.5px; line-height: 1.45; color: #8a6a2e; }
+.slot-hint b { font-size: inherit; color: #6f4f14; }
+/* v5.40 — 공방 제작·성벽 방첩 배지·상세 창 */
+.sc-top .sc-craft { font-style: normal; font-size: 7px; font-weight: 900; color: #5f6f45; background: #eef2dc;
+  border: 1px solid #b7c48e; border-radius: 5px; padding: 0 3px; white-space: nowrap; margin-left: 2px; }
+.ws-craft { margin: 6px 0 2px; padding: 6px 8px; border-radius: 8px; background: rgba(246, 238, 218, 0.8);
+  border: 1px dashed rgba(150, 120, 60, 0.45); }
+.wc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.wc-head b { font-size: 10px; color: #4a3a1a; }
+.wc-head span { font-size: 9px; font-weight: 900; color: #7a5a1c; }
+.wc-bar { height: 5px; border-radius: 3px; background: #d8c8a2; overflow: hidden; margin: 3px 0 2px; }
+.wc-bar i { display: block; height: 100%; background: linear-gradient(90deg, #c9a24e, #8f6f28); }
+.ws-craft p { margin: 2px 0 0; font-size: 8.5px; line-height: 1.4; color: #6d5a30; }
+/* v5.40 — 선택한 부대가 없을 때 하단 카드는 초상·수치를 남기지 않고 안내만 */
+.unit-card.empty .uc-portrait { display: none; }
+.unit-card.empty .uc-bars, .unit-card.empty .uc-meta, .unit-card.empty .uc-stats { display: none; }
+.unit-card.empty .uc-row { gap: 6px; }
+.unit-card.empty #uc-name { font-size: 12px; color: #6d5a30; }
+.unit-card.empty #uc-cls { font-size: 9.5px; color: #8a7448; }
 .slot-grid .slot-card.empty {
   border-style: dashed; border-color: #c9ae7c; align-items: center; justify-content: center; gap: 6px;
   background: rgba(252, 246, 232, 0.55); min-height: 62px;

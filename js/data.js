@@ -1376,9 +1376,11 @@ SK.genStats = function (g) {
 /* ───────────── 150 보물 ───────────── */
 SK.TREASURES = [];
 SK.TREASURE_BY_ID = {};
-SK.TREASURE_SLOTS = { '무기': 'weapon', '방어구': 'armor', '명마': 'horse', '병법서·보물': 'manual' };
+/* v5.40 — 250종. 새로 들어온 문물·비보·병법서는 모두 병법서 칸(manual)에 든다 */
+SK.TREASURE_SLOTS = { '무기': 'weapon', '방어구': 'armor', '명마': 'horse', '병법서·보물': 'manual',
+  '병법서': 'manual', '문물': 'manual', '비보': 'manual' };
 SK.SLOT_NAMES = { weapon: '무기', armor: '방어구', horse: '명마', manual: '병법서' };
-SK.GRADE_COLOR = { '전설': '#a8443a', '영웅': '#7a5aa8', '희귀': '#3f7a5a' };
+SK.GRADE_COLOR = { '전설': '#a8443a', '영웅': '#7a5aa8', '희귀': '#3f7a5a', '일반': '#8a7a5a' };
 SK.setTreasures = function (list) {
   SK.TREASURES = list || [];
   SK.TREASURE_BY_ID = {};
@@ -1490,7 +1492,9 @@ SK.TREASURE_FX_KEYS = ['atk', 'def', 'defWall', 'dmg', 'taken', 'magic', 'magicT
   'stunHit', 'fearHit', 'slowHit', 'disarm', 'statusRes', 'cleanse',
   'immuneFC', 'immunePoison', 'immuneDisarm',
   'pursuit', 'meleeTaken', 'gateDmg', 'rngPlus', 'lossCut', 'passive', 'radius', 'moveShot',
-  'income', 'supply', 'diplo', 'duel', 'detect'];
+  'income', 'supply', 'diplo', 'duel', 'detect',
+  /* v5.40 — 250종 확장: 신규 보물의 군량·첩보·민심·징병·훈련 문구 */
+  'food', 'spy', 'loyalty', 'recruit', 'train'];
 SK.TREASURE_FX_LABEL = {
   atk: '공격력', def: '방어력', defWall: '성벽 위 방어력', dmg: '주는 피해', taken: '받는 피해',
   magic: '책략 위력', magicTaken: '받는 책략 피해', crit: '치명타 확률', critDmg: '치명타 피해',
@@ -1509,6 +1513,8 @@ SK.TREASURE_FX_LABEL = {
   rngPlus: '사거리 +1', lossCut: '패전 병력 손실', passive: '고유특기 발동 확률',
   radius: '책략 범위', moveShot: '이동 후 사격 페널티 무효',
   income: '성 내정 수입', supply: '성 군량 유지비', diplo: '외교·등용 성공률', duel: '일기토 승리 확률', detect: '정찰 범위',
+  /* v5.40 */
+  food: '성 군량 생산', spy: '첩보·정찰 성공률', loyalty: '성 민심·충성', recruit: '징병량', train: '훈련 효율',
 };
 /* v5.30 — 문구에 숫자가 없는 전투 규칙은 지어내지 않고, 이 기본값으로 옮긴 값을 UI에 '기본값'으로 밝힌다. */
 SK.TREASURE_FX_DEFAULT = {
@@ -1521,6 +1527,7 @@ SK.TREASURE_FX_DEFAULT = {
   pursuit: 20, meleeTaken: 12, gateDmg: 20, rngPlus: 1, lossCut: 15, passive: 12, radius: 1,
   moveShot: 1, income: 12, supply: 12, diplo: 10, duel: 15, detect: 1,
   counter: 20, first: 20, magicMorale: 12,
+  food: 12, spy: 10, loyalty: 8, recruit: 10, train: 10,
 };
 SK.TREASURE_FX_FLAGS = { doubleAct: 1, pierce: 1, immuneFC: 1, immunePoison: 1, immuneDisarm: 1, rngPlus: 1, moveShot: 1 };   // 수치가 아니라 '가능/무시' 여부만 보는 효과
 SK.TREASURE_FX_RULES = [
@@ -1537,11 +1544,35 @@ SK.TREASURE_FX_RULES = [
   [/위압\s*효과\s*부여/, 'fearHit'],
   [/둔타[^,]*이동력\s*-\s*1/, 'slowHit'],
   [/추격\s*(?:공격)?\s*발동\s*확률|추격률/, 'pursuit'],
-  [/적\s*사기\s*저하\s*효과\s*부여|적\s*기세\s*꺾기|^사기\s*저하\s*효과$|적\s*사기\s*[-−]\s*\d+/, 'moraleHit'],
+  [/적\s*사기\s*저하\s*효과\s*부여|적\s*기세\s*꺾기|^사기\s*저하\s*효과$|적\s*사기\s*[-−]\s*\d+|적\s*사기\s*(?:감소|저하)[^,]*[+＋]\s*\d+/, 'moraleHit'],
   [/전군\s*사기\s*최대치|사기\s*최대치/, 'moraleMax'],
   [/사기\s*저하\s*저항|사기\s*안정|사기\s*유지|아군\s*사기\s*감소|선봉\s*지휘\s*시\s*아군\s*사기|행군\s*시\s*사기|사기\s*저하\s*[-−]\s*\d+/, 'moraleSave'],
   [/사기\s*회복/, 'moraleRegen'],
   [/사기\s*\+\s*\d+|전군\s*사기/, 'morale'],
+  /* v5.40 — 250종 확장 문구. 비용 문구는 값을 지어내지 않고 미적용(note)으로 남기고,
+     전투·내정에 실제 판정이 있는 것만 훅으로 옮긴다. */
+  [/비용\s*[-−]\s*\d+/, 'note'],
+  [/화계[^,]*피해\s*감소|화공[^,]*피해\s*감소|화계\s*피해\s*[-−]\s*\d+/, 'magicTaken'],
+  [/화계|화공\s*(?:피해|성공률|확률)|화공(?!\s*부대)/, 'magic'],
+  /* 적 수군·적 기병 약화는 '우리 수전 보정'보다 먼저 받는 피해 경감으로 옮긴다 */
+  [/적[^,]*공격력\s*[-−]|적\s*수군[^,]*[-−]|적군\s*[^,]*[-−]\s*\d+/, 'taken'],
+  [/수전|수군/, 'water'],
+  [/첩보/, 'spy'],
+  [/정찰\s*성공률|부패\s*적발/, 'spy'],
+  [/정찰\s*범위|탐지\s*확률|정보\s*탐지/, 'detect'],
+  [/사거리\s*\+\s*\d+/, 'rngPlus'],
+  [/일기토[^,]*(?:승률|승리)/, 'duel'],
+  [/부상\s*(?:확률|발생)/, 'lossCut'],
+  [/기습[^,]*성공률|매복\s*성공률/, 'first'],
+  [/도시\s*(?:행정|개발|문화\s*발전)|내정\s*안정도/, 'income'],
+  [/민심|충성도|반란/, 'loyalty'],
+  [/군량\s*(?:생산|수확|저장)|농업\s*(?:생산|개발\s*효율)/, 'food'],
+  [/징병|모병/, 'recruit'],
+  [/훈련\s*(?:효율|도)|부대\s*훈련/, 'train'],
+  [/성벽\s*(?:건설|수리|방어)|성곽\s*방어|성\s*방어전[^,]*방어력|산성\s*방어력/, 'defWall'],
+  [/산악[^,]*이동|산지[^,]*이동|육상\s*이동|해상\s*이동/, 'rough'],
+  [/등용\s*성공률|인재\s*등용|동맹\s*제안|외교\s*(?:협상|성공률|우호도)|우호도\s*증가/, 'diplo'],
+  [/도시\s*세금|세금\s*수입|무역\s*수입|문화\s*수입|상업\s*개발/, 'income'],
   [/내정\s*수입|도시\s*내정\s*효율|상업\s*수입|농업[·,]?\s*수리\s*내정\s*효율|치안\s*유지[·,]?\s*세수\s*징수\s*효율|민심\s*상승[^,]*반란\s*억제/, 'income'],
   [/군량\s*소모|보급\s*소모\s*감소|보급\s*이동\s*효율/, 'supply'],
   [/외교[^,]*?(?:성공률|효율|호감도)/, 'diplo'],

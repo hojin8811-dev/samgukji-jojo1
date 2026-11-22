@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.39** 연구소 → **첩보소**(매달 자동 첩보·이간·유언비어) + 전투 4건(무한 이동 차단·공격 사거리 표시·뒤로가기 이동 취소·행동 완료 표시) · 2026-11-22 · 라이브 `?v=55`
+> 기준: **v5.40** 실플레이 감사 10건 수정 + **보물 250종** + 공방 3개월 제작 + 성벽 방첩 + 정책 실제 수치 · 2026-11-22 · 라이브 `?v=56`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,10 +14,37 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=55`) |
-| 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · 보물 151 · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=56`) |
+| 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **697장수**(json 590 + 시나리오·재야 인물 107, 한국 177) · 19병과(군주 포함) · 고유특기 100 · **보물 250** · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
+
+---
+
+## 0.0 v5.40 — 감사 10건 수정 · 보물 250 · 공방 제작 · 성벽 방첩 · 정책 수치 (2026-11-22 · `?v=56`)
+
+`samgukji-jojo/preview/v540_audit/REPORT.md`의 실플레이 지적 10건을 모두 고치고, 보물 250종·공방·성벽·정책을 완성했다.
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 요격전 복구 | 요격전 도중 새로고침·앱 종료 → 행군이 살아 있으면 **병력을 성으로 돌려보내지 않고** `marchQueuePush(s,'intercept',marchId)`로 요격 사건을 다시 예약한다. 안내 `전투 중 이탈 · 요격전부터 다시 시작합니다` 뒤 같은 요격전(요격대·지형 유지)이 다시 열린다. 같은 블록에서 일반 전투 복구가 `PF()`(아직 이전 판)를 써 세력을 못 찾던 문제도 `s.playerFaction` 직접 판정으로 고쳤다 | `js/app.js` `SK.load`(battleInProgress 블록)·`startGame`(battleRecover.resume), `js/battle.js` `startBattle`(battleInProgress에 `marchId·intercept·raiders`) |
+| ② 상단 총병력 | 지도 상단 병력을 `totalTroops() + marchTroopsOf(s)`로. 행군 중이면 `#map-troops-march`에 `행군 4,000`, `#map-troops-cell` title에 `총병력 … — 주둔 … · 행군 …` | `js/app.js` `refreshHud`, `index.html` `#map-troops-march` |
+| ③ 병과 배지 | `drawUnit`의 병과 배지를 HP 알약 **위 줄**(`by2 = pillY - bh2 - 2`)에 따로 그린다. 밀집(dense/veryDense)·축소(tinyView)에는 한 글자로 축약 — 옆 칸과 부딪혀 생략되던 경로를 없앴다 | `js/battle.js` `drawUnit` |
+| ④ `.sc-need` | `.sc-up`과 같은 알약 규칙(`margin-left:auto; white-space:nowrap; border-radius:6px`). `[담당이 빈 건물]` 안내(`.slot-hint`)도 9.5px로 (본문 크기로 커져 화면을 덮던 문제) | `css/game.css` |
+| ⑤ 탐색 버튼 | '한 명씩' 모드에서 주 버튼 `display:none`, 목록 위 안내 `보낼 장수의 카드를 누르면 바로 출발합니다`. '여러 명'에서만 `N명 탐색 보내기` | `js/app.js` `openExplore` |
+| ⑥ 건설 머리말 | `대부분의 건물은 담당이 없어도 50%… 첩보소는 담당이 있어야만 돌고, 공방은 담당이 있어야 보물을 만듭니다` | `js/app.js` `openSlot` |
+| ⑦ 첫 안내 | `아래 [시설 관리](왼쪽 첫 칸)` | `js/app.js` `GUIDE_LINES[1]` |
+| ⑧ 수도로 버튼 | 세력 글자 대신 `#ic-capital` 성·깃발 SVG, 세력 글자는 `.cap-mark` 작은 배지, title/aria `수도로 — {본성명}` | `index.html`, `js/app.js` `refreshHud`, `css/game.css` |
+| ⑨ 중복 건설 | 이미 지은 건물은 `{건물}을 한 채 더 지을까` 확인 창(효과 합산 설명·금액·금고). 확인 전 결제 없음. 카드에 `· 2채째` 표기 | `js/app.js` `openSlot` |
+| ⑩ 빈 부대 카드 | 선택 없음이면 `.unit-card.empty` — 초상·Lv·EXP·병력/스탯 줄 숨김, `부대를 고르면 병과·병력·사거리가 보입니다`. 아래 상태줄도 `부대를 눌러 선택하세요` | `js/battle.js` `refreshUI`, `css/game.css` |
+| 보물 250 | `data/treasures.json` 250종(152~250 99종: 일반 35·희귀 34·영웅 20·전설 10). `statBonus.int` → `intel` 정규화, 갈래 `문물·비보·병법서`는 manual 칸, `GRADE_COLOR.일반`, 도감 등급/갈래 필터(갈래 칩은 두 줄로 접음) | `data/treasures.json`, `js/data.js`, `js/app.js` `openCodex` |
+| 보물 효과 훅 | 새 훅 `food·spy·loyalty·recruit·train`을 `TREASURE_FX_KEYS/LABEL`에 추가하고, 수전·화계·화공·성곽/성 방어전·산악 이동·적 약화·등용/동맹·도시 세금/무역/문화 수입·정찰 성공률·사거리·일기토·부상 확률 규칙을 보강. 비용 문구는 `note`(미적용)로 정직하게 남김. 신규 153절 중 123절 판정 연결, 30절 미적용 | `js/data.js` `TREASURE_FX_RULES`·`parseTreasureFx`, 적용: `js/app.js` `harvestOf`·`econForecast`·`runSlots`·`runSpyOffices`·`spyStrike`·`advanceMonth` |
+| 공방 제작 | 담당이 앉은 공방은 매달 `sl.craft + 1`, 3개월째 보물 1개. 등급 확률 = 공방 Lv·담당 (정치+지력)/2 가중(일반/희귀/영웅/전설), 전설 0.5~3%. `SK.TREASURES` 중 미보유·일반 경로 보물에서 고르고 `s.treasures`·도감에 넣는다. 카드 `제작 1/3`, 상세 창 진행 바, 월정산 `[공방 제작]` | `js/app.js` `CRAFT_MONTHS`·`workshopCraft`·`runSlots`·`renderCitySlots`·`openSlot`·`advanceMonth` |
+| 성벽 방첩 | `wallGuardOf(cityId)` = `Lv×5%`(+담당이면 +5% + 통솔 보정), 최대 55%. AI 첩보소 유언비어 판정에 `Math.random() < block`이면 차단하고 월정산 `[성벽 방어]`에 `…의 첩자를 성벽 순라가 막았습니다 (차단 30% · 담당)`. 카드 `방첩 28%`, 상세 창 설명 | `js/app.js` `wallGuardOf`·`runSpyOffices`·`advanceMonth`, `css/game.css` `.ws-craft` |
+| 정책 수치 | `policyFxOf(cs)` — 균형 `{gold,food,harvest,recruit,train,wall:0.05}`, 상업 `{gold:0.25,recruit:-0.15}`, 농업 `{gold:-0.10,harvest:0.30,food:0.10,loyalty:2}`, 전시 `{gold:-0.15,recruit:0.30,train:0.30,wall:0.10,loyalty:-1}`, 수송 `{supply:1}`. 세수·시장·공방·농원·수확·병영·연병장·성벽 보수·징병 명령·월 민심에 실제 적용, **본성 포함**. 관아 방침 버튼에 `fxShort` 수치, 아래 `지금 적용 — …` 요약 | `js/app.js` `POLICIES`·`policyFxOf`·`econForecast`·`harvestOf`·`runSlots`·`CMDS`·`advanceMonth`·`openOffice`·`openTransport`·`runAutoDomestic` |
+| 검수 | 로컬 390×844 `preview/v540_local/` — 요격 복구(병력 중복 0·큐 중복 0), 일반 복구 병력 +3,000 반환, 상단 총병력, 5부대 밀집 배지(군·기·도·기·궁기), 공방 2/3→완성(영웅), 성벽 Lv4 차단 30%·28%, 정책 5종 수치 비교, 도감 250·일반 35, 12개월 무인(보물 3개월마다 1개·콘솔 0) | `tools/v540_*.py` |
+
+**남은 판단** — ① 신규 보물 중 비용·예측·명성 계열 30절은 판정이 없어 '미적용'으로 남는다(기술 연구 비용·건설 비용을 실제로 깎으려면 별도 작업). ② 정책은 성마다 따로라, 여러 성을 가진 중반에는 성마다 방침을 맞춰야 효과가 크다(본성 포함 적용). ③ 성벽 방첩은 AI 첩보소(성에 lab이 남은 경우)에만 걸린다 — AI가 첩보소를 새로 짓지는 않는다.
 
 ---
 

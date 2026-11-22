@@ -388,6 +388,11 @@
           troops: (opts.units || []).reduce((a, u) => a + (u.troops || 0), 0),
           heroes: (opts.units || []).filter((u) => u.uid).map((u) => u.uid),
           at: Date.now(),
+          /* v5.40 — 요격전이면 어느 행군이 막힌 것인지 남긴다.
+             (예전에는 병력만 돌려보내 요격전이 통째로 사라졌다) */
+          marchId: (intercept && intercept.marchId) || opts.marchId || null,
+          intercept: !!intercept,
+          raiders: intercept ? (intercept.troops || 0) : 0,
         };
         SK.save();
       }
@@ -2396,25 +2401,20 @@
     ctx.restore();
     // 병과 배지 — [🐎 기병] 형태의 작은 칩을 HP 배지 왼쪽에 붙인다 (밀집하면 생략)
     const badge = CLASS_BADGE[u.cls] || ['', SK.CLASSES[u.cls] ? SK.CLASSES[u.cls].name.slice(0, 2) : ''];
-    /* v5.26 — 옆 칸에 부대가 서 있으면 그쪽 라벨을 가리므로 반대쪽으로 보내고, 둘 다 막히면 생략 */
-    const occ = (dx) => B.units.some((o) => o.alive && o !== u && o.x === u.x + dx && o.y === u.y);
-    const preferRight = u.side === 'enemy';
-    let badgeRight = preferRight;
-    if (preferRight && occ(1) && !occ(-1)) badgeRight = false;
-    else if (!preferRight && occ(-1) && !occ(1)) badgeRight = true;
-    const badgeSkip = (badgeRight && occ(1)) || (!badgeRight && occ(-1));
-    if (badge[1] && !dense && !tinyView && !badgeSkip) {
-      const bsz = Math.max(7, Math.round(7.4 * k));
+    /* v5.40 — 병과 배지를 HP 알약 '위 줄'에 따로 세운다.
+       예전에는 알약 옆에 붙여, 부대가 나란히 서면(mid 부대) 옆 칸과 부딪혀 통째로 생략됐다.
+       밀집·축소 시에는 한 글자(기·궁·창·군)로 줄여 언제나 병과가 보이게 한다. */
+    if (badge[1]) {
+      const btxt = (dense || veryDense || tinyView) ? String(badge[1]).slice(0, 1) : badge[1];
+      const bsz = Math.max(6.5, Math.round((dense || veryDense ? 6.6 : 7.2) * k));
       ctx.save();
       ctx.font = `800 ${bsz}px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif`;
-      const btxt = badge[1];
-      const bw2 = ctx.measureText(btxt).width + Math.round(8 * k);
-      const bh2 = Math.round(12 * k);
-      // HP 배지 같은 줄 왼쪽(적군·왼쪽이 막혔을 땐 오른쪽)에 작게 붙인다
-      const bx2 = badgeRight ? pillX + pillW + Math.round(3 * k) : pillX - bw2 - Math.round(3 * k);
-      const by2 = pillY + (pillH - bh2) / 2;
+      const bw2 = ctx.measureText(btxt).width + Math.round(7 * k);
+      const bh2 = Math.round((dense || veryDense ? 10 : 11) * k);
+      const bx2 = bx - bw2 / 2;
+      const by2 = pillY - bh2 - Math.round(2 * k);
       ctx.fillStyle = BADGE_BG[u.side] || BADGE_BG.enemy;
-      ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.55)' : 'rgba(255,170,150,0.5)';
+      ctx.strokeStyle = u.side === 'ally' ? 'rgba(150,190,255,0.6)' : 'rgba(255,170,150,0.55)';
       ctx.lineWidth = 1;
       if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx2, by2, bw2, bh2, bh2 / 2); ctx.fill(); ctx.stroke(); }
       else { ctx.fillRect(bx2, by2, bw2, bh2); ctx.strokeRect(bx2, by2, bw2, bh2); }
@@ -6593,6 +6593,7 @@
       const card = $('#unit-card');
       if (u) {
         card.classList.add('on');
+        card.classList.remove('empty');
         $('#uc-img').src = `${SK.ptSrc(u.portrait)}`;
         $('#uc-lv').textContent = 'Lv.' + u.lv;
         $('#uc-name').textContent = u.name;
@@ -6652,9 +6653,13 @@
         paintItemButton(u);
       } else {
         card.classList.remove('on');
+        /* v5.40 — 선택한 부대가 없을 때 이전 초상·Lv·EXP·수치가 남지 않게 비운다 */
+        card.classList.add('empty');
         $('#uc-name').textContent = '부대를 선택하세요';
         const bfBox0 = $('#uc-buffs'); if (bfBox0) bfBox0.innerHTML = '';
-        $('#uc-cls').textContent = B.def.desc;
+        $('#uc-lv').textContent = '';
+        $('#uc-img').removeAttribute('src');
+        $('#uc-cls').textContent = '부대를 고르면 병과·병력·사거리가 보입니다';
         $('#uc-terrain').textContent = '';
         $('#uc-hp').style.width = '0%'; $('#uc-mp').style.width = '0%';
         const ex0 = $('#uc-exp'); if (ex0) ex0.style.width = '0%';
@@ -6666,6 +6671,9 @@
         if (ma0) ma0.textContent = '-';
         if (md0) md0.textContent = '-';
         $('#uc-mov').textContent = '-'; $('#uc-rng').textContent = '-';
+        /* v5.40 — 아래 상태줄에도 직전 부대 이름이 남지 않게 */
+        const tipEl = $('#battle-tip');
+        if (tipEl) tipEl.textContent = '부대를 눌러 선택하세요';
         paintItemButton(null);
       }
       document.querySelectorAll('.act').forEach((b) => {
