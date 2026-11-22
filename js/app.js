@@ -491,6 +491,105 @@
   SK.econForecast = econForecast;
 
   /* ══════════════════════════════════════════════════════════════
+     v5.63 — 성 하나의 '한 달' 정산액 (성 요약 카드)
+     advanceMonth·runSlots 와 **같은 식**을 쓰는 헬퍼만 모았다.
+     여기 숫자를 고치면 실제 결산도 같이 움직인다(따로 계산하지 않는다).
+     ══════════════════════════════════════════════════════════════ */
+  /* 이 성의 한 달 세수 — advanceMonth 안의 식 그대로 */
+  function cityTaxOf(c) {
+    const s = SK.state;
+    const st = s && s.cities ? s.cities[c.id] : null;
+    if (!st) return 0;
+    const morale = st.loyalty == null ? 50 : st.loyalty;
+    const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
+    const incMul = 1 + cityTfx(c.id, 'income', 60) / 100;
+    const pfx = policyFxOf(st);
+    const officeM = 1 + officeBonusOf(c.id).pol;
+    const gPct = 1 + (SK.techPct ? SK.techPct('goldPct') : 0) / 100;
+    const taxMul = taxRateOf(s).mul;
+    return Math.round((c.gold / 22 + morale * 1.1) * econMul(c) * moraleMul * (0.85 + (st.comm || 0) / 250) * gPct * taxMul * incMul * (1 + (pfx.gold || 0)) * officeM);
+  }
+  SK.cityTaxOf = cityTaxOf;
+  /* 이 성 시설의 생산 배율 — runSlots 와 공유 */
+  function citySlotMul(c, cs) {
+    const pfx = policyFxOf(cs);
+    const ob = officeBonusOf(c.id);
+    return {
+      goldM: 1 + (pfx.gold || 0),
+      foodM: 1 + (pfx.food || 0) + Math.min(0.4, cityTfx(c.id, 'food', 40) / 100),
+      recM: 1 + (pfx.recruit || 0) + Math.min(0.4, cityTfx(c.id, 'recruit', 40) / 100),
+      trnM: 1 + (pfx.train || 0) + Math.min(0.4, cityTfx(c.id, 'train', 40) / 100),
+      wallM: 1 + (pfx.wall || 0),
+      obProdM: 1 + ob.pol,
+      obTrainM: 1 + ob.tong,
+      obPatrolM: 1 + ob.wu,
+      pfx: pfx,
+    };
+  }
+  /* 시설 하나가 한 달에 내놓는 금·군량·징병 — runSlots 와 공유 */
+  function slotMonthlyYield(c, cs, sl, mul, M) {
+    if (!sl || !sl.key) return {};
+    const m = M || citySlotMul(c, cs);
+    const lv = sl.lv || 1;
+    if (sl.key === 'market') return { gold: Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul * m.goldM * m.obProdM) };
+    if (sl.key === 'workshop') return { gold: Math.round((40 + lv * 40) * mul * m.goldM * m.obProdM) };
+    if (sl.key === 'farm') return { food: Math.round(ECON.farmTrickle * lv * mul * econMul(c) * m.foodM * m.obProdM) };
+    if (sl.key === 'barracks') return { troops: Math.round((140 + lv * 100) * mul * m.recM * m.obProdM * m.obTrainM) };
+    return {};
+  }
+  /* 이 성 시설 전체의 한 달 생산 합계 */
+  function citySlotYields(c, cs) {
+    const M = citySlotMul(c, cs);
+    let gold = 0, food = 0, troops = 0;
+    ((cs && cs.slots) || []).forEach((sl) => {
+      if (!sl || !sl.key) return;
+      const y = slotMonthlyYield(c, cs, sl, slotMul(cs, sl, slotOwner(c.id, sl)), M);
+      gold += y.gold || 0; food += y.food || 0; troops += y.troops || 0;
+    });
+    return { gold: gold, food: food, troops: troops };
+  }
+  SK.citySlotYields = citySlotYields;
+
+  /* 성 요약 '이 성의 한 달' — 월 금 순수입 · 월 군량 수지 · 월 징병량 */
+  function cityMonthForecast(cityId) {
+    const s = SK.state;
+    if (!s || !s.cities) return null;
+    const c = CITY[cityId], cs = s.cities[cityId];
+    if (!c || !cs) return null;
+    const tax = cityTaxOf(c);
+    const slot = citySlotYields(c, cs);
+    /* advanceMonth — 봉급은 그 장수가 있는 성에서 낸다(성이 우리 것이 아니면 수도) */
+    let payroll = 0;
+    (s.heroes || []).forEach((h) => {
+      const cid = (h.city && s.cities[h.city] && s.cities[h.city].owner === PF()) ? h.city : s.playerCapital;
+      if (cid === cityId) payroll += heroSalary(h);
+    });
+    const isCap = cityId === s.playerCapital;
+    const rankGold = isCap ? (SK.rankFor(s.fame).salaryGold || 0) : 0;
+    const cap = cityCap(cs);
+    const troops = cs.troops || 0;
+    const full = troops >= cap;
+    /* advanceMonth — 매달 자동 징집 160 × 도시 배율 × 관아 통솔 가산, 그 뒤 병영 징병 */
+    const draftAll = Math.round(160 * econMul(c) * (1 + officeBonusOf(cityId).tong));
+    const afterDraft = clamp(troops + draftAll, 0, cap);
+    const draft = Math.max(0, Math.round(afterDraft - troops));
+    const barracks = Math.max(0, Math.round(Math.min(cap - afterDraft, slot.troops || 0)));
+    const foodCut = Math.min(0.4, cityTfx(cityId, 'supply', 40) / 100);
+    /* advanceMonth는 이번 달 징병·병영 충원이 끝난 병력으로 유지비를 뺀다 → 결산과 같게 '정산 후 병력' 기준 */
+    const upkeep = Math.ceil((troops + draft + barracks) / 1000 * ECON.upkeepPer1000 * (1 - foodCut));
+    const harvest = (harvestOf(s).rows.find((r) => r.id === cityId) || { food: 0 }).food;
+    return {
+      tax: tax, market: slot.gold, payroll: payroll, rankGold: rankGold,
+      goldNet: tax + slot.gold + rankGold - payroll,
+      farm: slot.food, upkeep: upkeep, foodNet: slot.food - upkeep,
+      harvest: harvest, harvestThisMonth: s.month === ECON.harvestMonth, monthsToHarvest: monthsUntilHarvest(s),
+      draft: draft, barracks: barracks, troopGain: draft + barracks,
+      full: full, cap: cap, popMul: popFullMul(cs), barracksLv: barracksLvOf(cs),
+    };
+  }
+  SK.cityMonthForecast = cityMonthForecast;
+
+  /* ══════════════════════════════════════════════════════════════
      v5.7 — 태수 위임 방침 5종 · 세율 3단계 · 군량 시세
      ══════════════════════════════════════════════════════════════ */
   const POLICIES = {
@@ -2679,6 +2778,10 @@
       se.title = `${sName} 계절`;
     }
     const owned = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).length;
+    const aliveN = Object.keys(s.factions || {}).filter((fid) => fid !== 'neutral'
+      && SK.CITY_LIST.some((c) => s.cities[c.id] && s.cities[c.id].owner === fid)).length;
+    const fpill = $('#faction-pill-n');
+    if (fpill) fpill.textContent = aliveN;
     const fname = SK.factionName(PF());
     /* v5.4 — 상단 경제 줄: 이번 달 예상 순금·군량과 다음 가을 대수확까지 */
     const eco = econForecast(s);
@@ -4674,17 +4777,10 @@
       let merit = 0;                   // v5.10 — 이 성에서 이번 달에 쌓인 공훈치
       const grow = [];                 // v5.4 — 월정산에 보여 줄 시설 성장 기록
       /* v5.40 — 정책·보물이 이 성의 시설 생산에도 그대로 붙는다 */
-      const pfx = policyFxOf(cs);
-      /* v5.48 — 관아 머리의 정치 → 생산 가산점 · 통솔 → 훈련 가산점 */
+      /* v5.63 — 배율·시설 생산은 citySlotMul·slotMonthlyYield 한 곳에서 (성 요약과 같은 값) */
       const officeB = officeBonusOf(c.id);
-      const obProdM = 1 + officeB.pol;
       const obTrainM = 1 + officeB.tong;   /* v5.48 — 통솔: 병영 징병량 + 연병장·훈련 */
-      const obPatrolM = 1 + officeB.wu;    /* v5.48 — 무력: 순찰소 치안 */
-      const goldM = 1 + (pfx.gold || 0);
-      const foodM = 1 + (pfx.food || 0) + Math.min(0.4, cityTfx(c.id, 'food', 40) / 100);
-      const recM = 1 + (pfx.recruit || 0) + Math.min(0.4, cityTfx(c.id, 'recruit', 40) / 100);
-      const trnM = (1 + (pfx.train || 0) + Math.min(0.4, cityTfx(c.id, 'train', 40) / 100)) * obTrainM;
-      const wallM = 1 + (pfx.wall || 0);
+      const M = citySlotMul(c, cs);
       let craft = null;                // v5.40 — 공방 제작 (6개월에 보물 1개)
       if (cs.order == null) cs.order = 55;
       cs.slots.forEach((sl) => {
@@ -4702,14 +4798,17 @@
           grow.push({ city: c.name, key: sl.key, name: (SLOT_DEFS[sl.key] || {}).name || sl.key,
             lv: lv, gain: gain, exp: sl.exp, need: slotExpNeed(lv), duty: !!g });
         }
-        if (sl.key === 'market') { gold += Math.round(ECON.marketGold[clamp(lv, 1, 5)] * mul * goldM * obProdM); if (g) comm += statGrowOf(sl, g); if (dep) comm += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
-        else if (sl.key === 'farm') { food += Math.round(ECON.farmTrickle * lv * mul * econMul(c) * foodM * obProdM); if (g) agri += statGrowOf(sl, g); if (dep) agri += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
-        else if (sl.key === 'barracks') troops += Math.round((140 + lv * 100) * mul * recM * obProdM * obTrainM);   /* v5.57 — 병영 징병량 2배(Lv.1 240 · Lv.5 640) */
-        else if (sl.key === 'training') { train += 0.5 * lv * mul * trnM; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
-        else if (sl.key === 'patrol') { order += 1.1 * lv * mul * obPatrolM; loyalty += 0.25 * lv * mul; }
-        else if (sl.key === 'wall') def += 0.6 * lv * mul * wallM;
+        /* v5.63 — 생산액·생산량은 slotMonthlyYield 하나가 정한다 */
+        const y = slotMonthlyYield(c, cs, sl, mul, M);
+        if (y.gold) gold += y.gold;
+        if (y.food) food += y.food;
+        if (y.troops) troops += y.troops;
+        if (sl.key === 'market') { if (g) comm += statGrowOf(sl, g); if (dep) comm += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
+        else if (sl.key === 'farm') { if (g) agri += statGrowOf(sl, g); if (dep) agri += Math.max(1, Math.round(statGrowOf(sl, dep) * 0.5)); }
+        else if (sl.key === 'training') { train += 0.5 * lv * mul * M.trnM * obTrainM; if (g) SK.gainExp(g, Math.round(40 * lv * mul)); }
+        else if (sl.key === 'patrol') { order += 1.1 * lv * mul * M.obPatrolM; loyalty += 0.25 * lv * mul; }
+        else if (sl.key === 'wall') def += 0.6 * lv * mul * M.wallM;
         else if (sl.key === 'workshop') {
-          gold += Math.round((40 + lv * 40) * mul * goldM * obProdM);
           /* v5.40 — 담당이 앉아 있으면 매달 제작 +1, 6개월째에 보물 1개 */
           if (g) craft = workshopCraft(st, c, cs, sl, g);
         }
@@ -6138,6 +6237,95 @@
     }
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.63 — 지도 『세력일람』
+     살아 있는(성을 하나라도 가진) 세력을 성 수 순으로 — 깃발·세력명·군주·
+     보유 성 수·장수 수·병력·휴전/동맹/교전 배지. 누르면 가진 성이 펼쳐진다.
+     ══════════════════════════════════════════════════════════════ */
+  function factionRosterCount(fid) {
+    const s = SK.state;
+    if (!s) return 0;
+    if (fid === PF()) return (s.heroes || []).filter((h) => !h.captured).length;
+    /* AI 세력 — 자기 성에 실제로 앉아 있는 장수(genIds) */
+    let n = 0;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (cs && cs.owner === fid) n += (cs.genIds || []).length;
+    });
+    return n;
+  }
+  SK.factionRosterCount = factionRosterCount;
+
+  function factionListRows() {
+    const s = SK.state;
+    if (!s) return [];
+    const me = PF();
+    return Object.keys(s.factions || {}).filter((fid) => fid !== 'neutral').map((fid) => {
+      const f = SK.factionInfo(fid);
+      const cities = SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === fid);
+      if (!cities.length) return null;          // 멸망한 세력은 뺐다
+      const left = (s.truce && s.truce[fid]) ? Math.max(0, s.truce[fid] - s.turn) : 0;
+      const kind = (s.pacts && s.pacts[fid]) ? s.pacts[fid].kind : null;
+      return {
+        fid: fid, f: f, cities: cities, n: cities.length,
+        gens: factionRosterCount(fid),
+        troops: cities.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0),
+        status: fid === me ? 'me' : (left > 0 ? (kind === 'pact' ? 'pact' : 'truce') : 'war'),
+        left: left,
+      };
+    }).filter(Boolean).sort((a, b) => (b.n - a.n) || (b.gens - a.gens) || (a.f.name < b.f.name ? -1 : 1));
+  }
+
+  function factionBadgeOf(r) {
+    if (r.status === 'me') return '<span class="dp-badge fl-me">내 세력</span>';
+    if (r.status === 'pact') return `<span class="dp-badge dp-pact">동맹 ${r.left}개월</span>`;
+    if (r.status === 'truce') return `<span class="dp-badge dp-truce">휴전 ${r.left}개월</span>`;
+    return '<span class="dp-badge dp-war">교전</span>';
+  }
+
+  function openFactionList() {
+    const s = SK.state;
+    if (!s) return;
+    const rows = factionListRows();
+    if (!rows.length) { SK.toast('아직 세력이 없습니다.'); return; }
+    const totalCities = rows.reduce((a, r) => a + r.n, 0) || 1;
+    const mine = rows.find((r) => r.status === 'me') || null;
+    const others = rows.filter((r) => r.status !== 'me');
+    const pactN = rows.filter((r) => r.status === 'pact' || r.status === 'truce').length;
+    const rowOf = (r) => {
+      const pct = Math.max(2, Math.round(r.n / totalCities * 100));
+      return `<div class="fl-row${r.status === 'me' ? ' mine' : ''}" data-fid="${r.fid}" role="button" tabindex="0">
+        <span class="fl-flag" style="background:${r.f.color || '#8b8677'}">${SK.markOf(r.f)}</span>
+        <span class="fl-main">
+          <span class="fl-l1"><b class="fl-name">${r.f.name}</b>${factionBadgeOf(r)}</span>
+          <span class="fl-l2">군주 ${r.f.lord || '재야'} · 성 <b>${r.n}</b> · 장수 <b>${r.gens}</b></span>
+          <i class="fl-bar"><em style="width:${pct}%;background:${r.f.color || '#8b8677'}"></em></i>
+        </span>
+        <span class="fl-go">▾</span>
+      </div>
+      <div class="fl-detail" hidden>${r.cities.map((c) => c.name).join(' · ')}<em>병력 ${fmt(r.troops)}</em></div>`;
+    };
+    const body = `
+      <p class="talent-note">성을 가진 세력 <b>${rows.length}곳</b> 가운데 휴전·동맹 <b>${pactN}</b> · 교전 <b>${rows.length - pactN - (mine ? 1 : 0)}</b>. 막대는 천하 ${totalCities}성 중 비중입니다. 줄을 누르면 가진 성이 펼쳐집니다.</p>
+      ${mine ? rowOf(mine) : ''}
+      <div class="dp-grp"><span>다른 세력</span><em>${others.length}</em><i>성 수가 많은 순</i></div>
+      <div class="fl-list">${others.map(rowOf).join('')}</div>`;
+    const m = SK.modal({
+      kicker: '천하 정세', title: '세력일람', wide: true, body: body,
+      actions: [{ label: '닫기', primary: true }],
+    });
+    m.el.querySelectorAll('.fl-row').forEach((el) => {
+      el.onclick = () => {
+        const d = el.nextElementSibling;
+        if (!d || !d.classList.contains('fl-detail')) return;
+        d.hidden = !d.hidden;
+        el.classList.toggle('open', !d.hidden);
+        SK.sfx.play('ui');
+      };
+    });
+  }
+  SK.openFactionList = openFactionList;
+
   function openPeaceTerms(cityId, fid) {
     const s = SK.state;
     const f = SK.factionInfo(fid);
@@ -6604,6 +6792,27 @@
       const advName = (cityGens(cityId).find((g) => g.uid === cs.advisor) || {}).name || '없음';
       const wound = Math.round(cs.wounded || 0);
       const harvestFood = (harvestOf(s).rows.find((r) => r.city === c.name) || { food: 0 }).food;
+      /* v5.63 — 이 성의 한 달: 월 금 순수입 · 월 군량 수지 · 월 징병량 */
+      const mf = cityMonthForecast(cityId);
+      const sign = (n) => (n >= 0 ? '+' : '−') + fmt(Math.abs(Math.round(n)));
+      const gSub = (() => {
+        const plus = [`세수 ${fmt(mf.tax)}`, `시장·공방 ${fmt(mf.market)}`];
+        if (mf.rankGold) plus.push(`녹봉 ${fmt(mf.rankGold)}`);
+        return `${plus.join(' + ')} − 봉급 ${fmt(mf.payroll)}`;
+      })();
+      const fSub = `농원 +${fmt(mf.farm)} − 유지비 ${fmt(mf.upkeep)}`;
+      const harvLine = mf.harvest ? (mf.harvestThisMonth
+        ? ` · 🌾 이번 달 대수확 +${fmt(mf.harvest)}`
+        : ` · 🌾 ${mf.monthsToHarvest}개월 뒤 대수확 +${fmt(mf.harvest)}`) : '';
+      const tSub = mf.full
+        ? `징병 멈춤 · 상한 ${fmt(mf.cap)} · 다음 달 인구 ×${(mf.popMul || 1).toFixed(2).replace(/0$/, '')}`
+        : `자동 징집 +${fmt(mf.draft)}${mf.barracks ? ` · 병영 Lv.${mf.barracksLv} +${fmt(mf.barracks)}` : ' · 병영 없음'} · 가득까지 ${fmt(mf.cap - cs.troops)}`;
+      const monthHtml = `<div class="ci-month">
+        <div class="ci-mon-head"><b>이 성의 한 달</b><span>지금 상태로 다음 달 정산</span></div>
+        <div class="cm-row"><span class="cm-lb">월 금 순수입</span><b class="cm-val ${mf.goldNet >= 0 ? 'plus' : 'minus'}">${sign(mf.goldNet)}</b><em class="cm-sub">${gSub}</em></div>
+        <div class="cm-row"><span class="cm-lb">월 군량 수지</span><b class="cm-val ${mf.foodNet >= 0 ? 'plus' : 'minus'}">${sign(mf.foodNet)}</b><em class="cm-sub" title="정산 때는 이번 달 징병이 끝난 병력으로 유지비를 뺀다">${fSub}${harvLine}</em></div>
+        <div class="cm-row"><span class="cm-lb">월 징병량</span><b class="cm-val ${mf.full ? 'full' : 'plus'}">${mf.full ? '가득' : '+' + fmt(mf.troopGain)}</b><em class="cm-sub">${tSub}</em></div>
+      </div>`;
       info.innerHTML = `<div class="ci-head"><b>성 요약</b><span>${c.name} · ${typeName(c.type)}</span></div>
         <div class="ci-grid">
           <div class="ci-cell"><span>최대 병력</span><b>${fmt(cap)}</b><em>인구 17%</em></div>
@@ -6614,7 +6823,7 @@
           <div class="ci-cell"><span>${s.month === ECON.harvestMonth ? '가을 대수확' : '대수확'}${helpDot('harvest')}</span><b>${s.month === ECON.harvestMonth ? '거둠' : `${monthsUntilHarvest(s)}개월`}</b><em>대수확 예상 +${fmt(harvestFood)}</em></div>
           <div class="ci-cell"><span>태수</span><b>${govName}${govIsLord ? ' <em>(군주)</em>' : ''}</b></div>
           <div class="ci-cell"><span>군사</span><b>${advName}</b></div>
-        </div>`;
+        </div>${monthHtml}`;
       const heal = info.querySelector('#btn-heal-wounded');
       if (heal) heal.onclick = (e) => { e.stopPropagation(); SK.sfx.play('ui'); openHealWounded(cityId); };
     }
@@ -11662,13 +11871,31 @@
     while (list.length && out.length < n) out.push(list.splice(Math.floor(Math.random() * list.length), 1)[0]);
     return out;
   }
-  function choiceTalentPool(s) {
+  function choiceTalentPool(s, loose) {
     const grp = poolGroupOf(PF());
+    const region = grp === '한국' ? '한국' : '중국';
     /* v5.32 — 돌발 선택지의 인재 제안도 소속 있는 장수를 재야로 데려오지 않는다 */
     const used = garrisonedIds(s);
-    return SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp
-      && SK.debutOk(g, eraYearOf(s)) && !SK.isDead(g.id, g.name));
+    const lordSet = SK.lordNameSet(s);
+    /* v5.63 — runWanderers와 같은 두 단계: 같은 계열 → 같은 권역(중국↔한국) */
+    return SK.GENERALS.filter((g) => {
+      if (!g || used.has(g.id) || !SK.debutOk(g, eraYearOf(s)) || SK.isDead(g.id, g.name)) return false;
+      if (SK.isLordOnly(g, lordSet)) return false;
+      const gg = genPoolGroup(g);
+      return loose ? ((gg === '한국') === (region === '한국')) : gg === grp;
+    });
   }
+  /* v5.63 — 뽑을 인재가 정말 없으면 null (빈 팝업을 띄우지 않는다) */
+  function pickChoiceTalent(s) {
+    let pool = choiceTalentPool(s, false);
+    if (!pool.length) pool = choiceTalentPool(s, true);
+    if (!pool.length) return null;
+    pool.sort((a, b) => SK.genScore(b) - SK.genScore(a));
+    const top = pool.slice(0, Math.min(3, pool.length));
+    return top[Math.floor(Math.random() * top.length)] || null;
+  }
+  SK.pickChoiceTalent = pickChoiceTalent;
+  SK.choiceTalentPool = choiceTalentPool;
   function rollChoiceEvent(s, forceKind) {
     if ((s.turn || 1) < 3) return null;
     if (!forceKind && Math.random() > 0.45) return null;
@@ -11710,16 +11937,20 @@
         ],
       };
     }
-    const pool = choiceTalentPool(s);
-    const g = pool.length ? pool.sort((a, b) => SK.genScore(b) - SK.genScore(a))[Math.floor(Math.random() * Math.min(3, pool.length))] : null;
-    const cost = g ? ({ S: 1200, A: 900, B: 650, C: 450 }[g.tier] || 650) : 0;
+    const g = pickChoiceTalent(s);
+    /* v5.63 — 재야가 어디에도 없으면 '소문이 없다' 빈 팝업을 띄우지 않고
+       다른 돌발 사건(상단·홍수)으로 넘긴다. 그것도 안 되면 조용히 건너뛴다. */
+    if (!g) {
+      if (forceKind) return null;
+      return rollChoiceEvent(s, Math.random() < 0.5 ? 'merchant' : 'disaster');
+    }
+    const cost = ({ S: 1200, A: 900, B: 650, C: 450 }[g.tier] || 650);
     return {
       id: 'talent', seal: '賢', title: '재야 명장의 소문',
-      text: g ? `“${g.name}(${g.tier}급 ${SK.CLASSES[SK.genClass(g)].name})${hasBatchim(g.name) ? '이' : '가'} 이 근처에 숨어 지난다”는 소문이 돌았습니다. 예물을 갖춰 사람을 보낼 수 있습니다.` : '요즘은 눈에 띄는 재야 인재 소문이 없습니다.',
+      text: `“${g.name}(${g.tier}급 ${SK.CLASSES[SK.genClass(g)].name})${hasBatchim(g.name) ? '이' : '가'} 이 근처에 숨어 지난다”는 소문이 돌았습니다. 예물을 갖춰 사람을 보낼 수 있습니다.`,
       options: [
-        { label: g ? `사자를 보낸다 — 금 ${fmt(cost)}` : '소문이 없다', sub: g ? `성공하면 ${josa(g.name, 'i')} 합류합니다` : '다음 달을 기다립니다', disabled: !g || (s.gold || 0) < cost,
+        { label: `사자를 보낸다 — 금 ${fmt(cost)}`, sub: `성공하면 ${josa(g.name, 'i')} 합류합니다`, disabled: (s.gold || 0) < cost,
           run: () => {
-            if (!g) return '그냥 넘겼습니다.';
             s.gold -= cost;
             const p = clamp(0.55 + Math.min(0.2, (s.fame || 0) * 0.00003), 0.2, 0.85);
             if (Math.random() < p) {
@@ -11928,14 +12159,10 @@
       if (st.owner !== PF()) return;
       const base = econMul(c);
       const morale = st.loyalty;
-      // 민심이 좋으면 세수와 인구가 오르고, 나쁘면 줄고 소란이 난다
-      const moraleMul = morale >= 70 ? 1.15 : morale < 40 ? 0.85 : 1;
-      const incMul = 1 + cityTfx(c.id, 'income', 60) / 100;   // v5.31 — 보물 내정 수입
       /* v5.40 — 정책 금 수입 배율 (상업 중시 +25% · 전시 체제 -15% 등) */
       const pfxMonth = policyFxOf(st);
-      /* v5.48 — 관아 머리(군주·태수)의 정치 → 세수 가산점 (최대 +8%) */
-      const officeM = 1 + officeBonusOf(c.id).pol;
-      const cityTax = Math.round((c.gold / 22 + morale * 1.1) * base * moraleMul * (0.85 + st.comm / 250) * gPct * taxRate.mul * incMul * (1 + (pfxMonth.gold || 0)) * officeM);
+      /* v5.63 — 세수식은 cityTaxOf 한 곳에 있다 (성 요약의 '월 금 순수입'과 같은 값) */
+      const cityTax = cityTaxOf(c);
       tax += cityTax;
       st.gold = (st.gold || 0) + cityTax;   // v5.11 — 세수는 그 성 금고로
       // v5.5 — 인구는 민심·치안·농업·상업·시설 Lv 합을 함께 본다 (popMonthly)
@@ -12539,6 +12766,9 @@
     if (ti) ti.onclick = () => SK.openIntroGuide({});
     const cdxBtn = $('#btn-map-codex');
     if (cdxBtn) cdxBtn.onclick = () => SK.openCodex();
+    /* v5.63 — 지도 『세력일람』 */
+    const flBtn = $('#btn-faction-list');
+    if (flBtn) flBtn.onclick = () => SK.openFactionList();
     const estrip = $('#econ-strip');
     if (estrip) estrip.onclick = openEcon;
     $('#btn-city-back').onclick = () => SK.showMap();
