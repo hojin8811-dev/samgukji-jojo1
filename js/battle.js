@@ -814,24 +814,7 @@
     bindMinimap();
     if (!B.started) {
       B.started = true;
-      // center camera on allies before the fade-in
-      const a = B.units.filter((u) => u.side === 'ally');
-      const cx = a.reduce((s2, u) => s2 + u.x, 0) / Math.max(1, a.length);
-      const cy = a.reduce((s2, u) => s2 + u.y, 0) / Math.max(1, a.length);
-      const base = (B.sites || []).find((s) => s.type === 'allyHQ');
-      /* v5.41 — 시작 시야에 모든 부대(아군 본진·적 1선 포함)를 담는다.
-         예전에는 아군 본진만 기준으로 11칸 폭을 맞춰, 적 1선(y=6~8)의 상반신과 HP 알약이
-         화면 위쪽에서 잘리고 지도를 끌어 올려야 적 편성이 보였다. */
-      const pts = (base ? [{ x: base.x, y: base.y }] : [{ x: cx, y: cy }])
-        .concat(B.units.filter((u) => u.alive !== false).map((u) => ({ x: u.x, y: u.y })));
-      const minX = Math.min.apply(null, pts.map((p) => p.x)) - 1;
-      const maxX = Math.max.apply(null, pts.map((p) => p.x)) + 1;
-      const minY = Math.min.apply(null, pts.map((p) => p.y)) - 1;
-      const maxY = Math.max.apply(null, pts.map((p) => p.y)) + 1;
-      const vw = stage.clientWidth, vh = stage.clientHeight * 0.94;
-      const fit = Math.min(vw / ((maxX - minX + 1) * TILE), vh / ((maxY - minY + 1) * TILE));
-      cam.s = clamp(Math.min(fit, 0.8), 0.42, 0.8);
-      centerCam((minX + maxX) / 2, (minY + maxY) / 2);
+      B.startFrame = frameStartView();
       /* v5.33 — 미니맵 확대를 기억한 채 전투가 열리면 본성이 미니맵 뒤에 서지 않게 비킨다 */
       if (mmBig && mmOpen) shiftCamForMinimap(true);
     }
@@ -854,6 +837,64 @@
     else cam.x = clamp(cam.x, w - sw, 0);
     if (sh <= h) cam.y = (h - sh) / 2;
     else cam.y = clamp(cam.y, h - sh, 0);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.54 — 전장 시작 카메라 구도
+     · 예전: `stage.clientHeight * 0.94` 하나만 보고 화면 중앙에 내용을 놓아,
+       390×844에서는 아래 줄 아군의 발이 전투 패널에 잘리고 390×680에서는 두 전선이
+       통째로 화면 밖으로 밀렸다(배율 하한 0.42가 실제 필요한 배율보다 컸다).
+     · 이제 보이는 상자(위 목표 띠 30px·아래 상태줄 26px·좌우 4px을 비킨 영역)를 기준으로
+       아군 본진·적 1선·모든 부대에 머리(이름 알약)·발 여백까지 넣어 맞춘다.
+     · 내용이 상자보다 크면 배율을 더 낮춰 둘 다 들어오게 하고(하한 0.28),
+       남는 여백은 위아래로 고르게 나눈다. */
+  function startViewBox() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const padL = 4, padR = 4, padT = 30, padB = 26;
+    return { x: padL, y: padT, w: Math.max(60, w - padL - padR), h: Math.max(60, h - padT - padB) };
+  }
+  function frameStartView() {
+    if (!B || !stage) return null;
+    const box = startViewBox();
+    const base = (B.sites || []).find((s) => s.type === 'allyHQ')
+      || (B.sites || []).find((s) => s.type === 'enemyHQ');
+    const all = (base ? [{ x: base.x, y: base.y }] : [])
+      .concat(B.units.filter((u) => u.alive !== false).map((u) => ({ x: u.x, y: u.y })));
+    const mine = B.units.filter((u) => u.alive !== false && u.side === 'ally').map((u) => ({ x: u.x, y: u.y }));
+    if (!all.length) return null;
+    const minX = Math.min.apply(null, all.map((p) => p.x));
+    const maxX = Math.max.apply(null, all.map((p) => p.x));
+    const minY = Math.min.apply(null, all.map((p) => p.y));
+    const maxY = Math.max.apply(null, all.map((p) => p.y));
+    /* 부대 그림은 발밑 칸 아래로 0.12칸, 이름표·머리까지 위로 1.9칸 차지한다 */
+    const left = minX * TILE, right = (maxX + 1) * TILE;
+    const top = minY * TILE - TILE * 1.9, bottom = (maxY + 1) * TILE + TILE * 0.12;
+    const cw = Math.max(TILE, right - left), ch = Math.max(TILE, bottom - top);
+    /* 아군 줄(발)은 어떤 전장에서도 반드시 상자 안에 들어와야 한다 */
+    const aMaxY = mine.length ? Math.max.apply(null, mine.map((p) => p.y)) : maxY;
+    const aMinY = mine.length ? Math.min.apply(null, mine.map((p) => p.y)) : minY;
+    const allyTop = aMinY * TILE - TILE * 1.9, allyFoot = (aMaxY + 1) * TILE;
+    const allyH = Math.max(TILE, allyFoot - allyTop);
+    let s = clamp(Math.min(box.w / cw, box.h / ch) * 0.98, 0.24, 0.8);
+    let guard = 0;
+    let camY = 0;
+    for (;;) {
+      cam.s = s;
+      const fullH = ch * s;
+      /* 전체가 들어가면 가운데, 아니면 아군 발을 상자 아래쪽에 맞춘다 */
+      camY = (fullH <= box.h - 4)
+        ? box.y + (box.h - fullH) / 2 - top * s
+        : box.y + box.h - (aMaxY + 1) * TILE * s;
+      cam.x = box.x + box.w / 2 - (left + cw / 2) * s;
+      cam.y = camY;
+      camClamp();
+      const foot = (aMaxY + 1) * TILE * s + cam.y;
+      const head = (aMinY * TILE - TILE * 1.4) * s + cam.y;
+      if (foot <= box.y + box.h + 1 && head >= box.y - TILE * 0.6 * s) break;
+      if (guard++ > 8 || s <= 0.16) break;
+      s = Math.max(0.16, s * 0.9);   // 월드가 짧아 밀리면 조금씩 더 멀리서 본다
+    }
+    return { box: box, scale: Math.round(cam.s * 100) / 100, span: [minX, minY, maxX, maxY], allyH: Math.round(allyH) };
   }
   function centerCam(tx, ty) {
     const w = canvas.width / dpr, h = canvas.height / dpr;
@@ -1517,10 +1558,23 @@
     drawUnits();
     drawFx();
     ctx.restore();
+    /* v5.54 — 필살기 화면 물들임 (한 번 번쩍 지나간다) */
+    for (let i = 0; i < fx.length; i++) {
+      const f = fx[i];
+      if (f.kind !== 'tint') continue;
+      const tp = f.t / f.life;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = `rgba(${f.color || '255,220,140'},${0.17 * (1 - tp)})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      break;
+    }
     /* v5.30 — 야간 전장(야영 기습전): 화면 전체를 한 번 어둡게 깔고 횃불 빛을 더한다.
        제목에만 '야간'이라 적고 낮그림을 그대로 두면 어색해서, 실제 밤으로 보이게 했다. */
     if (B.night) drawNight(w, h);
     drawFloats();
+    drawUltBubble(w, h);
     drawMinimap();
   }
 
@@ -2618,6 +2672,8 @@
   }
 
   function updateFx(dt, fdt) {
+    /* v5.54 — 필살기 말풍선은 부대를 따라가며 스스로 사라진다 */
+    if (ultShout) { ultShout.t += dt; if (ultShout.t > ultShout.life) ultShout = null; }
     for (let i = fx.length - 1; i >= 0; i--) {
       const f = fx[i];
       f.t += dt;
@@ -2804,6 +2860,12 @@
           ctx.lineTo(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r);
           ctx.stroke();
         }
+      } else if (f.kind === 'ult') {
+        const mx = (f.x + (f.tx == null ? f.x : f.tx)) / 2;
+        const my = (f.y + (f.ty == null ? f.y : f.ty)) / 2;
+        const Z = Math.min(1.7, Math.max(1, 0.46 / Math.max(0.2, cam.s)));
+        ctx.translate(mx, my); ctx.scale(Z, Z); ctx.translate(-mx, -my);
+        drawUltFx(f, p);
       } else if (f.kind === 'bolt') {
         const top = f.y - TILE * 2.6;
         ctx.strokeStyle = `rgba(220,240,255,${(1 - p) * 0.95})`;
@@ -2821,6 +2883,515 @@
       }
       ctx.restore();
     });
+  }
+
+  /* ───────────── v5.54 — 필살기 이펙트·말풍선 ───────────── */
+  function ultRGBA(f, a) { return `rgba(${f.color || '255,220,140'},${a})`; }
+  function ultRnd(seed) { const x = Math.sin(seed * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  function drawUltFx(f, p) {
+    const c = f.color || '255,220,140';
+    const A = 1 - p;
+    const T = TILE;
+    const dx = f.tx - f.x, dy = f.ty - f.y;
+    const ang = Math.atan2(dy, dx);
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    switch (f.sub) {
+      /* 一자 참격 — 붉은 칼날이 대상 위를 세 번 가른다 */
+      case 'slash_crimson': {
+        for (let i = 0; i < 3; i++) {
+          const g = Math.min(1, Math.max(0, p * 3.4 - i * 0.22));
+          if (g <= 0) continue;
+          const off = (i - 1) * T * 0.26;
+          const x0 = f.tx - T * 0.85 + off * 0.35, y0 = f.ty - T * 0.75 + off;
+          ctx.strokeStyle = ultRGBA(f, 0.92 * A);
+          ctx.lineWidth = 10 * A + 2;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + T * 1.7 * g, y0 + T * 1.45 * g); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,250,235,${0.9 * A})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + T * 1.7 * g, y0 + T * 1.45 * g); ctx.stroke();
+        }
+        for (let i = 0; i < 10; i++) {
+          const s2 = ultRnd(i + f.tx * 0.01 + f.ty * 0.02);
+          const d = T * (0.2 + p * 0.7) * (0.6 + s2);
+          ctx.fillStyle = ultRGBA(f, 0.85 * A);
+          ctx.beginPath(); ctx.arc(f.tx + Math.cos(s2 * 6.28) * d, f.ty + Math.sin(s2 * 6.28) * d * 0.7, 2.4 * A + 0.8, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      /* 용의 일도 — 시전자에서 대상까지 큰 초승달 파도 */
+      case 'dragon_cleave': {
+        /* 시전자 → 대상 궤적 (초승달이 날아간 자리) */
+        ctx.strokeStyle = ultRGBA(f, 0.5 * A);
+        ctx.lineWidth = 10 * A + 2;
+        ctx.beginPath(); ctx.moveTo(f.x, f.y - T * 0.2); ctx.lineTo(f.x + dx * Math.min(1, p * 1.6), f.y + dy * Math.min(1, p * 1.6) - T * 0.2); ctx.stroke();
+        /* 대상 위에 크게 터지는 초승달 칼날 — 두 호를 채워 진짜 초승달 모양으로 */
+        const g = Math.min(1, p * 2.6);
+        const R1 = T * (1.05 + g * 0.75), R2 = R1 * 0.6;
+        [[1.0, 0.95], [0.72, 0.6]].forEach(([k2, al], i) => {
+          ctx.save();
+          ctx.translate(f.tx, f.ty - T * 0.1);
+          ctx.rotate(ang - 0.35 + p * 0.8 + i * 0.16);
+          const r1 = R1 * k2, r2 = R2 * k2;
+          const grd = ctx.createRadialGradient(0, 0, r2 * 0.7, 0, 0, r1);
+          grd.addColorStop(0, `rgba(255,255,255,${0.9 * al * A})`);
+          grd.addColorStop(0.55, ultRGBA(f, 0.9 * al * A));
+          grd.addColorStop(1, ultRGBA(f, 0.15 * al * A));
+          ctx.beginPath();
+          ctx.arc(0, 0, r1, -1.05, 1.05);
+          ctx.arc(0, 0, r2, 1.05, -1.05, true);
+          ctx.closePath();
+          ctx.fillStyle = grd;
+          ctx.fill();
+          ctx.strokeStyle = `rgba(255,255,255,${0.85 * al * A})`;
+          ctx.lineWidth = 2 + al * A;
+          ctx.stroke();
+          ctx.restore();
+        });
+        /* 흩어지는 빛가루 */
+        for (let i = 0; i < 12; i++) {
+          const s2 = ultRnd(i * 4.1 + f.tx * 0.03);
+          const a2 = ang - 1 + s2 * 2;
+          const d = T * (0.3 + p * 1.1) * (0.6 + s2 * 0.8);
+          ctx.fillStyle = ultRGBA(f, 0.8 * A);
+          ctx.beginPath(); ctx.arc(f.tx + Math.cos(a2) * d, f.ty + Math.sin(a2) * d, 2.6 * A + 0.8, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      /* 화공 — 솟구치는 불기둥과 불티 */
+      case 'fire_storm': {
+        const grow = Math.min(1, p * 2.2);
+        ctx.fillStyle = `rgba(255,120,40,${0.28 * A})`;
+        ctx.beginPath(); ctx.ellipse(f.tx, f.ty, T * 0.9 * grow, T * 0.45 * grow, 0, 0, 6.283); ctx.fill();
+        for (let i = 0; i < 12; i++) {
+          const s2 = ultRnd(i * 3.1 + f.tx);
+          const a2 = s2 * 6.283;
+          const rr = (f.r || T) * 0.7 * s2;
+          const hh = T * (0.5 + s2) * (0.4 + p);
+          const x = f.tx + Math.cos(a2) * rr, y = f.ty + Math.sin(a2) * rr * 0.6;
+          const grd = ctx.createLinearGradient(x, y, x, y - hh);
+          grd.addColorStop(0, `rgba(255,210,120,${0.85 * A})`);
+          grd.addColorStop(0.5, `rgba(255,130,40,${0.7 * A})`);
+          grd.addColorStop(1, `rgba(180,40,10,0)`);
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.moveTo(x - 7, y);
+          ctx.quadraticCurveTo(x - 3, y - hh * 0.6, x + Math.sin(p * 6 + i) * 4, y - hh);
+          ctx.quadraticCurveTo(x + 4, y - hh * 0.6, x + 7, y);
+          ctx.closePath(); ctx.fill();
+        }
+        for (let i = 0; i < 9; i++) {
+          const s2 = ultRnd(i * 7.7 + f.ty);
+          ctx.fillStyle = `rgba(255,${170 + Math.round(60 * s2)},90,${0.8 * A})`;
+          ctx.beginPath(); ctx.arc(f.tx + (s2 - 0.5) * f.r * 1.4, f.ty - p * T * (0.6 + s2), 2.2 * A + 0.7, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      /* 천뢰 — 하늘에서 내리꽂히는 번개 세 갈래 */
+      case 'lightning_array': {
+        const bol = [[0, 0], [-T * 0.5, T * 0.12], [T * 0.55, -T * 0.1]];
+        bol.forEach((o, i) => {
+          const g = Math.min(1, Math.max(0, p * 3 - i * 0.2));
+          if (g <= 0) return;
+          const bx = f.tx + o[0], by = f.ty + o[1];
+          const top = by - T * 3.2;
+          const path = () => {
+            ctx.beginPath();
+            ctx.moveTo(bx, top);
+            for (let k = 1; k <= 5; k++) {
+              const ny = top + (by - top) * (k / 5) * g;
+              const nx = bx + (k === 5 ? 0 : (k % 2 ? 1 : -1) * T * (0.22 + ultRnd(k + i * 7) * 0.28));
+              ctx.lineTo(nx, ny);
+            }
+          };
+          ctx.strokeStyle = `rgba(12,18,34,${0.6 * A})`;
+          ctx.lineWidth = 15 * A + 6;
+          path(); ctx.stroke();
+          ctx.strokeStyle = ultRGBA(f, 0.85 * A);
+          ctx.lineWidth = 10 * A + 3;
+          path(); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,255,255,${0.99 * A})`;
+          ctx.lineWidth = 4.6 * A + 1.6;
+          path(); ctx.stroke();
+        });
+        ctx.fillStyle = `rgba(230,245,255,${0.4 * A})`;
+        ctx.beginPath(); ctx.arc(f.tx, f.ty, T * (0.4 + p * 0.6), 0, 6.283); ctx.fill();
+        ctx.strokeStyle = `rgba(255,255,255,${0.7 * A})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(f.tx, f.ty + T * 0.15, T * (0.4 + p * 0.9), T * (0.16 + p * 0.32), 0, 0, 6.283); ctx.stroke();
+        break;
+      }
+      /* 궁진 — 비스듬히 쏟아지는 화살비 */
+      case 'arrow_rain': {
+        for (let i = 0; i < 9; i++) {
+          const s2 = ultRnd(i * 5.3 + f.tx * 0.3);
+          const g = Math.min(1, Math.max(0, p * 2.6 - s2 * 0.5));
+          if (g <= 0) continue;
+          const ex = f.tx + (s2 - 0.5) * (f.r || T) * 1.2;
+          const ey = f.ty + (ultRnd(i + 3.3) - 0.5) * (f.r || T) * 0.5;
+          const sx = ex - T * 0.9 * (1 - g), sy = ey - T * 2.4 * (1 - g);
+          ctx.strokeStyle = `rgba(40,28,10,${0.45 * A})`;
+          ctx.lineWidth = 5.5;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,248,215,${0.95 * A})`;
+          ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+          ctx.fillStyle = `rgba(255,236,160,${0.95 * A})`;
+          ctx.beginPath(); ctx.arc(ex, ey, 2, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      /* 포효 — 시전자에서 퍼지는 충격 고리와 먼지 */
+      case 'roar_shockwave': {
+        for (let i = 0; i < 4; i++) {
+          const rr = T * (0.5 + p * 3.0 + i * 0.42);
+          ctx.strokeStyle = `rgba(30,20,8,${(0.35 - i * 0.06) * A})`;
+          ctx.lineWidth = (12 - i * 2.4) * A + 2;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y + T * 0.25, rr, rr * 0.55, 0, 0, 6.283); ctx.stroke();
+          ctx.strokeStyle = ultRGBA(f, (0.85 - i * 0.16) * A);
+          ctx.lineWidth = (7 - i * 1.6) * A + 1.5;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y + T * 0.25, rr, rr * 0.55, 0, 0, 6.283); ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(255,240,200,${0.18 * A})`;
+        ctx.beginPath(); ctx.arc(f.x + T * 0.9, f.y - T * 0.7, T * (0.25 + p * 0.4), 0, 6.283); ctx.fill();
+        ctx.beginPath(); ctx.arc(f.x - T * 1.0, f.y - T * 0.5, T * (0.2 + p * 0.35), 0, 6.283); ctx.fill();
+        for (let i = 0; i < 8; i++) {
+          const a2 = i * 0.78;
+          ctx.fillStyle = `rgba(220,205,170,${0.5 * A})`;
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a2) * T * (0.5 + p * 1.6), f.y + Math.sin(a2) * T * (0.3 + p * 0.9), 3 * A + 1, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      /* 왕기 — 금빛 기둥과 봉인진 */
+      case 'royal_aura': {
+        for (let i = 0; i < 3; i++) {
+          const rr = T * (0.5 + p * 1.3 + i * 0.4);
+          ctx.strokeStyle = ultRGBA(f, (0.75 - i * 0.2) * A);
+          ctx.lineWidth = (5 - i) * A + 1;
+          ctx.beginPath(); ctx.ellipse(f.x, f.y + T * 0.3, rr, rr * 0.4, 0, 0, 6.283); ctx.stroke();
+        }
+        const grd = ctx.createLinearGradient(f.x, f.y - T * 2.2, f.x, f.y + T * 0.3);
+        grd.addColorStop(0, `rgba(${c},0)`);
+        grd.addColorStop(0.6, `rgba(${c},${0.28 * A})`);
+        grd.addColorStop(1, `rgba(255,255,230,${0.4 * A})`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(f.x - T * 0.5, f.y - T * 2.2, T, T * 2.5);
+        ctx.fillStyle = `rgba(255,248,210,${0.85 * A})`;
+        ctx.font = `bold ${Math.round(T * 0.5)}px "Noto Serif CJK KR", serif`;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = A * 0.95;
+        ctx.fillText('王', f.x, f.y - T * 0.7 - p * T * 0.3);
+        for (let i = 0; i < 10; i++) {
+          const a2 = i * 0.63 + p * 2;
+          ctx.fillStyle = ultRGBA(f, 0.75 * A);
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(a2) * T * 0.9, f.y - p * T * 1.6 * (0.4 + ultRnd(i)), 2.4 * A + 0.8, 0, 6.283); ctx.fill();
+        }
+        break;
+      }
+      /* 수공 — 밀려오는 물결과 물보라 */
+      case 'water_surge': {
+        for (let i = 0; i < 3; i++) {
+          const g = Math.min(1, Math.max(0, p * 2.4 - i * 0.22));
+          if (g <= 0) continue;
+          const rr = (f.r || T) * (0.5 + g * 1.2);
+          ctx.strokeStyle = `rgba(${c},${0.75 * A})`;
+          ctx.lineWidth = 8 * A + 2;
+          ctx.beginPath(); ctx.ellipse(f.tx, f.ty + T * 0.2, rr, rr * 0.42, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+          ctx.strokeStyle = `rgba(230,250,255,${0.75 * A})`;
+          ctx.lineWidth = 2.2;
+          ctx.beginPath(); ctx.ellipse(f.tx, f.ty + T * 0.2, rr, rr * 0.42, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+        }
+        for (let i = 0; i < 10; i++) {
+          const s2 = ultRnd(i * 2.7 + f.ty);
+          ctx.fillStyle = `rgba(210,245,255,${0.8 * A})`;
+          ctx.beginPath();
+          ctx.arc(f.tx + (s2 - 0.5) * (f.r || T) * 1.6, f.ty - Math.sin(p * 3 + i) * T * 0.5 - p * T * 0.2, 2.6 * A + 0.8, 0, 6.283);
+          ctx.fill();
+        }
+        break;
+      }
+      /* 암영 — 잔상과 보랏빛 칼날 */
+      case 'shadow_blade': {
+        for (let i = 0; i < 4; i++) {
+          const g = Math.min(1, Math.max(0, p * 3.2 - i * 0.2));
+          if (g <= 0) continue;
+          const ox = (i - 1.5) * T * 0.3;
+          ctx.fillStyle = `rgba(${c},${0.32 * A})`;
+          ctx.beginPath();
+          ctx.ellipse(f.tx + ox, f.ty + T * 0.1, T * 0.3, T * 0.6, 0.3, 0, 6.283);
+          ctx.fill();
+          ctx.strokeStyle = ultRGBA(f, 0.85 * A);
+          ctx.lineWidth = 5 * A + 1;
+          ctx.beginPath();
+          ctx.moveTo(f.tx + ox - T * 0.6, f.ty + T * 0.7);
+          ctx.lineTo(f.tx + ox + T * 0.5 * g, f.ty - T * 0.9 * g);
+          ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(20,10,40,${0.28 * A})`;
+        ctx.beginPath(); ctx.arc(f.tx, f.ty, T * (0.5 + p * 0.6), 0, 6.283); ctx.fill();
+        break;
+      }
+      /* 창진 — 사방으로 뻗는 창날 */
+      case 'spear_storm': {
+        const n = 6;
+        for (let i = 0; i < n; i++) {
+          const a2 = (i / n) * 6.283 + 0.4;
+          const g = Math.min(1, Math.max(0, p * 2.8 - (i % 3) * 0.12));
+          if (g <= 0) continue;
+          const sx = f.tx, sy = f.ty;
+          const ex = sx + Math.cos(a2) * T * 1.5 * g, ey = sy + Math.sin(a2) * T * 1.0 * g;
+          ctx.strokeStyle = `rgba(30,24,10,${0.4 * A})`;
+          ctx.lineWidth = 7 * A + 2;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+          ctx.strokeStyle = ultRGBA(f, 0.95 * A);
+          ctx.lineWidth = 3.6 * A + 1;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,255,250,${0.9 * A})`;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(255,255,240,${0.5 * A})`;
+        ctx.beginPath(); ctx.arc(f.tx, f.ty, T * 0.16 * (1 - p) + 3, 0, 6.283); ctx.fill();
+        break;
+      }
+      /* 철벽 — 방패 문양과 솟는 돌기둥 */
+      case 'iron_wall': {
+        const g = Math.min(1, p * 2.4);
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.strokeStyle = ultRGBA(f, 0.9 * A);
+        ctx.lineWidth = 5 * A + 1.5;
+        const w2 = T * 0.85 * g, h2 = T * 1.15 * g;
+        ctx.beginPath();
+        ctx.moveTo(-w2, -h2 * 0.55);
+        ctx.lineTo(0, -h2);
+        ctx.lineTo(w2, -h2 * 0.55);
+        ctx.lineTo(w2, h2 * 0.3);
+        ctx.lineTo(0, h2 * 0.7);
+        ctx.lineTo(-w2, h2 * 0.3);
+        ctx.closePath(); ctx.stroke();
+        ctx.fillStyle = `rgba(${c},${0.22 * A})`;
+        ctx.fill();
+        ctx.restore();
+        for (let i = 0; i < 5; i++) {
+          const s2 = ultRnd(i * 4.4 + f.y);
+          const x = f.x + (s2 - 0.5) * T * 2.2;
+          const hh = T * 0.5 * (0.4 + p) * (0.7 + s2);
+          ctx.fillStyle = `rgba(${c},${0.55 * A})`;
+          ctx.beginPath();
+          ctx.moveTo(x - 6, f.y + T * 0.3); ctx.lineTo(x, f.y + T * 0.3 - hh); ctx.lineTo(x + 6, f.y + T * 0.3);
+          ctx.closePath(); ctx.fill();
+        }
+        break;
+      }
+      /* 투석 — 하늘에서 떨어지는 바위와 폭발 */
+      case 'stone_barrage': {
+        for (let i = 0; i < 4; i++) {
+          const s2 = ultRnd(i * 6.1 + f.tx * 0.2);
+          const g = Math.min(1, Math.max(0, p * 2.2 - s2 * 0.35));
+          if (g <= 0) continue;
+          const ex = f.tx + (s2 - 0.5) * (f.r || T) * 1.1;
+          const ey = f.ty + (ultRnd(i + 8.8) - 0.5) * (f.r || T) * 0.4;
+          const x = ex - T * 0.5 * (1 - g), y = ey - T * 3 * (1 - g);
+          ctx.strokeStyle = `rgba(255,220,160,${0.45 * A})`;
+          ctx.lineWidth = 6 * A + 1;
+          ctx.beginPath(); ctx.moveTo(x + T * 0.3, y - T * 0.9); ctx.lineTo(x, y); ctx.stroke();
+          ctx.fillStyle = `rgba(90,74,50,${0.95 * A})`;
+          ctx.beginPath(); ctx.arc(x, y, T * 0.16, 0, 6.283); ctx.fill();
+          ctx.strokeStyle = `rgba(255,236,190,${0.8 * A})`;
+          ctx.lineWidth = 1.4; ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(255,220,150,${0.55 * A})`;
+        ctx.lineWidth = 3 * A + 1;
+        ctx.beginPath(); ctx.ellipse(f.tx, f.ty + T * 0.25, T * (0.5 + p * 1.1), T * (0.2 + p * 0.4), 0, 0, 6.283); ctx.stroke();
+        break;
+      }
+      /* 화무 — 흩날리는 꽃잎 */
+      case 'petal_dance': {
+        for (let i = 0; i < 12; i++) {
+          const s2 = ultRnd(i * 3.9 + f.tx * 0.4);
+          const a2 = s2 * 6.283 + p * 2.4;
+          const rr = T * (0.3 + p * 1.0) * (0.6 + s2);
+          const x = f.tx + Math.cos(a2) * rr, y = f.ty + Math.sin(a2) * rr * 0.7 - p * T * 0.6;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(a2 + p * 3);
+          ctx.fillStyle = ultRGBA(f, 0.85 * A);
+          ctx.beginPath(); ctx.ellipse(0, 0, 4.5 * A + 1.5, 2.4 * A + 0.8, 0, 0, 6.283); ctx.fill();
+          ctx.restore();
+        }
+        break;
+      }
+      /* 독무 — 피어오르는 안개와 기포 */
+      case 'poison_mist': {
+        for (let i = 0; i < 7; i++) {
+          const s2 = ultRnd(i * 8.3 + f.ty);
+          const rr = (f.r || T) * (0.3 + p * 0.8) * (0.5 + s2);
+          ctx.fillStyle = ultRGBA(f, 0.16 * A);
+          ctx.beginPath();
+          ctx.arc(f.tx + (s2 - 0.5) * (f.r || T) * 1.2, f.ty - p * T * 0.5 - s2 * T * 0.3, rr, 0, 6.283);
+          ctx.fill();
+        }
+        for (let i = 0; i < 8; i++) {
+          const s2 = ultRnd(i * 1.7 + f.tx);
+          ctx.fillStyle = ultRGBA(f, 0.8 * A);
+          ctx.beginPath();
+          ctx.arc(f.tx + (s2 - 0.5) * (f.r || T), f.ty - p * T * (0.4 + s2 * 0.8), 2.2 * A + 0.7, 0, 6.283);
+          ctx.fill();
+        }
+        break;
+      }
+      /* 풍격 — 휘몰아치는 바람 줄기 */
+      case 'wind_gale': {
+        for (let i = 0; i < 5; i++) {
+          const g = Math.min(1, Math.max(0, p * 2.6 - i * 0.15));
+          if (g <= 0) continue;
+          ctx.strokeStyle = ultRGBA(f, (0.7 - i * 0.1) * A);
+          ctx.lineWidth = 3.4 * A + 1;
+          ctx.beginPath();
+          for (let k = 0; k <= 10; k++) {
+            const u = k / 10;
+            const x = f.x + (f.tx - f.x) * u;
+            const y = f.y + (f.ty - f.y) * u + Math.sin(u * 6 + p * 8 + i) * T * 0.22;
+            if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(255,255,245,${0.5 * A})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(f.tx, f.ty, T * (0.35 + p * 0.9), 0, 6.283); ctx.stroke();
+        break;
+      }
+      /* 철기 — 흙먼지와 말발굽 궤적 */
+      case 'beast_charge': {
+        for (let i = 0; i < 6; i++) {
+          const u = (i + 1) / 7;
+          const px = f.x + dx * u, py = f.y + dy * u;
+          const g = Math.min(1, Math.max(0, p * 2.4 - i * 0.12));
+          if (g <= 0) continue;
+          ctx.fillStyle = `rgba(226,208,172,${0.4 * A})`;
+          ctx.beginPath(); ctx.ellipse(px, py + T * 0.28, T * 0.28 * g, T * 0.1 * g, 0, 0, 6.283); ctx.fill();
+          ctx.strokeStyle = ultRGBA(f, 0.55 * A);
+          ctx.lineWidth = 2.4 * A + 1;
+          ctx.beginPath(); ctx.moveTo(px - T * 0.25, py); ctx.lineTo(px + T * 0.25, py); ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(255,255,240,${0.85 * A})`;
+        ctx.lineWidth = 8 * A + 2;
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.y - T * 0.2);
+        ctx.lineTo(f.x + dx * Math.min(1, p * 1.4), f.y + dy * Math.min(1, p * 1.4) - T * 0.2);
+        ctx.stroke();
+        break;
+      }
+      default: {
+        ctx.strokeStyle = ultRGBA(f, 0.8 * A);
+        ctx.lineWidth = 4 * A + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, T * (0.3 + p * 1.2), 0, 6.283); ctx.stroke();
+      }
+    }
+  }
+
+  /* 필살기 전용 말풍선 — 장수 머리 위에 초상·이름·필살기·대사를 띄운다 (화면 좌표) */
+  function ultWrapText(text, maxW, maxLines) {
+    const out = [];
+    if (!text) return out;
+    const words = String(text).split(' ');
+    let line = '';
+    for (let i = 0; i < words.length; i++) {
+      const test = line ? line + ' ' + words[i] : words[i];
+      if (ctx.measureText(test).width > maxW && line) {
+        out.push(line);
+        line = words[i];
+        if (out.length >= maxLines) break;
+      } else line = test;
+    }
+    if (out.length < maxLines && line) out.push(line);
+    /* 넘치면 마지막 줄만 …로 줄인다 */
+    if (out.join(' ').length < String(text).length) {
+      let last = out[maxLines - 1] || '';
+      while (last.length > 2 && ctx.measureText(last + '…').width > maxW) last = last.slice(0, -1);
+      out[maxLines - 1] = last.replace(/[\s,·—-]+$/, '') + '…';
+    }
+    return out.slice(0, maxLines);
+  }
+  function roundRect2(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function drawUltBubble(w, h) {
+    if (!ultShout || !B || !ctx) return;
+    const u = B.units.find((o) => o.id === ultShout.uid);
+    if (!u) return;
+    const t = ultShout.t;
+    /* v5.54 — 컷인(0~1.3초)이 먼저 지나가고, 말풍선은 0.55초에 나타나 1.75초에 사라진다 */
+    const inP = Math.max(0, Math.min(1, (t - 550) / 200));
+    const outP = Math.min(1, Math.max(0, (ultShout.life - t) / 240));
+    const a = Math.min(inP, outP);
+    if (a <= 0.02) return;
+    const cx = (rxOf(u) + 0.5) * TILE * cam.s + cam.x;
+    const headY = (ryOf(u) + 0.05) * TILE * cam.s + cam.y - TILE * 1.15 * cam.s;
+    const c = ultShout.c || '255,220,140';
+    const pad = 7;
+    const bw = Math.min(w - 16, 232);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = 'bold 12px "Noto Serif CJK KR", serif';
+    ctx.font = '10px "Noto Sans CJK KR", sans-serif';
+    const qLines = ultWrapText(ultShout.q, bw - pad * 2, 2);
+    const bh = pad * 2 + 16 + (qLines.length ? qLines.length * 12 + 2 : 0);
+    let bx = cx - bw / 2;
+    bx = Math.max(6, Math.min(w - bw - 6, bx));
+    let by = headY - bh - 10;
+    if (by < 6) by = 6;
+    /* 몸통 */
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 10;
+    roundRect2(bx, by, bw, bh, 9);
+    ctx.fillStyle = 'rgba(26,19,8,0.95)';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `rgba(${c},0.95)`;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    /* 꼬리 — 장수 머리를 가리킨다 */
+    const tailX = Math.max(bx + 14, Math.min(bx + bw - 14, cx));
+    const baseY = by + bh;
+    ctx.beginPath();
+    ctx.moveTo(tailX - 7, baseY - 1);
+    ctx.lineTo(tailX, Math.min(baseY + 10, headY - 2));
+    ctx.lineTo(tailX + 6, baseY - 1);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(26,19,8,0.95)';
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${c},0.95)`;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(tailX - 7, baseY);
+    ctx.lineTo(tailX, Math.min(baseY + 10, headY - 2));
+    ctx.lineTo(tailX + 6, baseY);
+    ctx.stroke();
+    /* 이름 · 필살기 */
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = 'bold 9.5px "Noto Sans CJK KR", sans-serif';
+    ctx.fillStyle = '#e8d9b4';
+    ctx.fillText(ultShout.name, bx + bw / 2, by + pad + 9);
+    ctx.font = 'bold 13.5px "Noto Serif CJK KR", serif';
+    ctx.fillStyle = `rgb(${c})`;
+    ctx.fillText(`「${ultShout.n}」`, bx + bw / 2, by + pad + 25);
+    /* 대사 */
+    if (qLines.length) {
+      ctx.font = '10px "Noto Sans CJK KR", sans-serif';
+      ctx.fillStyle = '#f0e4c6';
+      ctx.textAlign = 'left';
+      qLines.forEach((ln, i) => ctx.fillText(ln, bx + pad, by + pad + 38 + i * 12));
+    }
+    ctx.restore();
   }
 
   /* v5.27 — 고유특기 이름·오라 문구는 부대보다 먼저 그린다.
@@ -3087,8 +3658,22 @@
     const tb = $('#battle-targets');
     if (!tb) return;
     const u = B && B.sel;
-    const active = B && B.phase === 'ally' && !B.over && u && !u.acted && (mode === 'attack' || mode === 'skillTarget');
+    const isUlt = mode === 'ultTarget';
+    const active = B && B.phase === 'ally' && !B.over && u && !u.acted && (mode === 'attack' || mode === 'skillTarget' || isUlt);
     if (!active) { tb.hidden = true; tb.innerHTML = ''; return; }
+    if (isUlt) {
+      /* v5.54 — 필살기: 사거리 안 적을 칩으로 보여 주고, 누르면 바로 시전 */
+      const spec = ultOf(u);
+      const urg = spec ? ultRange(u, spec) : 1;
+      const list = spec ? B.units.filter((t) => t.alive && t.side !== u.side && manh(u.x, u.y, t.x, t.y) <= urg) : [];
+      tb.hidden = false;
+      if (!list.length) { tb.innerHTML = `<span class="bt-hint">필살기 사거리 ${urg}칸 안에 적이 없습니다 — 한 칸 더 붙으세요</span>`; return; }
+      tb.innerHTML = `<span class="bt-hint">「${spec.n}」 대상</span>` + list.map((t) => `<button class="bt-chip ${t.side}" data-id="${t.id}"><b>${t.name}</b><em>${Math.round(t.hp).toLocaleString('ko-KR')}</em></button>`).join('');
+      tb.querySelectorAll('.bt-chip').forEach((b) => {
+        b.onclick = () => { const t = B.units.find((x) => x.id === b.dataset.id); if (t && spec) castUlt(u, spec, t); };
+      });
+      return;
+    }
     const heal = pendingSkill && (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly');
     const rng = pendingSkill && pendingSkill.range ? pendingSkill.range : effRng(u);
     /* v5.13 — 회복은 시전자 자신(거리 0)도 고를 수 있다 */
@@ -4052,15 +4637,35 @@
     return (ch === 'C' || ch === 'T' || ch === 'K') ? 1 : 0;
   }
   /* v5.0.3 — 책략 공격력(책공)과 책략 방어력(책방/정신력).
-     지력이 책공의 바탕이고, 지력+통솔이 책방의 바탕이다. 병력이 줄면 함께 약해진다. */
+     지력이 책공의 바탕이고, 지력+통솔이 책방의 바탕이다. 병력이 줄면 함께 약해진다.
+     v5.54 — 병과별 배율을 곱해 모든 병과가 같은 눈금에서 읽히게 정리했다.
+       예전에는 지력만 보고 값을 만들어 군주·기병까지 책공이 물리 공격의 두 배로 보였고,
+       방어력(20~35)에 비해 책방(70~85)만 유난히 커 보였다.
+       · 책략계(책사·도사·풍수사·무희·군악대) — 책공이 공격력보다 확실히 높다
+       · 근접·기병·궁병·군주 — 책공이 공격력보다 낮다 (싸움은 칼로 한다)
+       · 공성 병기(포차·발석차) — 기계의 위력이라 중간값을 준다 */
+  const MAGIC_ATK_MUL = {
+    chaeksa: 0.58, dosa: 0.60, pungsusa: 0.56, muhui: 0.50, gunakdae: 0.50,
+    gungsu: 0.32, gunggi: 0.34, yeonnobyung: 0.32, pocha: 0.44, balseokcha: 0.44,
+    gunwoong: 0.36, deunggabyung: 0.30, geombyung: 0.30,
+  };
+  const MAGIC_DEF_MUL = {
+    chaeksa: 0.60, dosa: 0.60, pungsusa: 0.58, muhui: 0.52, gunakdae: 0.50,
+    gungsu: 0.36, gunggi: 0.36, yeonnobyung: 0.36, pocha: 0.30, balseokcha: 0.30,
+    gunwoong: 0.38, deunggabyung: 0.34, geombyung: 0.34,
+  };
+  /* v5.54 — 병과 표에 없는 병과(기병·창병·산적·수적·무도가·야수병)의 기본 배율 */
+  const MAGIC_ATK_BASE = 0.30, MAGIC_DEF_BASE = 0.32;
+  function magicAtkMul(u) { return (u && MAGIC_ATK_MUL[u.cls] != null) ? MAGIC_ATK_MUL[u.cls] : MAGIC_ATK_BASE; }
+  function magicDefMul(u) { return (u && MAGIC_DEF_MUL[u.cls] != null) ? MAGIC_DEF_MUL[u.cls] : MAGIC_DEF_BASE; }
   function magicAtk(u) {
     const tp = troopPower(u);
-    return (u.ji * 1.05 + u.lv * 3 + Math.min(400, u.hp * 0.02) * 0.25) * tp * (1 + buffVal(u, 'atk') * 0.6);
+    return (u.ji * 1.05 + u.lv * 3 + Math.min(400, u.hp * 0.02) * 0.25) * tp * (1 + buffVal(u, 'atk') * 0.6) * magicAtkMul(u);
   }
   function magicDef(u) {
     const ch = B.tiles[u.y][u.x];
     const mul = Math.max(0.05, 1 + buffVal(u, 'def') * 0.6);
-    return (u.ji * 0.62 + u.tong * 0.34 + u.lv * 2) * troopGuard(u) * (1 + terr(u).def * 0.6) * mul;
+    return (u.ji * 0.62 + u.tong * 0.34 + u.lv * 2) * troopGuard(u) * (1 + terr(u).def * 0.6) * mul * magicDefMul(u);
   }
   /* v5.22 — 성을 지키는 원거리 병과는 성벽·망루·본성 위에서 밖을 쏠 수 있다.
      (예전에는 성문이 버티는 동안 성벽 너머로 어떤 공격도 닿지 않아,
@@ -4363,6 +4968,15 @@
     }
 
     if (mode === 'skillTarget' && pendingSkill) { trySkillAt(x, y); return; }
+    /* v5.54 — 필살기 대상 선택 */
+    if (mode === 'ultTarget') {
+      const spec = ultOf(u);
+      if (!spec || !u) { mode = 'idle'; SKBattle.refreshUI(); return; }
+      if (!t || t.side === u.side) { SK.toast('필살기를 맞을 적을 선택하세요.'); return; }
+      if (manh(u.x, u.y, t.x, t.y) > ultRange(u, spec)) { SK.toast(`필살기 사거리(${ultRange(u, spec)}칸) 밖입니다.`); return; }
+      castUlt(u, spec, t);
+      return;
+    }
 
     /* v5.2 — 성문 타일을 눌러 공략 (근접·사격·투석 모두 가능)
        v5.14 — 문을 부수는 진영만. 수성전 아군은 자기 성문을 칠 수 없다. */
@@ -5184,7 +5798,7 @@
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
       if (sk.kind === 'heal') {
         battleExp(u, 8);                     // v5.33 — 치유할 때도 경험치가 바로 쌓인다
-        const heal = Math.round(healAmount(sk, target, u) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 420)));
+        const heal = Math.round(healAmount(sk, target, u) * Math.max(0.85, Math.min(1.45, 1 + (magicAtk(u) - magicDef(target)) / 240)));
         target.hp = Math.min(target.maxHp, target.hp + heal);
         addHeal(target, heal, u);
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '+' + heal, '#a8f0b8');
@@ -5215,7 +5829,7 @@
           skillAilApply(u, t, sk);
           if (moNeg) moraleShift(t, moNeg);
           /* 책략이 강할수록 약화가 깊어진다 (0.75 ~ 1.35배) */
-          const potency = Math.max(0.75, Math.min(1.35, 1 + (magicAtk(u) - magicDef(t)) / 500));
+          const potency = Math.max(0.75, Math.min(1.35, 1 + (magicAtk(u) - magicDef(t)) / 280));
           const amt = sk.amount * potency;
           if (sk.kind === 'debuffDef') t.buffs.def = { v: amt, t: sk.turns };
           else t.buffs.atk = { v: amt, t: sk.turns };
@@ -5242,7 +5856,7 @@
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
-            const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(t) * 0.80) * sizeScale(t) * 0.8
+            const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 2.25 - magicDef(t) * 2.20) * sizeScale(t) * 0.8
               * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken'))))));
             t.hp = Math.max(0, t.hp - dmg);
             addMagicDamage(u, t, dmg);
@@ -5268,7 +5882,7 @@
       SK.sfx.play('spell');
       wait(() => {
         if (!B || B.over) { finish(0); return; }
-        const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(target) * 0.90) * sizeScale(target) * 0.8
+        const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 3.40 - magicDef(target) * 2.25) * sizeScale(target) * 0.8
           * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(target, 'magicTaken'))))));
         target.hp = Math.max(0, target.hp - dmg);
         addMagicDamage(u, target, dmg);
@@ -5330,6 +5944,409 @@
       : n === 0 ? '이 부대의 군량을 다 썼습니다' : `남은 군량 ${n}회 — 병력 32%를 회복합니다`;
   }
 
+  /* ════════════════════════════════════════════════════════════════════════
+     v5.54 — S급 장수의 고유 필살기 (전투당 1회)
+     · S급 장수만 쓴다 (아군·적군 공통). u.ultUsed = false → true 로 한 번만.
+     · 밸런스: 일반 공격의 +25~45% 안쪽 단일 강타, 또는 범위·상태이상·버프·회복 같은
+       전술형. 340% 일격·쿨다운 초기화 같은 붕괴형은 넣지 않는다.
+     · 연출: 전용 컷인 배너 + 장수 머리 위 전용 말풍선(초상·이름·필살기·대사)
+       + 장수마다 다른 이펙트(16종) + 화면 물들임 + 진동.
+     · 적 S급 AI도 사거리 안에 값진 대상이 있으면 필살기를 먼저 꺼낸다.
+     ════════════════════════════════════════════════════════════════════════ */
+  let ultShout = null;              // 캔버스 말풍선 (지금 떠 있는 필살기)
+  let ultBanner = null;             // 컷인 배너 상태(색)
+  const ULT_AIL_N = { stun: '기절', fear: '공포', confuse: '혼란', poison: '중독', burn: '화상', slow: '둔화' };
+
+  /* 장수의 등급 — 아군은 '장수 원본 등급'(h.tier), 적은 부대 등급(u.tier)을 본다.
+     (아군 부대 u.tier는 레벨로 매긴 전투 등급이라 Lv.1이면 C가 된다) */
+  function unitTier(u) {
+    if (!u) return '';
+    if (u.side === 'ally' && u.uid && SK.state) {
+      const h = (SK.state.heroes || []).find((x) => x.uid === u.uid);
+      if (h && h.tier) return h.tier;
+    }
+    return u.tier || '';
+  }
+  /* 이 부대의 고유 필살기 — S급이 아니면 null */
+  function ultOf(u) {
+    if (!u || !SK.ULTIMATES) return null;
+    if (unitTier(u) !== 'S') return null;
+    return SK.ULTIMATES[u.name] || null;
+  }
+  const ULT_TARGET_KINDS = { hit: 1, combo: 1, aoe: 1, arrow: 1, arrowAoe: 1, magic: 1, rock: 1, debuff: 1 };
+  function ultNeedsTarget(spec) { return !!(spec && spec.e && ULT_TARGET_KINDS[spec.e.k]); }
+  function ultRange(u, spec) {
+    if (!u || !spec || !spec.e) return 1;
+    if (spec.e.rng) return spec.e.rng;
+    const k = spec.e.k;
+    const bonus = (k === 'magic' || k === 'rock' || k === 'debuff' || k === 'aoe' || k === 'arrowAoe') ? 1 : 0;
+    return Math.max(1, effRng(u) + bonus);
+  }
+  function ultDesc(spec) {
+    if (!spec || !spec.e) return '';
+    const e = spec.e;
+    const pc = (v) => Math.round((Number(v) || 0) * 100) + '%';
+    const ail = e.ail ? ` · ${ULT_AIL_N[e.ail] || e.ail} ${Math.round((e.ch || 1) * 100)}%` : '';
+    switch (e.k) {
+      case 'hit': return `적 1부대에게 일반 공격의 ${pc(e.m)} 위력${ail}`;
+      case 'combo': return `적 1부대를 ${e.n || 2}회 연속 강타 (합계 ${pc(e.m)})${ail}`;
+      case 'aoe': return `지점 반경 ${e.r || 1}칸의 적 전원에게 ${pc(e.m)} 강타${ail}`;
+      case 'arrow': return `${e.n || 2}발의 화살을 한 번에 (합계 ${pc(e.m)})${ail}`;
+      case 'arrowAoe': return `지점 반경 ${e.r || 1}칸에 화살 세례 (부대당 ${pc(e.m)}·${e.n || 2}발)${ail}`;
+      case 'magic': return `지점 반경 ${e.r || 1}칸에 책략 폭발 (화계의 ${pc(e.p || 1.2)} 위력)${ail}`;
+      case 'rock': return `지점 반경 ${e.r || 1}칸에 투석 폭격 (${pc(e.p || 1.2)})${ail}`;
+      case 'buff': {
+        const p = [];
+        if (e.atk) p.push(`공격 +${Math.round(e.atk * 100)}%`);
+        if (e.def) p.push(`방어 +${Math.round(e.def * 100)}%`);
+        if (e.morale) p.push(`사기 +${e.morale}`);
+        return `반경 ${e.r || 2}칸 아군 전원 ${p.join(' · ')} (${e.turns || 3}턴)`;
+      }
+      case 'heal': return `반경 ${e.r || 2}칸 아군 병력 ${pc(e.p || 0.14)} 회복${e.clear ? ' · 상태이상 해제' : ''}${e.atk ? ` · 공격 +${Math.round(e.atk * 100)}%` : ''}`;
+      case 'debuff': {
+        const p = [];
+        if (e.def) p.push(`방어 ${Math.round(e.def * 100)}%`);
+        if (e.atk) p.push(`공격 ${Math.round(e.atk * 100)}%`);
+        if (e.morale) p.push(`사기 ${e.morale}`);
+        return `반경 ${e.r || 2}칸 적 전원 ${p.join(' · ')} (${e.turns || 3}턴)`;
+      }
+      default: return '고유 필살기';
+    }
+  }
+
+  /* ── 연출: 컷인 배너 + 말풍선 + 화면 물들임 ─────────────────────────── */
+  function showUltCutin(u, spec) {
+    const el = $('#ult-cutin');
+    if (!el) return;
+    const img = $('#ult-img');
+    if (img) { img.src = `${SK.ptSrc(u.portrait)}`; img.alt = u.name; }
+    const side = $('#ult-side');
+    if (side) { side.textContent = u.side === 'ally' ? '아군 필살기' : '적군 필살기'; side.className = 'ult-side ' + u.side; }
+    const nm = $('#ult-caster'), sk = $('#ult-skill'), q = $('#ult-line');
+    if (nm) nm.textContent = u.name;
+    if (sk) sk.textContent = `「${spec.n}」`;
+    if (q) q.textContent = spec.q || '';
+    el.style.setProperty('--ult-c', spec.c || '255,220,140');
+    el.hidden = false;
+    el.setAttribute('aria-hidden', 'false');
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(ultBanner);
+    ultBanner = wait(() => {
+      el.classList.remove('show');
+      ultBanner = wait(() => { el.hidden = true; el.setAttribute('aria-hidden', 'true'); }, 220);
+    }, 1350);
+    /* 장수 머리 위 전용 말풍선 — 카메라가 움직여도 따라간다 */
+    ultShout = { uid: u.id, name: u.name, n: spec.n, q: spec.q || '', c: spec.c || '255,220,140',
+      side: u.side, t: 0, life: 1750 };
+    addFx({ kind: 'tint', life: 480, color: spec.c || '255,220,140' });
+  }
+
+  /* ── 이펙트: 장수마다 다른 16종 ─────────────────────────────────────── */
+  function ultVfx(u, spec, tgt) {
+    const cx = (rxOf(u) + 0.5) * TILE, cy = (ryOf(u) + 0.45) * TILE;
+    const tx = tgt ? (rxOf(tgt) + 0.5) * TILE : cx;
+    const ty = tgt ? (ryOf(tgt) + 0.5) * TILE : cy;
+    const c = spec.c || '255,220,140';
+    const v = spec.v || 'royal_aura';
+    const e = spec.e || {};
+    const rad = (e.r || 1) * TILE;
+    const one = (o) => addFx(Object.assign({ kind: 'ult', sub: v, x: cx, y: cy, tx: tx, ty: ty, color: c, r: rad, life: 900 }, o || {}));
+    one({ delay: 0 });
+    if (v === 'fire_storm' || v === 'stone_barrage' || v === 'lightning_array') {
+      wait(() => { if (B && !B.over) one({ x: tx, y: ty, tx: tx, ty: ty, delay2: 1, life: 900 }); }, 180);
+    }
+    if (v === 'combo' || v === 'slash_crimson' || v === 'dragon_cleave' || v === 'spear_storm') {
+      wait(() => { if (B && !B.over) one({ x: tx, y: ty, tx: tx, ty: ty, delay2: 1, life: 520 }); }, 200);
+    }
+    if (v === 'roar_shockwave' || v === 'royal_aura' || v === 'iron_wall' || v === 'wind_gale') {
+      wait(() => { if (B && !B.over) addFx({ kind: 'ult', sub: v, x: cx, y: cy, tx: tx, ty: ty, color: c, r: rad, life: 700, delay2: 1 }); }, 230);
+    }
+    /* 대상 위 타격감 */
+    if (tgt) {
+      wait(() => {
+        if (!B || B.over) return;
+        impactAt(tgt, c);
+        shakeScreen(6);
+      }, 320);
+    }
+  }
+
+  /* ── 효과 적용 ─────────────────────────────────────────────────────── */
+  function ultDmgHit(u, t, mult, opts) {
+    if (!t || !t.alive) return 0;
+    const res = calcDamage(u, t, Object.assign({ mult: mult, noCrit: true, firstStrike: false }, opts || {}));
+    applyDamage(u, t, res.dmg, false, null);
+    addFx({ kind: 'spark', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.4) * TILE, life: 300, color: '255,230,170' });
+    return res.dmg;
+  }
+  function ultMagicHit(u, t, p) {
+    if (!t || !t.alive) return 0;
+    const dmg = Math.max(10, Math.round((240 * (p || 1.2) * 0.70 + magicAtk(u) * 2.25 - magicDef(t) * 2.20)
+      * sizeScale(t) * 0.8 * (1 + fxPct(u, 'magic'))
+      * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken'))))));
+    t.hp = Math.max(0, t.hp - dmg);
+    addMagicDamage(u, t, dmg);
+    t.flash = 1; t.shake = 240;
+    addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.45) * TILE, String(dmg), '#ffb36a');
+    if (t.hp <= 0) downUnit(t);
+    return dmg;
+  }
+  function ultFoesAt(x, y, r, side) {
+    return B.units.filter((o) => o.alive && o.side !== side && manh(x, y, o.x, o.y) <= r);
+  }
+  function applyUlt(u, spec, tgt) {
+    if (!B || B.over || !u || !spec) return null;
+    const e = spec.e || {};
+    const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+    const allies = B.units.filter((o) => o.alive && o.side === u.side);
+    const out = { dmg: 0, hits: [] };
+    const ail = (t) => { if (t.alive && e.ail) ailApply(t, e.ail, e.ch == null ? 1 : e.ch, e.turns); };
+    if (e.k === 'hit' || e.k === 'arrow') {
+      if (!tgt || !tgt.alive) return out;
+      if (e.k === 'arrow' && (e.n || 1) > 1) {
+        const per = (e.m || 1.3) / (e.n || 1);
+        for (let i = 0; i < (e.n || 1); i++) wait(() => { if (B && !B.over && tgt.alive) out.dmg += ultDmgHit(u, tgt, per); }, 90 * i);
+      } else {
+        out.dmg += ultDmgHit(u, tgt, e.m || 1.3);
+      }
+      ail(tgt);
+    } else if (e.k === 'combo') {
+      if (!tgt || !tgt.alive) return out;
+      const n = e.n || 2, per = (e.m || 1.4) / n;
+      for (let i = 0; i < n; i++) {
+        wait(() => {
+          if (!B || B.over || !tgt.alive) return;
+          out.dmg += ultDmgHit(u, tgt, per);
+          addFx({ kind: 'slash', x: (rxOf(tgt) + 0.5) * TILE, y: (ryOf(tgt) + 0.45) * TILE, life: 320 });
+        }, 130 * i);
+      }
+      wait(() => ail(tgt), 130 * n + 40);
+    } else if (e.k === 'aoe' || e.k === 'arrowAoe') {
+      const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;
+      const list = ultFoesAt(cx, cy, e.r || 1, u.side);
+      list.forEach((t, i) => {
+        wait(() => {
+          if (!B || B.over || !t.alive) return;
+          let d = 0;
+          const n = (e.k === 'arrowAoe') ? (e.n || 2) : 1;
+          for (let k = 0; k < n; k++) d += ultDmgHit(u, t, (e.m || 1) / n);
+          out.dmg += d;
+          out.hits.push(t.name);
+          ail(t);
+          if (e.morale) moraleShift(t, e.morale);
+          addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
+        }, 80 + i * 90);
+      });
+    } else if (e.k === 'magic' || e.k === 'rock') {
+      const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;
+      const list = ultFoesAt(cx, cy, e.r || 1, u.side);
+      list.forEach((t, i) => {
+        wait(() => {
+          if (!B || B.over || !t.alive) return;
+          out.dmg += ultMagicHit(u, t, e.p || 1.2);
+          out.hits.push(t.name);
+          ail(t);
+          if (t.alive && e.morale) moraleShift(t, e.morale);
+        }, 120 + i * 80);
+      });
+    } else if (e.k === 'buff') {
+      const r = e.r || 2;
+      allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= r).forEach((a) => {
+        if (e.atk) a.buffs.atk = { v: e.atk, t: e.turns || 3 };
+        if (e.def) a.buffs.def = { v: e.def, t: e.turns || 3 };
+        if (e.morale) moraleShift(a, e.morale);
+        out.hits.push(a.name);
+        addFx({ kind: 'buff', x: (rxOf(a) + 0.5) * TILE, y: (ryOf(a) + 0.5) * TILE, life: 640, color: spec.c });
+        addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.2) * TILE, '필살기 ↑', '#ffe08a');
+      });
+      if (e.selfHeal) {
+        const hl = Math.round(u.maxHp * e.selfHeal);
+        u.hp = Math.min(u.maxHp, u.hp + hl);
+        addHeal(u, hl, u);
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.35) * TILE, '+' + hl, '#a8f0b8');
+      }
+    } else if (e.k === 'heal') {
+      const r = e.r || 2;
+      allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= r).forEach((a) => {
+        const hl = Math.round(a.maxHp * (e.p || 0.14));
+        a.hp = Math.min(a.maxHp, a.hp + hl);
+        addHeal(a, hl, u);
+        if (e.clear) ailClear(a, 3);
+        if (e.atk) a.buffs.atk = { v: e.atk, t: e.turns || 3 };
+        if (e.morale) moraleShift(a, e.morale);
+        out.hits.push(a.name);
+        addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.35) * TILE, '+' + hl, '#a8f0b8');
+        addFx({ kind: 'heal', x: (rxOf(a) + 0.5) * TILE, y: (ryOf(a) + 0.5) * TILE, life: 680 });
+      });
+    } else if (e.k === 'debuff') {
+      const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;
+      const r = e.r || 2;
+      const list = tgt ? ultFoesAt(cx, cy, r, u.side)
+        : foes.filter((t) => manh(u.x, u.y, t.x, t.y) <= ultRange(u, spec));
+      list.forEach((t) => {
+        if (e.def) t.buffs.def = { v: e.def, t: e.turns || 3 };
+        if (e.atk) t.buffs.atk = { v: e.atk, t: e.turns || 3 };
+        if (e.morale) moraleShift(t, e.morale);
+        out.hits.push(t.name);
+        addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.3) * TILE, '약화!', '#c9a6ff');
+        addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 620, color: spec.c });
+      });
+    }
+    /* 부수 효과: 아군 공격 보정·자기 방어 */
+    if (e.allyAtk) {
+      allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= 2).forEach((a) => { a.buffs.atk = { v: e.allyAtk, t: 3 }; });
+    }
+    if (e.selfDef) u.buffs.def = { v: e.selfDef, t: 3 };
+    return out;
+  }
+
+  /* ── 시전 ──────────────────────────────────────────────────────────── */
+  function castUlt(u, spec, tgt, done) {
+    if (!B || B.over || !u || !u.alive || !spec || u.ultUsed) { if (done) done(); return false; }
+    u.ultUsed = true;
+    busy = true;
+    mode = 'idle';
+    pendingSkill = null;
+    clearAutoEnd();
+    SKBattle.refreshUI();
+    showUltCutin(u, spec);
+    feed(`${u.name}의 필살기 — 「${spec.n}」`, u.side === 'ally' ? 'good' : 'bad');
+    addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE, `「${spec.n}」`, '#ffe6a8', { back: true });
+    shakeScreen(7);
+    SK.sfx.play('spell');
+    let ended = false;
+    const end = () => {
+      if (ended) return;
+      ended = true;
+      u.acted = true;
+      busy = false;
+      SKBattle.refreshUI();
+      if (!B || B.over) { if (done) done(); return; }
+      if (done) done(); else nextUnitOrWait();
+    };
+    wait(() => { if (B && !B.over) ultVfx(u, spec, tgt); }, 150);
+    wait(() => {
+      if (!B || B.over) { end(); return; }
+      applyUlt(u, spec, tgt);
+      finishCheck();
+    }, 380);
+    wait(end, 1250);
+    return true;
+  }
+
+  /* ── AI: 필살기를 쓸 만한 순간인가 ─────────────────────────────────── */
+  function planUlt(u) {
+    if (!B || !u || u.ultUsed || u.acted || !u.alive) return null;
+    const spec = ultOf(u);
+    if (!spec || !B.introDone) return null;
+    const e = spec.e || {};
+    const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+    const allies = B.units.filter((o) => o.alive && o.side === u.side);
+    if (!foes.length) return null;
+    const range = ultRange(u, spec);
+    if (ultNeedsTarget(spec)) {
+      /* v5.54 — 지금 자리뿐 아니라 이번 턴에 걸어갈 수 있는 칸까지 본다.
+         (여포 같은 근접 S급이 두 칸 밖에서 그냥 평타로 끝나던 문제) */
+      const spots = [{ x: u.x, y: u.y }].concat(moveTiles(u).filter((t) => t.x !== u.x || t.y !== u.y));
+      let best = null;
+      spots.forEach((sp) => {
+        foes.forEach((t) => {
+          if (manh(sp.x, sp.y, t.x, t.y) > range) return;
+          if (wallBlocked(sp, t) && !canShootOut(u)) return;
+          let est = 0, hitN = 1, sumHp = 0;
+          if (e.k === 'magic' || e.k === 'rock') {
+            const near = ultFoesAt(t.x, t.y, e.r || 1, u.side);
+            hitN = near.length;
+            near.forEach((o) => {
+              est += Math.max(10, Math.round((240 * (e.p || 1.2) * 0.70 + magicAtk(u) * 2.25 - magicDef(o) * 2.20) * sizeScale(o) * 0.8));
+              sumHp += o.hp;
+            });
+          } else if (e.k === 'aoe' || e.k === 'arrowAoe') {
+            const near = ultFoesAt(t.x, t.y, e.r || 1, u.side);
+            hitN = near.length;
+            near.forEach((o) => { est += calcDamage(u, o, { mult: e.m || 1, noCrit: true }).dmg; sumHp += o.hp; });
+          } else {
+            est = calcDamage(u, t, { mult: e.m || 1.3, noCrit: true }).dmg;
+            sumHp = t.hp;
+          }
+          const kill = est >= t.hp || (hitN > 1 && est >= sumHp);
+          const away = manh(u.x, u.y, sp.x, sp.y) * 1.2;
+          const worth = (est / Math.max(1, sumHp)) * 100 + (kill ? 110 : 0) + (hitN > 1 ? hitN * 22 : 0) + effAtk(t) * 0.25 - away;
+          if (!best || worth > best.score) best = { x: sp.x, y: sp.y, tx: t.x, ty: t.y, target: t, score: worth, kill: kill, hitN: hitN, ratio: est / Math.max(1, sumHp) };
+        });
+      });
+      if (!best) return null;
+      if (!(best.kill || best.hitN >= 2 || best.ratio >= 0.3)) return null;
+      return best;
+    }
+    if (e.k === 'heal') {
+      const hurt = allies.filter((a) => a.hp < a.maxHp * 0.82).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
+      if (hurt.length >= 2 || (hurt.length >= 1 && hurt[0].hp < hurt[0].maxHp * 0.55)) {
+        return { x: u.x, y: u.y, target: null, score: 80, kill: false, hitN: hurt.length, ratio: 1 };
+      }
+      return null;
+    }
+    if (e.k === 'buff') {
+      const r = e.r || 2;
+      const group = allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= r);
+      if (group.length >= 3 || (group.length >= 2 && B.turn >= 2)) {
+        return { x: u.x, y: u.y, target: null, score: 60, kill: false, hitN: group.length, ratio: 1 };
+      }
+      return null;
+    }
+    if (e.k === 'debuff') {
+      let best = null;
+      foes.forEach((t) => {
+        if (manh(u.x, u.y, t.x, t.y) > range) return;
+        const near = ultFoesAt(t.x, t.y, e.r || 2, u.side);
+        const sc = near.length * 45 + effAtk(t) * 0.3;
+        if (!best || sc > best.score) best = { x: u.x, y: u.y, tx: t.x, ty: t.y, target: t, score: sc, kill: false, hitN: near.length, ratio: 1 };
+      });
+      return (best && best.score >= 90) ? best : null;
+    }
+    return null;
+  }
+
+  /* ── 버튼·메뉴 ─────────────────────────────────────────────────────── */
+  function paintUltButton(u) {
+    const btn = document.querySelector('#battle-actions .act.ult');
+    if (!btn) return;
+    const em = btn.querySelector('em');
+    const spec = u ? ultOf(u) : null;
+    const isS = !!(u && unitTier(u) === 'S');
+    const used = !!(u && u.ultUsed);
+    const canUse = !!(u && u.side === 'ally' && !u.acted && spec && !used);
+    if (em) em.textContent = spec ? (used ? '0/1' : '1/1') : (isS ? '—' : 'S급');
+    btn.classList.toggle('ready', canUse);
+    btn.classList.toggle('off', !canUse);
+    btn.classList.toggle('active', mode === 'ultTarget' && canUse);
+    btn.title = !u ? '부대를 고르면 필살기를 쓸 수 있습니다'
+      : !spec ? '고유 필살기는 S급 장수만 씁니다'
+        : used ? `「${spec.n}」 — 이 전투에서 사용 완료` : `「${spec.n}」 — 전투당 1회`;
+    const lab = btn.querySelector('b');
+    if (lab) lab.textContent = '필살기';
+  }
+
+  function openUltMenu() {
+    const u = B && B.sel;
+    if (!B || B.phase !== 'ally' || B.over) return;
+    if (!u || u.side !== 'ally' || u.acted) { SK.toast('먼저 내 부대를 선택하세요.'); return; }
+    const spec = ultOf(u);
+    if (!spec) { SK.toast(unitTier(u) === 'S' ? '이 장수의 고유 필살기가 아직 없습니다.' : '고유 필살기는 S급 장수만 씁니다.'); return; }
+    if (u.ultUsed) { SK.toast(`「${spec.n}」은(는) 이 전투에서 이미 썼습니다.`); return; }
+    if (!ultNeedsTarget(spec)) {
+      castUlt(u, spec, null);
+      return;
+    }
+    mode = 'ultTarget';
+    SKBattle.refreshUI();
+    const tip = $('#battle-tip');
+    if (tip) tip.textContent = `「${spec.n}」 — 사거리 ${ultRange(u, spec)}칸 안의 적을 선택하세요`;
+  }
+
+
   /* ───────────── 아이템/대기 ───────────── */
   function useItem() {
     const u = B.sel;
@@ -5378,7 +6395,8 @@
   }
   function giTierOf(u) {
     const h = giHero(u);
-    const t = (u && u.tier) || (h && h.tier) || '';
+    /* v5.54 — 아군은 장수 원본 등급(h.tier)을 먼저 본다 (부대 u.tier는 레벨로 매긴 전투 등급) */
+    const t = (h && h.tier) || (u && u.tier) || '';
     return SK.TIER_LV[t] ? t : '';
   }
   function giFive(u) {
@@ -5582,7 +6600,16 @@
         ${mate ? `<i class="gi-bond-on">${mate.side === u.side ? '참전' : '적군 참전'}</i>` : ''}
       </div>`;
     }).join('');
+    /* v5.54 — S급 고유 필살기 (이름·효과·사용 가능/사용 완료) */
+    const us = ultOf(u);
+    const tierS = giTierOf(u) === 'S';
+    const ultBlock = us
+      ? `<div class="gi-trait gi-ult${u.ultUsed ? ' used' : ''}"><b>「${us.n}」<em>${u.ultUsed ? '사용 완료' : '사용 가능'} · 전투당 1회</em></b>
+          <p>${ultDesc(us)}</p><p class="gi-ult-q">"${us.q || ''}"</p></div>`
+      : (tierS ? '<p class="gi-note">이 장수의 고유 필살기가 아직 없습니다.</p>'
+        : '<p class="gi-note">고유 필살기는 S급 장수만 씁니다.</p>');
     return `<p class="gi-sec">고유 특기</p>${uniq}
+      <p class="gi-sec">고유 필살기 <em class="gi-sec-sub">전투당 1회</em></p>${ultBlock}
       <p class="gi-sec">병종 특성</p>
       <div class="gi-trait"><b>${C.name}<em>${C.role || ''}</em></b><p>${C.desc || ''}</p></div>
       <p class="gi-sec">보유 책략</p>
@@ -5824,10 +6851,10 @@
       return Math.max(4, Math.round(base)) * (sk.hits || 1);
     }
     if (sk.kind === 'magic') {
-      return Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 2.00 - magicDef(f) * 0.90) * sizeScale(f) * 0.8));
+      return Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 3.40 - magicDef(f) * 2.25) * sizeScale(f) * 0.8));
     }
     if (sk.kind === 'magicArea') {
-      return Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 1.30 - magicDef(f) * 0.80) * sizeScale(f) * 0.8));
+      return Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 2.25 - magicDef(f) * 2.20) * sizeScale(f) * 0.8));
     }
     return 0;
   }
@@ -6378,7 +7405,10 @@
       autoPending = null;
       const u = B.units.find((v) => v.uid === p.uid && v.alive);
       if (u && !u.acted) {
-        if (p.skill) {
+        if (p.ult) {
+          const usp = ultOf(u);
+          if (!usp || !castUlt(u, usp, B.units.find((o) => o.alive && o.x === p.tx && o.y === p.ty))) { u.acted = true; SKBattle.refreshUI(); }
+        } else if (p.skill) {
           const sk = SK.SKILLS[p.skill];
           if (!aiCast(u, sk, p.sx == null ? p.x : p.sx, p.sy == null ? p.y : p.sy)) { u.acted = true; SKBattle.refreshUI(); }
         } else if (p.gate && gateIntact()) doGateAttack(u, p.gate);
@@ -6396,6 +7426,22 @@
       return;
     }
     selectUnit(u);
+    /* v5.54 — 자동 행군에서도 S급 장수는 필살기를 쓴다 */
+    const uplan = planUlt(u);
+    if (uplan) {
+      const uspec = ultOf(u);
+      if (uspec) {
+        if (uplan.x !== u.x || uplan.y !== u.y) {
+          autoPending = { uid: u.uid, ult: true, tx: uplan.tx, ty: uplan.ty };
+          moveUnit(u, uplan.x, uplan.y);
+          autoTimer = wait(autoStep, 260);
+          return;
+        }
+        castUlt(u, uspec, uplan.target);
+        autoTimer = wait(autoStep, 520);
+        return;
+      }
+    }
     const plan = planAuto(u);
     if (plan && plan.kind === 'skill') {
       if (plan.x !== u.x || plan.y !== u.y) {
@@ -6536,6 +7582,24 @@
     if (holdCh === 'T' || holdCh === 'K') {
       const near = Math.min.apply(null, targets.map((t) => manh(e.x, e.y, t.x, t.y)));
       if (near > rng + 1) { e.acted = true; finishCheck(); done(); return; }
+    }
+
+    /* v5.54 — S급 적장은 필살기를 먼저 꺼낸다 (사거리 안에 값진 대상이 있을 때만) */
+    const ultp = planUlt(e);
+    if (ultp) {
+      const uspec = ultOf(e);
+      if (uspec) {
+        const ugo = () => {
+          if (!B || B.over) { done(); return; }
+          e.acted = true;
+          finishCheck();
+          done();
+        };
+        if (ultp.x !== e.x || ultp.y !== e.y) {
+          animatePath(e, findPath(e, ultp.x, ultp.y), { step: 88, onDone: () => wait(() => castUlt(e, uspec, ultp.target, ugo), 120) });
+        } else castUlt(e, uspec, ultp.target, ugo);
+        return;
+      }
     }
 
     /* v5.3 — 적도 책략을 판단해 쓴다 (회복·버프·디버프·공격 책략) */
@@ -7742,6 +8806,8 @@
         /* v5.36 — [군량] 버튼에 이 부대의 남은 횟수를 보여 준다: 군량 (2) / 군량 (0) 잠김 */
         /* v5.53 — 군량 버튼은 '실제로 명령을 받을 부대'(B.sel)의 남은 횟수를 보여 준다 */
         paintItemButton(B.sel || (u.side === 'ally' ? u : null));
+        /* v5.54 — 필살기 버튼: S급이고 아직 안 썼으면 1/1, 쓰면 0/1 */
+        paintUltButton(B.sel || (u.side === 'ally' ? u : null));
       } else {
         card.classList.remove('on');
         /* v5.40 — 선택한 부대가 없을 때 이전 초상·Lv·EXP·수치가 남지 않게 비운다 */
@@ -7768,10 +8834,12 @@
         const tipEl = $('#battle-tip');
         if (tipEl) tipEl.textContent = '부대를 눌러 선택하세요';
         paintItemButton(null);
+        paintUltButton(null);
       }
       document.querySelectorAll('.act').forEach((b) => {
         if (b.dataset.act === 'attack') b.classList.toggle('active', mode === 'attack');
         if (b.dataset.act === 'skill') b.classList.toggle('active', mode === 'skillTarget');
+        if (b.dataset.act === 'ult') b.classList.toggle('active', mode === 'ultTarget');
       });
       renderTargetBar();
     },
@@ -7837,6 +8905,85 @@
       closeInfo() { closeGenInfo(); },
       inspect() { return B && B.insp ? B.insp.name : null; },
       infoTab(k) { if (k) { giTab = k; giRender(); } return giTab; },
+      /* v5.54 — 필살기 점검 훅 */
+      ultInfo(name) {
+        if (!B) return [];
+        const list = name ? B.units.filter((o) => o.name === name) : B.units;
+        return list.map((u) => {
+          const s = ultOf(u);
+          return { name: u.name, side: u.side, cls: u.cls, tier: unitTier(u), ult: s ? s.n : null,
+            vfx: s ? s.v : null, used: !!u.ultUsed, need: !!(s && ultNeedsTarget(s)),
+            range: s ? ultRange(u, s) : null, desc: s ? ultDesc(s) : null,
+            ready: !!(s && !u.ultUsed && !u.acted && u.side === 'ally') };
+        });
+      },
+      ultButton() {
+        const btn = document.querySelector('#battle-actions .act.ult');
+        if (!btn) return null;
+        return { text: (btn.textContent || '').replace(/\s+/g, ' ').trim(), em: (btn.querySelector('em') || {}).textContent,
+          ready: btn.classList.contains('ready'), off: btn.classList.contains('off'),
+          active: btn.classList.contains('active'), disabled: btn.disabled };
+      },
+      ultCast(name, targetName) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        const t = targetName ? B.units.find((o) => o.name === targetName && o.alive) : null;
+        const s = ultOf(u);
+        if (!u || !s) return { ok: false, why: 'no-ult' };
+        const before = { hp: t ? Math.round(t.hp) : null };
+        castUlt(u, s, t);
+        return { ok: true, name: s.n, vfx: s.v, before };
+      },
+      ultPlan(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const p = planUlt(u);
+        return p ? { x: p.x, y: p.y, target: p.target ? p.target.name : null, score: Math.round(p.score), kill: !!p.kill, hitN: p.hitN } : null;
+      },
+      ultShout() { return ultShout ? { name: ultShout.name, n: ultShout.n, q: ultShout.q, t: Math.round(ultShout.t), life: ultShout.life } : null; },
+      ultFx() { return fx.filter((f) => f.kind === 'ult').map((f) => f.sub); },
+      ultFxP() { return fx.filter((f) => f.kind === 'ult').map((f) => ({ sub: f.sub, p: Math.round(f.t / f.life * 100) / 100 })); },
+      ultTint() { const f = fx.filter((x) => x.kind === 'tint')[0]; return f ? Math.round((1 - f.t / f.life) * 100) / 100 : 0; },
+      ultList() { return Object.keys(SK.ULTIMATES || {}).length; },
+      classMagic() {
+        const out = {};
+        Object.keys(SK.CLASSES).forEach((c) => { out[c] = { name: SK.CLASSES[c].name, atkMul: magicAtkMul({ cls: c }), defMul: magicDefMul({ cls: c }) }; });
+        return out;
+      },
+      magStats(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { name: u.name, cls: u.cls, atk: Math.round(effAtk(u)), def: Math.round(effDef(u)),
+          matk: Math.round(magicAtk(u)), mdef: Math.round(magicDef(u)),
+          atkMul: magicAtkMul(u), defMul: magicDefMul(u) };
+      },
+      skillDmg(aName, dName, key) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        const sk = SK.SKILLS[key];
+        if (!a || !d || !sk) return null;
+        return { est: estSkillDmg(a, d, sk), kind: sk.kind, power: sk.power };
+      },
+      basicDmg(aName, dName) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        return calcDamage(a, d, { noCrit: true }).dmg;
+      },
+      startFrame() { return B && B.startFrame ? B.startFrame : null; },
+      reframe() { return frameStartView(); },
+      frameProbe() {
+        if (!B || !stage) return null;
+        const sw = stage.clientWidth, sh = stage.clientHeight;
+        const box = startViewBox();
+        const rect = B.units.filter((u) => u.alive).map((u) => {
+          const head = (ryOf(u) + 0.05) * TILE * cam.s + cam.y - TILE * 1.2 * cam.s;
+          const foot = (ryOf(u) + 1) * TILE * cam.s + cam.y;
+          return { n: u.name, side: u.side, head: Math.round(head), foot: Math.round(foot) };
+        });
+        return { cam: { s: Math.round(cam.s * 1000) / 1000, x: Math.round(cam.x), y: Math.round(cam.y) },
+          stage: { w: sw, h: sh, boxTop: box.y, boxBottom: box.y + box.h },
+          units: rect,
+          allyIn: rect.filter((r) => r.side === 'ally' && r.head >= box.y - 2 && r.foot <= sh + 1).map((r) => r.n),
+          enemyIn: rect.filter((r) => r.side === 'enemy' && r.head >= box.y - 2 && r.foot <= sh + 1).map((r) => r.n) };
+      },
       infoNav(d) { giNav(d); return giState(); },
       select(name) { const u = B.units.find((o) => o.name === name && o.alive); if (u) { selectUnit(u); return { x: u.x, y: u.y }; } return null; },
       endTurn,
@@ -8168,6 +9315,7 @@
         SKBattle.refreshUI();
       }
       if (act === 'skill') openSkillMenu();
+      if (act === 'ult') openUltMenu();   // v5.54 — S급 고유 필살기
       if (act === 'item') useItem();
       if (act === 'wait') waitUnit();
     });

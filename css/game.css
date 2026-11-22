@@ -686,7 +686,7 @@ b { font-weight: 700; }
 .uc-buffs .bf.exp { background: rgba(214, 168, 70, 0.24); border-color: rgba(255, 214, 120, 0.65); color: #fff2cd; }
 
 .uc-stats b { color: #3b2e13; }
-.battle-actions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.battle-actions { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
 .act {
   border: 1px solid #b99a5e; border-radius: 9px; padding: 5px 1px 4px; background: linear-gradient(180deg, #fffaf0, #e9d7b2);
   display: flex; flex-direction: column; align-items: center; gap: 1px; box-shadow: 0 2px 4px rgba(90, 70, 30, 0.14);
@@ -706,6 +706,39 @@ b { font-weight: 700; }
 .act.item.empty b { color: #8a7a5c; }
 .act.endturn { background: linear-gradient(180deg, #5a7a4a, #3a5530); border-color: #24371d; }
 .act.endturn b { color: #f4ecd2; }
+/* v5.54 — S급 고유 필살기 버튼: 쓸 수 있을 때만 금빛으로 빛난다 (1/1 → 0/1) */
+.act.ult { background: linear-gradient(180deg, #efe0b4, #d9c08a); border-color: #8a7448; position: relative; flex-direction: column; gap: 0; }
+.act.ult span { font-size: 13px; line-height: 1; color: #7a5a12; }
+.act.ult b { font-size: 9.5px; letter-spacing: -0.04em; }
+.act.ult em { font-size: 8px; font-weight: 900; color: #6b5426; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.act.ult.ready { background: linear-gradient(180deg, #ffe9a8, #e0a63a); border-color: #8a5a12;
+  box-shadow: 0 0 0 1px rgba(255, 236, 160, 0.55), 0 0 10px rgba(255, 196, 74, 0.55), inset 0 1px 0 rgba(255, 250, 220, 0.7); }
+.act.ult.ready span { color: #8a3c0a; }
+.act.ult.ready em { color: #6b3a06; }
+.act.ult.ready.active { background: linear-gradient(180deg, #ffd76a, #cf8a1c); }
+.act.ult.off { opacity: 0.5; }
+
+/* v5.54 — 필살기 컷인 배너 (전장 위에 잠깐 지나간다) */
+.ult-cutin { position: absolute; left: 0; right: 0; top: 8%; z-index: 6; pointer-events: none;
+  display: flex; justify-content: center; opacity: 0; transform: translateY(-10px) scale(0.94);
+  transition: opacity 0.18s ease-out, transform 0.24s cubic-bezier(.2,.9,.3,1.2); }
+.ult-cutin.show { opacity: 1; transform: translateY(0) scale(1); }
+.ult-band { display: flex; align-items: center; gap: 9px; max-width: 92%;
+  padding: 8px 12px 8px 8px; border-radius: 12px;
+  background: linear-gradient(100deg, rgba(38, 26, 10, 0.95), rgba(22, 16, 8, 0.92) 62%, rgba(48, 32, 12, 0.9));
+  border: 1.5px solid rgba(var(--ult-c, 255, 220, 140), 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.5),
+    0 0 22px rgba(var(--ult-c, 255, 220, 140), 0.45), inset 0 1px 0 rgba(255, 244, 210, 0.22); }
+.ult-face { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; flex: none;
+  border: 1.5px solid rgba(var(--ult-c, 255, 220, 140), 0.85); background: #2a2010; }
+.ult-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.ult-lines { display: flex; flex-direction: column; min-width: 0; line-height: 1.18; }
+.ult-lines .ult-side { font-size: 8.5px; font-weight: 900; letter-spacing: 0.06em; color: #ffd98a; }
+.ult-lines .ult-side.enemy { color: #ff9c8a; }
+.ult-lines b { font-family: var(--serif); font-size: 12.5px; color: #f6e7c2; }
+.ult-lines strong { font-family: var(--serif); font-size: 16px; font-weight: 900; letter-spacing: -0.01em;
+  color: rgb(var(--ult-c, 255, 220, 140)); text-shadow: 0 0 12px rgba(var(--ult-c, 255, 220, 140), 0.55), 0 1px 0 #2a1c08; }
+.ult-lines span#ult-line { font-size: 10px; color: #e6d3a8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act.endturn span { color: #ffe9b0; }
 
 .battle-overlay { position: absolute; inset: 0; z-index: 10; background: linear-gradient(180deg, rgba(24, 18, 8, 0.2), rgba(24, 18, 8, 0.55)); display: flex; align-items: flex-end; padding: 14px; }
@@ -4657,7 +4690,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .gi-grade { display: inline-block; font-size: 8px; font-weight: 900; padding: 0 4px; margin-right: 4px; border-radius: 6px; background: #ecdcb4; border: 1px solid #cfb47d; color: #6a5732; }
 .gi-sum { margin: 5px 0 0; font-size: 9.5px; color: #4a3d20; line-height: 1.4; }
 .gi-note { margin: 5px 0 0; font-size: 9px; color: #8a7448; line-height: 1.4; }
-.gi-trait { border: 1px solid #d3bb8a; border-radius: 7px; background: #fffaf0; padding: 6px 8px; margin-bottom: 5px; }
+.gi-trait {border: 1px solid #d3bb8a; border-radius: 7px; background: #fffaf0; padding: 6px 8px; margin-bottom: 5px; }
 .gi-trait b { font-size: 12px; color: #2e2510; }
 .gi-trait b em {
   font-style: normal; font-size: 8.5px; font-weight: 800; color: #a4601e;
@@ -4715,3 +4748,12 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   .gi-tab { padding: 6px 3px; font-size: 11px; }
   .gi-body { padding: 6px 9px 8px; }
 }
+
+/* v5.54 — 《장수 정보》 고유 필살기 칸 */
+.gi-ult { border-color: rgba(214, 170, 70, 0.75); background: linear-gradient(180deg, rgba(255, 244, 214, 0.75), rgba(247, 232, 194, 0.55)); }
+.gi-ult b { color: #6b4a10; }
+.gi-ult b em { color: #8a5a12; background: rgba(255, 226, 150, 0.75); }
+.gi-ult.used { opacity: 0.82; border-color: rgba(150, 130, 90, 0.6); }
+.gi-ult.used b em { color: #6b6250; background: rgba(220, 210, 186, 0.8); }
+.gi-ult .gi-ult-q { color: #7a5f2e; font-style: italic; }
+.gi-sec-sub { font-size: 9px; font-weight: 700; color: #96773c; margin-left: 4px; }

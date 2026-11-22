@@ -9,10 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=70" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=71" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=70" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=70" />
+<link rel="stylesheet" href="css/game.css?v=71" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=71" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -362,6 +362,18 @@
       </div>
       <div class="crit-flash" id="crit-flash"></div>
       <div class="turn-banner" id="turn-banner"></div>
+      <!-- v5.54 — S급 장수 고유 필살기 컷인 (초상·이름·필살기·전용 대사) -->
+      <div class="ult-cutin" id="ult-cutin" hidden aria-hidden="true">
+        <div class="ult-band">
+          <span class="ult-face"><img id="ult-img" alt="" /></span>
+          <div class="ult-lines">
+            <em class="ult-side ally" id="ult-side">아군 필살기</em>
+            <b id="ult-caster">장수</b>
+            <strong id="ult-skill">필살기</strong>
+            <span id="ult-line">대사</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="battle-bottom">
@@ -386,6 +398,8 @@
       <div class="battle-actions" id="battle-actions">
         <button class="act atk" data-act="attack"><svg class="act-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-attack"></use></svg><b>공격</b></button>
         <button class="act skill" data-act="skill"><svg class="act-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-skill"></use></svg><b>책략</b></button>
+        <!-- v5.54 — S급 고유 필살기 (전투당 1회) -->
+        <button class="act ult" data-act="ult"><span>⚡</span><b>필살기</b><em id="ult-count">0/1</em></button>
         <button class="act item" data-act="item"><svg class="act-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-rations"></use></svg><b>군량</b></button>
         <button class="act wait" data-act="wait"><svg class="act-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-wait"></use></svg><b>대기</b></button>
         <button class="act auto" data-act="auto"><span>⟳</span><b>자동</b></button>
@@ -435,20 +449,20 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=70"></script>
-<script src="js/mapmask.js?v=70"></script>
-<script src="js/city_geo.js?v=70"></script>
-<script src="js/data.js?v=70"></script>
-<script src="js/bgm.js?v=70"></script>
-<script src="js/sfx.js?v=70"></script>
-<script src="js/app.js?v=70"></script>
-<script src="js/map.js?v=70"></script>
-<script src="js/battle.js?v=70"></script>
-<script src="js/backguard.js?v=70"></script>
+<script src="js/mapgeo.js?v=71"></script>
+<script src="js/mapmask.js?v=71"></script>
+<script src="js/city_geo.js?v=71"></script>
+<script src="js/data.js?v=71"></script>
+<script src="js/bgm.js?v=71"></script>
+<script src="js/sfx.js?v=71"></script>
+<script src="js/app.js?v=71"></script>
+<script src="js/map.js?v=71"></script>
+<script src="js/battle.js?v=71"></script>
+<script src="js/backguard.js?v=71"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=70').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=71').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>
