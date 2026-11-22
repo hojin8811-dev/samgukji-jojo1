@@ -4045,3 +4045,104 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   font-size: 10.5px; line-height: 1.35; color: #c8b483;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* ═══════════════ v5.46 — 📖 입문 가이드 · 계략 방어 표기 ═══════════════ */
+/* 지도 상단 날짜 띠의 입문서 칩 */
+.ribbon-guide {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 7px; border-radius: 8px; cursor: pointer;
+  border: 1px solid #b8862f; background: linear-gradient(180deg, #fff8e6, #f0dba6);
+  color: #5a3d12; font-family: inherit; font-size: 10px; font-weight: 900; letter-spacing: -0.04em;
+  box-shadow: 0 1px 2px rgba(120, 80, 24, 0.22);
+}
+.ribbon-guide:active { transform: translateY(1px); }
+/* 성 화면 그림 왼쪽 아래의 입문서 버튼 (지도 버튼과 짝) */
+.btn-city-map.intro {
+  right: auto; left: 9px;
+  border-color: #d9c58e; color: #f4e6c2;
+  background: linear-gradient(180deg, rgba(74, 58, 28, 0.94), rgba(46, 36, 16, 0.94));
+}
+.btn-city-map.intro::before { display: none; }
+
+/* 입문 가이드 본문 */
+.bg-wrap { display: flex; flex-direction: column; gap: 7px; }
+.bg-tabs {
+  display: flex; gap: 4px; padding: 3px; border-radius: 10px;
+  background: #efe0bd; border: 1px solid #d9c396;
+  position: sticky; top: 0; z-index: 2;
+}
+.bg-tabs button {
+  flex: 1; padding: 7px 3px; border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer;
+  font-family: inherit; font-size: 10.5px; font-weight: 900; color: #7c6636; letter-spacing: -0.04em;
+}
+.bg-tabs button.on {
+  background: linear-gradient(180deg, #fff8e6, #f0dba6); border-color: #b8862f; color: #4a2f0c;
+  box-shadow: 0 1px 3px rgba(120, 80, 24, 0.25);
+}
+.bg-pane { display: none; flex-direction: column; gap: 7px; }
+.bg-pane.on { display: flex; }
+.bg-now {
+  padding: 6px 9px; border-radius: 8px; border: 1px dashed #c9a86c; background: #fffaf0;
+  font-size: 10.5px; color: #6b5324;
+}
+.bg-now b { font-family: var(--serif); font-size: 12px; color: #3a2d15; margin-right: 4px; }
+.bg-now em { font-style: normal; font-weight: 900; color: #8a5a1a; }
+.bg-card {
+  display: flex; gap: 8px; padding: 8px 9px; border-radius: 10px;
+  border: 1px solid #dcc9a0; border-left-width: 4px; background: #fffaf0;
+}
+.bg-card.gold { border-left-color: #c99a2e; }
+.bg-card.green { border-left-color: #5f8b34; }
+.bg-card.blue { border-left-color: #5b7387; }
+.bg-card.rose { border-left-color: #a8443a; }
+.bg-card.sky { border-left-color: #3f6b8a; }
+.bg-ico {
+  flex: 0 0 26px; width: 26px; height: 26px; display: grid; place-items: center;
+  font-size: 16px; border-radius: 8px; background: #f4e6c6; border: 1px solid #dcc9a0;
+}
+.bg-ico.sm { flex: 0 0 22px; width: 22px; height: 22px; font-size: 13px; }
+.bg-body { flex: 1; min-width: 0; }
+.bg-head { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.bg-head b { font-family: var(--serif); font-size: 13.5px; color: #2e2510; }
+.bg-head em { font-style: normal; font-size: 9px; color: #8a7448; }
+.bg-tag {
+  margin-left: auto; padding: 1px 6px; border-radius: 6px; font-size: 8.5px; font-weight: 900;
+  color: #5a3d12; background: #f3e3bd; border: 1px solid #dcc9a0; white-space: nowrap;
+}
+.bg-card p { margin: 3px 0 0; font-size: 11px; line-height: 1.5; color: #4a3d20; letter-spacing: -0.02em; }
+.bg-card p b { color: #8a3a20; }
+.bg-note { margin: 1px 0 0; font-size: 10px; line-height: 1.45; color: #7c6636; }
+.bg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bg-bld { display: flex; gap: 6px; padding: 7px; border-radius: 9px; border: 1px solid #dcc9a0; background: #fffaf0; }
+.bg-bld > div { min-width: 0; }
+.bg-bld b { font-family: var(--serif); font-size: 12px; color: #2e2510; margin-right: 3px; }
+.bg-bld i {
+  font-style: normal; font-size: 8px; font-weight: 900; color: #8a5a1a;
+  background: #f3e3bd; border-radius: 4px; padding: 0 3px;
+}
+.bg-bld p { margin: 2px 0 0; font-size: 9.5px; line-height: 1.4; color: #5c4a28; letter-spacing: -0.03em; }
+.bg-rule {
+  padding: 8px 9px; border-radius: 10px; border: 1.5px solid #b8862f;
+  background: linear-gradient(180deg, #fff6de, #f5e6c2);
+}
+.bg-rule b { font-family: var(--serif); font-size: 12.5px; color: #6a3c0c; }
+.bg-rule p { margin: 3px 0 0; font-size: 10.5px; line-height: 1.5; color: #4a3d20; }
+.bg-rule p b { color: #8a3a20; }
+.bg-steps { display: flex; flex-direction: column; gap: 6px; }
+.bg-step {
+  display: flex; gap: 8px; padding: 8px 9px; border-radius: 10px;
+  border: 1px solid #dcc9a0; background: #fffaf0;
+}
+.bg-num {
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 900; color: #fff6df;
+  background: linear-gradient(180deg, #b8862f, #8a6417); border: 1px solid #6a4c10;
+}
+.bg-step b { font-family: var(--serif); font-size: 12.5px; color: #2e2510; }
+.bg-step p { margin: 2px 0 0; font-size: 10.5px; line-height: 1.5; color: #4a3d20; }
+.bg-step p b { color: #8a3a20; }
+/* v5.46 — 성벽 상세의 성벽+치안 내역은 조금 크게 (안내문 8.5px는 읽기 어렵다) */
+.ws-craft p.ws-def { font-size: 9.5px; line-height: 1.45; color: #5c4a28; margin-top: 3px; }
+.ws-craft p.ws-def b { color: #8a3a20; }
+/* 체크 전 주 버튼은 비활성으로 보이게 (탐색 보내기 등) */
+.modal-actions .btn:disabled { opacity: 0.45; }

@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=62" />
+<link rel="stylesheet" href="css/game.css?v=63" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f0e2c4'/%3E%3Cpath d='M6 24 L16 6 L26 24 Z' fill='none' stroke='%233b5f3a' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23b8862f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -123,6 +123,7 @@
           <button id="btn-start" class="btn btn-primary">새로 시작</button>
           <button id="btn-continue" class="btn btn-ghost" hidden>이어하기</button>
           <button id="btn-slots" class="btn btn-ghost">세이브 슬롯</button>
+          <button id="btn-title-guide" class="btn btn-ghost">📖 입문 가이드</button>
         </div>
         <p class="title-foot">80개 거점 · 19개 병과 · 701명 장수 · 최대 32×32 대형 전장</p>
         <p class="title-sound" id="title-sound" title="화면을 한 번 누르면 음악이 흐릅니다" aria-label="화면을 한 번 누르면 음악이 흐릅니다">🔊</p>
@@ -179,7 +180,7 @@
       <button id="btn-map-menu" class="icon-btn" aria-label="메뉴">☰</button>
     </header>
 
-    <div class="date-ribbon"><span id="map-date">190년 1월</span><i></i><span id="map-season" class="season-chip">봄</span><i></i><span id="map-rank" class="rank-chip">현령</span><i></i><span id="map-fame">명성 0</span></div>
+    <div class="date-ribbon"><span id="map-date">190년 1월</span><i></i><span id="map-season" class="season-chip">봄</span><i></i><span id="map-rank" class="rank-chip">현령</span><i></i><span id="map-fame">명성 0</span><i></i><button id="btn-map-intro" class="ribbon-guide" type="button" aria-label="입문 가이드 열기">📖 입문</button></div>
 
     <!-- v5.4 — 월 수지 줄: 순금 · 군량 · 다음 가을 대수확까지 (누르면 경제 현황) -->
     <button id="econ-strip" class="econ-strip" aria-label="경제 현황 보기">
@@ -276,6 +277,7 @@
       <div id="city-floats" class="city-floats"></div>
       <div id="city-cutin" class="city-cutin"></div>
       <div id="city-weather" class="city-weather">맑음 · 민심 안정</div>
+      <button id="btn-city-intro" class="btn-city-map intro" aria-label="입문 가이드 열기">📖 입문</button>
       <button id="btn-city-map" class="btn-city-map" aria-label="지도로 돌아가기">지도</button>
     </div>
 
@@ -412,15 +414,15 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=62"></script>
-<script src="js/mapmask.js?v=62"></script>
-<script src="js/city_geo.js?v=62"></script>
-<script src="js/data.js?v=62"></script>
-<script src="js/bgm.js?v=62"></script>
-<script src="js/sfx.js?v=62"></script>
-<script src="js/app.js?v=62"></script>
-<script src="js/map.js?v=62"></script>
-<script src="js/battle.js?v=62"></script>
-<script src="js/backguard.js?v=62"></script>
+<script src="js/mapgeo.js?v=63"></script>
+<script src="js/mapmask.js?v=63"></script>
+<script src="js/city_geo.js?v=63"></script>
+<script src="js/data.js?v=63"></script>
+<script src="js/bgm.js?v=63"></script>
+<script src="js/sfx.js?v=63"></script>
+<script src="js/app.js?v=63"></script>
+<script src="js/map.js?v=63"></script>
+<script src="js/battle.js?v=63"></script>
+<script src="js/backguard.js?v=63"></script>
 </body>
 </html>

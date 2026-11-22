@@ -1619,6 +1619,8 @@
   SK.armPendingWatch = armPendingWatch;
   SK.show = function (id) {
     SCREENS.forEach((s) => $('#' + s).classList.toggle('active', s === id));
+    /* v5.46 — 성 화면으로 넘어왔으면(어떤 경로든) 1년차 1월 첫 진입 입문서를 검사한다 */
+    if (id === 'screen-city' && SK.maybeAutoIntro) SK.maybeAutoIntro();
   };
   SK.showMap = function () {
     SK.show('screen-map');
@@ -2666,6 +2668,8 @@
     SK.show('screen-city');
     bgm('domestic');
     if (SK.cityLife) SK.cityLife.start(id);
+    /* v5.46 — 1년차 1월에 처음 성으로 들어오면 입문 가이드를 한 번 띄운다 */
+    maybeAutoIntro();
   };
 
   /* ══════════════════════════════════════════════════════════════
@@ -3598,7 +3602,7 @@
         /* v5.40 — 공방 제작 진행도 · 성벽 방첩률을 카드에서 바로 보여 준다 */
         const extra = sl.key === 'workshop'
           ? `<i class="sc-craft">제작 ${sl.craft || 0}/${CRAFT_MONTHS}${g ? '' : ' 정지'}</i>`
-          : (sl.key === 'wall' ? `<i class="sc-craft">방첩 ${Math.round(wallGuardOf(cityId).block * 100)}%</i>`
+          : (sl.key === 'wall' ? `<i class="sc-craft">계략방어 ${Math.round(schemeGuardOf(cityId).block * 100)}%</i>`
           : (sl.key === 'lab' && g && !spyTargets(cityId).length ? '<i class="sc-craft warn">이웃 적성 없음</i>' : ''));
         return `<button class="slot-card${full && sl.lv < 5 ? ' ready' : ''}" data-slot="${i}">
           <img class="sc-ico" src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt="">
@@ -3836,8 +3840,14 @@
           <div class="wc-bar"><i style="width:${Math.round((sl.craft || 0) / CRAFT_MONTHS * 100)}%"></i></div>
           <p>${g ? `${josa(g.name, 'i')} 매달 병기를 만듭니다 — <b>${CRAFT_MONTHS}개월째에 보물 1개</b> 완성 (공방 Lv.${sl.lv} · 정치·지력이 높을수록 회귀·영웅 확률 상승, 전설은 극히 드물다).` : '담당 장수가 없어 제작이 멈춰 있습니다 — 담당을 앉히면 매달 1개월씩 찹니다.'}</p>
         </div>` : ''}
-        ${sl.key === 'wall' ? `<div class="ws-craft"><div class="wc-head"><b>성벽 방첩</b><span>차단 ${Math.round(wallGuardOf(cityId).block * 100)}%</span></div>
-          <p>Lv.${sl.lv} 성벽${g ? ` · 담당 ${g.name}` : ' · 담당 없음(절반)'} — 적의 첩보·이간·유언비어 성공률을 이만큼 깎습니다. 담당 통솔이 높을수록 더 막습니다.</p></div>` : ''}
+        ${sl.key === 'wall' ? (() => {
+          const gd = schemeGuardOf(cityId) || { wallBlock: 0, orderBlock: 0, block: 0, order: 55 };
+          const wp = Math.round(gd.wallBlock * 100), op = Math.round(gd.orderBlock * 100), tp = Math.round(gd.block * 100);
+          return `<div class="ws-craft"><div class="wc-head"><b>성벽·치안 계략 방어</b><span>차단 ${tp}%</span></div>
+          <div class="wc-bar"><i style="width:${tp}%"></i></div>
+          <p class="ws-def">성벽 Lv.${sl.lv}${g ? ` · 담당 ${g.name}` : ' · 담당 없음(절반)'} → <b>${wp}%</b> + 치안 ${Math.round(gd.order)} → <b>${op}%</b> = <b>${tp}%</b> — 적의 첩보·이간·유언비어를 이만큼 막습니다.</p>
+          <p class="ws-def">합계는 <b>최대 80%</b>에서 멈춥니다. 성벽과 치안을 모두 끌어올려도 적 계략이 100% 막히지는 않습니다. 치안은 [순찰소] 담당 배속으로 오르고, 40 아래면 방어가 0%에 도적까지 듭니다.</p></div>`;
+        })() : ''}
         ${ownerCard}
         ${depCard}
         ${sl.lv < 5 ? `<div class="slot-expbox">
@@ -4151,6 +4161,35 @@
   }
   SK.wallGuardOf = wallGuardOf;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.46 — 치안(order)의 계략 방어
+     · 성벽 방첩(최대 55%)에 치안 방어(50부터 100까지 최대 +25%)를 더한다
+     · 합계는 80%에서 막는다 — 성벽 Lv.5·통솔 100에 치안 100이어도
+       100% 차단은 없다(적 계략이 최소 20%는 통한다)
+     ══════════════════════════════════════════════════════════════ */
+  const SCHEME_CAP = { wall: 0.55, order: 0.25, total: 0.80 };
+  SK.SCHEME_CAP = SCHEME_CAP;
+  function orderGuardOf(cs) {
+    const o = cs && cs.order != null ? clamp(cs.order, 0, 100) : 55;
+    return o >= 50 ? Math.min(SCHEME_CAP.order, (o - 50) * 0.005) : 0;
+  }
+  function schemeGuardOf(cityId) {
+    const s = SK.state;
+    const cs = s && s.cities[cityId];
+    if (!cs || cs.owner !== PF()) return null;
+    const wall = wallGuardOf(cityId);
+    const wallBlock = wall ? wall.block : 0;
+    const order = cs.order == null ? 55 : clamp(cs.order, 0, 100);
+    const orderBlock = orderGuardOf(cs);
+    const block = Math.min(SCHEME_CAP.total, wallBlock + orderBlock);
+    return {
+      sl: wall ? wall.sl : null, lv: wall ? wall.lv : 0, g: wall ? wall.g : null,
+      wallBlock, order, orderBlock, block,
+    };
+  }
+  SK.orderGuardOf = orderGuardOf;
+  SK.schemeGuardOf = schemeGuardOf;
+
   /* 달이 바뀔 때 건물이 내놓는 결산 — 담당 장수는 경험치를 얻는다 */
   function runSlots(st) {
     const log = [];
@@ -4327,10 +4366,12 @@
       const mine = (SK.allNeighbors(c.id) || []).filter((n) => s.cities[n] && s.cities[n].owner === PF() && s.cities[n].loyalty > 30);
       if (!mine.length) return;
       const id = mine[Math.floor(Math.random() * mine.length)];
-      const guard = wallGuardOf(id);
-      if (guard && Math.random() < guard.block) {
-        wall.push({ city: CITY[id].name, block: guard.block, lv: guard.lv, hero: guard.g ? guard.g.name : '',
-          from: c.name, text: `${c.name}의 첩자를 성벽 순라가 막았습니다` });
+      /* v5.46 — 성벽 방첩 + 치안 방어를 합쳐 막는다 (합계 80% 상한) */
+      const guard = schemeGuardOf(id);
+      if (guard && guard.block > 0 && Math.random() < guard.block) {
+        wall.push({ city: CITY[id].name, block: guard.block, wallBlock: guard.wallBlock, orderBlock: guard.orderBlock,
+          order: guard.order, lv: guard.lv, hero: guard.g ? guard.g.name : '',
+          from: c.name, text: `${c.name}의 첩자를 성벽 순라와 치안망이 막았습니다` });
         return;
       }
       s.cities[id].loyalty = clamp(s.cities[id].loyalty - 2, 10, 100);
@@ -4339,6 +4380,30 @@
     return { log, news, wall };
   }
   SK.runSpyOffices = runSpyOffices;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.46 — 치안이 무너진 성은 달마다 도적이 든다 (치안 40 미만)
+     · 도움말이 오래전부터 '치안이 낮으면 병력이 새어 나간다'고 적어 두었는데
+       실제로는 아무 일도 없었다. 치안이 계략 방어까지 맡게 된 김에 실제 손실을 넣는다.
+     · 확률 40에서 3% → 0에서 51%, 금은 성 금고에서 최대 280, 병력은 1% 미만
+     ══════════════════════════════════════════════════════════════ */
+  function runBandits(s) {
+    const out = [];
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      const o = cs.order == null ? 55 : clamp(cs.order, 0, 100);
+      if (o >= 40) return;
+      if (Math.random() > 0.03 + (40 - o) * 0.012) return;
+      const goldCut = Math.min(Math.round(cs.gold || 0), 40 + Math.floor(Math.random() * 120) + Math.round((40 - o) * 4));
+      const troopCut = Math.min(Math.round(cs.troops || 0), Math.round((cs.troops || 0) * (0.003 + Math.random() * 0.006)));
+      cs.gold = Math.max(0, Math.round((cs.gold || 0) - goldCut));
+      cs.troops = Math.max(0, Math.round((cs.troops || 0) - troopCut));
+      out.push({ city: c.name, order: Math.round(o), gold: goldCut, troops: troopCut });
+    });
+    return out;
+  }
+  SK.runBandits = runBandits;
 
   /* 담당 장수는 그달 건물 일을 한 것으로 친다 (자유 행동 없음) */
   function applyDuty(st) {
@@ -4485,30 +4550,15 @@
       SK.toast('탐색에 보낼 장수가 없습니다. (모두 이번 달 일을 마쳤습니다)');
       return;
     }
-    let mode = 'one';                 // 'one' 한 명씩 · 'many' 여러 명 한번에
-    const sel = new Set();            // 여러 명 모드에서 고른 장수 uid
+    /* v5.46 — [한 명씩]·[여러 명 한번에] 탭을 없애고 한 가지 방식만 쓴다.
+       보낼 장수를 체크해 한 번에 보낸다 — 한 명만 체크하면 그대로 한 명 탐색이다. */
+    const sel = new Set();            // 보낼 장수 uid
+    if (pool.length === 1) sel.add(pool[0].uid);   // 보낼 수 있는 장수가 한 명뿐이면 미리 체크
 
-    const sendOne = (actor) => {
-      const freed = consumeDispatch(cityId, actor);
-      const res = explore(cityId, actor);
-      if (!res.ok) { SK.sfx.play('deny'); SK.toast(res.msg || '탐색할 곳이 없었습니다.'); return false; }
-      SK.gainExp(actor, res.fail ? 10 : 22);
-      cityActorUid = null;
-      SK.save(); SK.refreshHud();
-      SK.openCity(cityId);
-      SK.sfx.play('coin');
-      SK.modal({
-        kicker: `${CITY[cityId].name} 탐색 · ${actor.name}`, title: res.title,
-        body: `<div class="explore-card ${res.kind}"><p>${res.text}</p><b>${res.gain}</b>${freed ? `<em class="ex-duty">${freed} 배속을 풀고 내보냈습니다</em>` : ''}</div>`,
-        actions: [{ label: '확인', primary: true }],
-      });
-      return true;
-    };
-
-    /* 여러 명 한 번에 — 고른 장수마다 배속 해지 + 탐색 + 경험치, 결과는 한 창에 모은다 */
+    /* 체크한 장수를 한번에 — 고른 장수마다 배속 해지 + 탐색 + 경험치, 결과는 한 창에 모은다 */
     const sendMany = () => {
       const picked = pool.filter((g) => sel.has(g.uid));
-      if (!picked.length) return;
+      if (!picked.length) { SK.toast('보낼 장수를 체크하세요.'); return; }
       const out = [];
       let freedN = 0;
       picked.forEach((actor) => {
@@ -4516,16 +4566,26 @@
         if (freed) freedN += 1;
         const res = explore(cityId, actor);
         if (!res || !res.ok) {
-          out.push({ name: actor.name, kind: 'fail', title: '탐색 실패', gain: (res && res.msg) || '아무것도 찾지 못했습니다' });
+          out.push({ name: actor.name, kind: 'fail', title: '탐색 실패', text: '', gain: (res && res.msg) || '아무것도 찾지 못했습니다', fail: true, freed });
           return;
         }
         SK.gainExp(actor, res.fail ? 10 : 22);
-        out.push({ name: actor.name, kind: res.kind || 'misc', title: res.title, gain: res.gain || '', fail: !!res.fail });
+        out.push({ name: actor.name, kind: res.kind || 'misc', title: res.title, text: res.text || '', gain: res.gain || '', fail: !!res.fail, freed });
       });
       cityActorUid = null;
       SK.save(); SK.refreshHud();
       SK.openCity(cityId);
       SK.sfx.play('coin');
+      /* 한 명만 보냈으면 그 장수의 사연을 한 창에 그대로 보여 준다 (탭을 없앤 대신 결은 그대로) */
+      if (out.length === 1) {
+        const r = out[0];
+        SK.modal({
+          kicker: `${CITY[cityId].name} 탐색 · ${r.name}`, title: r.title,
+          body: `<div class="explore-card ${r.kind}"><p>${r.text || r.gain}</p>${r.text ? `<b>${r.gain}</b>` : ''}${r.freed ? `<em class="ex-duty">${r.freed} 배속을 풀고 내보냈습니다</em>` : ''}</div>`,
+          actions: [{ label: '확인', primary: true }],
+        });
+        return;
+      }
       const good = out.filter((r) => !r.fail).length;
       SK.modal({
         kicker: `${CITY[cityId].name} 탐색 · ${out.length}명`, title: '탐색 결과',
@@ -4539,27 +4599,13 @@
     };
 
     const render = (m) => {
-      const tabs = `<div class="ex-tabs">
-        <button data-ex="one" class="${mode === 'one' ? 'on' : ''}">한 명씩</button>
-        <button data-ex="many" class="${mode === 'many' ? 'on' : ''}">여러 명 한번에</button>
-      </div>`;
-      const note = mode === 'one'
-        ? `<p class="talent-note"><b>보낼 장수의 카드를 누르면 바로 출발합니다.</b> 탐색은 금이 들지 않고, 보낸 장수의 이번 달 행동을 씁니다. 매력·지력이 높을수록 보물·인재를 더 잘 찾습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>`
-        : `<p class="talent-note"><b>여러 명 한번에</b> — 보낼 장수를 체크해 한 번에 내보냅니다. 고른 장수마다 이번 달 행동을 쓰고, 결과는 한 창에 모아 보여 줍니다. 건물 담당 장수는 보내는 순간 배속이 풀립니다.</p>
-          <div class="ex-many-bar">
-            <button id="ex-all">대기 장수 전체 선택</button>
-            <button id="ex-none">선택 해제</button>
-            <b id="ex-count">${sel.size}명 선택</b>
-          </div>`;
+      const bar = `<div class="ex-many-bar">
+          <button id="ex-all">대기 장수 전체 선택</button>
+          <button id="ex-none">선택 해제</button>
+          <b id="ex-count">${sel.size}명 선택</b>
+        </div>`;
+      const note = `<p class="talent-note"><b>보낼 장수를 체크하고 아래 [탐색 보내기]를 누르세요.</b> 한 명만 체크해도 그대로 한 명 탐색입니다. 탐색은 금이 들지 않고, 고른 장수마다 이번 달 행동을 씁니다. 매력·지력이 높을수록 보물·인재를 더 잘 찾습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>`;
       const cards = pool.map((g, i) => {
-        if (mode === 'one') {
-          return `<button class="target-card" data-uid="${g.uid}">
-            <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
-            <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
-              <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
-            <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b class="tc-state${g.actedThisMonth ? ' done' : ''}">${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
-            <span class="tc-go">▸</span></button>`;
-        }
         const on = sel.has(g.uid);
         return `<button class="target-card ex-pick ${on ? 'on' : ''}" data-pick="${g.uid}">
           <span class="ex-check ${on ? 'on' : ''}">✓</span>
@@ -4570,29 +4616,12 @@
           <span class="tc-go">▸</span></button>`;
       }).join('');
       const wrap = m.el.querySelector('#ex-wrap');
-      wrap.innerHTML = `${tabs}${note}<div class="target-list pick-scroll">${cards}</div>`;
-      /* v5.40 — '한 명씩' 모드에서는 눌리지 않는 큰 초록 버튼을 숨긴다.
-         (안내문처럼 보이는 disabled 주 버튼을 몇 번 누르게 만들었다) */
+      wrap.innerHTML = `${note}${bar}<div class="target-list pick-scroll">${cards}</div>`;
+      /* v5.46 — 탭이 없어졌으니 주 버튼 하나가 늘 보이고, 체크한 수를 바로 읽어 준다 */
       const act = m.el.querySelector('.modal-actions .btn-primary');
       if (act) {
-        const manyMode = mode === 'many';
-        act.style.display = manyMode ? '' : 'none';
         act.textContent = sel.size ? `${sel.size}명 탐색 보내기` : '장수를 체크하세요';
-        act.disabled = !manyMode || !sel.size;
-      }
-      wrap.querySelectorAll('[data-ex]').forEach((b) => {
-        b.onclick = () => { mode = b.dataset.ex; SK.sfx.play('ui'); render(m); };
-      });
-      if (mode === 'one') {
-        wrap.querySelectorAll('.target-card[data-uid]').forEach((b) => {
-          b.onclick = () => {
-            const actor = pool.find((g) => g.uid === b.dataset.uid);
-            if (!actor) return;
-            m.close();
-            sendOne(actor);
-          };
-        });
-        return;
+        act.disabled = !sel.size;
       }
       wrap.querySelectorAll('[data-pick]').forEach((b) => {
         b.onclick = () => {
@@ -4617,8 +4646,7 @@
       wide: true,
       actions: [
         { label: '취소' },
-        { label: '여러 명 보내기', primary: true, onClick: () => {
-          if (mode !== 'many') { SK.toast('위의 [여러 명 한번에] 탭에서 쓸 수 있습니다.'); return; }
+        { label: '탐색 보내기', primary: true, onClick: () => {
           if (!sel.size) { SK.toast('보낼 장수를 체크하세요.'); return; }
           sendMany();
         } },
@@ -5597,7 +5625,8 @@
   /* ── v5.8 물음표 도움말 — 민심·치안·훈련도·대수확·세율 옆의 ? 버튼 ── */
   const HELP_TIPS = {
     loyal: { t: '민심', lines: ['백성이 다스림을 따르는 마음입니다. 세수와 인구가 민심을 따라 오르내립니다.', '40 아래로 떨어지면 소란이 나 병력이 줄고, 70을 넘으면 세수 15%가 붙습니다. [관아 → 백성 위로]로 올립니다.'] },
-    order: { t: '치안', lines: ['성안 길이 얼마나 안전한지를 나타냅니다. 낮으면 산적과 도적이 늘고 병력이 새어 나갑니다.', '순찰소를 짓고 장수를 배속하면 달마다 조금씩 오릅니다.'] },
+    order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.'] },
+    wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>를 더하지만, 둘을 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.'] },
     train: { t: '훈련도', lines: ['이 성 병사들의 숙련도입니다. 높을수록 전장에서 같은 병력으로 더 강합니다.', '[병영 → 훈련]이나 연병장으로 올립니다. 출진할 때 이 수치가 부대에 그대로 넘어갑니다.'] },
     harvest: { t: '10월 대수확', lines: ['한 해 군량은 10월에 한 번에 들어옵니다. 농업도·민심·농원 Lv가 많을수록 많이 걷습니다.', '그 전까지는 [개간]·[탐색]·[군량 상인]으로 버티고, 병력 유지비는 매달 나갑니다.'] },
     tax: { t: '세율', lines: ['세금을 많이 걷으면 금은 빨리 모이지만 민심이 달마다 떨어집니다.', '낮게 두면 당장 금은 줄어도 민심이 올라 다음 달 세수와 인구가 늘어납니다.'] },
@@ -5751,7 +5780,7 @@
         ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)' })}
         ${devCard({ label: '민심', icon: 'loyal', val: Math.round(cs.loyalty), pct: cs.loyalty, color: 'linear-gradient(90deg,#a8443a,#d97a63)', help: 'loyal', warn: cs.loyalty < 40 })}
         ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)' })}
-        ${devCard({ label: '성벽', icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)' })}
+        ${devCard({ label: '성벽', icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
         ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
       </div>`;
     const info = $('#city-info');
@@ -10887,6 +10916,8 @@
     const spyLog = spyRun.log;
     const wallLog = spyRun.wall || [];
     spyRun.news.forEach((n) => aiNews.push(n));
+    /* v5.46 — 치안 40 미만 성의 도적 출몰 (금·병력 손실) */
+    const banditLog = runBandits(s);
     const growth = [];
     slotLog.forEach((l) => (l.grow || []).forEach((g) => growth.push(g)));
     growth.sort((a, b) => (b.exp / b.need) - (a.exp / a.need));
@@ -11071,8 +11102,10 @@
         ${craftLog.length ? `<div class="mr-auto"><p class="mr-auto-title">공방 제작 <em>담당이 앉은 공방은 3개월에 보물 1개</em></p>
           ${craftLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 공방 ${l.hero || ''}</b><span>${l.full ? '보물을 모두 모아 더 만들 것이 없습니다' : l.done ? `${l.treasure} (${l.grade}) 완성!` : `제작 ${l.progress}/${l.need}개월`}</span></div>`).join('')}
           ${craftLog.length > 6 ? `<p class="mr-note">${craftLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
-        ${wallLog.length ? `<div class="mr-auto"><p class="mr-auto-title">성벽 방어 <em>적 첩자·계략 차단</em></p>
-          ${wallLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text} (차단 ${Math.round(l.block * 100)}%${l.hero ? ` · ${l.hero}` : ''})</span></div>`).join('')}</div>` : ''}
+        ${wallLog.length ? `<div class="mr-auto"><p class="mr-auto-title">계략 방어 <em>성벽 + 치안이 적 첩자를 막았습니다</em></p>
+          ${wallLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text} (차단 ${Math.round(l.block * 100)}% = 성벽 ${Math.round((l.wallBlock || 0) * 100)}% + 치안 ${Math.round((l.orderBlock || 0) * 100)}%${l.hero ? ` · ${l.hero}` : ''})</span></div>`).join('')}</div>` : ''}
+        ${banditLog.length ? `<div class="mr-auto"><p class="mr-auto-title">도적 출몰 <em>치안 40 아래 — 순찰소로 올리세요</em></p>
+          ${banditLog.slice(0, 4).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>치안 ${l.order} — 도적이 들어 금 −${fmt(l.gold)} · 병력 −${fmt(l.troops)}</span></div>`).join('')}</div>` : ''}
         ${spyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">첩보소 첩보 <em>자동 첩보 · 이간 · 유언비어</em></p>
           ${spyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 첩보소</b><span>${l.note ? l.note : `${l.hero} — ${l.acts.map((a) => a.text).join(' · ')}${l.fail ? `${l.acts.length ? ' · ' : ''}첩보 ${l.fail}건은 들통` : ''}`}</span></div>`).join('')}
           ${spyLog.length > 6 ? `<p class="mr-note">${spyLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
@@ -11105,6 +11138,7 @@
       kicker: '군령',
       title: '메뉴',
       body: `<div class="menu-list">
+        <button data-m="guide">📖 입문 가이드 — 자원·건물·출진 1분</button>
         <button data-m="codex">도감 · 인물·보물 수집</button>
         <button data-m="roster">장수 명부 · 보물 · 배치</button>
         <button data-m="recall">원정 부대 · 긴급 회군</button>
@@ -11118,6 +11152,7 @@
       b.onclick = () => {
         const k = b.dataset.m;
         m.close();
+        if (k === 'guide') SK.openIntroGuide({});
         if (k === 'codex') SK.openCodex();
         if (k === 'recall') SK.openRecall(SK.state && (SK.state.purseCity || SK.state.lastCity));
         if (k === 'roster') SK.openRoster();
@@ -11132,6 +11167,131 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.46 — 초보자 입문 가이드 (📖 입문서)
+     · 삼국지·코에이 게임이 처음인 사람을 위한 1분 안내
+     · ① 자원·민심·치안 ② 건물 9종 ③ 징병·출진 3단계 세 탭
+     · 1년차 1월에 처음 성으로 들어오면 한 번만 저절로 열리고,
+       '알겠습니다'나 '다시 자동으로 열지 않기'를 누르면 sk_intro_seen=1로 다시 뜨지 않는다
+     ══════════════════════════════════════════════════════════════ */
+  const INTRO_SEEN_KEY = 'sk_intro_seen';
+  let introAutoDone = false;
+  let introAutoQueued = false;
+  function introSeen() {
+    try { return localStorage.getItem(INTRO_SEEN_KEY) === '1'; } catch (e) { return true; }
+  }
+  function markIntroSeen() {
+    try { localStorage.setItem(INTRO_SEEN_KEY, '1'); } catch (e) { /* 저장이 막힌 브라우저는 그냥 넘긴다 */ }
+  }
+
+  const INTRO_RES = [
+    { ico: '💰', name: '금', sub: '돈', tag: '시장·세수로 매달', tone: 'gold',
+      text: '건물 건설·증축, 징병·훈련, 외교·계략에 씁니다.' },
+    { ico: '🌾', name: '쌀', sub: '군량', tag: '10월 대수확', tone: 'green',
+      text: '병력 1,000명당 매달 20씩 유지비로 나갑니다. 10월에 한 해치가 한 번에 들어옵니다. 바닥나면 민심이 떨어지고 병사가 이탈합니다.' },
+    { ico: '🛡️', name: '병력', sub: '군사', tag: '인구의 17%까지', tone: 'blue',
+      text: '성을 지키고 출진하는 힘입니다. [군사 → 징병]이나 [병영]에서 모읍니다.' },
+    { ico: '😊', name: '민심', sub: '백성의 마음', tag: '70↑ 보너스 · 40↓ 손실', tone: 'rose',
+      text: '70 이상이면 세수 <b>+15%</b>, 40 아래면 세수 <b>−15%</b>에 소란·병력 이탈이 생깁니다. [시설 관리 → 백성 위로](금 100)와 낮은 세율로 올립니다.' },
+    { ico: '🚓', name: '치안', sub: '성안의 안전', tag: '계략 방어 +최대 25%', tone: 'sky',
+      text: '50부터 적 계략(첩보·이간·유언비어)을 막습니다. 성벽과 합쳐 <b>최대 80%</b>까지만 막히고 100%는 없습니다. 40 아래면 방어 0%에 <b>도적</b>이 들어 금·병력이 새어 나갑니다. [순찰소]에 장수를 배속하면 매달 오릅니다.' },
+  ];
+  const INTRO_BLD = [
+    { ico: '🏪', name: '시장', stat: '정치', text: '매달 금을 법니다. Lv이 오를수록 크게 늡니다.' },
+    { ico: '🌱', name: '농원', stat: '정치', text: '10월 가을 대수확을 키웁니다 (매달 조금씩 비축).' },
+    { ico: '⚔️', name: '병영', stat: '통솔', text: '매달 수비병을 모읍니다. 부상병 치료도 여기서.' },
+    { ico: '🏋️', name: '연병장', stat: '통솔', text: '훈련도를 올리고 대기 장수를 수련시킵니다.' },
+    { ico: '🔔', name: '순찰소', stat: '매력', text: '민심과 <b>치안</b>을 올립니다 — 계략 방어의 바탕.' },
+    { ico: '🕵️', name: '첩보소', stat: '지력', text: '매달 이웃 적성을 자동 정찰·이간·유언비어 (담당 없으면 정지).' },
+    { ico: '🥋', name: '공방', stat: '정치', text: '3개월마다 보물 1개를 만듭니다. 금 수입도.' },
+    { ico: '🏯', name: '성벽', stat: '통솔', text: '성을 지키고 적 계략을 막습니다 (성벽만 최대 55%).' },
+    { ico: '🍶', name: '주점', stat: '매력', text: '재야 인재가 모입니다 — 등용과 탐색의 창구.' },
+    { ico: '🏛️', name: '관아', stat: '메뉴', text: '태수·군사 임명과 자동 내정 방침. 건물이 아니라 메뉴입니다.' },
+  ];
+
+  function introBody(cid) {
+    const s = SK.state;
+    const cs = s && cid ? s.cities[cid] : null;
+    const now = cs && cs.owner === PF()
+      ? `<div class="bg-now"><b>${CITY[cid].name}</b> 지금 민심 <em>${Math.round(cs.loyalty)}</em> · 치안 <em>${Math.round(cs.order == null ? 55 : cs.order)}</em> · 병력 <em>${fmt(cs.troops)}</em></div>`
+      : '';
+    const p1 = `${now}${INTRO_RES.map((r) => `<div class="bg-card ${r.tone}">
+        <span class="bg-ico">${r.ico}</span>
+        <div class="bg-body"><div class="bg-head"><b>${r.name}</b><em>${r.sub}</em><span class="bg-tag">${r.tag}</span></div>
+          <p>${r.text}</p></div></div>`).join('')}
+      <p class="bg-note">처음 한 달은 이 다섯 숫자만 보면 됩니다. 금·쌀이 들어오고, 민심·치안이 40 위에 있으면 성이 굴러갑니다.</p>`;
+    const p2 = `<div class="bg-grid">${INTRO_BLD.map((b) => `<div class="bg-bld">
+        <span class="bg-ico sm">${b.ico}</span>
+        <div><b>${b.name}</b><i>${b.stat}</i><p>${b.text}</p></div></div>`).join('')}</div>
+      <div class="bg-rule"><b>가장 중요한 규칙</b><p>건물은 <b>빈 칸이 아니라 장수를 배속해야</b> 100% 효과가 나고 매달 자랍니다. 담당이 없으면 절반(첩보소는 정지)이고, <b>부장</b>을 앉히면 +45%가 더 붙습니다. 건물을 누르면 배속·증축 창이 열립니다.</p></div>
+      <p class="bg-note">시설 칸은 성 규모에 따라 6~10칸입니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜨고, 관아는 건물이 아니라 [시설 관리 → 관아] 메뉴입니다.</p>`;
+    const p3 = `<div class="bg-steps">
+        <div class="bg-step"><span class="bg-num">1</span><div><b>금·민심 다지기</b><p>[시설 관리]에서 공터에 <b>시장·농원</b>을 짓고 장수를 배속하세요. 민심이 낮으면 [백성 위로].</p></div></div>
+        <div class="bg-step"><span class="bg-num">2</span><div><b>병사 모으기</b><p>[군사 → 징병](금 150 · 군량 120) 또는 지은 [병영]으로 주둔병을 채웁니다.</p></div></div>
+        <div class="bg-step"><span class="bg-num">3</span><div><b>출진해서 성 하나 차지</b><p>[군사 → 출진]에서 지도로 목표 성을 고르면 전장이 열립니다. 이웃한 성만 칠 수 있고, 미정찰 성은 [외교·계략 → 정찰]로 먼저 살피세요.</p></div></div>
+      </div>
+      <div class="bg-rule"><b>달을 넘기는 법</b><p>아래 <b>[다음 달]</b>을 누르면 세수·군량·건물 결산이 들어오고 장수의 행동이 새로 생깁니다. 장수는 한 달에 <b>한 번</b> — 건물 담당이거나 직접 명령 하나입니다.</p></div>`;
+    return `<div class="bg-wrap">
+      <div class="bg-tabs">
+        <button type="button" data-bg="1" class="on">① 자원·민심·치안</button>
+        <button type="button" data-bg="2">② 건물 9종</button>
+        <button type="button" data-bg="3">③ 징병·출진</button>
+      </div>
+      <div class="bg-pane on" data-bgpane="1">${p1}</div>
+      <div class="bg-pane" data-bgpane="2">${p2}</div>
+      <div class="bg-pane" data-bgpane="3">${p3}</div>
+    </div>`;
+  }
+
+  SK.openIntroGuide = function (opts) {
+    opts = opts || {};
+    const s = SK.state;
+    const cid = opts.cityId || (s && (s.lastCity || s.playerCapital)) || null;
+    const first = !!opts.firstTime;
+    const actions = first
+      ? [
+        { label: '다시 자동으로 열지 않기', onClick: markIntroSeen },
+        { label: '알겠습니다 (게임 시작)', primary: true, onClick: markIntroSeen },
+      ]
+      : [{ label: '닫기', primary: true }];
+    const m = SK.modal({
+      kicker: '처음이라면 1분만', title: '📖 입문 가이드',
+      body: introBody(cid), wide: true, actions,
+    });
+    m.el.querySelectorAll('[data-bg]').forEach((b) => {
+      b.onclick = () => {
+        const k = b.dataset.bg;
+        m.el.querySelectorAll('[data-bg]').forEach((x) => x.classList.toggle('on', x === b));
+        m.el.querySelectorAll('[data-bgpane]').forEach((p) => p.classList.toggle('on', p.dataset.bgpane === k));
+        const body = m.el.querySelector('.modal-body');
+        if (body) body.scrollTop = 0;
+        SK.sfx.play('ui');
+      };
+    });
+    return m;
+  };
+
+  /* 성 화면에 처음 들어온 1년차 1월에 한 번만 저절로 열어 준다.
+     개전 브리핑(320ms)·시작 연표 카드(900ms)가 먼저 뜨는 동안은 기다렸다가,
+     그 창들이 닫힌 뒤 성에 다시 들어올 때 연다(SK.show의 screen-city 훅이 부른다). */
+  function maybeAutoIntro() {
+    const s = SK.state;
+    if (!s || introAutoDone || SK.introGuideOff) return;
+    if (introSeen()) return;
+    if (!((s.turn || 1) <= 1 && (s.month || 0) === 0)) return;
+    if (!introAutoQueued) {
+      introAutoQueued = true;   // 시작 창들이 스스로 닫길 때까지 1회 건너뛴다
+      setTimeout(() => { introAutoQueued = false; }, 3200);
+      return;
+    }
+    introAutoDone = true;
+    setTimeout(() => {
+      if (document.querySelector('#modal-root .modal-layer')) { introAutoDone = false; return; }   // 다른 창이 떠 있으면 다음 성 진입에서 다시 시도
+      SK.openIntroGuide({ firstTime: true, cityId: s.lastCity || s.playerCapital });
+    }, 500);
+  }
+  SK.maybeAutoIntro = maybeAutoIntro;
+
   SK.showHelp = function () {
     SK.modal({
       kicker: '조작법',
@@ -11141,7 +11301,8 @@
         <div class="help-item"><b>태수·군사와 자동 내정</b><p>관아에서 태수(정치·통솔)와 군사(지력·매력)를 앉힙니다. 태수가 앉은 성은 [다음 달]을 누를 때 대기 장수로 개간·징병·보수·민심·훈련을 스스로 마치고 월정산에 보고합니다. 본성과 태수가 없는 성은 자동으로 움직이지 않으며, 관아에서 자동 내정을 끄거나 언제든 직접 지시할 수 있습니다.</p></div>
         <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·첩보소·공방을 직접 지을 수 있습니다(소도시 ${SK.SLOT_MAX.town}칸 · 중도시 ${SK.SLOT_MAX.mid}칸 · 대도시 ${SK.SLOT_MAX.capital}칸 · 관문 ${SK.SLOT_MAX.pass}칸 · 요새 ${SK.SLOT_MAX.fortress}칸). 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건물을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜹니다.</p></div>
         <div class="help-item"><b>공방 — 3개월에 보물 1개</b><p>공방에 담당 장수를 앉히면 매달 제작 게이지가 <b>1/3 → 2/3 → 3/3</b>으로 차고, 3개월째에 <b>보물 1개</b>가 완성됩니다(보관함). 공방 Lv과 담당의 정치·지력이 높을수록 희귀·영웅 등급이 잘 나오고 전설은 극히 드뭅니다. 담당이 없으면 제작이 멈춥니다. 진행도는 시설 카드와 상세 창, 월정산 <b>[공방 제작]</b>에 나옵니다.</p></div>
-        <div class="help-item"><b>성벽 — 적 첩보·계략 차단</b><p>성벽 시설의 Lv과 담당 통솔이 높을수록 적의 첩보·이간·유언비어가 성문에서 막힙니다(최대 55%). 담당 없이도 Lv만큼 5~25%가 막히고, 막아 낸 달은 월정산 <b>[성벽 방어]</b>에 한 줄로 보고됩니다. 성벽 카드와 상세 창에 지금 차단률이 표시됩니다.</p></div>
+        <div class="help-item"><b>성벽 + 치안 — 적 첩보·계략 차단</b><p>성벽 시설 Lv과 담당 통솔이 높을수록 적의 첩보·이간·유언비어가 성문에서 막힙니다(성벽 <b>최대 55%</b>). 여기에 <b>치안</b>이 더해집니다 — 치안 50에서 100까지 <b>최대 +25%</b>. 둘을 합쳐도 <b>80%에서 막혀</b> 아무리 높여도 100% 차단은 없습니다. 막아 낸 달은 월정산 <b>[계략 방어]</b>에 성벽·치안 몫과 함께 한 줄로 보고됩니다. 성벽 카드·상세 창에 지금 차단률이 표시됩니다.</p></div>
+        <div class="help-item"><b>치안 — 도적과 계략</b><p>치안은 순찰소 담당 배속으로 오릅니다(배속이 없으면 달마다 조금씩 풀립니다). <b>40 아래</b>면 계략 방어가 0%가 되고 도적이 들어 금·병력이 새어 나가며, 인구도 덜 늘어납니다. <b>50부터</b> 계략 방어가 붙기 시작해 100이면 +25%입니다.</p></div>
         <div class="help-item"><b>위임 방침의 실제 수치</b><p>관아의 방침은 내정 순서만 바꾸던 것을 실제 수치로 바꿨습니다 — <b>균형</b> 금·군량·징병·훈련·성벽 +5%, <b>상업 중시</b> 금 +25%·징병 -15%, <b>농업 중시</b> 수확 +30%·매달 민심 +2·금 -10%, <b>전시 체제</b> 징병·훈련 +30%·성벽 +10%·금 -15%·매달 민심 -1, <b>수송 중시</b> 지정 성 자동 수송·수송 상한 60→75%. 방침은 성마다 따로이며 <b>본성에도 그대로 적용</b>됩니다.</p></div>
         <div class="help-item"><b>첩보소 — 매달 자동 첩보·계략</b><p>지력이 높은 장수를 담당으로 앉히면 달이 바뀔 때마다 이웃한 성 하나(재야 성 포함)를 <b>자동으로 정찰</b>합니다(${SK.SCOUT_SPAN} 지속, 금 없음). 이미 정찰한 이웃 성에는 시설 Lv·담당 지력에 비례한 확률로 <b>이간계</b>(적 장수 충성 −) 또는 <b>유언비어</b>(민심 −)를 펼칩니다. 결과는 월정산 <b>[첩보소 첩보]</b>에 한 줄로 보고됩니다. 담당이 없으면 아무 일도 하지 않고, 부장을 앉히면 확률이 더 오릅니다.</p></div>
         <div class="help-item"><b>장수는 한 달에 한 번</b><p>장수는 <b>건물 담당</b>, 아니면 직접 명령(탐색·등용·수송·계략·출진) 중 하나를 합니다. 담당을 맡은 장수는 매달 자동으로 건물 효과를 내므로, 급히 출진에 쓰고 싶으면 그 건물에서 담당을 해제하세요. 행동력 숫자는 없앴고 장수 카드에 <b>건물 담당 / 대기 / 이번 달 완료</b>로만 표시됩니다.</p></div>
@@ -11222,6 +11383,13 @@
       SK.openCity(id);
     };
     $('#btn-map-menu').onclick = openMenu;
+    /* v5.46 — 📖 입문 가이드: 지도·성·표지 어디서든 열린다 */
+    const mi = $('#btn-map-intro');
+    if (mi) mi.onclick = () => SK.openIntroGuide({});
+    const ci = $('#btn-city-intro');
+    if (ci) ci.onclick = () => SK.openIntroGuide({ cityId: SK.state && SK.state.lastCity });
+    const ti = $('#btn-title-guide');
+    if (ti) ti.onclick = () => SK.openIntroGuide({});
     const cdxBtn = $('#btn-map-codex');
     if (cdxBtn) cdxBtn.onclick = () => SK.openCodex();
     const estrip = $('#econ-strip');
