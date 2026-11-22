@@ -4757,3 +4757,61 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .gi-ult.used b em { color: #6b6250; background: rgba(220, 210, 186, 0.8); }
 .gi-ult .gi-ult-q { color: #7a5f2e; font-style: italic; }
 .gi-sec-sub { font-size: 9px; font-weight: 700; color: #96773c; margin-left: 4px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v5.55 — 모든 초상화 테두리를 장수 등급색으로 통일
+   S급 빨강+금 · A급 보라 · B급 파랑 · C급 초록
+   · 클래스 하나(.tier-S/A/B/C)로 두 모양을 모두 덮는다.
+     - <img class="tier-A">                    → 그림 자체에 등급색 테두리 링
+     - <span class="tf tier-A"><img></span>    → 안쪽이 파인 등급색 그라데이션 액자
+   · 세력색 오라(--fa) 테두리는 이 규칙이 덮는다(!important).
+   ══════════════════════════════════════════════════════════════════════════ */
+.tier-S { --tr-a: #d9261c; --tr-b: #ffd54a; --tr-c: #c41812; --tr-d: #ffe680; --tr-ring: #8c110b; --tr-glow: rgba(217, 38, 28, 0.45); }
+.tier-A { --tr-a: #8e44ad; --tr-b: #c06cf5; --tr-c: #6c2d91; --tr-d: #d69bff; --tr-ring: #521f73; --tr-glow: rgba(142, 68, 173, 0.42); }
+.tier-B { --tr-a: #2471d9; --tr-b: #63a4ff; --tr-c: #1b54a8; --tr-d: #8cc0ff; --tr-ring: #143f82; --tr-glow: rgba(36, 113, 217, 0.42); }
+.tier-C { --tr-a: #2c8f4b; --tr-b: #62c47d; --tr-c: #1f6b37; --tr-d: #8ad6a2; --tr-ring: #165028; --tr-glow: rgba(44, 143, 75, 0.40); }
+
+/* (1) 그림 자체가 액자인 초상 — 목록·버튼 안의 얼굴 */
+img.tier-S, img.tier-A, img.tier-B, img.tier-C {
+  border-color: var(--tr-a) !important;
+  box-shadow:
+    0 0 0 var(--tw1, 2px) var(--tr-a),
+    0 0 0 calc(var(--tw1, 2px) + var(--tw2, 1.2px)) var(--tr-b),
+    0 0 0 calc(var(--tw1, 2px) + var(--tw2, 1.2px) + var(--tw3, 0.7px)) var(--tr-ring) !important;
+}
+/* (2) 액자 안에 그림이 들어가는 초상 — 성·명부·전장 카드 */
+.tf.tier-S, .tf.tier-A, .tf.tier-B, .tf.tier-C {
+  padding: var(--tf-pad, 2.5px) !important;
+  border-color: var(--tr-ring) !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(135deg, var(--tr-a) 0%, var(--tr-b) 45%, var(--tr-c) 75%, var(--tr-d) 100%) !important;
+  box-shadow: 0 0 0 1px var(--tr-ring), 0 2px 7px var(--tr-glow) !important;
+}
+.tf.tier-S > img, .tf.tier-A > img, .tf.tier-B > img, .tf.tier-C > img {
+  border: 0 !important;
+  border-radius: var(--tf-r, 6px) !important;
+  box-shadow: none !important;
+}
+/* 둥근 액자·전용 반지름은 그대로 살린다 */
+.intro-portrait.tf > img { border-radius: 50% !important; }
+.gi-frame { --tf-pad: 3px; }
+.gi-frame.tf > img { border-radius: 4px !important; }
+.hi-portrait, .city-lord { --tf-pad: 3px; }
+.uc-portrait { --tf-pad: 2.5px; }
+.uc-portrait.tf > span { left: 2.5px !important; right: 2.5px !important; bottom: 2.5px !important; border-radius: 0 0 4px 4px; }
+.gc-pt { --tf-pad: 2px; }
+.gc-pt.tf > img { border-radius: 6px !important; }
+.gc-pt.tf .gc-lv { left: 2px; bottom: 2px; }
+.mg-frame { --tf-pad: 2px; }
+.mg-frame.tf > img { border-radius: 6.5px !important; }
+.ult-face { --tf-pad: 2px; }
+.ult-face.tf > img { border-radius: 7px !important; }
+.ci-portrait { --tf-pad: 2.5px; }
+.dc-card { --tf-pad: 3px; }
+.dc-card.tf > img { border-radius: 8px 8px 3px 3px !important; }
+
+/* 아주 작은 얼굴은 링을 얇게 — 목록 줄 높이와 글자를 밀지 않게 */
+.rs-name img, .slot-card .sc-face, .sc-owner .sc-face,
+.ev-chip img, .escort-row .ev-chip img { --tw1: 1.2px; --tw2: 1px; --tw3: 0.5px; }
+.hq-face, .oh-face, .rm-prisoners img, .flag-chip img { --tw1: 1.4px; --tw2: 1px; --tw3: 0.6px; }
+.crew-row img, .reward-row img { --tw1: 1.5px; --tw2: 1px; --tw3: 0.6px; }

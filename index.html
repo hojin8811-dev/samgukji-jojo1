@@ -9,10 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=71" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=72" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=71" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=71" />
+<link rel="stylesheet" href="css/game.css?v=72" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=72" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -234,7 +234,7 @@
   <section id="screen-city" class="screen">
     <header class="city-top">
       <button id="btn-city-back" class="icon-btn" aria-label="지도로">‹</button>
-      <div class="city-lord"><img id="city-lord-img" src="assets/portraits/v2/caocao.webp" alt="" /></div>
+      <div class="city-lord tf"><img id="city-lord-img" src="assets/portraits/v2/caocao.webp" alt="" /></div>
       <div class="city-title-wrap">
         <div class="ct-line1">
           <button id="btn-city-prev" class="city-step" type="button" aria-label="이전 성">◀</button>
@@ -356,16 +356,16 @@
       <div class="battle-callout" id="battle-callout"></div>
       <!-- v5.30 — 조조전식 일기토 컷인 · 크리티컬 번쩍임 -->
       <div class="duel-cutin" id="duel-cutin" hidden aria-hidden="true">
-        <div class="dc-side a"><span class="dc-card"><img id="dc-img-a" alt="" /></span><b id="dc-name-a"></b></div>
+        <div class="dc-side a"><span class="dc-card tf"><img id="dc-img-a" alt="" /></span><b id="dc-name-a"></b></div>
         <div class="dc-mid"><span>⚔</span><b>일기토</b><em id="dc-sub"></em></div>
-        <div class="dc-side b"><span class="dc-card"><img id="dc-img-b" alt="" /></span><b id="dc-name-b"></b></div>
+        <div class="dc-side b"><span class="dc-card tf"><img id="dc-img-b" alt="" /></span><b id="dc-name-b"></b></div>
       </div>
       <div class="crit-flash" id="crit-flash"></div>
       <div class="turn-banner" id="turn-banner"></div>
       <!-- v5.54 — S급 장수 고유 필살기 컷인 (초상·이름·필살기·전용 대사) -->
       <div class="ult-cutin" id="ult-cutin" hidden aria-hidden="true">
         <div class="ult-band">
-          <span class="ult-face"><img id="ult-img" alt="" /></span>
+          <span class="ult-face tf"><img id="ult-img" alt="" /></span>
           <div class="ult-lines">
             <em class="ult-side ally" id="ult-side">아군 필살기</em>
             <b id="ult-caster">장수</b>
@@ -379,7 +379,7 @@
     <div class="battle-bottom">
       <div id="battle-targets" class="battle-targets" hidden></div>
       <div class="unit-card" id="unit-card">
-        <div class="uc-portrait" id="uc-portrait" role="button" tabindex="0" aria-label="이 부대의 장수 정보 열기"><img id="uc-img" src="assets/portraits/v2/caocao.webp" alt="" /><span id="uc-lv">Lv.1</span></div>
+        <div class="uc-portrait tf" id="uc-portrait" role="button" tabindex="0" aria-label="이 부대의 장수 정보 열기"><img id="uc-img" src="assets/portraits/v2/caocao.webp" alt="" /><span id="uc-lv">Lv.1</span></div>
         <div class="uc-main">
           <div class="uc-row"><b id="uc-name">조조</b><span id="uc-cls">군주</span><em id="uc-side" class="uc-side ally" hidden>아군</em><span id="uc-terrain">평지</span><button type="button" class="uc-info" id="btn-unit-info" aria-label="장수 정보" hidden>정보</button></div>
           <div class="uc-bars">
@@ -449,20 +449,20 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=71"></script>
-<script src="js/mapmask.js?v=71"></script>
-<script src="js/city_geo.js?v=71"></script>
-<script src="js/data.js?v=71"></script>
-<script src="js/bgm.js?v=71"></script>
-<script src="js/sfx.js?v=71"></script>
-<script src="js/app.js?v=71"></script>
-<script src="js/map.js?v=71"></script>
-<script src="js/battle.js?v=71"></script>
-<script src="js/backguard.js?v=71"></script>
+<script src="js/mapgeo.js?v=72"></script>
+<script src="js/mapmask.js?v=72"></script>
+<script src="js/city_geo.js?v=72"></script>
+<script src="js/data.js?v=72"></script>
+<script src="js/bgm.js?v=72"></script>
+<script src="js/sfx.js?v=72"></script>
+<script src="js/app.js?v=72"></script>
+<script src="js/map.js?v=72"></script>
+<script src="js/battle.js?v=72"></script>
+<script src="js/backguard.js?v=72"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=71').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=72').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

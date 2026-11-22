@@ -790,6 +790,31 @@ SK.JOB_CLASS = {
 };
 SK.FACTION_OF = { '위': 'wei', '촉': 'shu', '오': 'wu', '군웅': 'warlord', '한국': 'han' };
 SK.TIER_LV = { S: 5, A: 4, B: 3, C: 2 };
+/* ══ v5.55 — 초상화 등급 테두리 (S 빨강+금 · A 보라 · B 파랑 · C 초록) ══
+   장수/부대/세이브 정보 어느 것을 넣어도 등급 한 글자를 돌려준다.
+   등급을 모르면 C(초록)로 떨어뜨린다 — 병과 공용 부대도 C다. */
+SK.TIER_KEYS = ['S', 'A', 'B', 'C'];
+SK.tierNorm = function (t) {
+  const s = String(t == null ? '' : t).toUpperCase();
+  return (s === 'S' || s === 'A' || s === 'B' || s === 'C') ? s : 'C';
+};
+SK.tierOfPerson = function (o) {
+  if (o == null) return 'C';
+  if (typeof o === 'string') return SK.tierNorm(((SK.GEN_BY_NAME || {})[o] || {}).tier);
+  let t = o.tier;
+  if (SK.TIER_KEYS.indexOf(String(t == null ? '' : t).toUpperCase()) < 0) {
+    const g = (o.genId != null && SK.GEN_BY_ID && SK.GEN_BY_ID[o.genId]) || (o.name && SK.GEN_BY_NAME && SK.GEN_BY_NAME[o.name]) || null;
+    t = g ? g.tier : '';
+  }
+  return SK.tierNorm(t);
+};
+SK.tcls = function (o) { return 'tier-' + SK.tierOfPerson(o); };
+/* 이미 그려 둔 요소의 등급을 바꾼다 (전장 하단 카드·필살기 컷인처럼 나중에 채우는 자리) */
+SK.paintTier = function (el, tier) {
+  if (!el || !el.classList) return;
+  el.classList.remove('tier-S', 'tier-A', 'tier-B', 'tier-C');
+  el.classList.add('tier-' + SK.tierNorm(tier));
+};
 SK.CITY_LORDS = {
   wuwei: ['마등', '마초', '방덕'], anding: ['마등', '한수'], tianshui: ['마등', '강유'],
   changan: ['이각', '곽사', '진궁'], luoyang: ['동탁', '여포', '화웅'], huluguan: ['서영'],

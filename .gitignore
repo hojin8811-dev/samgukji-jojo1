@@ -14,3 +14,7 @@ samgukji-jojo-standalone.html
 
 # 생성 이미지 원본(개발용) — 웹에는 assets/*.webp 만 올린다
 downloads/
+
+# v5.55 초상 크롭 전 원본 백업(개발용)
+tmp_v555_backup/
+tmp_v555_backup_all/

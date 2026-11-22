@@ -1495,7 +1495,7 @@
       const owned = SK.CITY_LIST.filter((c) => s.cities && s.cities[c.id] && s.cities[c.id].owner === s.playerFaction).length;
       const lordG = f.lord ? SK.GEN_BY_NAME[f.lord] : null;
       return { faction: f.name || '', lord: f.lord || '', date: SK.dateLabel(s.eraYear || 190, s.month || 0, s), cities: owned,
-        portrait: lordG ? SK.genPortrait(lordG) : 'caocao', savedAt: '자동 저장' };
+        portrait: lordG ? SK.genPortrait(lordG) : 'caocao', tier: SK.tierOfPerson(lordG), savedAt: '자동 저장' };
     } catch (e) { return null; }
   };
   function metaOf(s) {
@@ -1503,7 +1503,7 @@
     const owned = SK.CITY_LIST.filter((c) => s.cities && s.cities[c.id] && s.cities[c.id].owner === s.playerFaction).length;
     const lordG = f.lord ? SK.GEN_BY_NAME[f.lord] : null;
     return { faction: f.name || '세력', lord: f.lord || '', color: f.color || '#8a6a2c',
-      portrait: lordG ? SK.genPortrait(lordG) : 'caocao',
+      portrait: lordG ? SK.genPortrait(lordG) : 'caocao', tier: SK.tierOfPerson(lordG),
       date: SK.dateLabel(s.eraYear || 190, s.month || 0, s), cities: owned,
       savedAt: new Date().toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) };
   }
@@ -1525,7 +1525,7 @@
     const has = !!info;
     return `<div class="save-slot ${has ? 'on' : ''} ${isAuto ? 'auto' : ''}">
       <span class="ss-no">${label}</span>
-      ${has ? `<img class="ss-pt" src="${SK.ptSrc(info.portrait || 'caocao')}" alt="">` : '<span class="ss-pt empty">＋</span>'}
+      ${has ? `<img class="ss-pt ${SK.tcls(info.tier || SK.tierOfPerson(info.lord))}" src="${SK.ptSrc(info.portrait || 'caocao')}" alt="">` : '<span class="ss-pt empty">＋</span>'}
       <div class="ss-main">${has
         ? `<b>${info.faction || '세력'}${info.lord ? ` · ${info.lord}` : ''}</b><span>${info.date} · 거점 ${info.cities}곳</span><em>${info.savedAt}</em>`
         : '<b>빈 슬롯</b><span>저장하면 여기에 군주와 연월이 표시됩니다</span>'}</div>
@@ -2021,7 +2021,7 @@
           kicker: '190년 1월',
           title: '천하의 서막',
           body: `<div class="intro-modal">
-            <div class="intro-portrait"><img src="assets/portraits/v2/caocao.webp" alt="조조"></div>
+            <div class="intro-portrait tf tier-S"><img src="assets/portraits/v2/caocao.webp" alt="조조"></div>
             <p>“천하는 넓고, 내 길은 멀다.”</p>
             <ul>
               <li><b>지도</b> — 76개 거점을 눌러 내정하고, 적성 인근에서 출진합니다.</li>
@@ -2151,7 +2151,7 @@
     /* v5.13 — 시공초월 올스타: 군주 등급(S/A)을 초상 옆에 바로 보여 준다 */
     const tier = lord && lord.tier ? String(lord.tier) : '';
     return `<button class="fx-card ${rec ? 'reco' : ''}" data-fid="${f.id}" style="--fc:${f.color}">
-      <span class="fx-port"><img src="${SK.ptSrc(pt)}" alt=""><em class="fx-badge">${f.mark}</em>${tier ? `<em class="fx-tier t-${tier}">${tier}</em>` : ''}${rec ? '<em class="fx-reco">⭐ 입문 추천</em>' : ''}</span>
+      <span class="fx-port"><img class="${SK.tcls(lord)}" src="${SK.ptSrc(pt)}" alt=""><em class="fx-badge">${f.mark}</em>${tier ? `<em class="fx-tier t-${tier}">${tier}</em>` : ''}${rec ? '<em class="fx-reco">⭐ 입문 추천</em>' : ''}</span>
       <div class="fx-main">
         <b class="fx-name">${f.name}</b>
         <span class="fx-lord">${f.lord || '재야'}</span>
@@ -2311,7 +2311,7 @@
     const tier = lord && lord.tier ? String(lord.tier) : '';
     const genChips = gens.map((nm) => {
       const g = SK.GEN_BY_NAME[nm];
-      return g ? `<span class="fprev-gen"><img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">${nm}</span>` : '';
+      return g ? `<span class="fprev-gen"><img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">${nm}</span>` : '';
     }).join('');
     const mm = SK.modal({
       kicker: sc ? `${actOf(sc)} · 세력 미리보기` : '세력 미리보기',
@@ -2320,7 +2320,7 @@
       body: `<div class="fprev">
         <div class="fprev-map" id="fprev-map"><canvas id="fprev-canvas"></canvas></div>
         <div class="fprev-head">
-          <span class="fprev-port"><img src="${SK.ptSrc(pt)}" alt="">${tier ? `<em class="fx-tier t-${tier}">${tier}</em>` : ''}</span>
+          <span class="fprev-port"><img class="${SK.tcls(lord)}" src="${SK.ptSrc(pt)}" alt="">${tier ? `<em class="fx-tier t-${tier}">${tier}</em>` : ''}</span>
           <div class="fprev-title">
             <b>${f.name} <i class="fprev-mark" style="background:${f.color}">${SK.markOf(f)}</i></b>
             <span>군주 <b>${f.lord || '-'}</b> · 수도 <b>${cap ? cap.name : '-'}</b></span>
@@ -2383,7 +2383,7 @@
         kicker: sc ? `시공초월 · ${actOf(sc)}` : '시공초월',
         title: sc ? sc.title : '천하 대난투 개전!',
         body: `<div class="intro-modal">
-          <div class="intro-portrait" style="border-color:${f.color || '#b8862f'}"><img src="${SK.ptSrc(lord ? SK.genPortrait(lord) : 'caocao')}" alt=""></div>
+          <div class="intro-portrait tf ${SK.tcls(lord)}"><img src="${SK.ptSrc(lord ? SK.genPortrait(lord) : 'caocao')}" alt=""></div>
           <p>“${SK.quoteOf(f.lord, 'deploy') || '천하는 넓고, 내 길은 멀다.'}”</p>
           <ul>
             <li><b>세력</b> ${f.name || '-'} · ${f.lord || '-'}</li>
@@ -2485,7 +2485,7 @@
       if (span) { span.textContent = SK.markOf(pfInfo); span.title = pfInfo.name || ''; }
       const mini = $('#lord-mini');
       const lordG = pfInfo.lord ? SK.GEN_BY_NAME[pfInfo.lord] : null;
-      if (mini && lordG) mini.src = SK.ptSrc(SK.genPortrait(lordG));
+      if (mini && lordG) { mini.src = SK.ptSrc(SK.genPortrait(lordG)); SK.paintTier(mini, SK.tierOfPerson(lordG)); }
     }
     /* v5.40 — '위/고/촉' 글자 대신 성·깃발 아이콘. 세력 글자는 작은 배지로만 곁들인다 */
     const capBtn = $('#go-capital');
@@ -2672,7 +2672,7 @@
         const cls = SK.genClass(g);
         const cdef = SK.CLASSES[cls] || { name: '무장' };
         return `<div class="mini-gen" title="통솔 ${g.tong || g.leadership} 무력 ${g.wu || g.war} 지력 ${g.ji || g.intel} 정치 ${g.pol || g.politics || 60} 매력 ${g.cha || g.charm || 60}">
-          <span class="mg-frame"><img src="${SK.ptSrc(g.portrait || SK.genPortrait(g))}" alt=""></span>
+          <span class="mg-frame tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait || SK.genPortrait(g))}" alt=""></span>
           <div><span>${g.name}</span><em class="mg-job j-${cls}">${cdef.name}</em>
             <em>통${g.tong || g.leadership} 무${g.wu || g.war} 지${g.ji || g.intel} 정${g.pol || g.politics || 60} 매${g.cha || g.charm || 60}</em></div></div>`;
       }).join('')}</div>` : ''}
@@ -2874,7 +2874,9 @@
     $('#city-hanja').textContent = `${typeName(c.type)} · ${ringNo}중 성벽`;
     $('#city-faction').textContent = SK.markOf(f);
     $('#city-faction').style.background = f.color;
-    $('#city-lord-img').src = `${SK.ptSrc(heroPortrait(id))}`;
+    const lordImgEl = $('#city-lord-img');
+    lordImgEl.src = `${SK.ptSrc(heroPortrait(id))}`;
+    SK.paintTier(lordImgEl.parentElement, SK.tierOfPerson(SK.state.heroes.find((h) => h.city === id) || null));
     const scene = sceneFor(c);
     $('#city-scene-img').src = `assets/scenes/${scene}.webp`;
     $('#city-gold').textContent = fmt(st.gold);
@@ -3257,7 +3259,7 @@
       const list = rows();
       const head = ROSTER_COLS.map((c) => `<button class="rs-th ${c.num ? 'num' : ''} ${sortKey === c.key ? 'on' : ''}" data-k="${c.key}">${c.label}${sortKey === c.key ? `<i class="rs-arrow">${dir < 0 ? '▲' : '▼'}</i>` : ''}</button>`).join('');
       const body = list.map((h) => `<button class="rs-row" data-uid="${h.uid}">
-          <span class="rs-name"><img style="--fa:${genAura(h.genId, h.name)}" src="${SK.ptSrc(h.portrait)}" alt="">
+          <span class="rs-name"><img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
             <span class="rs-nm"><span class="rs-nm-top"><b>${h.name}</b></span>
               <em class="rs-cls">${(SK.CLASSES[h.cls] || {}).name || '장수'}</em></span></span>
           <span class="rs-num">${h.tong}</span>
@@ -3301,7 +3303,7 @@
           return t ? `<span class="eq-chip" style="--gc:${SK.GRADE_COLOR[t.grade]}">${t.name}</span>` : '';
         }).join('');
         return `<button class="rs-item" data-uid="${h.uid}">
-          <img src="${SK.ptSrc(h.portrait)}" alt="">
+          <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
           <div><b>${h.name}</b><span>${chips || '<em class="eq-none">장비 없음</em>'}</span></div>
           <em>관리 ▸</em>
         </button>`;
@@ -3389,7 +3391,7 @@
         <p class="gg-line">“${gag}”</p>
       </div>
       <div class="hero-info">
-        <div class="hi-portrait" style="--fa:${genAura(g.genId, g.name)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
+        <div class="hi-portrait tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
         <div class="hi-body">
           <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}</p>
           ${g.skillName ? `<p class="hi-skill">특기 — ${g.skillName}</p>` : ''}
@@ -3533,7 +3535,7 @@
       const tags = [SK.classTitle(h.cls, h.lv), `Lv.${h.lv}`, duty || '', h.uid === s.cities[cityId].governor ? '태수' : '', h.uid === s.cities[cityId].advisor ? '군사' : '', locked ? '행군 중' : '']
         .filter(Boolean).join(' · ');
       return `<div class="crew-row" data-u="${h.uid}" ${locked ? 'data-locked="1"' : ''}>
-          <img src="${SK.ptSrc(h.portrait)}" alt="">
+          <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
           <div class="cw-main"><b>${h.name}</b><span>${tags}</span></div>
           <button class="onoff" data-pick="${h.uid}" ${locked ? 'disabled' : ''}>고르기</button>
         </div>`;
@@ -3875,7 +3877,7 @@
             ${h ? officeChipHtml(ob) : '<span class="hq-vacant">태수 미임명 — [태수 임명]으로 배속</span>'}
             <span class="hq-sub">${h ? `성의 본부 · 시설 칸을 쓰지 않음${head.title === '군주' ? ' · 본성은 군주가 친히' : ''}` : '배속하면 정치·통솔·무력·지력·매력만큼 소폭 가산'}</span>
           </div>
-          ${h ? `<img class="hq-face" src="${SK.ptSrc(h.portrait)}" alt="">` : ''}
+          ${h ? `<img class="hq-face ${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">` : ''}
           <span class="hq-go">▸</span>
         </div>`;
       })()}
@@ -3900,7 +3902,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b>${extra}<em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -4102,14 +4104,14 @@
     const free = dutyCandidates(cityId, cs, def).filter((h) => !g || h.uid !== g.uid);
     const targetRole = !g ? 'uid' : (!depG ? 'deputy' : null);
     const opts = free.map((h, i) => `<button class="target-card" data-uid="${h.uid}">
-        <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
+        <img class="tc-portrait ${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
         <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${effStat(h, def.stat)}</span></div>
         <span class="tc-go">▸</span></button>`).join('');
     /* v5.10 — 담당 장수를 창 안에서 바로 본다 (누르면 장수 상세창으로) */
     const ownerOff = g && SK.officeOf ? SK.officeOf(g) : null;
     const ownerExp = g ? Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100) : 0;
     const ownerCard = g ? `<button class="sd-owner" data-owner="${g.uid}" type="button">
-        <img class="sd-face" src="${SK.ptSrc(g.portrait)}" alt="">
+        <img class="sd-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
         <div class="sd-oname">
           <b>${g.name} <em>Lv.${g.lv}</em>${ownerOff && ownerOff.key !== 'none' ? `<i>${ownerOff.name}</i>` : ''}</b>
           <span class="sd-stats">통 <b>${g.tong}</b> · 무 <b>${g.wu}</b> · 지 <b>${g.ji}</b> · 정 <b>${g.pol || 60}</b> · 매 <b>${g.cha || 60}</b></span>
@@ -4119,7 +4121,7 @@
       </button>` : '';
     /* v5.12 — 부장(2번째) 카드 */
     const depCard = depG ? `<button class="sd-owner dep" data-owner="${depG.uid}" type="button">
-        <img class="sd-face" src="${SK.ptSrc(depG.portrait)}" alt="">
+        <img class="sd-face ${SK.tcls(depG)}" src="${SK.ptSrc(depG.portrait)}" alt="">
         <div class="sd-oname">
           <b>${depG.name} <em>Lv.${depG.lv}</em><i class="sd-role">부장</i></b>
           <span class="sd-stats">통 <b>${depG.tong}</b> · 무 <b>${depG.wu}</b> · 지 <b>${depG.ji}</b> · 정 <b>${depG.pol || 60}</b> · 매 <b>${depG.cha || 60}</b></span>
@@ -4230,7 +4232,7 @@
     const rows = gens.map((h) => {
       const on = crew.indexOf(h.uid) >= 0;
       return `<div class="crew-row">
-        <img src="${SK.ptSrc(h.portrait)}" alt="">
+        <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
         <div class="cw-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 통솔 ${h.tong}${h.actedThisMonth ? ' · 이번 달 완료' : ''}</span></div>
         <span class="cw-gain">EXP +${crewGain(sl, h)}</span>
         <button class="onoff ${on ? 'on' : ''}" data-uid="${h.uid}">${on ? '빼기' : '넣기'}</button>
@@ -4373,7 +4375,7 @@
     const free = dutyCandidates(cityId, cs, def).filter((h) => h.uid !== other);
     if (!free.length) { SK.toast('앉힐 수 있는 장수가 없습니다. (모두 다른 건물을 맡고 있습니다)'); return; }
     const rows = free.map((h, i) => `<button class="target-card" data-uid="${h.uid}">
-      <img class="tc-portrait" src="${SK.ptSrc(h.portrait)}" alt="">
+      <img class="tc-portrait ${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
       <div class="tc-main"><b>${h.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b><span>${SK.CLASSES[h.cls].name} · ${STAT_LABEL[def.stat] || '정치'} ${effStat(h, def.stat)}</span></div>
       <span class="tc-go">▸</span></button>`).join('');
     const m = SK.modal({ kicker: `${CITY[cityId].name} · ${def.name}`, title: isDep ? '부장은 누구로?' : '누구에게 맡길까',
@@ -4929,7 +4931,7 @@
         const on = sel.has(g.uid);
         return `<button class="target-card ex-pick ${on ? 'on' : ''}" data-pick="${g.uid}">
           <span class="ex-check ${on ? 'on' : ''}">✓</span>
-          <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+          <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
           <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
             <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
           <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b class="tc-state${g.actedThisMonth ? ' done' : ''}">${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
@@ -5009,7 +5011,7 @@
       const want = est(g);
       const drop = clamp(5 - Math.round(((g.cha || 60) - 60) * 0.04), 2, 7);
       return `<button class="target-card" data-uid="${g.uid}">
-        <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+        <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
         <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
           <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
         <div class="tc-troops"><span>통솔 ${g.tong} · 매력 ${g.cha || 60}</span><b>+${fmt(want)}명 · 민심 -${drop}</b></div>
@@ -5056,7 +5058,7 @@
       const eff = clamp(0.8 + (avg - 50) * 0.008, 0.8, 1.35);
       const exp = Math.round(180 * eff);
       return `<button class="target-card" data-uid="${g.uid}">
-        <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+        <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
         <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
           <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
         <div class="tc-troops"><span>통솔 ${g.tong} · 무력 ${g.wu}</span><b>EXP +${fmt(exp)}</b></div>
@@ -5276,7 +5278,7 @@
       return;
     }
     const rows = actors.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
-      <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+      <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
       <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
         <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(fromId, g)}</span></div>
       <div class="tc-troops"><span>지력 ${g.ji} · 매력 ${g.cha}</span><b>${scoutMonths(g)}개월</b></div>
@@ -5307,7 +5309,7 @@
     froms.forEach((fid) => {
       scoutActors(fid).slice(0, 4).forEach((g, i) => {
         rows.push(`<button class="target-card" data-city="${fid}" data-uid="${g.uid}">
-          <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+          <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
           <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
             <span>${CITY[fid].name} 주둔 · ${SK.CLASSES[g.cls].name}${dutyTail(fid, g)}</span></div>
           <div class="tc-troops"><span>지력 ${g.ji} · 매력 ${g.cha}</span><b>${scoutMonths(g)}개월</b></div>
@@ -5442,7 +5444,7 @@
     const rows = gens.map((g) => {
       const loy = enemyLoyal(g);
       return `<button class="target-card estr" data-g="${g.id}">
-        <img class="tc-portrait" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <img class="tc-portrait ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="tc-main"><b>${g.name}</b><span>${SK.CLASSES[SK.genClass(g)].name} · ${g.tier}급 · 지력 ${g.intel}</span>
           <span class="estr-bar"><i style="width:${loy}%"></i><em>충성 ${loy}</em></span></div>
         <span class="tc-go">▸</span></button>`;
@@ -5503,7 +5505,7 @@
       SK.sfx.play('ui');
       SK.modal({
         kicker: '회유 성공', title: `${g.name}, 우리에게로`, wide: true,
-        body: `<div class="lure-card"><img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        body: `<div class="lure-card"><img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
           <div><b>${g.name}</b><span>${SK.CLASSES[SK.genClass(g)].name} · ${g.tier}급</span>
           <p>충성 ${loy}이던 장수가 사자를 따라 ${CITY[cityId].name}으로 왔습니다. 충성 55로 시작합니다 — [포상]으로 마음을 잡으십시오.</p></div></div>`,
         actions: [{ label: '맞이한다', primary: true }],
@@ -5826,10 +5828,10 @@
       </div>
       <div class="deploy-section"><span>호송 장수</span><em>한 명을 고르십시오 — 통솔이 높으면 많이 실어 나릅니다</em></div>
       <div class="escort-row">${escortPool.length ? escortPool.map((h) => `<button class="ev-chip ${h.uid === escortUid ? 'on' : ''}" data-esc="${h.uid}">
-        <img src="${SK.ptSrc(h.portrait)}" alt=""><b>${h.name}</b><em>통 ${h.tong}</em>${dutyLabelOf(from, h) ? '<i class="ev-duty">담당</i>' : ''}</button>`).join('') : '<em class="ev-none">이번 달 호송할 수 있는 장수가 없습니다 (병력·금·군량만 보냅니다)</em>'}</div>
+        <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt=""><b>${h.name}</b><em>통 ${h.tong}</em>${dutyLabelOf(from, h) ? '<i class="ev-duty">담당</i>' : ''}</button>`).join('') : '<em class="ev-none">이번 달 호송할 수 있는 장수가 없습니다 (병력·금·군량만 보냅니다)</em>'}</div>
       <div class="deploy-section"><span>장수 전출</span><em>함께 옮길 장수 (그달 행동은 쓰지 않습니다)</em></div>
       <div class="crew-list" id="tp-gens">${heroPool.map((h) => `<div class="crew-row">
-          <img src="${SK.ptSrc(h.portrait)}" alt="">
+          <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
           <div class="cw-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · ${dutyOf(h, from)}${h.uid === src.governor ? ' · 태수' : ''}${h.uid === src.advisor ? ' · 군사' : ''}</span></div>
           <button class="onoff" data-mv="${h.uid}">이동</button>
         </div>`).join('') || '<p class="tr-empty">이 성에 전출할 장수가 없습니다.</p>'}</div>`,
@@ -6815,7 +6817,7 @@
       const dutyTone = done ? 'done' : dutyText === '대기' ? 'ready' : dutyText === '수련' ? 'train' : 'duty';
       const cls = `${done ? 'done' : ''} ${isDuty ? 'duty' : ''} ${sel ? 'sel' : ''}`.trim();
       return `<div class="gen-card ${cls}" data-uid="${g.uid}" role="button" tabindex="0">
-        <span class="gc-pt"><img src="${SK.ptSrc(g.portrait)}" alt=""><em class="gc-lv">Lv.${g.lv}</em></span>
+        <span class="gc-pt tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""><em class="gc-lv">Lv.${g.lv}</em></span>
         <span class="gc-body">
           <span class="gc-line1">
             <b class="gc-name">${g.name}</b>
@@ -6873,7 +6875,7 @@
       </div>
       <div class="ap-row2">
         <span class="ap-actor">${actor
-          ? `<img src="${SK.ptSrc(actor.portrait)}" alt="">${actor.name} 차례`
+          ? `<img class="${SK.tcls(actor)}" src="${SK.ptSrc(actor.portrait)}" alt="">${actor.name} 차례`
           : (readyN ? '대기 장수를 고르세요' : '다음 달에 다시')}</span>
         <button class="ap-delegate" id="btn-delegate" title="군사에게 지금 성에 필요한 조언을 듣는다">
           <span>${advisor ? advisor.name : '군사'}</span>${advisor ? '조언' : '임명'}
@@ -6893,7 +6895,7 @@
   function showCutin(actor, line) {
     const el = $('#city-cutin');
     if (!el || !actor) return;
-    el.innerHTML = `<div class="ci-portrait"><img src="${SK.ptSrc(actor.portrait)}" alt=""></div>
+    el.innerHTML = `<div class="ci-portrait tf ${SK.tcls(actor)}"><img src="${SK.ptSrc(actor.portrait)}" alt=""></div>
       <div class="ci-body"><b>${actor.name}</b><em>${SK.classTitle(actor.cls, actor.lv)} · ${SK.CLASSES[actor.cls].name}</em>
       <p>${line}</p></div>`;
     el.classList.remove('show');
@@ -7001,7 +7003,7 @@
       return;
     }
     const rows = ready.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
-      <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+      <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
       <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
         <span>${SK.CLASSES[g.cls].name} · 매력 ${g.cha} · 정치 ${g.pol || 60}${dutyTail(cityId, g)}</span></div>
       <div class="tc-troops"><span>민심</span><b>+${comfortGain(g)}</b></div>
@@ -7106,7 +7108,7 @@
         const title = SK.classTitle(h.cls, h.lv);
         const upTxt = ups.length ? ups.map((u) => `Lv.${u.lv}${u.promote ? ` · ${u.title} 승급!` : ' 달성'}`).join(' ') : null;
         return `<div class="train-row ${ups.length ? 'up' : ''}">
-          <img src="${SK.ptSrc(h.portrait)}" alt="">
+          <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
           <div class="tr-main"><b>${h.name}${isActor ? ' <em class="tr-lead">지휘</em>' : ''}</b><span>${title} · Lv.${h.lv}</span></div>
           <div class="tr-exp"><i style="width:${Math.min(100, Math.round(h.exp / SK.expNeed(h.lv) * 100))}%"></i><em>${h.exp} / ${SK.expNeed(h.lv)}</em></div>
           ${upTxt ? `<span class="tr-up">${upTxt}</span>` : `<span class="tr-gain">EXP +${gain}</span>`}
@@ -7330,7 +7332,7 @@
       const from = here ? '현재 성' : `${CITY[fromId].name} · 인접`;
       return `<button class="gen-pick ${ok ? '' : 'off'} ${refuse ? 'refuse' : ''}" data-gid="${g.id}" data-city="${fromId}">
         <span class="tier t${g.tier}">${g.tier}</span>
-        <img style="--fa:${genAura(g.id, g.name)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="gp-main">
           <b>${g.name}<em class="gp-city ${here ? 'here' : ''}">${from}</em></b>
           <span>${SK.CLASSES[cls].name} · ${g.skill || '특기 없음'}</span>
@@ -7347,7 +7349,7 @@
     const envoyRow = `<div class="envoy-row">
       <span class="ev-label">사신</span>
       ${ready.length ? ready.slice(0, 8).map((g) => `<button class="ev-chip ${actor && actor.uid === g.uid ? 'on' : ''}" data-envoy="${g.uid}" title="${dutyLabelOf(cityId, g) ? dutyLabelOf(cityId, g) + ' · 파견 시 자동 해제' : '대기'}${g.actedThisMonth ? ' · 이번 달 완료' : ''}">
-        <img src="${SK.ptSrc(g.portrait)}" alt=""><b>${g.name}</b><em>매력 ${g.cha}</em>${dutyLabelOf(cityId, g) ? '<i class="ev-duty">담당</i>' : ''}</button>`).join('')
+        <img class="${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt=""><b>${g.name}</b><em>매력 ${g.cha}</em>${dutyLabelOf(cityId, g) ? '<i class="ev-duty">담당</i>' : ''}</button>`).join('')
         : '<em class="ev-none">이번 달 보낼 수 있는 장수가 없습니다</em>'}
     </div>`;
     const m = SK.modal({
@@ -7391,7 +7393,7 @@
           m.close();
           SK.openCity(cityId);
           const line = REFUSE_LINES[hashStr(g.name + s.turn) % REFUSE_LINES.length];
-          showCutin({ name: g.name, portrait: SK.genPortrait(g), cls: SK.genClass(g), lv: SK.genLv(g) }, line);
+          showCutin({ name: g.name, portrait: SK.genPortrait(g), cls: SK.genClass(g), lv: SK.genLv(g), tier: g.tier }, line);
           SK.sfx.play('deny');
           SK.toast(`${g.name} — 등용 실패 (성공률 ${rate}%) · 금은 쓰지 않았습니다`);
           return;
@@ -7538,7 +7540,7 @@
             ${gov ? officeChipHtml(ob) : '<span class="oh-vacant">태수 미임명 — [태수 임명]으로 배속</span>'}
             <span class="oh-sub">${gov ? `${headTitle}는 관아에 배속되어도 이번 달 행동·출진을 그대로 씁니다 · 관아는 시설 칸을 쓰지 않습니다` : '태수를 앉혀야 가산점이 생깁니다 (정치·통솔·무력·지력·매력)'}</span>
           </div>
-          ${gov ? `<img class="oh-face" src="${SK.ptSrc(gov.portrait)}" alt="">` : ''}
+          ${gov ? `<img class="oh-face ${SK.tcls(gov)}" src="${SK.ptSrc(gov.portrait)}" alt="">` : ''}
           <span class="oh-go">▸</span>
         </div>
         <div class="office-stats">
@@ -7668,7 +7670,7 @@
       const merit = SK.meritOf(h);
       const ready = nx && (s.fame || 0) >= nx.fame && merit >= nx.merit;
       return `<button class="ap-row ${h.appoint ? 'on' : ''} ${ready ? 'ready' : ''}" data-uid="${h.uid}">
-        <img src="${SK.ptSrc(h.portrait)}" alt="">
+        <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
         <div><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 충성 ${loyalOf(h)} · 봉급 ${fmt(heroSalary(h))}</span>
           <em class="ap-merit">공훈 ${fmt(merit)}${nx ? ` · ${nx.name} ${fmt(nx.merit)}` : ' · 최고'}</em></div>
         <em class="ap-office">${off.key === 'none' ? '관직 없음' : off.name}</em>
@@ -7770,7 +7772,7 @@
       const chip = l >= 70 ? '' : l >= 40 ? 'mid' : 'low';
       const gain = loyalGain(l);
       return `<div class="reward-row">
-        <img src="${SK.ptSrc(h.portrait)}" alt="">
+        <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
         <div class="rw-main"><b>${h.name} <em class="loyal-chip ${chip}">충성 ${l}</em></b>
           <span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span>
           <em class="rw-note ${chip}">${l < 40 ? '마음이 흔들림 · 이간에 약함' : l < 70 ? '아직 마음이 반즐' : '충심이 굳음'}</em></div>
@@ -8060,7 +8062,7 @@
       let offer = rec.offer;
       if (offer && !offerFactionAlive(rec, g)) { offer = null; rec.offer = null; SK.save(); }
       return `<div class="prison-row">
-        <img class="pr-pt" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <img class="pr-pt ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="pr-main">
           <b>${g.name} <i class="pr-tier t${rec.tier}">${rec.tier}</i></b>
           <span>${CITY[rec.city] ? CITY[rec.city].name : '성'} 억류 ${rec.months}개월 · 충성 ${rec.loyal} · 등용 성공 ${Math.round(hireP * 100)}%</span>
@@ -8279,7 +8281,7 @@
       const name = (got || q) ? g.name : '？？？';
       const sub = got ? cname : (q ? '미수집 · ' + String(g.faction || '재야') : String(g.faction || '재야'));
       return `<button class="cdx-cell ${got ? 'got' : ''} t${g.tier}" data-gid="${g.id}" ${got ? '' : 'disabled'} aria-label="${name}${got ? '' : ' 미수집'}">
-        <span class="cdx-face">${got ? `<img src="${SK.ptSrc(SK.genPortrait(g))}" alt="" loading="lazy">` : '<em>?</em>'}<i class="cdx-tier">${g.tier}</i></span>
+        <span class="cdx-face">${got ? `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="" loading="lazy">` : '<em>?</em>'}<i class="cdx-tier">${g.tier}</i></span>
         <b class="cdx-name">${name}</b>
         <small>${sub}</small>
       </button>`;
@@ -8454,7 +8456,7 @@
       kicker: `인물 도감 · ${g.tier}급 ${cname}`,
       title: g.name,
       body: `<div class="cdx-detail">
-        <img src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="cdx-detail-main">
           <p class="cdx-detail-tag">${String(g.faction || '재야')} · ${cname}${mine ? ' · <b>내 장수</b>' : jailed ? ' · <b>억류 중</b>' : ' · 조우 기록'}</p>
           <div class="cdx-stats">${stat('통솔', g.leadership)}${stat('무력', g.war)}${stat('지력', g.intel)}${stat('정치', g.politics)}${stat('매력', g.charm)}</div>
@@ -8533,7 +8535,7 @@
       ? [lordHero].concat(gens.filter((g) => g.uid !== lordHero.uid).sort((a, b) => score(b) - score(a) || String(a.name).localeCompare(String(b.name))))
       : gens.slice().sort((a, b) => score(b) - score(a) || String(a.name).localeCompare(String(b.name)));
     const rows = list.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
-      <img class="tc-portrait" src="${SK.ptSrc(g.portrait)}" alt="">
+      <img class="tc-portrait ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
       <div class="tc-main"><b>${g.name}${i < 2 ? ' <em class="duty-reco">추천</em>' : ''}${cs.governor === g.uid ? ' <em>태수</em>' : ''}${g.name === lord ? ' <em>군주</em>' : ''}</b>
         <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv} · 적합도 ${Math.round(score(g))}</span></div>
       <div class="tc-troops"><span>정치 ${Math.round(effStat(g, 'pol'))} · 통솔</span><b>${Math.round(effStat(g, 'tong'))}</b></div>
@@ -8576,7 +8578,7 @@
     const score = advScore;
     const list = gens.slice().sort((a, b) => score(b) - score(a) || String(a.name).localeCompare(String(b.name)));
     const rows = list.map((g, i) => `<button class="target-card" data-uid="${g.uid}">
-      <img class="tc-portrait" src="${SK.ptSrc(g.portrait)}" alt="">
+      <img class="tc-portrait ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
       <div class="tc-main"><b>${g.name}${i < 2 ? ' <em class="duty-reco">추천</em>' : ''}${cs.advisor === g.uid ? ' <em>군사</em>' : ''}</b>
         <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv} · 적합도 ${Math.round(score(g))}</span></div>
       <div class="tc-troops"><span>지력 ${Math.round(effStat(g, 'ji'))} · 매력</span><b>${Math.round(effStat(g, 'cha'))}</b></div>
@@ -8918,7 +8920,7 @@
     SK.save();
     SK.refreshHud();
     const rows = log.map((r) => `<div class="train-row">
-        <img src="${SK.ptSrc(r.actor.portrait)}" alt="">
+        <img class="${SK.tcls(r.actor)}" src="${SK.ptSrc(r.actor.portrait)}" alt="">
         <div class="tr-main"><b>${r.actor.name}</b><span>${CMDS[r.key] ? CMDS[r.key].name : '백성 위로'}</span></div>
         <span class="tr-gain">${r.msg}</span>
       </div>`).join('') || '<p class="tr-empty">금과 군량이 모자라 아무 일도 하지 못했습니다.</p>';
@@ -9557,7 +9559,7 @@
       kicker: '천하통일', title: '천하가 하나로 모였습니다', wide: true,
       body: `<div class="unify-card">
         <div class="unify-seal">통일</div>
-        ${lord ? `<img class="unify-lord" src="${SK.ptSrc(SK.genPortrait(lord))}" alt="">` : ''}
+        ${lord ? `<img class="unify-lord ${SK.tcls(lord)}" src="${SK.ptSrc(SK.genPortrait(lord))}" alt="">` : ''}
         <p class="unify-line"><b>${f.name || SK.factionName(s.playerFaction)}</b>의 깃발이 <b>${SK.CITY_LIST.length}개 거점</b> 모두에 섰습니다. ${months}개월의 난투 끝에 천하가 하나가 되었습니다.</p>
         <div class="unify-rank">${rank}</div>
         <div class="unify-stats">
@@ -10045,7 +10047,7 @@
     const loy = loyalOf(h);
     const busy = duty !== '대기' && duty !== '이번 달 완료';
     return `<div class="hero-pick ${on ? 'on' : ''} ${busy ? 'busy' : ''}" data-uid="${h.uid}">
-      <img src="${SK.ptSrc(h.portrait)}" alt="">
+      <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
       <div class="hp-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span>
         <em class="hp-badges"><i class="hp-city">${(CITY[h.city] || {}).name || '-'}</i><i class="hp-duty ${duty === '대기' ? 'hp-duty-wait' : 'hp-duty-busy'}">${duty}</i>${loy < 40 ? `<i class="hp-loyal-low">충성 ${loy}</i>` : ''}</em></div>
       <div class="hp-stats"><span>무 ${h.wu}</span><span>지 ${h.ji}</span><span>통 ${h.tong}</span></div>
@@ -10607,7 +10609,7 @@
     let send = Math.min(pool, Math.max(pool >= 600 ? 600 : 0, Math.round(pool * 0.5 / 100) * 100));
     const picked = [];
     const genRows = gens.length ? gens.map((g) => `<button class="rp-gen" data-uid="${g.uid}">
-        <img src="${SK.ptSrc(g.portrait)}" alt="">
+        <img class="${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
         <span class="rp-main"><b>${g.name}</b><em>${SK.CLASSES[g.cls].name} · Lv.${g.lv}</em><i>통${g.tong} 무${g.wu} 지${g.ji}</i></span>
         <em class="rp-tick">＋</em></button>`).join('')
       : '<p class="empty-gens">이 성에 장수가 없습니다 — 병력만 보냅니다.</p>';
@@ -10711,7 +10713,7 @@
         const on = picked.has(g.uid);
         return `<button class="target-card ex-pick ${on ? 'on' : ''}" data-pick="${g.uid}">
           <span class="ex-check ${on ? 'on' : ''}">✓</span>
-          <img class="tc-portrait gold" src="${SK.ptSrc(g.portrait)}" alt="">
+          <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
           <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
             <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cid, g)}</span></div>
           <div class="tc-troops"><span>통 ${g.tong} · 무 ${g.wu}</span><b>${fmt(on ? per : 0)}</b></div>
@@ -10927,7 +10929,7 @@
       const on = pick.indexOf(h.uid) >= 0;
       const z = zones[h.uid] || defZoneDefault(h);
       return `<div class="def-row ${on ? 'on' : ''}" data-uid="${h.uid}">
-        <img class="dr-pt" src="${SK.ptSrc(h.portrait)}" alt="">
+        <img class="dr-pt ${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
         <div class="dr-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 통 ${h.tong} 무 ${h.wu}</span></div>
         <div class="dr-zones">${DEF_ZONES.map((zz) => `<button type="button" class="dz ${on && z === zz.key ? 'on' : ''}" data-z="${zz.key}" title="${zz.desc}">${zz.name}</button>`).join('')}</div>
         <button type="button" class="dr-toggle ${on ? 'on' : ''}" data-t="1" aria-label="출진">${on ? '출진' : '대기'}</button>

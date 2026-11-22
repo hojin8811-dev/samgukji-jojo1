@@ -6,6 +6,34 @@
 
 > 이어서 개발할 사람·AI는 **[`HANDOFF.md`](HANDOFF.md)**(인수인계서)와 **[`HANDOFF_PROMPT.md`](HANDOFF_PROMPT.md)**(복붙용 지시서)부터 보세요.
 
+## v5.55 모든 초상화 테두리를 장수 등급색으로 통일 (S 빨강+금 · A 보라 · B 파랑 · C 초록) · 초상 이웃셀 번짐 제거 (2026-11-22)
+
+배포는 `?v=72`입니다. 새 파일은 `tools/qa_v555.py`(검수) 하나이고, 나머지는 `css/game.css` · `js/data.js` · `js/app.js` · `js/battle.js` · `index.html` · `manifest.webmanifest` · `sw.js` 안에서 끝났습니다.
+
+### ① 규칙 하나로 끝 — `.tier-S/A/B/C` + `.tf`
+- 보내 주신 본보기(`tmp-work/tier_frame_sample.png`) 그대로: **S = 빨강+금 그라데이션**(`linear-gradient(135deg, #d9261c, #ffd54a 45%, #c41812 75%, #ffe680)`), **A = 보라**, **B = 파랑**, **C = 초록**.
+- 클래스 하나로 두 모양을 덮는다. `<img class="tier-A">`는 **그림 자체에 등급색 링**(그림자 3겹이라 레이아웃을 밀지 않는다), `<span class="tf tier-A"><img></span>`은 **안쪽이 파인 등급색 그라데이션 액자**(padding + 안쪽 radius).
+- 등급 판정은 `SK.tierOfPerson()` 하나 — 장수 객체·이름·세이브 메타 어느 것을 넣어도 `S/A/B/C`가 나온다. `SK.tcls()`, `SK.paintTier()`(나중에 채우는 자리)도 `js/data.js`에 있다.
+- 전장 부대는 `ptTier(u)` — 이름 있는 장수는 **원본 등급**(`giTierOf`), 병과 공용 부대는 **C(초록)**.
+
+### ② 적용한 곳 (전부)
+- **성내·지도**: 성 머리 초상(`.city-lord`) · 지도 상단 군주 얼굴 · 성 정보의 주둔 장수(`.mg-frame`) · **성 → 장수 탭 주둔 장수**(`.gc-pt`) · 장수 상세(`.hi-portrait`) · 내정 컷인(`.ci-portrait`)
+- **명부·인사**: **장수 명부**(`.rs-name img`) · 보물 관리 · 전출 · 시설 배속·담당·부장(`.tc-portrait`·`.sd-face`·`.sc-face`) · 관아(`.hq-face`·`.oh-face`) · 태수·군사 임명 · 연병장 · 포상 · 관직 · 지원군 편성 · 수성 배치 · 출진 장수 고르기
+- **주점·탐색·징병·훈련·첩자·백성 위로** · 호송 · 이간계 · 회유 카드 · 포로 명부(`.pr-pt`) · 인물 도감(칸·상세) · 천하통일 카드 · 세력 선택·미리보기(`.fx-port`·`.fprev-port`·`.fprev-gen`) · 세이브 슬롯(`.ss-pt`)
+- **전장**: **하단 부대 카드**(`.uc-portrait`) · **《장수 정보》**(`.gi-frame`) · **일기토 컷인**(`.dc-card`) · 일기토 1:1 머리 초상 · **필살기 컷인**(`.ult-face`) · 개전 편지(`.ic-portrait`) · 포로 처리 큰 초상 · 전과(생존자·포로)
+- 세력색 오라(`--fa`) 테두리는 등급색이 덮는다(`!important`). 아주 작은 얼굴(12~28px)은 링을 1~2px로 얇게 해 줄 높이·글자를 밀지 않는다.
+
+### ③ 초상 이웃셀 번짐 제거 (자산)
+- 사용자 제보: `주군` 초상(=`gen_gungbyung.webp`) 위쪽에 **바로 위 칸의 옷자락**이 들어와 있었다.
+- `assets/portraits/v2/gen_*.webp` 13장 전수 확인 — **전부** 위쪽 8~27px가 이웃 셀 조각이었다. 번짐 띠 + 경계 1px을 잘라 내고, **좌우에서 같은 폭만 덜어 정사각형**으로 맞춘 뒤 256×256로 되돌렸다(찌그러짐 없음 · 원본 `tmp_v555_backup/`).
+- 이어서 **`assets/portraits/` 전체 411장**을 같은 방식으로 훑어 107장의 위·아래 이웃셀 띠를 정리했다(`tmp_v555_backup_all/` · 작업 기록 `preview/v555/trim_log.json`). 대조 시트: `preview/v555/v2_check.png`(v2 13장) · `trim_01~05.png`·`trim_relaxed.png`(107장 전후) · `sweep_1~3.png`(411장).
+
+### ④ 검수 — `tools/qa_v555.py`
+- a(로컬 844)·b(라이브 844)·c(로컬 680)·d(라이브 680): 등급 클래스와 **실제로 칠해진 색**(`background-image`/`box-shadow`의 rgb)을 함께 본다 — 성 장수 탭·시설 담당·명부·상세·하단 카드·병과 공용(C)·《장수 정보》·일기토 컷인·필살기 컷인 + 콘솔/페이지 오류 0·4xx 0.
+- 화면: `preview/v555/<phase>_city_gens.png`·`_roster.png`·`_gen_detail.png`·`_battle_card.png`·`_gen_info.png`·`_duel.png`·`_ult.png`
+
+---
+
 ## v5.54 S급 고유 필살기(전투당 1회·전용 말풍선·장수별 이펙트) · 전장 시작 카메라 · 책략 수치 눈금 (2026-11-22)
 
 배포는 `?v=71`입니다. 새 파일은 `tools/qa_v554.py`(검수) 하나이고, 나머지는 `js/battle.js` · `js/data.js` · `css/game.css` · `index.html` · `manifest.webmanifest` · `sw.js` 안에서 끝났습니다.

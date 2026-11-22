@@ -3748,6 +3748,8 @@
     const subEl = el.querySelector('#dc-sub');
     imgA.src = SK.ptSrc ? SK.ptSrc(a.portrait) : a.portrait;
     imgB.src = SK.ptSrc ? SK.ptSrc(d.portrait) : d.portrait;
+    SK.paintTier(imgA.parentElement, ptTier(a));
+    SK.paintTier(imgB.parentElement, ptTier(d));
     nmA.textContent = a.name; nmB.textContent = d.name;
     if (subEl) subEl.textContent = rival ? `숙적 · ${bond.title}` : '장수 맞대결';
     el.classList.toggle('rival', rival);
@@ -4104,6 +4106,8 @@
     const e = els;
     e.ptA.src = SK.ptSrc(a.portrait);
     e.ptD.src = SK.ptSrc(d.portrait);
+    SK.paintTier(e.ptA, ptTier(a));
+    SK.paintTier(e.ptD, ptTier(d));
     e.spA.src = unitImgFor(a).src;
     e.spD.src = unitImgFor(d).src;
     e.nameA.textContent = a.name; e.nameD.textContent = d.name;
@@ -5969,6 +5973,11 @@
     }
     return u.tier || '';
   }
+  /* v5.55 — 초상 테두리용 등급. 이름 있는 장수는 원본 등급, 병과 공용 부대는 C(초록) */
+  function ptTier(u) {
+    const t = giTierOf(u);
+    return t || 'C';
+  }
   /* 이 부대의 고유 필살기 — S급이 아니면 null */
   function ultOf(u) {
     if (!u || !SK.ULTIMATES) return null;
@@ -6021,7 +6030,7 @@
     const el = $('#ult-cutin');
     if (!el) return;
     const img = $('#ult-img');
-    if (img) { img.src = `${SK.ptSrc(u.portrait)}`; img.alt = u.name; }
+    if (img) { img.src = `${SK.ptSrc(u.portrait)}`; img.alt = u.name; SK.paintTier(img.parentElement, ptTier(u)); }
     const side = $('#ult-side');
     if (side) { side.textContent = u.side === 'ally' ? '아군 필살기' : '적군 필살기'; side.className = 'ult-side ' + u.side; }
     const nm = $('#ult-caster'), sk = $('#ult-skill'), q = $('#ult-line');
@@ -6477,7 +6486,7 @@
       u.boss ? '<span class="gi-chip boss">적장</span>' : '',
       !u.alive ? '<span class="gi-chip down">전투 불능</span>' : '',
     ].filter(Boolean).join('');
-    return `<div class="gi-frame"><img src="${SK.ptSrc(u.portrait)}" alt="" /><span class="gi-lvtag">Lv.${u.lv}</span></div>
+    return `<div class="gi-frame tf ${tier ? `tier-${tier}` : 'tier-C'}"><img src="${SK.ptSrc(u.portrait)}" alt="" /><span class="gi-lvtag">Lv.${u.lv}</span></div>
       <div class="gi-hmain">
         <div class="gi-hname"><b>${u.name}</b>${u.hanja ? `<span>${u.hanja}</span>` : ''}</div>
         <div class="gi-chips">${chips}</div>
@@ -7840,7 +7849,7 @@
         </div>
         ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${fled > 0 ? `<p class="rm-note">적 잔여 병력 ${fled.toLocaleString('ko-KR')}은 출발 성으로 쫓겨났습니다.</p>` : ''}
-        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
       </div>`,
       actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle();
@@ -8109,7 +8118,7 @@
     const m = SK.modal({
       kicker: `포로 ${i + 1} / ${all.length}`, title: `${SK.josa(g.name, 'eul')} 어떻게 할까`, wide: true,
       body: `<div class="prison-card">
-        <img class="prison-port" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+        <img class="prison-port ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="prison-main">
           <b>${g.name}</b>
           <span>${SK.CLASSES[cls].name} · ${g.tier}급 · 지력 ${g.intel} · 무력 ${g.war}</span>
@@ -8380,8 +8389,8 @@
           <b>${drop.name}</b><em>${drop.effect}</em>
         </div>` : ''}
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
-        <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
-        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        <div class="rm-survivors">${survivors.map((u) => `<img class="${SK.tcls(u)}" src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         ${woundedAdd ? `<p class="rm-note">부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 ${c.name}에서 회복 중입니다 — 달이 바뀌면 돌아오고, [병영]에서 금으로 바로 치료할 수 있습니다.</p>` : ''}
         ${B.event ? `<p class="rm-event">특별 이벤트 — ${B.event.title} · 명성 +5</p>` : ''}
         ${siegeWreck ? `<p class="rm-war">전란 피해 — ${siegeWreck.turn}턴 공성${siegeWreck.gates ? ` · 성문 ${siegeWreck.gates}개 파괴` : ''} · 성벽 −${siegeWreck.def} · 농업 −${siegeWreck.agri} · 상업 −${siegeWreck.comm} · 치안 −${siegeWreck.order} · 인구 −${Math.round(siegeWreck.pop).toLocaleString('ko-KR')}${siegeWreck.wrecked ? ` · 시설 ${siegeWreck.wrecked}곳 Lv. 하락` : ''} · 내성 건물 경험치 −${Math.round((0.15 + 0.35 * siegeWreck.sev) * 100)}%<br><em>성을 오래 두드리면 함락해도 쓸모가 줄어듭니다. 다음에는 행군 길목에서 [요격]해 적을 먼저 꺾으십시오.</em></p>` : ''}
@@ -8528,8 +8537,8 @@
         ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         ${battleReportHTML()}
-        <div class="rm-survivors">${survivors.map((u) => `<img src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
-        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        <div class="rm-survivors">${survivors.map((u) => `<img class="${SK.tcls(u)}" src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         ${woundedAdd || (rfgInfo && rfgInfo.left) ? `<p class="rm-note">${woundedAdd ? `부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 성에서 회복 중입니다. ` : ''}${rfgInfo && rfgInfo.home ? `${rfgInfo.home} 원군 ${Math.round(rfgInfo.left).toLocaleString('ko-KR')}명이 돌아갔습니다.` : ''}</p>` : ''}
         ${warDamage ? `<p class="rm-war">전란 피해 — 성벽 −${warDamage.def} · 농업 −${warDamage.agri} · 상업 −${warDamage.comm} · 치안 −${warDamage.order} · 내성 건물 경험치 −25%<br><em>성이 침공받으면 이겨도 성이 상합니다. 다음에는 성 밖에서 [요격]해 미리 막는 편이 이득입니다.</em></p>` : ''}
         <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +2 · 성벽 −${warDamage ? warDamage.def : 6}</p></div>`,
@@ -8692,7 +8701,7 @@
         return;
       }
       ov.innerHTML = `<div class="intro-card ${L.side}">
-        <img class="ic-portrait" src="${SK.ptSrc(L.pt)}" alt="">
+        <img class="ic-portrait ${SK.tcls(L.who)}" src="${SK.ptSrc(L.pt)}" alt="">
         <div class="ic-box">
           <div class="ic-name">${L.who}</div>
           <p class="ic-text">${L.text}</p>
@@ -8744,6 +8753,7 @@
         card.classList.add('on');
         card.classList.remove('empty');
         $('#uc-img').src = `${SK.ptSrc(u.portrait)}`;
+        SK.paintTier($('#uc-portrait'), ptTier(u));
         $('#uc-lv').textContent = 'Lv.' + u.lv;
         $('#uc-name').textContent = u.name;
         $('#uc-cls').textContent = SK.CLASSES[u.cls].name;
@@ -8925,6 +8935,17 @@
         return { text: (btn.textContent || '').replace(/\s+/g, ' ').trim(), em: (btn.querySelector('em') || {}).textContent,
           ready: btn.classList.contains('ready'), off: btn.classList.contains('off'),
           active: btn.classList.contains('active'), disabled: btn.disabled };
+      },
+      /* v5.55 — 일기토 컷인 초상 테두리 검수 훅 (이름 있는 두 부대를 바로 붙여 본다) */
+      duelCutin(aName, bName) {
+        const a = B && B.units.find((o) => o.name === aName);
+        const d = B && B.units.find((o) => o.name === bName);
+        if (!a || !d) return { ok: false, why: 'no-unit' };
+        if (B.duels) { B.duels.n = 0; B.duels.last = 0; B.duels.seen = {}; }
+        const ok = duelCutin(a, d);
+        const el = document.getElementById('duel-cutin');
+        const card = (id) => { const im = el && el.querySelector(id); return im ? im.parentElement.className : null; };
+        return { ok, a: card('#dc-img-a'), b: card('#dc-img-b') };
       },
       ultCast(name, targetName) {
         const u = B && B.units.find((o) => o.name === name && o.alive);
