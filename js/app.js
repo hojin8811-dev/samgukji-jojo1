@@ -2645,6 +2645,12 @@
   function beginScenario(sc, factionId) {
     SK.state = newState(sc, factionId);
     SK.save();
+    /* v5.66a — GA4: 세력을 골라 새 게임을 시작했을 때 */
+    try {
+      const st0 = SK.state;
+      const f0 = st0.factions[st0.playerFaction] || {};
+      if (window.skTrack) window.skTrack('start_game', { faction: f0.name || st0.playerFaction, difficulty: st0.difficulty || 'normal' });
+    } catch (e) { /* ignore */ }
     SK.showMap();
     if (window.SKMap) { SKMap.resetCamera(); }
     SK.refreshHud();
@@ -10507,8 +10513,16 @@
     if (!s) return false;
     if (ownedCount(s) < SK.CITY_LIST.length) return false;
     if (s.unified && !force) return false;
+    const wasUnified = !!s.unified;
     s.unified = true;
     try { SK.save(); } catch (e) { /* ignore */ }
+    /* v5.66a — GA4: 처음 천하통일을 이뤘을 때만 한 번 (강제 재호출은 세지 않는다) */
+    if (!wasUnified) {
+      try {
+        const f = s.factions[s.playerFaction] || {};
+        if (window.skTrack) window.skTrack('unification', { faction: f.name || s.playerFaction, months: Math.max(1, s.turn || 1) });
+      } catch (e) { /* ignore */ }
+    }
     setTimeout(() => showUnification(), 380);
     return true;
   };

@@ -169,6 +169,8 @@
     const target = SK.CITY[opts.targetId];
     const defense = opts.defense || null;
     const type = opts.type || SK.battleTypeFor(target);
+    /* v5.66a — GA4: 전투 진입(공성·수성·요격·야전·관문) */
+    try { if (window.skTrack) window.skTrack('battle_start', { battle_type: type }); } catch (e) { /* ignore */ }
     const def = SK.BATTLE_TYPES[type];
     /* v5.11 — 공성·수성 통일: 같은 성이면 공격/방어 모두 같은 성벽 맵을 쓴다.
        도시 등급이 높을수록 성벽이 1중 → 2중 → 3중으로 겹친다. */
