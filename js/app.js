@@ -10077,7 +10077,8 @@
     const info = SK.factionInfo(ts.owner);
     const plan = SK.enemyPlan({
       cityTroops: ts.troops,
-      defGens: (ts.genIds || []).length,
+      /* startBattle 과 같은 기준 — 장수 명부에 없는 id 는 세지 않는다 */
+      defGens: (ts.genIds || []).filter((id) => SK.GEN_BY_ID[id]).length,
       hasBoss: !!(info && info.lord),
     });
     let supMax = 0;
