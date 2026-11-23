@@ -4407,7 +4407,7 @@
     const extra = [
       k === 'lab' ? '담당 장수가 없으면 자동 첩보가 돌지 않습니다.' : '',
       k === 'workshop' ? '담당 장수가 없으면 보물 제작이 멈춥니다.' : '',
-      same ? `이 성에 같은 ${def.name}이(가) 이미 ${same}곳 — 효과가 합쳐집니다.` : '',
+      same ? `이 성에 ${josa(def.name, 'i')} 이미 ${same}곳 — 효과가 합쳐집니다.` : '',
     ].filter(Boolean).map((t) => `<p class="talent-note">${t}</p>`).join('');
     const m = SK.modal({
       kicker: `${c.name} · 공터`, title: `${josa(def.name, 'eul')} 지을까`,
