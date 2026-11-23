@@ -1,6 +1,18 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=83`
+기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=85`
+
+## ✅ v5.67 — 원정 시나리오 대기실 1단계(비밀 입장 · 3×3 진형) (2026-11-23 · `?v=85`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 비밀 입장 | `?exp=1` 또는 표지 제목 5연타(1.5초) → `⚔️ 원정 시나리오 (DEV)` 버튼. 세션 한정 해금(localStorage 흔적 0). 일반 접속·이전 주소·지도에는 노출 0 | `index.html` `#btn-expedition`, `js/expedition.js` `bindSecretEntry` |
+| 시나리오 배너 | 제1막 · 황건적의 난 `유비 주공을 찾아서(1~10관)`, 보스 5 장량·8 장보·10 장각, 진행도 칩 10개(★), 장각 초상 `top100/57.webp` | `paintChips`, `css/game.css` `.exp-banner` |
+| 공훈 연동 | 영구 `localStorage['sk_meta_merit']`(시작 1,000). 대기실 진입 시 본편 **명성×2 + 늘어난 성×20 + 천통 500** 자동 적립, DEV `+500` | `syncMerit`·`addMerit`·`readMerit` |
+| 3×3 진형 | 미방·미축·간옹 기본 배치, 탭 → 빈 칸 이동·장수끼리 스왑, `localStorage['sk_expedition_v1']` 저장, `ⓘ`·길게 누르기 능력치, 최대 5명 | `paintGrid`·`onCellTap`·`openInfo`, `.exp-grid` |
+| 하단 4메뉴 | 장수·장비 뽑기 미리보기, **내 원정단 목록 + [배치]/[해제] 실동작**, 유저 랭킹전 예시 | `openPullHero`·`openPullGear`·`openRoster`·`openRank` |
+| 출진·복귀 | `N관문 출진하기` → 스토리 인트로 + 2단계 예고, `← 본편으로`·안드로이드 뒤로가기 → 표지 | `openSortie`·`closeExpedition`, `js/backguard.js` `screen-expedition` |
+| 검수 | `tools/qa_v567.py a`(로컬 390×844, 비밀 노출 0·진형 이동/저장·뒤로가기·콘솔/404 0) · `b`(라이브) | `preview/exp_v1/` |
 
 ## ✅ v5.66 — 후반 루즈 해소 밸런스 4종 · AI 대국 재편 (2026-11-23 · `?v=83`)
 

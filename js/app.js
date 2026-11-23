@@ -1882,7 +1882,7 @@
   };
 
   /* ───────────── 화면 전환 ───────────── */
-  const SCREENS = ['screen-title', 'screen-scenario', 'screen-faction', 'screen-map', 'screen-city', 'screen-battle'];
+  const SCREENS = ['screen-title', 'screen-scenario', 'screen-faction', 'screen-expedition', 'screen-map', 'screen-city', 'screen-battle'];
   let lastTheme = null;
   function bgm(theme) {
     if (!window.JojoBGM) return;

@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=84" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=85" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=84" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=84" />
+<link rel="stylesheet" href="css/game.css?v=85" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=85" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -140,6 +140,8 @@
           <button id="btn-continue" class="btn btn-ghost" hidden>이어하기</button>
           <button id="btn-slots" class="btn btn-ghost">세이브 슬롯</button>
           <button id="btn-title-guide" class="btn btn-ghost">📖 입문 가이드</button>
+          <!-- v5.67 — 비밀 입장 전용(기본 숨김): ?exp=1 또는 표지 제목 5연타 때만 나타난다 -->
+          <button id="btn-expedition" class="btn btn-ghost exp-entry" type="button" hidden>⚔️ 원정 시나리오 <em>(DEV)</em></button>
         </div>
         <p class="title-foot">80개 거점 · 19개 병과 · 701명 장수 · 최대 32×32 대형 전장</p>
         <p class="title-sound" id="title-sound" title="화면을 한 번 누르면 음악이 흐릅니다" aria-label="화면을 한 번 누르면 음악이 흐릅니다">🔊</p>
@@ -180,6 +182,58 @@
     <div class="fx-diff" id="fx-diff"></div>
     <div id="faction-list" class="fx-list"></div>
     <p class="sc-foot"><span class="sc-foot-ic" aria-hidden="true">ⓘ</span> 세력을 고르면 그 군주의 본거지에서 시작합니다.</p>
+  </section>
+
+  <!-- ═══════════ 원정 시나리오 대기실 (v5.67 · 비밀 · DEV) ═══════════ -->
+  <section id="screen-expedition" class="screen">
+    <header class="exp-top">
+      <button id="exp-back" class="exp-back" type="button" aria-label="본편으로 돌아가기">← 본편으로</button>
+      <div class="exp-heading">
+        <small>시나리오 원정</small>
+        <b>⚔️ 원정 시나리오 대기실</b>
+      </div>
+      <span class="exp-merit" title="본편에서 쌓은 공훈"><em>🏅</em><b id="exp-merit">0</b></span>
+      <button id="exp-dev-merit" class="exp-dev" type="button" aria-label="테스트 공훈 500 지급">+500</button>
+    </header>
+
+    <div class="exp-scroll" id="exp-scroll">
+      <!-- ① 시나리오 배너 — 제1막 · 황건적의 난 -->
+      <section class="exp-banner" id="exp-banner" aria-label="제1막 황건적의 난">
+        <span class="exp-act">제1막 · 황건적의 난</span>
+        <div class="exp-banner-main">
+          <span class="exp-boss tf tier-S"><img src="assets/portraits/top100/57.webp" alt="장각" /></span>
+          <div class="exp-banner-text">
+            <b>유비 주공을 찾아서</b>
+            <p>1~10관 · 중간보스 <b>장량(5)</b> · <b>장보(8)</b> · 최종보스 <b>장각(10)</b></p>
+          </div>
+        </div>
+        <div class="exp-chips" id="exp-chips" role="list" aria-label="1~10관 진행도"></div>
+        <p class="exp-progress-note" id="exp-progress-note"></p>
+      </section>
+
+      <!-- ② 3×3 출진 진형 (최대 5명) -->
+      <section class="exp-form" aria-label="3×3 출진 진형">
+        <div class="exp-form-head"><b>🧩 3×3 출진 진형</b><span id="exp-form-count">배치 0 / 5명</span></div>
+        <p class="exp-hint">장수를 탭한 뒤 다른 칸을 탭하면 자리를 옮기거나 맞바꿉니다 · 길게 누르면 능력치</p>
+        <div class="exp-grid" id="exp-grid"></div>
+        <div class="exp-reserve" id="exp-reserve"></div>
+      </section>
+
+      <!-- ③ 하단 4메뉴 -->
+      <section class="exp-menus" aria-label="원정 메뉴">
+        <button class="exp-menu" type="button" data-exp-menu="hero"><span>🎴</span><b>장수 공훈 뽑기</b><small>1회 공훈 100 · S~C 영입</small></button>
+        <button class="exp-menu" type="button" data-exp-menu="gear"><span>🗡️</span><b>장비(보물) 뽑기</b><small>1회 공훈 80 · 무기·방어구</small></button>
+        <button class="exp-menu" type="button" data-exp-menu="roster"><span>🎒</span><b>내 원정단 · 장비</b><small>보유 3명 · 진형 배치·해제</small></button>
+        <button class="exp-menu" type="button" data-exp-menu="rank"><span>🏆</span><b>유저 랭킹전</b><small>클리어 관문 · 최고 층수</small></button>
+      </section>
+    </div>
+
+    <!-- ④ 출진 -->
+    <footer class="exp-foot">
+      <button id="exp-sortie" class="exp-sortie" type="button">
+        <span>⚔️</span><b>1관문 출진하기</b><small>전투력 0 · 권장 4,500</small>
+      </button>
+    </footer>
   </section>
 
   <!-- ═══════════ 1단계 · 천하 지도 ═══════════ -->
@@ -469,20 +523,21 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=84"></script>
-<script src="js/mapmask.js?v=84"></script>
-<script src="js/city_geo.js?v=84"></script>
-<script src="js/data.js?v=84"></script>
-<script src="js/bgm.js?v=84"></script>
-<script src="js/sfx.js?v=84"></script>
-<script src="js/app.js?v=84"></script>
-<script src="js/map.js?v=84"></script>
-<script src="js/battle.js?v=84"></script>
-<script src="js/backguard.js?v=84"></script>
+<script src="js/mapgeo.js?v=85"></script>
+<script src="js/mapmask.js?v=85"></script>
+<script src="js/city_geo.js?v=85"></script>
+<script src="js/data.js?v=85"></script>
+<script src="js/bgm.js?v=85"></script>
+<script src="js/sfx.js?v=85"></script>
+<script src="js/app.js?v=85"></script>
+<script src="js/map.js?v=85"></script>
+<script src="js/battle.js?v=85"></script>
+<script src="js/expedition.js?v=85"></script>
+<script src="js/backguard.js?v=85"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=84').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=85').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

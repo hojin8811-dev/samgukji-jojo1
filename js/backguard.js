@@ -141,6 +141,11 @@
       if (!press('#btn-scenario-back')) SK.show(SK.state ? 'screen-map' : 'screen-title');
       return 'sub';
     }
+    /* v5.67 — 원정 시나리오 대기실(비밀 · DEV): 뒤로가기는 본편 표지로 */
+    if (scr === 'screen-expedition') {
+      if (!press('#exp-back')) SK.show('screen-title');
+      return 'sub';
+    }
     return 'exit';
   }
 
