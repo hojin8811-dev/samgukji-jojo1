@@ -9172,6 +9172,7 @@
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
     /* v5.9 — 잃은 병력의 35~50%는 전사 대신 부상병으로 함락한 성에 남는다 */
     const lostN = lostOf('ally');
+    const prevGenIds = (st.genIds || []).slice();   // v5.77 — 포로·등용되지 않은 적 장수는 남은 성으로 퇴각시킨다
     st.owner = SK.playerFaction();
     st.genIds = [];
     st.wounded = 0;
@@ -9269,6 +9270,12 @@
     prisonCity = B.targetId;
     const prisoners = rollPrisoners();
     B.prisoners = prisoners;
+    /* v5.77 — 함락한 성 장수 중 포로로 잡히지 않은 이들은 그 세력의 남은 성으로 퇴각한다.
+       예전에는 genIds를 비워 버려 맹획군 성(영창)이 남아 있어도 맹획·축융·올돌골이 증발했다. */
+    let genRetreat = { cityId: null, cityName: '', count: 0 };
+    if (SK.retreatEnemyGens) {
+      try { genRetreat = SK.retreatEnemyGens(s, prevOwner, B.targetId, prevGenIds, prisoners.map((g) => g.id)); } catch (e) { /* ignore */ }
+    }
     const levelUps = [];
     s.heroes.forEach((h) => {
       const u = B.units.find((x) => x.uid === h.uid);
@@ -9299,6 +9306,7 @@
         <p class="rm-line">${SK.josa(prevOwnerName, 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
         ${fallenFaction ? `<div class="rm-fall-banner"><b>🏆 ${fallenFaction} 멸망!</b><span>마지막 성을 잃고 천하에서 사라졌습니다 · 남은 세력 ${factionsLeft}곳${freedCaptives.length ? ` · 해방된 아군 포로 ${freedCaptives.join(' · ')}` : ''}</span></div>` : ''}
         ${freedCaptives.length && !fallenFaction ? `<p class="rm-release">사로잡혀 있던 ${freedCaptives.join(' · ')} — 풀려나 ${c.name}으로 돌아왔습니다.</p>` : ''}
+        ${genRetreat.count ? `<p class="rm-release">${prevOwnerName} 장수 ${genRetreat.count}명은 ${SK.josa(genRetreat.cityName, 'euro')} 퇴각했습니다.</p>` : ''}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>

@@ -4025,6 +4025,46 @@
   SK.armyName = armyName;
 
   /* ══════════════════════════════════════════════════════════════
+     v5.77 — 성을 빼앗긴 세력의 남은 장수는 같은 세력의 다른 성으로 물러난다.
+     예전에는 함락 순간 그 성의 genIds를 통째로 비워, 포로로 잡히지도 등용되지도
+     않은 적 장수가 이름만 남은 채 증발했다(사용자 제보: 맹획군 영창이 남아 있는데
+     운남 함락 뒤 맹획·축융·올돌골이 사라짐). 남은 성이 0개면 그대로 해산(멸망)이다.
+     excludeGids — 포로·등용 등 이미 새 주인에게 간 장수(중복 배치 방지).
+     ══════════════════════════════════════════════════════════════ */
+  function retreatEnemyGens(s, prevOwner, lostCityId, rawGenIds, excludeGids) {
+    const none = { cityId: null, cityName: '', count: 0, genIds: [] };
+    if (!s || !prevOwner || prevOwner === 'neutral' || prevOwner === SK.playerFaction()) return none;
+    const skip = {};
+    (excludeGids || []).forEach((id) => { skip[id] = true; });
+    /* 이미 우리 편이 된 장수는 퇴각 대상이 아니다 */
+    (s.heroes || []).forEach((h) => { if (h && h.genId) skip[h.genId] = true; });
+    const ids = [];
+    (rawGenIds || []).forEach((id) => {
+      if (!id || skip[id]) return;
+      skip[id] = true;
+      ids.push(id);
+    });
+    if (!ids.length) return none;
+    /* 같은 세력이 아직 지키는 성 — 함락된 성에서 지도상 가장 가까운 곳으로 물러난다 */
+    const from = SK.CITY[lostCityId] || null;
+    let home = null;
+    let bestD = Infinity;
+    SK.CITY_LIST.forEach((c) => {
+      if (c.id === lostCityId) return;
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== prevOwner) return;
+      const d = from ? Math.hypot((c.u || 0) - (from.u || 0), (c.v || 0) - (from.v || 0)) : 0;
+      if (d < bestD) { bestD = d; home = c; }
+    });
+    if (!home) return { cityId: null, cityName: '', count: 0, genIds: ids };   // 남은 성 없음 → 해산
+    const hcs = s.cities[home.id];
+    hcs.genIds = hcs.genIds || [];
+    ids.forEach((id) => { if (hcs.genIds.indexOf(id) < 0) hcs.genIds.push(id); });
+    return { cityId: home.id, cityName: home.name, count: ids.length, genIds: ids };
+  }
+  SK.retreatEnemyGens = retreatEnemyGens;
+
+  /* ══════════════════════════════════════════════════════════════
      v5 내정 개편 1단계 — 설치식 내성 건설(공터 슬롯) · 5묶음 메뉴
      · 공터에 건물을 지어 두면 담당자가 없어도 50% 효과가 돌아간다
      · 담당 장수를 앉히면 능력치에 따라 100~150% 효과 + 매달 경험치
@@ -6257,6 +6297,7 @@
     consumeDispatch(cityId, actor);
     const ok = Math.random() < p;
     if (ok) {
+      const prevGenIds = (ts.genIds || []).slice();
       const join = [];
       (ts.genIds || []).forEach((gid) => {
         if (Math.random() < 0.45) { join.push(gid); return; }
@@ -6276,6 +6317,9 @@
         const hero = makeHero(g.name, tid, joinLevelOf(g));
         if (hero) { hero.loyal = 60; s.heroes.push(hero); }
       });
+      /* v5.77 — 등용되지 않은 옛 장수는 그 세력의 남은 성으로 퇴각한다 */
+      const retreat = SK.retreatEnemyGens ? SK.retreatEnemyGens(s, fid, tid, prevGenIds, join) : null;
+      if (retreat && retreat.count) SK.toast(`${SK.factionName(fid)} 장수 ${retreat.count}명이 ${SK.josa(retreat.cityName, 'euro')} 퇴각했습니다.`);
       s.fame = (s.fame || 0) + 8;
       syncFactionCities(s);
       /* v5.8 — 세력을 모두 잃으면 명부에서 지우므로, 이름은 지우기 전에 적어 둔다 */
@@ -11854,6 +11898,7 @@
     const win = Math.random() < winP;
     if (win) {
       const prev = ts.owner;
+      const prevGenIds = (ts.genIds || []).slice();
       ts.owner = fid;
       /* v5.66 — 이긴 군세가 성에 들어가 주둔한다 (예전엔 70%가 증발해 전쟁이
          병력만 태우고 대국이 서지 못했다) */
@@ -11864,7 +11909,11 @@
       ts.governor = null;
       ts.advisor = null;
       ts.auto = true;
-      ts.genIds = (as.genIds && as.genIds.length > 1) ? [as.genIds.pop()] : (ts.genIds || []).slice(0, 1);
+      /* 점령군 장수를 주둔시킨다. 공격군에 여유 장수가 없으면 성에 남아 있던 장수 1명을 그대로 둔다 */
+      const stayed = (as.genIds && as.genIds.length > 1) ? [as.genIds.pop()] : prevGenIds.slice(0, 1);
+      ts.genIds = stayed.slice();
+      /* v5.77 — 성에 남지 않은 옛 장수는 그 세력의 남은 성으로 퇴각한다 (예전엔 덮어써서 증발) */
+      if (SK.retreatEnemyGens) { try { SK.retreatEnemyGens(s, prev, plan.target, prevGenIds, stayed); } catch (e) { /* ignore */ } }
       syncFactionCities(s);
       return { win: true, from: plan.from, target: plan.target, faction: fid, prev };
     }
@@ -13443,6 +13492,7 @@
           cs.food = Math.max(0, food - Math.round(send / 1000 * 20));
           const prevOwner = tcs.owner;
           if (atk > def) {
+            const prevGenIds = (tcs.genIds || []).slice();
             const join = [];
             (tcs.genIds || []).forEach((gid) => { if (Math.random() < 0.3 && join.length < 1) join.push(gid); });
             tcs.owner = PF();
@@ -13460,6 +13510,9 @@
               const hero = makeHero(g.name, tid, joinLevelOf(g));
               if (hero) { hero.loyal = 62; s.heroes.push(hero); }
             });
+            /* v5.77 — 점령당한 성의 옛 장수는 자기 세력의 남은 성으로 퇴각한다 */
+            const retreat = SK.retreatEnemyGens ? SK.retreatEnemyGens(s, prevOwner, tid, prevGenIds, join) : null;
+            if (retreat && retreat.count) acts.push(`옛 ${SK.factionName(prevOwner)} 장수 ${retreat.count}명 ${SK.CITY[retreat.cityId].name}으로 퇴각`);
             if (cp.cityIds.length < 5) cp.cityIds.push(tid);
             s.fame = (s.fame || 0) + 6;
             if (SK.pruneLandlessFactions) { try { SK.pruneLandlessFactions(s); } catch (e) { /* ignore */ } }
