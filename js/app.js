@@ -8796,10 +8796,34 @@
     });
   }
 
+  /* v5.78 — 지금 명성·공훈으로 한 단계라도 오를 수 있는 장수를 모은다.
+     각자 현재 분과(무관/문관)에서 열리는 가장 높은 자리를 후보로 삼고,
+     봉급은 서임 전후의 실제 값(heroSalary) 차이로 계산한다. */
+  function batchOfficeCandidates(s) {
+    s = s || SK.state;
+    const fame = (s && s.fame) || 0;
+    const out = [];
+    ((s && s.heroes) || []).forEach((h) => {
+      const cur = SK.officeOf(h);
+      const branch = cur.branch === 'none' ? 'mil' : cur.branch;
+      const best = SK.bestOfficeFor(h, branch, fame);
+      if (!best || best.key === 'none' || best.key === cur.key) return;
+      const prev = h.appoint;
+      const before = heroSalary(h);
+      h.appoint = best.key;
+      const after = heroSalary(h);
+      h.appoint = prev;
+      out.push({ h, office: best, gain: Math.max(0, after - before) });
+    });
+    return out;
+  }
+
   /* v5.8 — 관직 서임. 군주 명성이 오르면 교위 → 중랑장 → 진동·진서장군 → 대장군까지 내린다 */
   function openAppoint(cityId) {
     const s = SK.state;
     const fame = s.fame || 0;
+    const batch = batchOfficeCandidates(s);
+    const batchGain = batch.reduce((a, b) => a + b.gain, 0);
     const gens = s.heroes.slice().sort((a, b) => (SK.officeAdd(b) - SK.officeAdd(a)) || (b.tong - a.tong));
     const rows = gens.map((h) => {
       const off = SK.officeOf(h);
@@ -8817,13 +8841,35 @@
     const m = SK.modal({
       kicker: '관직 · 명성 ' + fmt(fame), title: '누구에게 관직을 내릴까',
       body: `<p class="talent-note">관직을 내리면 그 장수의 공격·방어 보정과 충성이 오르고, 봉급이 조금 늘어 달마다 금이 더 나갑니다. 문관 자리는 내정(정치)·책략(지력)에 보탬이 됩니다. 출진 병력 상한은 일반 5,000 · 군주 10,000으로 고정입니다.<br><b>이제는 군주 명성과 장수 개인의 공훈치를 함께</b> 채워야 서임할 수 있습니다 — 건물 담당·탐색·등용·계략·전투로 쌓입니다.</p>
+        ${batch.length >= 2 ? `<button class="ap-batch" data-batch="1">
+          <b>일괄 관직 서임 (${batch.length}명 · 월 봉급 +${fmt(batchGain)})</b>
+          <span>${batch.slice(0, 5).map((b) => `${b.h.name} → ${b.office.name}`).join(' · ')}${batch.length > 5 ? ` 외 ${batch.length - 5}명` : ''}</span>
+        </button>` : ''}
         <div class="ap-list">${rows || '<p class="rs-empty">휘하에 장수가 없습니다.</p>'}</div>`,
       wide: true, actions: [{ label: '닫기' }],
     });
     m.el.querySelectorAll('.ap-row').forEach((b) => {
       b.onclick = () => { m.close(); setTimeout(() => openAppointPick(cityId, b.dataset.uid), 30); };
     });
+    /* v5.78 — [일괄 관직 서임] — 가능한 장수에게 각각 가장 높은 자리를 한 번에 준다 */
+    const batchBtn = m.el.querySelector('[data-batch]');
+    if (batchBtn) {
+      batchBtn.onclick = () => {
+        let cnt = 0, gain = 0;
+        batch.forEach(({ h, office, gain: g }) => {
+          h.appoint = office.key;
+          if (office.loyal) h.loyal = Math.min(100, loyalOf(h) + office.loyal);
+          cnt += 1;
+          gain += g;
+        });
+        SK.save(); SK.refreshHud(); m.close();
+        SK.sfx.play('levelup');
+        SK.toast(`${cnt}명 일괄 서임 완료 — 월 봉급 +${fmt(gain)}G`);
+        setTimeout(() => { openAppoint(cityId); }, 60);
+      };
+    }
   }
+  SK.batchOfficeCandidates = batchOfficeCandidates;
   function openAppointPick(cityId, uid) {
     const s = SK.state;
     const h = s.heroes.find((x) => x.uid === uid);
@@ -9245,8 +9291,12 @@
       b.onclick = () => {
         const rec = s.prisoners[Number(b.dataset.free)];
         if (!rec) return;
+        const g = SK.GEN_BY_ID[rec.gid];
         s.prisoners = s.prisoners.filter((x) => x !== rec);
-        s.fame += 1; SK.save(); SK.toast(`${josa(rec.name, 'eul')} 풀어 주었습니다. 명성 +1`); refresh();
+        s.fame += 1;
+        /* v5.78 — 석방한 포로는 재야로 풀려나 주점에 다시 앉는다 */
+        if (g && SK.wildRelease) SK.wildRelease(g, rec.city);
+        SK.save(); SK.toast(`${josa(rec.name, 'eul')} 풀어 주었습니다. 명성 +1`); refresh();
       };
     });
     m.el.querySelectorAll('[data-accept]').forEach((b) => {
@@ -11626,6 +11676,21 @@
       if (owns) return;
       const f = s.factions[fid] || {};
       gone.push(f.name || SK.factionName(fid));
+      /* v5.78 — 멸망 속보를 띄우려고 세력의 깃발·색·군주를 지우기 전에 적어 둔다 */
+      s.fallQueue = s.fallQueue || [];
+      s.fallQueue.push({
+        id: fid,
+        name: f.name || SK.factionName(fid),
+        lord: SK.normName ? SK.normName(f.lord || '') : (f.lord || ''),
+        mark: f.mark || SK.FACTION_MARK[fid] || String(f.name || '').replace(/군$/, '').charAt(0),
+        color: f.color || SK.FACTION_COLOR[fid] || '#8b8677',
+      });
+      /* v5.78 — 나라를 잃은 군주는 재야가 될 수 있다 (주점 필터에서 빼 준다) */
+      const exLord = SK.normName ? SK.normName(f.lord || '') : (f.lord || '');
+      if (exLord) {
+        s.exLords = s.exLords || [];
+        if (s.exLords.indexOf(exLord) < 0) s.exLords.push(exLord);
+      }     
       delete s.factions[fid];
       if (s.truce) delete s.truce[fid];
       if (s.pacts) delete s.pacts[fid];
@@ -11683,6 +11748,141 @@
     return gone;
   }
   SK.pruneLandlessFactions = pruneLandlessFactions;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.78 — 세력 멸망 코믹 속보 배너 + 포로를 재야로 풀어 주기
+     · 멸망한 세력은 pruneLandlessFactions 가 s.fallQueue 에
+       { id, name, lord, mark, color } 를 적어 둔다 (세력을 지우기 전에).
+     · 달이 바뀌면 advanceMonth 가 월정산 창보다 먼저 큐를 비우며 배너를 띄운다.
+     · 플레이어 공성으로 멸망하면 승전 창에서 [포로 N명 처리하러 가기 →] 로 잇는다.
+     ══════════════════════════════════════════════════════════════ */
+  function fallQueueOf(s) {
+    s = s || SK.state;
+    if (!s) return [];
+    s.fallQueue = s.fallQueue || [];
+    return s.fallQueue;
+  }
+  /* 큐를 비우며 꺼낸다 — skipId 세력은 다른 창에서 이미 띄웠을 때 뺀다 */
+  SK.takeFallQueue = function (s, skipId) {
+    s = s || SK.state;
+    const q = fallQueueOf(s).slice();
+    s.fallQueue = [];
+    return q.filter((x) => x && x.id && x.id !== skipId);
+  };
+
+  /* v5.78 — 등용에 실패하거나 석방한 포로는 어느 성에도 속하지 않은 재야가 되어
+     주점에 다시 앉는다 (군주도 포함 — 나라를 잃었으니 더는 군주가 아니다). */
+  function wildRelease(g, cityId) {
+    const s = SK.state;
+    if (!s || !g) return null;
+    const gid = g.id;
+    const nm = SK.normName ? SK.normName(g.name) : g.name;
+    /* 성 명부에서는 빠진다 (수비대로 다시 나오지 않게) */
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities && s.cities[c.id];
+      if (!cs || !Array.isArray(cs.genIds)) return;
+      if (cs.genIds.indexOf(gid) >= 0) cs.genIds = cs.genIds.filter((x) => x !== gid);
+    });
+    /* 이미 어느 성 주점에 앉아 있으면 그대로 둔다 */
+    const already = SK.CITY_LIST.find((c) => {
+      const cs = s.cities && s.cities[c.id];
+      return cs && Array.isArray(cs.talents) && cs.talents.indexOf(gid) >= 0;
+    });
+    if (already) return already.id;
+    /* 함락한 성·가장 가까운 내 성·수도 순서로 자리를 잡는다 */
+    const owned = SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === s.playerFaction);
+    let host = (cityId && s.cities[cityId]) ? cityId : null;
+    if (!host || (s.cities[host] && s.cities[host].owner !== s.playerFaction)) {
+      const home = s.playerCapital && s.cities[s.playerCapital] && s.cities[s.playerCapital].owner === s.playerFaction
+        ? s.playerCapital : (owned[0] || {}).id;
+      host = home || cityId || null;
+    }
+    const cs = host ? s.cities[host] : null;
+    if (!cs) return null;
+    cs.talents = cs.talents || [];
+    cs.talents.push(gid);
+    /* 옛 군주는 주점 필터(SK.isLordOnly)에서 빼 둔다 */
+    if (nm) {
+      s.exLords = s.exLords || [];
+      if (SK.isLordOnly(g, null) && s.exLords.indexOf(nm) < 0) s.exLords.push(nm);
+    }
+    return host;
+  }
+  SK.wildRelease = wildRelease;
+
+  function fallShortName(item) {
+    const nm = String((item && item.name) || (SK.FACTIONS[(item || {}).id] || {}).name || '적군');
+    return nm.replace(/군$/, '') || '적군';
+  }
+
+  function showFallBanner(item, onNext) {
+    const it = item || {};
+    const s = SK.state || {};
+    const short = fallShortName(it);
+    const army = /군$/.test(short) ? short : `${short}군`;
+    const base = SK.FACTIONS[it.id] || {};
+    const lord = it.lord || base.lord || '';
+    const lordG = lord ? SK.GEN_BY_NAME[lord] : null;
+    const color = it.color || SK.FACTION_COLOR[it.id] || base.color || '#b91c1c';
+    const mark = it.mark || base.mark || SK.FACTION_MARK[it.id] || short.charAt(0);
+    const quote = SK.fallLineOf(it.id, short, lord);
+    const list = (it.prisoners || []).filter(Boolean);
+    const n = list.length;
+    const byPlayer = !!it.byPlayer;
+    const cityName = it.cityName || '';
+    const factionsLeft = Object.keys(s.factions || {}).filter((k) => k !== 'neutral').length;
+    const face = lordG
+      ? `<img class="fb-face-img" src="${SK.ptSrc(SK.genPortrait(lordG))}" alt="${lord}">`
+      : `<span class="fb-face-fallback">${String(lord || short).charAt(0)}</span>`;
+    const box = byPlayer
+      ? `<div class="fb-prison-box"><b>⚔️ 마지막 성 함락!</b> 군주 <b>${lord || army + ' 군주'}</b> 포함 적장 <b>${n}명</b>이 포로 명단에 올랐습니다.</div>`
+      : `<div class="fb-prison-box quiet"><b>🏴 ${army}이 최후의 거점을 잃었습니다.</b> 남은 세력 ${factionsLeft}곳${cityName ? ` · 마지막 성 ${cityName}` : ''}</div>`;
+    const m = SK.modal({
+      kicker: '🚨 세력 멸망 속보',
+      title: '',
+      wide: true,
+      dismissible: false,
+      body: `<div class="fb-card">
+        <div class="fb-top">
+          <span class="fb-breaking">🚨 긴급 전황</span>
+          <span class="fb-when">${SK.dateLabel ? SK.dateLabel(s.eraYear || (195 + (s.year || 0)), s.month || 0) : '전황'}</span>
+        </div>
+        <div class="fb-title">
+          <span class="fb-flag" style="background:${color}">${mark}</span>
+          <b class="fb-name">${army} 멸망!</b>
+          <span class="fb-stamp">亡</span>
+        </div>
+        <div class="fb-stage">
+          <div class="fb-face">${face}<span class="fb-sweat">💦</span><span class="fb-tear l">💧</span><span class="fb-tear r">💧</span></div>
+          <div class="fb-meta">
+            <em class="fb-role">${short} 군주</em>
+            <b>${lord || '군주'}</b>
+            <span>최후의 성 함락 · 세력 와해</span>
+          </div>
+        </div>
+        <div class="fb-bubble"><p>${quote}</p></div>
+        ${box}
+      </div>`,
+      actions: [{
+        label: byPlayer && n ? `포로 ${n}명 처리하러 가기 →` : '확인',
+        primary: true,
+        onClick: () => { setTimeout(() => { if (typeof onNext === 'function') onNext(); }, 280); },
+      }],
+    });
+    SK.sfx.play('drum');
+    void m;
+  }
+  SK.showFallBanner = showFallBanner;
+
+  /* 여러 세력이 한 달에 무너졌으면 하나씩 차례로 띄우고 마지막에 done() */
+  SK.showFallBanners = function (list, done) {
+    const arr = (list || []).slice();
+    const next = () => {
+      if (!arr.length) { if (typeof done === 'function') done(); return; }
+      showFallBanner(arr.shift(), next);
+    };
+    next();
+  };
 
   function nearestOwnedCity(s, id) {
     const a = CITY[id];
@@ -13843,7 +14043,7 @@
     }
     SK.sfx.play('month');
     showMonthBanner(SK.dateLabel(s.eraYear || (195 + s.year), s.month));
-    SK.modal({
+    const showReport = () => SK.modal({
       delay: 900,
       dismissible: false,   // v5.25 — 바깥을 잘못 눌러 월정산이 닫혀도 뒤이을 사건(요격·침공·선택지)이 사라지지 않게
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
@@ -13942,6 +14142,11 @@
         else flow();
       } }],
     });
+    /* v5.78 — 이번 달(또는 지난 달)에 문을 닫은 세력이 있으면 월정산 창보다 먼저
+       코믹 멸망 속보를 차례로 띄우고, 배너를 다 넘기면 월정산을 연다. */
+    const falls = SK.takeFallQueue ? SK.takeFallQueue(s) : [];
+    if (falls.length && SK.showFallBanners) SK.showFallBanners(falls, showReport);
+    else showReport();
     /* v5.25 — 월정산이 어떤 이유로든 일찍 닫혀도 행군·침공 사건을 다시 띄운다 */
     if (s.pendingMarch || s.pendingInvasion) armPendingWatch();
   }

@@ -8954,8 +8954,28 @@
      · 석방 — 금과 명성을 얻는다
      · 처형 — 명성이 조금 깎이지만 그 장수는 다시 나오지 않는다
      ══════════════════════════════════════════════════════════════ */
-  function rollPrisoners() {
-    const bossName = (SK.factionInfo(B.faction) || {}).lord || '';
+  function rollPrisoners(all) {
+    const info = SK.factionInfo(B.faction) || {};
+    const bossName = info.lord || '';
+    const st0 = SK.state || {};
+    const heroes0 = st0.heroes || [];
+    const alreadyMine = (g) => heroes0.some((h) => h && (h.genId === g.id || h.name === g.name));
+    /* v5.78 — 마지막 성(세력 멸망)을 함락하면 "최대 2명"·"군주 제외" 규칙을 풀고
+       그 성에 남아 있던 적 장수를 군주까지 전부 포로 목록으로 넘긴다. */
+    if (all && typeof all === 'object' && all.all) {
+      const allOut = [];
+      const add = (g) => {
+        if (!g || g.id == null) return;
+        if (allOut.some((x) => x.id === g.id)) return;
+        if (alreadyMine(g)) return;
+        if (SK.isDead && SK.isDead(g.id, g.name)) return;
+        allOut.push(g);
+      };
+      B.units.forEach((u) => { if (u.side === 'enemy' && u.genId) add(SK.GEN_BY_ID[u.genId]); });
+      (all.genIds || []).forEach((gid) => add(SK.GEN_BY_ID[gid]));
+      if (bossName) add(SK.GEN_BY_NAME[bossName]);
+      return allOut;
+    }
     const named = [];
     const caught = [];          // v5.17 — 전장에서 생포된 적은 반드시 포로가 된다
     B.units.forEach((u) => {
@@ -9060,12 +9080,16 @@
             s.fame = Math.max(0, (s.fame || 0) + 1);
             if (SK.state) { SK.state.genLoyal = SK.state.genLoyal || {}; }
             line = `<b>${g.name}</b> — “두 번 다시 그런 말 마시오.” 등용 실패. 풀어 주었습니다. 명성 +1.`;
+            /* v5.78 — 풀려난 장수는 재야가 되어 주점에 다시 앉는다 (군주도 포함) */
+            if (SK.wildRelease) SK.wildRelease(g, cityId);
             SK.sfx.play('deny');
           }
         } else if (act === 'free') {
           if (SK.setPurse) SK.setPurse(cityId);
           s.gold += gold;
           s.fame += 3;
+          /* v5.78 — 석방한 장수도 재야로 풀려나 이후 주점 탐색에 다시 나온다 */
+          if (SK.wildRelease) SK.wildRelease(g, cityId);
           line = `<b>${g.name}</b> — 석방. 몸값 금 +${gold}, 명성 +3.`;
           SK.sfx.play('coin');
         } else {
@@ -9074,6 +9098,8 @@
           line = rec
             ? `<b>${g.name}</b> — 포로 억류. ${cityId && SK.CITY[cityId] ? SK.CITY[cityId].name : '성'} 순찰소에 가뒀습니다. 3개월은 탈출하지 못하고, 그 뒤로는 순찰소·치안이 높을수록 탈출이 어려워집니다.`
             : `<b>${g.name}</b> — 억류할 자리가 없습니다. 6명까지만 가둘 수 있어 풀어 주었습니다.`;
+          /* v5.78 — 자리가 없어 풀어 준 경우에도 재야로 돌려보낸다 */
+          if (!rec && SK.wildRelease) SK.wildRelease(g, cityId);
           if (rec) SK.sfx.play('drum'); else SK.sfx.play('deny');
         }
         SK.save(); SK.refreshHud();
@@ -9167,6 +9193,11 @@
     const c = SK.CITY[B.targetId];
     const prevOwner = st.owner;
     const prevOwnerName = SK.factionName(prevOwner);   // v5.27 — 멸망 처리로 명부에서 지우기 전에 이름을 잡아 둔다
+    /* v5.78 — 멸망 속보 배너에 쓸 깃발·색·군주도 지우기 전에 적어 둔다 */
+    const prevFac = (s.factions || {})[prevOwner] || {};
+    const prevLord = prevFac.lord || '';
+    const prevMark = prevFac.mark || SK.FACTION_MARK[prevOwner] || '';
+    const prevColor = prevFac.color || SK.FACTION_COLOR[prevOwner] || '';
     const defeatedNames = B.units.filter((u) => u.side === 'enemy').map((u) => u.name);
     const survivors = B.units.filter((u) => u.side === 'ally' && u.alive);
     const troopsLeft = survivors.reduce((sum, u) => sum + u.hp, 0);
@@ -9268,7 +9299,8 @@
     awardMvpMerit();
     /* v5.8 — 이긴 자리에서 적 장수 일부를 사로잡는다 */
     prisonCity = B.targetId;
-    const prisoners = rollPrisoners();
+    /* v5.78 — 마지막 성이면 군주 포함 전원 포로 (2명 제한·군주 제외 해제) */
+    const prisoners = rollPrisoners(fallenFaction ? { all: true, genIds: prevGenIds } : null);
     B.prisoners = prisoners;
     /* v5.77 — 함락한 성 장수 중 포로로 잡히지 않은 이들은 그 세력의 남은 성으로 퇴각한다.
        예전에는 genIds를 비워 버려 맹획군 성(영창)이 남아 있어도 맹획·축융·올돌골이 증발했다. */
@@ -9297,6 +9329,16 @@
     SK.save();
     SKBattle.refreshUI();
     const owned = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
+    /* v5.78 — 플레이어 공성으로 세력이 멸망했으면 승전 창을 넘길 때 코믹 속보를 먼저 띄우고
+       [포로 N명 처리하러 가기 →] 로 포로 처리 창에 잇는다. */
+    let fallItem = null;
+    if (fallenFaction) {
+      fallItem = {
+        id: prevOwner, name: prevOwnerName, lord: prevLord, mark: prevMark, color: prevColor,
+        cityName: c.name, byPlayer: true, prisoners,
+      };
+      s.fallQueue = (s.fallQueue || []).filter((x) => !x || x.id !== prevOwner);
+    }
     SK.modal({
       kicker: '승리',
       title: `${c.name} 함락`,
@@ -9329,9 +9371,11 @@
         ${victoryQuote() ? `<p class="rm-quote">“${victoryQuote()}”</p>` : ''}
         <p class="rm-note">${owned >= SK.CITY_LIST.length ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
       </div>`,
-      actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
+      actions: [{ label: prisoners.length || fallItem ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle(); SK.showMap();
-        if (prisoners.length) wait(() => openPrisoners(prisoners), 340);
+        const goPrison = () => { if (prisoners.length) wait(() => openPrisoners(prisoners), 340); };
+        if (fallItem && SK.showFallBanner) SK.showFallBanner(fallItem, goPrison);
+        else goPrison();
       } }],
       dismissible: false,
     });

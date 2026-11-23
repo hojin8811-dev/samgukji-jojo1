@@ -362,6 +362,80 @@ SK.FACTION_COLOR = {
   xianbei: '#D14D6E', shanyue: '#4C8C5A', qiang: '#7A5230', gongsundu: '#7B4A28',
 };
 
+/* v5.78 — 마지막 성을 잃어 나라가 사라진 옛 군주는 재야로 풀려나 주점에 앉을 수 있다.
+   (아직 살아 있는 세력의 군주만 '신하로 삼을 수 없는 사람'으로 막는다) */
+SK.isExLord = function (name) {
+  const s = SK.state;
+  const n = SK.normName ? SK.normName(name) : String(name || '').trim();
+  if (!n || !s || !Array.isArray(s.exLords)) return false;
+  return s.exLords.indexOf(n) >= 0;
+};
+
+/* ══════════════════════════════════════════════════════════════
+   v5.78 — 세력 멸망 코믹 배너의 군주 마지막 한마디 (28세력 + 뒤 판 세력)
+   세력 id 로 먼저 찾고, 없으면 세력 이름(○○군)·군주 이름으로 찾는다.
+   ══════════════════════════════════════════════════════════════ */
+SK.FALL_LINES = {
+  dongzhuo: '여포한테 아들딱지 떼라고 해!! 망해써!! 😭',
+  yuanshao: '명문 사세삼공의 체면이 이게 뭐야… 내 옥새 어디 갔어!! 😭',
+  caocao: '내가 천하를 저버릴지언정… 아니 오늘은 내가 당했네?! 관우야 잠깐만!! 😭',
+  cao_wei: '내가 천하를 저버릴지언정… 아니 오늘은 내가 당했네?! 관우야 잠깐만!! 😭',
+  cao_wei_pre: '내가 천하를 저버릴지언정… 아니 오늘은 내가 당했네?! 관우야 잠깐만!! 😭',
+  liubei: '아우들아… 짚신 다시 깎으러 가자… 도원결의 시즌2 해야겠네 ㅠㅠ 😭',
+  shu_han: '승상아, 우리 촉한이 이렇게… 아니 이건 다 내 탓이오 ㅠㅠ 😭',
+  sunjian: '강동의 호랑이가 여기서… 손책아, 아비 대신 먼저 도망쳐라!! 😭',
+  sunquan: '강동 호랑이가 고양이 되버렸잖여… 형님들, 나 뗏목 좀 빌려줘요!! 😭',
+  sun_wu: '강동 호랑이가 고양이 되버렸잖여… 형님들, 나 뗏목 좀 빌려줘요!! 😭',
+  yuanshu: '전국옥새까지 들었는데 왜 천하가 날 안 알아줘?! 꿀물 한 사발만… 😭',
+  liubiao: '형주 8백 리가 한순간에 쪼그라들었네… 채모 이 녀석, 술상부터 치워!! 😭',
+  hanxuan: '형주 남부 사군 태수가 하루아침에 백수라니… 황충, 활 좀 내려놔!! 😭',
+  liuyan: '촉땅 주인이라 불렸는데… 유장이 녀석, 내 성이 왜 네 성이 됐냐!! 😭',
+  liuzhang: '촉땅이 넓다더니 왜 내 발 디딜 틈이 없어?! 법정, 형님 좀 불러줘!! 😭',
+  liuzong: '아버지 땅을 지키지도 못하고… 항복이면 좀 더 좋은 대우라도 해 줘요!! 😭',
+  meng_huo: '일곱 번 잡혔으면 이번엔 여덟 번으로 쳐줘!! 코끼리 어디 갔어!! 😭',
+  shi_xie: '교주 남쪽 끝까지 밀려날 줄이야… 야자수 그늘 밑에서 좀 쉬자 😭',
+  mateng: '서량 기마대가 한순간에 뚝딱?! 마초야, 넌 먼저 도망쳐라!! 😭',
+  gongsunzan: '백마의군 출격 준비 끝났는데… 왜 성문이 열려 있는 거야?! 😭',
+  gongsunkang: '요동 끝까지 와 놓고 이렇게 됩니까… 공손도야, 배 좀 띄워라!! 😭',
+  taoqian: '서주 태수 자리 그냥 넘길 걸 그랬나… 이젠 편히 쉬고 싶구먼 😭',
+  lvbu: '방천화극이 무거워서 못 휘두른 게 아니야!! 바람이 불어서 그런 거라고!! 😭',
+  hansui: '마등 형님, 나 먼저 갈게… 서량 들판에서 다시 만나자!! 😭',
+  kongrong: '공자의 후예도 성벽 앞에서는 어쩔 수 없구나… 책가방 챙겨라!! 😭',
+  liuyao: '양주 자사 자리가 이렇게 순삭될 일인가… 배부터 띄워라!! 😭',
+  yanbaihu: '스스로 강동의 덕왕이라 했는데… 덕이 너무 넘쳐서 성이 무너졌나?! 😭',
+  wanglang: '회계 땅이 이렇게 차가울 줄이야… 상소문 쓸 힘도 없네!! 😭',
+  zhanglu: '오두미도 신도들아, 기도빨이 다했나 봐… 부적 한 장 더 붙여!! 😭',
+  zhangjiao: '창천이 이미 죽었다더니… 왜 내 황건이 먼저 쓰러지는 거야?! 😭',
+  goguryeo: '고구려 기병의 혼은 꺼지지 않는다!! 오늘은 잠시 숨 고르기다!! 😭',
+  baekje: '한성 백제의 풍류가 여기까지라니… 다음엔 더 단단히 쌓는다!! 😭',
+  silla: '신라 화랑의 기백은 죽지 않아!! 다음 판에 꼭 설욕한다!! 😭',
+  goryeo: '훈요십조도 못 지키고 이 꼴이라니… 후삼국 다시 시작한다!! 😭',
+  joseon: '활 잘 쏘는 걸로는 나라를 못 지키는구나… 정도전, 책이나 챙겨라!! 😭',
+  nanjung: '남중 호족들아, 덩굴 타고 산속으로 후퇴해!! 😭',
+  /* 아직 판에 없는 세력 — 뒤에 붙을 시나리오를 위해 미리 문장만 잡아 둔다 */
+  zhangxiu: '북지의 창끝도 오늘은 쉬어 간다… 조조 형님, 한 번만 봐주소!! 😭',
+  xiongnu: '초원의 바람이 차갑구나… 다음 계절엔 더 멀리 달린다!! 😭',
+  shanyue: '산골짜기 깊숙이 숨었는데 어떻게 찾아왔어?! 😭',
+};
+/* 세력 이름(○○군)·군주 이름으로도 찾을 수 있게 별칭을 둔다 */
+SK.FALL_LINE_ALIAS = {
+  '동탁': 'dongzhuo', '원소': 'yuanshao', '조조': 'caocao', '유비': 'liubei', '손견': 'sunjian',
+  '손권': 'sunquan', '원술': 'yuanshu', '유표': 'liubiao', '한현': 'hanxuan', '유언': 'liuyan',
+  '유장': 'liuzhang', '유종': 'liuzong', '맹획': 'meng_huo', '사섭': 'shi_xie', '마등': 'mateng',
+  '공손찬': 'gongsunzan', '공손강': 'gongsunkang', '도겸': 'taoqian', '여포': 'lvbu',
+  '한수': 'hansui', '공융': 'kongrong', '유요': 'liuyao', '엄백호': 'yanbaihu',
+  '왕랑': 'wanglang', '장로': 'zhanglu', '장각': 'zhangjiao', '광개토대왕': 'goguryeo',
+  '근초고왕': 'baekje', '진흥왕': 'silla', '왕건': 'goryeo', '이성계': 'joseon',
+};
+SK.fallLineOf = function (fid, shortName, lord) {
+  const line = SK.FALL_LINES[fid]
+    || SK.FALL_LINES[SK.FALL_LINE_ALIAS[String(shortName || '').replace(/군$/, '')]]
+    || SK.FALL_LINES[SK.FALL_LINE_ALIAS[lord]];
+  if (line) return line;
+  const nm = String(shortName || '').replace(/군$/, '') || '적군';
+  return `${nm}의 꿈이 여기서 멈추다니… 다음엔 꼭 다시 일어난다!! 😭`;
+};
+
 /* v5.20 — 군주·왕은 재야 인재로 등용되지 않는다.
    조선 완산 주점에 고구려 왕 광개토대왕·금관가야 김수로가 '은거 인재'로 앉는 것을 막는다.
    (이미 다른 세력을 이끄는 사람을 신하로 데려오면 판도가 우스워진다) */
@@ -373,7 +447,8 @@ SK.lordNameSet = function (st) {
     if (k === 'neutral') return;
     const f = s.factions[k];
     const n = f && f.lord ? SK.normName(f.lord) : '';
-    if (n) out.add(n);
+    /* v5.78 — 사라진 세력의 옛 군주는 더 이상 '군주'로 막지 않는다 */
+    if (n && !SK.isExLord(n)) out.add(n);
   });
   return out;
 };
@@ -387,6 +462,7 @@ SK.isRoyalName = function (name) {
 };
 SK.isLordOnly = function (g, lordSet) {
   if (!g) return true;
+  if (SK.isExLord(g.name)) return false;   // v5.78 — 멸망한 세력의 옛 군주는 재야가 될 수 있다
   if (g.job === '군주') return true;
   if (lordSet && lordSet.has(g.name)) return true;
   /* 왕실 인물 — 이름이 왕·대왕·여왕·이사금·태자로 끝나면 재야에 두지 않는다 */

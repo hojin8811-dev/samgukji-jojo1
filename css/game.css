@@ -6506,3 +6506,50 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
   border: 1px solid #b4553f; background: rgba(180, 85, 63, 0.12); color: #7e2c1c;
   font-size: 8.5px; font-weight: 900; line-height: 1;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   v5.78 — 관직 일괄 서임 버튼 · 세력 멸망 코믹 속보 배너
+   ══════════════════════════════════════════════════════════════ */
+.ap-batch {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%;
+  margin: 0 0 8px; padding: 9px 10px; border-radius: 10px; text-align: center;
+  border: 1.5px solid #6d4c14;
+  background: linear-gradient(180deg, #ffe08a, #f3c33f 62%, #dfa41f);
+  box-shadow: 0 2px 0 #7a5410, 0 4px 10px rgba(60, 40, 8, 0.22);
+  color: #2c1a04; touch-action: manipulation;
+}
+.ap-batch b { font-family: var(--serif); font-size: 13.5px; letter-spacing: -0.02em; }
+.ap-batch span { font-size: 9.5px; font-weight: 700; color: #6b4a12; letter-spacing: -0.03em; line-height: 1.4; }
+.ap-batch:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a5410; filter: brightness(0.97); }
+
+/* 세력 멸망 속보 — 모달 본문 안의 코믹 카드 */
+.fb-card { display: flex; flex-direction: column; gap: 9px; padding: 2px; }
+.fb-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 7px; border-bottom: 1.5px dashed rgba(120, 90, 30, 0.35); }
+.fb-breaking { display: inline-flex; align-items: center; gap: 4px; background: #b3241f; color: #fff6e2; font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 999px; border: 1.5px solid #5e0f0c; }
+.fb-when { font-size: 9.5px; font-weight: 800; color: #8a7448; }
+.fb-title { display: flex; align-items: center; gap: 8px; }
+.fb-flag { min-width: 34px; height: 34px; padding: 0 7px; border-radius: 8px; border: 2px solid #2c2412; display: inline-flex; align-items: center; justify-content: center; font-family: var(--serif); font-size: 15px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); flex: 0 0 auto; }
+.fb-name { flex: 1 1 auto; min-width: 0; font-family: var(--serif); font-size: 19px; font-weight: 900; color: #2c2412; letter-spacing: -0.03em; line-height: 1.15; }
+.fb-stamp { flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center; border: 3px solid #b3241f; border-radius: 9px; color: #b3241f; background: rgba(179, 36, 31, 0.07); font-family: var(--serif); font-size: 22px; font-weight: 900; transform: rotate(11deg); box-shadow: inset 0 0 0 1.5px rgba(179, 36, 31, 0.3); }
+.fb-stage { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; border: 1.5px solid #2c2412; background: radial-gradient(circle at 28% 22%, #fff8e8 0%, #f6dcae 100%); }
+.fb-face { position: relative; flex: 0 0 auto; width: 74px; height: 74px; border-radius: 12px; overflow: hidden; border: 2px solid #2c2412; background: #fdf0d2; display: grid; place-items: center; }
+.fb-face-img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 16%; filter: contrast(1.06) saturate(0.88); }
+.fb-face-fallback { font-family: var(--serif); font-size: 26px; font-weight: 900; color: #3a2c10; }
+.fb-sweat { position: absolute; top: 2px; right: 3px; font-size: 15px; line-height: 1; animation: fbSweat 1.1s ease-in-out infinite; }
+.fb-tear { position: absolute; bottom: 1px; font-size: 12px; line-height: 1; animation: fbTear 1.6s ease-in-out infinite; }
+.fb-tear.l { left: 5px; }
+.fb-tear.r { right: 5px; animation-delay: 0.45s; }
+@keyframes fbSweat { 0%, 100% { transform: translateY(0) scale(1); opacity: 0.95; } 50% { transform: translateY(4px) scale(1.08); opacity: 0.7; } }
+@keyframes fbTear { 0%, 100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(3px); opacity: 0.55; } }
+.fb-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fb-role { align-self: flex-start; font-style: normal; font-size: 9.5px; font-weight: 800; color: #8a3a12; background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(138, 58, 18, 0.32); border-radius: 6px; padding: 1px 5px; }
+.fb-meta b { font-family: var(--serif); font-size: 16px; color: #2c2412; }
+.fb-meta span { font-size: 10px; font-weight: 700; color: #6b5a36; }
+.fb-bubble { position: relative; padding: 10px 11px; border-radius: 12px; border: 2px solid #2c2412; background: #fffdf6; box-shadow: 0 2px 0 rgba(44, 36, 18, 0.14); }
+.fb-bubble::before { content: ""; position: absolute; top: -8px; left: 30px; width: 12px; height: 12px; background: #fffdf6; border-left: 2px solid #2c2412; border-top: 2px solid #2c2412; transform: rotate(45deg); }
+.fb-bubble p { margin: 0; font-size: 13px; font-weight: 800; line-height: 1.5; letter-spacing: -0.02em; color: #2c2412; word-break: keep-all; }
+.fb-prison-box { padding: 8px 10px; border-radius: 9px; border: 1.5px solid #d99a8a; background: #fdf0eb; font-size: 11px; font-weight: 800; line-height: 1.45; color: #7e2c1c; letter-spacing: -0.02em; }
+.fb-prison-box.quiet { border-color: #cdbf9e; background: #f6f1e4; color: #5a4a28; }
+.fb-prison-box b { color: inherit; }
+/* v5.78 — 제목을 카드 안에서만 쓰는 창(멸망 속보)은 빈 h3 자리를 남기지 않는다 */
+.modal h3:empty { display: none; }
