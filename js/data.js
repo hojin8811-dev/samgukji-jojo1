@@ -3145,12 +3145,47 @@ Object.keys(SK.ULTIMATES).forEach((k) => {
   const u = SK.ULTIMATES[k];
   if (u && !u.tier) { u.tier = 'S'; u.cutinTier = 'S'; }
 });
+/* v5.81 — 원래 S급 표에 있던 장수가 런타임 등급 재산정으로 A가 되면(하후돈 등),
+   그 필살기를 그대로 142%로 쓰게 두지 않는다. 이름·대사·그림은 남기고 수치만 A급 상한으로 낮춘다. */
+SK.tuneUltToA = function (spec) {
+  if (!spec || spec.tier === 'A' || !spec.e) return spec;
+  const e = Object.assign({}, spec.e);
+  const cap = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  if (e.k === 'hit' || e.k === 'combo' || e.k === 'arrow') {
+    e.m = Math.round(cap((e.m || 1.3) * 0.88, 1.20, 1.28) * 100) / 100;
+  } else if (e.k === 'aoe' || e.k === 'arrowAoe') {
+    e.m = Math.round(cap((e.m || 1.0) * 0.86, 0.82, 0.90) * 100) / 100;
+  } else if (e.k === 'magic' || e.k === 'rock') {
+    e.p = Math.round(cap((e.p || 1.2) * 0.80, 0.80, 0.90) * 100) / 100;
+  } else if (e.k === 'buff') {
+    if (e.atk != null) e.atk = cap(e.atk, -0.14, 0.14);
+    if (e.def != null) e.def = cap(e.def, -0.14, 0.14);
+    if (e.morale != null) e.morale = cap(e.morale, -12, 12);
+    if (e.turns) e.turns = Math.min(e.turns, 2);
+  } else if (e.k === 'debuff') {
+    if (e.atk != null) e.atk = cap(e.atk, -0.14, 0.14);
+    if (e.def != null) e.def = cap(e.def, -0.14, 0.14);
+    if (e.turns) e.turns = Math.min(e.turns, 2);
+  } else if (e.k === 'heal') {
+    e.p = Math.min(0.12, e.p || 0.14);
+    if (e.atk != null) e.atk = cap(e.atk, 0, 0.1);
+  }
+  if (e.ail && e.ch) e.ch = Math.min(0.4, e.ch);
+  return Object.assign({}, spec, { e, tier: 'A', cutinTier: 'A' });
+};
 SK.ensureAUltimates = function () {
   let n = 0;
   (SK.GENERALS || []).forEach((g) => {
     if (!g || !g.name) return;
     const aGrade = (g.tier === 'A' || g.origTier === 'A');
-    if (!aGrade || SK.ULTIMATES[g.name]) return;
+    if (!aGrade) return;
+    /* A급이 된 장수가 S급 필살기를 그대로 들고 있으면 A급 상한으로 낮춘다 */
+    if (g.tier === 'A' && SK.ULTIMATES[g.name] && SK.ULTIMATES[g.name].tier !== 'A') {
+      SK.ULTIMATES[g.name] = SK.tuneUltToA(SK.ULTIMATES[g.name]);
+      n += 1;
+      return;
+    }
+    if (SK.ULTIMATES[g.name]) return;
     const spec = SK.makeAUltimate(g);
     if (spec) { SK.ULTIMATES[g.name] = spec; n += 1; }
   });
