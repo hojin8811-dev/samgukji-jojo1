@@ -8691,6 +8691,7 @@
       const h = s.heroes.find((x) => x.uid === u.uid);
       if (!h) return;
       h.marchId = null;
+      h.actedThisMonth = true;   // v5.80 — 요격 출진으로 이번 달을 썼다
       if (inv.target) h.city = inv.target;
       h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? Math.max(0.35, u.hp / Math.max(1, u.maxHp)) : 0.2)));
       if (u.alive) SK.gainExp(h, 70, 16);
@@ -8764,6 +8765,7 @@
       const h = s.heroes.find((x) => x.uid === u.uid);
       if (!h) return;
       h.marchId = null;
+      h.actedThisMonth = true;   // v5.80 — 요격 출진으로 이번 달을 썼다
       if (inv.target) h.city = inv.target;
       h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2)));
     });
@@ -8814,7 +8816,7 @@
     dead.forEach((u) => {
       if (!u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) { h.marchId = null; h.hp = 1; }
+      if (h) { h.marchId = null; h.actedThisMonth = true; h.hp = 1; }   // v5.80 — 이번 달 행동 소진
     });
     survivors.forEach((u) => {
       if (!u.uid) return;
@@ -8831,6 +8833,38 @@
     SKBattle.refreshUI();
     const m2 = marchOf(B.intercept && B.intercept.marchId);
     const left = m2 ? m2.left : 0;
+    /* v5.80 — 맞공격 요격 승리: 적 침공은 꺾이고, 우리 행군은 그대로 이어진다 */
+    if (B.intercept && B.intercept.headOn) {
+      const ho = B.intercept.headOn;
+      const mid = B.intercept.marchId;
+      if (ho.homeId && SK.markInvasionRepelled) { try { SK.markInvasionRepelled(ho.homeId, s); } catch (e) { /* ignore */ } }
+      const cl = marchOf(mid);
+      const nextLeft = cl ? (cl.left || 0) : 0;
+      const homeName = ho.homeId && SK.CITY[ho.homeId] ? SK.CITY[ho.homeId].name : '우리 성';
+      const goalName = ho.cityId && SK.CITY[ho.cityId] ? SK.CITY[ho.cityId].name : '적 성';
+      SK.save();
+      if (SK.refreshHud) SK.refreshHud();
+      SK.modal({
+        kicker: '맞공격 요격 승리',
+        title: '길목을 지켰습니다',
+        body: `<div class="result-modal win"><div class="rm-seal">승</div>
+          <p class="rm-line">같은 길에서 마주친 적 침공군을 꺾었습니다. <b>${homeName}</b>을 노리던 침공은 무산되었습니다.</p>
+          ${battleReportHTML()}
+          <div class="rm-rewards">
+            <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
+            <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
+            <div><span>병력</span><b>${Math.round(survivors.reduce((a, u) => a + u.hp, 0)).toLocaleString('ko-KR')}</b></div>
+          </div>
+          <p class="rm-note">${nextLeft > 0 ? `행군을 이어갑니다 — <b>${nextLeft}개월 뒤 ${goalName}</b> 도착` : `이 달 그대로 <b>${goalName}</b> 공성전으로 이어집니다`} · 적 성은 침공군을 내보낸 만큼 수비병이 줄어 있습니다.</p></div>`,
+        actions: [{ label: nextLeft > 0 ? '행군 계속' : '성으로 밀어넣는다', primary: true, onClick: () => {
+          closeBattle();
+          if (SK.afterFieldBattle) setTimeout(() => SK.afterFieldBattle(mid, 'clash'), 320);
+          else SK.showMap();
+        } }],
+        dismissible: false,
+      });
+      return;
+    }
     /* v5.66 — 성하 야전 승리: 나온 적만큼 성안 수비병을 깎고, 같은 달 곧바로 공성전으로 */
     if (B.intercept && B.intercept.field) {
       const fld = B.intercept.field;
@@ -8896,6 +8930,25 @@
     return (st && st.owner === SK.playerFaction()) ? originId : null;
   }
 
+  /* v5.80 — 맞공격 길목 야전에서 지거나 물러나면, 적 침공군이 그대로 우리 성으로 밀고 들어온다 */
+  function restoreHeadOnInvasion() {
+    if (!B || !B.intercept || !B.intercept.headOn) return null;
+    const s = SK.state;
+    const inv = B.intercept.headOn.invasion ? Object.assign({}, B.intercept.headOn.invasion) : null;
+    const tgt = inv && s.cities[inv.target];
+    if (!inv || !tgt || tgt.owner !== SK.playerFaction() || !SK.pushInvasion) return null;
+    const foeLeft = Math.round(B.units.filter((u) => u.side === 'enemy' && u.alive).reduce((a, u) => a + Math.max(0, u.hp), 0));
+    inv.troops = Math.max(600, Math.min(Math.round(inv.troops || 0), foeLeft || Math.round((inv.troops || 0) * 0.6)));
+    inv.intercepted = false;
+    inv.survivingEnemies = B.units.filter((u) => u.side === 'enemy' && u.alive).map((u) => ({
+      name: u.name, cls: u.cls, lv: u.lv, hp: Math.round(u.hp), maxHp: Math.round(u.maxHp),
+      genId: u.genId != null ? u.genId : null, boss: !!u.boss, leader: !!u.leader,
+      portrait: u.portrait || null, tier: u.tier || null,
+    }));
+    SK.pushInvasion(s, inv);
+    return inv;
+  }
+
   function interceptDefeat() {
     B.over = true;
     clearBattleProgress();
@@ -8914,22 +8967,36 @@
     B.units.forEach((u) => {
       if (u.side !== 'ally' || !u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) { h.marchId = null; if (hid) h.city = hid; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2))); }
+      if (h) { h.marchId = null; h.actedThisMonth = true; if (hid) h.city = hid; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * (u.alive ? 0.5 : 0.2))); }
     });
     if (st) s.purseCity = hid;
     s.gold = Math.max(0, s.gold - 100);
     s.pendingMarch = null;
+    /* v5.80 — 맞공격 요격 패배: 행군은 무산되고, 적 침공군은 그대로 우리 성 앞으로 밀고 들어온다 */
+    const headOnPush = !!restoreHeadOnInvasion();
     SK.save();
     const homeName = hid && SK.CITY[hid] ? SK.CITY[hid].name : null;
     const fieldLost = !!(B.intercept && B.intercept.field);
+    const headOnLost = !!(B.intercept && B.intercept.headOn);
+    const invName = (B.intercept && B.intercept.headOn && B.intercept.headOn.homeId && SK.CITY[B.intercept.headOn.homeId])
+      ? SK.CITY[B.intercept.headOn.homeId].name : '우리 성';
     SK.modal({
-      kicker: fieldLost ? '성하 야전 패배' : '행군 실패',
+      kicker: headOnLost ? '맞공격 요격 패배' : (fieldLost ? '성하 야전 패배' : '행군 실패'),
       title: homeName ? '회군' : '유랑군',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
-        <p class="rm-line">${fieldLost ? '성 밖으로 나온 적에게 밀렸습니다.' : '요격대에 길이 막혔습니다.'} ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.josa(SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성', 'i')} 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
+        <p class="rm-line">${headOnLost ? '같은 길에서 마주친 적 침공군에게 밀렸습니다. 행군은 무산되고, 적이 그대로 성 앞으로 밀고 들어옵니다.' : (fieldLost ? '성 밖으로 나온 적에게 밀렸습니다.' : '요격대에 길이 막혔습니다.')} ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.josa(SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성', 'i')} 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
         ${battleReportHTML()}
-        <p class="rm-note">복귀 병력 ${Math.round(back).toLocaleString('ko-KR')}${cut ? ` (패전 피해 감소 +${Math.round(back - troopsLeft)})` : ''} · 금 -100</p></div>`,
-      actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
+        <p class="rm-note">복귀 병력 ${Math.round(back).toLocaleString('ko-KR')}${cut ? ` (패전 피해 감소 +${Math.round(back - troopsLeft)})` : ''} · 금 -100${headOnPush ? ` · <b>${invName}</b> 수성전으로 이어집니다` : ''}</p></div>`,
+      actions: [{ label: headOnPush ? '성을 지킨다' : '지도로', primary: headOnPush, onClick: () => {
+        closeBattle();
+        SK.showMap();
+        if (headOnPush) {
+          setTimeout(() => {
+            if (SK.promoteInvasionQueue) SK.promoteInvasionQueue(s);
+            if (s.pendingInvasion && SK.openPendingInvasion) SK.openPendingInvasion();
+          }, 520);
+        }
+      } }],
       dismissible: false,
     });
   }
@@ -8939,7 +9006,9 @@
     B.units.forEach((u) => {
       if (u.side !== 'ally' || !u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) h.marchId = null;
+      /* v5.80 — 전투로 이번 달을 썼으므로, 행군에서 풀려도 그 달에는 다시 출진할 수 없다
+         (달이 바뀔 때 advanceMonth가 false로 되돌린다) */
+      if (h) { h.marchId = null; h.actedThisMonth = true; }
     });
     const mid = B.marchId || (B.intercept && B.intercept.marchId);
     if (mid) s.marches = (s.marches || []).filter((m) => m.id !== mid);
@@ -9074,6 +9143,8 @@
           if (Math.random() < pRec) {
             const hero = makeHeroByGen(g, cityId);
             if (hero) { hero.loyal = 55; s.heroes.push(hero); s.fame += 4; }
+            /* v5.80 — 등용한 장수는 주점 재야 명부·옛 군주 명부에서도 지운다 (주점에 또 앉는 버그) */
+            if (SK.claimWildGen) SK.claimWildGen(g);
             line = `<b>${g.name}</b> — 등용 성공. 충성 55로 우리 장수가 되었습니다. [포상]으로 마음을 잡으십시오.`;
             SK.sfx.play('ui');
           } else {
@@ -9162,6 +9233,7 @@
       h.city = homeOk ? r.from : B.targetId;
       const bu = list.find((u) => u.uid === spec.uid);
       if (bu) {
+        h.actedThisMonth = true;   // v5.80 — 원군으로 이번 달을 썼다
         h.hp = Math.max(1, Math.round((Math.max(0, bu.hp) / bu.maxHp) * SK.maxHpOf(h.cls, h.lv)));
         if (bu.alive) SK.gainExp(h, 40);
       }
@@ -9483,6 +9555,7 @@
       if (u.side !== 'ally' || !u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
       if (!h) return;
+      h.actedThisMonth = true;   // v5.80 — 수성전으로 이번 달 행동을 썼다 (같은 달 재출진 방지)
       h.hp = Math.max(1, Math.round((u.hp / u.maxHp) * SK.maxHpOf(h.cls, h.lv)));
       if (u.alive) {
         const ups = SK.gainExp(h, 70);
@@ -9597,6 +9670,7 @@
     if (!B) return;
     /* v5.7 — 수성전에서 물러나면 성을 내주는 것과 같다 */
     if (B.defense) { defenseDefeat(); return; }
+    let headOnBack = false;
     if (B.intercept || B.marchId) {
       /* 행군 중 후퇴 — 남은 병력은 본성으로, 행군은 취소된다 */
       const s = SK.state;
@@ -9607,8 +9681,10 @@
       B.units.forEach((u) => {
         if (u.side !== 'ally' || !u.uid) return;
         const h = s.heroes.find((x) => x.uid === u.uid);
-        if (h) { h.marchId = null; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.6)); }
+        if (h) { h.marchId = null; h.actedThisMonth = true; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.6)); }
       });
+      /* v5.80 — 맞공격 야전에서 물러나면 적 침공은 그대로 우리 성으로 온다 */
+      headOnBack = !!restoreHeadOnInvasion();
       clearMarchFlags();
       SK.save();
     }
@@ -9616,7 +9692,13 @@
     clearBattleProgress();
     closeBattle();
     SK.showMap();
-    SK.toast('전투에서 물러났습니다.');
+    SK.toast(headOnBack ? '전투에서 물러났습니다 — 적이 성으로 밀고 들어옵니다.' : '전투에서 물러났습니다.');
+    if (headOnBack) {
+      setTimeout(() => {
+        if (SK.promoteInvasionQueue) SK.promoteInvasionQueue(SK.state);
+        if (SK.state.pendingInvasion && SK.openPendingInvasion) SK.openPendingInvasion();
+      }, 520);
+    }
   }
 
   /* v5.27 — 전투 결과가 확정되면 복귀용 표식을 지운다 (앱을 닫았다 열어도 병력이 겹쳐 돌아오지 않게) */

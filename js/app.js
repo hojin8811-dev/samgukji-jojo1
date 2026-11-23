@@ -8290,6 +8290,37 @@
   /* v5.0.3 — 성 하나에 장수 10명 제한을 없앴다. 삼국지처럼 한 성에 인재를 모을 수 있다 */
   const TALENT_LIMIT = 99;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.80 — 이미 우리 장수이거나 억류 포로인 인물인가
+     (포로 등용·설득으로 아군이 된 장수가 주점에 그대로 앉아 있던 버그)
+     ══════════════════════════════════════════════════════════════ */
+  function isAllyOrPrisoner(st, g) {
+    if (!g) return true;
+    const s = st || SK.state;
+    if (!s) return false;
+    const nm = SK.normName ? SK.normName(g.name) : g.name;
+    const mine = (s.heroes || []).some((h) => h && (h.genId === g.id || (SK.normName ? SK.normName(h.name) : h.name) === nm));
+    if (mine) return true;
+    const jailed = (s.prisoners || []).some((r) => r && (r.gid === g.id || (SK.normName ? SK.normName(r.name) : r.name) === nm));
+    if (jailed) return true;
+    const held = (s.captured || []).some((c) => c && (SK.normName ? SK.normName(c.name) : c.name) === nm);
+    return !!held;
+  }
+  SK.isAllyOrPrisoner = isAllyOrPrisoner;
+
+  /* v5.80 — 우리 장수가 된 인물은 모든 성의 재야 명부·옛 군주 명부에서 지운다 */
+  SK.claimWildGen = function (g) {
+    const s = SK.state;
+    if (!s || !g) return;
+    const nm = SK.normName ? SK.normName(g.name) : g.name;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities && s.cities[c.id];
+      if (!cs || !cs.talents || !cs.talents.length) return;
+      cs.talents = cs.talents.filter((x) => x !== g.id && x !== nm);
+    });
+    if (Array.isArray(s.exLords) && s.exLords.length) s.exLords = s.exLords.filter((n) => n !== nm);
+  };
+
   /* 이 성 + 길로 이어진 성의 재야 인재 (주점 진열) — 같은 지역 인물만 보인다 */
   function tavernPool(cityId) {
     const out = [];
@@ -8299,6 +8330,7 @@
     const lordSet = SK.lordNameSet(st);
     const take = (g, fromId, here) => {
       if (!g || seen.has(g.id)) return;
+      if (isAllyOrPrisoner(st, g)) return;   // v5.80 — 아군·포로는 주점에 앉지 않는다
       /* v5.61 — 이 성 주점에 이미 앉아 있는 장수(here)는 계열 검사를 건너뛰고 그대로 보여 준다.
          runWanderers가 같은 계열이 고갈됐을 때 다른 계열(중국↔한국) 재야를 cs.talents에 넣기 때문에,
          여기서 genPoolGroup으로 걸러 버리면 주점에 사람이 앉아 있는데도 화면이 비어 보였다. */
@@ -8531,6 +8563,7 @@
         hero.actedThisMonth = true;          // 등용 직후 자동 턴 종료
         s.heroes.push(hero);
         removeLocalTalent(fromId, g.id);
+        SK.claimWildGen(g);                  // v5.80 — 다른 성 주점에 남은 같은 인물도 지운다
         if (actor) { consumeDispatch(cityId, actor); SK.gainExp(actor, 18); }
         cityActorUid = null;
         SK.save();
@@ -8585,6 +8618,7 @@
           st.heroes.push(hero);
           const src = st.cities[p.cityId] || {};
           src.talents = (src.talents || []).filter((id) => id !== p.g.id);
+          if (SK.claimWildGen) SK.claimWildGen(p.g);
           SK.gainExp(g, 14, 6);
           out.push({ city: c.name, kind: 'recruit',
             text: `주점 소문 — ${josa(p.g.name, 'i')} 합류했습니다 · 금 −${fmt(half)} (반값)` });
@@ -9282,8 +9316,9 @@
         const p = clamp(0.35 + (cha - 60) * 0.006 - (rec.loyal || 70) * 0.003, 0.05, 0.8);
         if (Math.random() < p) {
           const hero = SK.makeHero(g.name, rec.city, joinLevelOf(g));
-          if (hero) { hero.loyal = 55; s.heroes.push(hero); s.fame += 2; }
+          if (hero) { hero.loyal = 55; hero.actedThisMonth = true; s.heroes.push(hero); s.fame += 2; }
           s.prisoners = s.prisoners.filter((x) => x !== rec);
+          if (SK.claimWildGen) SK.claimWildGen(g);   // v5.80 — 등용된 포로는 주점 재야 명부에서도 지운다
           SK.sfx.play('ui'); SK.toast(`${g.name} — 설득 성공! 충성 55로 합류했습니다.`);
         } else {
           rec.loyal = clamp((rec.loyal || 70) + 2, 0, 100);
@@ -10499,7 +10534,8 @@
     const baseTroops = (h) => clamp(SK.DEPLOY_BASE, MIN_T, capOf(h));
     const pick = {};          // uid → 병력
     let budget = avail;
-    pool.slice(0, 4).forEach((h) => {
+    /* v5.80 — 이번 달에 이미 행동한 장수는 기본 선택에서 뺀다 */
+    pool.filter((h) => !h.actedThisMonth).slice(0, 4).forEach((h) => {
       const c = baseTroops(h);
       if (c <= budget) { pick[h.uid] = c; budget -= c; }
     });
@@ -10555,6 +10591,15 @@
         /* v5.36 — 지도에서 넘어왔으므로 '돌아가기'는 출발 성 화면으로 (예전에는 지도에 남았다) */
         { label: '돌아가기', onClick: () => { if (s.cities[origin] && s.cities[origin].owner === PF()) SK.openCity(origin); else SK.showMap(); } },
         { label: '출진!', primary: true, onClick: () => {
+          /* v5.80 — 이번 달에 이미 행동한 장수가 섞여 있으면 출진을 막는다 */
+          const stuck = Object.keys(pick).map((uid) => heroOf(uid)).filter((h) => h && h.actedThisMonth);
+          if (stuck.length) {
+            stuck.forEach((h) => { delete pick[h.uid]; });
+            refresh();
+            SK.sfx.play('deny');
+            SK.toast(`${stuck.map((h) => h.name).join(', ')} — 이번 달 행동을 이미 마쳤습니다. 목록에서 빼 두었습니다.`);
+            return;
+          }
           if (!unitCount()) { SK.toast('부대를 한 개 이상 편성하세요.'); return; }
           if (totalCost() > avail) { SK.toast(`보유 병력이 ${fmt(totalCost() - avail)} 부족합니다. 부대를 줄이세요.`); return; }
           /* v5.11 — 출진 보급은 그 성 창고에서 (병력 1,000당 미 5) */
@@ -10600,6 +10645,14 @@
       m.el.querySelector('#deploy-count').textContent = unitCount();
       m.el.querySelectorAll('.hero-pick').forEach((el) => {
         const uid = el.dataset.uid;
+        if (el.dataset.locked === '1') {   // v5.80 — 이번 달 행동 완료 장수는 선택 대상이 아니다
+          el.classList.remove('on');
+          el.classList.add('off');
+          const chk0 = el.querySelector('.hp-check');
+          if (chk0) chk0.textContent = '–';
+          el.querySelectorAll('.hp-step button').forEach((b) => { b.disabled = true; });
+          return;
+        }
         const on = pick[uid] != null;
         el.classList.toggle('on', on);
         el.classList.toggle('off', !on);
@@ -10621,8 +10674,13 @@
 
     const toggleHero = (uid) => {
       if (pick[uid] != null) { delete pick[uid]; refresh(); return; }
-      if (unitCount() >= MAX_UNITS) { SK.toast(`부대는 최대 ${MAX_UNITS}개입니다.`); return; }
       const h = heroOf(uid);
+      if (h && h.actedThisMonth) {   // v5.80 — 이번 달에 이미 행동한 장수는 출진 불가
+        SK.sfx.play('deny');
+        SK.toast(`${h.name} — 이번 달 행동을 이미 마쳤습니다. 다음 달에 출진할 수 있습니다.`);
+        return;
+      }
+      if (unitCount() >= MAX_UNITS) { SK.toast(`부대는 최대 ${MAX_UNITS}개입니다.`); return; }
       const want = Math.min(baseTroops(h), Math.max(MIN_T, left()));
       if (want < MIN_T) { SK.toast('병력이 부족합니다. 다른 부대를 줄이세요.'); return; }
       pick[uid] = want;
@@ -10650,6 +10708,7 @@
     const openTroopInput = (uid) => {
       const h = heroOf(uid);
       if (!h) return;
+      if (h.actedThisMonth) { SK.sfx.play('deny'); SK.toast(`${h.name} — 이번 달 행동을 이미 마쳤습니다.`); return; }
       const on = pick[uid] != null;
       const own = on ? pick[uid] : 0;
       const cur = on ? pick[uid] : baseTroops(h);
@@ -10832,7 +10891,7 @@
     (m.units || []).forEach((u) => {
       if (!u.uid) return;
       const h = s.heroes.find((x) => x.uid === u.uid);
-      if (h) { h.marchId = null; if (homeId) h.city = homeId; }
+      if (h) { h.marchId = null; h.actedThisMonth = true; if (homeId) h.city = homeId; }   // v5.80 — 회군으로 이번 달 소진
     });
     s.marches = (s.marches || []).filter((x) => x.id !== id);
     s.pendingMarch = null;
@@ -11222,6 +11281,46 @@
   SK.interceptTypeFor = interceptTypeFor;
 
   /* ══════════════════════════════════════════════════════════════
+     v5.80 — 맞공격 충돌 (사용자 제보)
+     · 아군이 A→B로 출진한 그 달에 적도 B→A로 침공해 오면,
+       다음 달 시작에 성 공성전·수성전이 따로 벌어지지 않고
+       같은 길목에서 야전(요격전)으로 부딪힌다.
+     · 이기면 적 침공은 꺾이고 아군은 원래 목표(B) 공성전으로 이어진다.
+     · 지면 행군이 무산되고 적이 A 성 앞까지 밀고 들어온다(수성전).
+     ══════════════════════════════════════════════════════════════ */
+  function headOnInvasionOf(s, m) {
+    if (!s || !m || m.clash || m.clashSeen) return null;
+    const hit = (inv) => !!(inv && inv.from === m.target && inv.target === m.origin);
+    if (hit(s.pendingInvasion)) return { inv: s.pendingInvasion, where: 'pending' };
+    const i = (s.invasionQueue || []).findIndex(hit);
+    if (i >= 0) return { inv: s.invasionQueue[i], where: 'queue' };
+    return null;
+  }
+  SK.headOnInvasionOf = headOnInvasionOf;
+  /* 충돌한 침공은 이번 달 침공 대기열에서 빼 둔다 (성 공방전으로 또 열리지 않게) */
+  function takeHeadOnInvasion(s, found) {
+    if (!found || !found.inv) return null;
+    if (found.where === 'pending') { s.pendingInvasion = null; return found.inv; }
+    s.invasionQueue = (s.invasionQueue || []).filter((x) => x !== found.inv);
+    return found.inv;
+  }
+  SK.takeHeadOnInvasion = takeHeadOnInvasion;
+  /* 길목 야전의 적 편성 — 침공군이 데려온 병력·장수를 그대로 세운다 */
+  function headOnInterceptOf(s, m, inv) {
+    const fromName = SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적 성';
+    return {
+      marchId: m.id,
+      name: `${fromName} 길목`,
+      troops: Math.max(800, Math.round(inv.troops || 0)),
+      faction: inv.faction,
+      from: inv.from,
+      genIds: (inv.genIds || []).slice(0, 6),
+      headOn: { cityId: m.target, homeId: m.origin, invasion: inv },
+    };
+  }
+  SK.headOnInterceptOf = headOnInterceptOf;
+
+  /* ══════════════════════════════════════════════════════════════
      v5.28 — 같은 달에 여러 부대가 도착·요격을 맞아도 한 사건씩 차례로 처리한다.
      · 도착·요격은 marchQueue 에 쌓아 두고, 앞 사건(전투 결산)이 끝나면 다음 사건을 연다
      · 예전에는 pendingMarch 하나뿐이라 두 번째 부대가 다음 달로 밀렸다
@@ -11338,6 +11437,15 @@
       if (queued.has(m.id)) continue;      // v5.28 — 이미 도착 대기 중인 부대는 더 세지 않는다
       if (m.left > 0) m.left -= 1;
       if (m.left <= 0) {
+        /* v5.80 — 맞공격: 이번 달 도착하는데 적도 같은 길로 우리 성에 온다 → 길목 야전 */
+        const clashFound = headOnInvasionOf(s, m);
+        if (clashFound) {
+          const clashInv = takeHeadOnInvasion(s, clashFound);
+          m.clash = { from: clashInv.from, troops: Math.round(clashInv.troops || 0), faction: clashInv.faction, inv: clashInv };
+          m.interceptType = interceptTypeFor(m);
+          marchQueuePush(s, 'clash', m.id);
+          continue;
+        }
         /* v5.66 — 1개월 행군 도착: 성하 야전 판돈을 한 번 저울질한다 */
         if ((m.total || 2) <= 1 && !m.fieldSeen && !m.fieldDone) {
           const ts0 = s.cities[m.target];
@@ -11480,7 +11588,7 @@
       (m.units || []).forEach((u) => {
         if (!u.uid) return;
         const h = s.heroes.find((x) => x.uid === u.uid);
-        if (h) { h.marchId = null; h.city = m.target; }
+        if (h) { h.marchId = null; h.actedThisMonth = true; h.city = m.target; }   // v5.80
       });
       s.marches = (s.marches || []).filter((x) => x.id !== m.id);
       marchQueueDrop(s, m.id);
@@ -11499,6 +11607,37 @@
       : '';
     if (s.pendingMarch.kind === 'camp') {
       openMarchCamp(m, troops, originNote);
+      return;
+    }
+    if (s.pendingMarch.kind === 'clash') {
+      /* v5.80 ─ 길목 맞부딪힘 — 우리 공격대와 적 침공군이 같은 길에서 만났다 */
+      let htype = m.interceptType || 'plain';
+      if (htype === 'ambush') htype = 'forest';
+      const hdef = SK.BATTLE_TYPES[htype] || SK.BATTLE_TYPES.plain;
+      const cl = m.clash || {};
+      const foe = Math.max(800, Math.round(cl.troops || 0));
+      const foeName = SK.factionName(cl.faction);
+      const foeFrom = SK.CITY[cl.from] ? SK.CITY[cl.from].name : '적 성';
+      SK.modal({
+        kicker: `행군 ${Math.max(1, m.total || 1)}개월 · ${SK.CITY[m.origin].name} → ${tc.name}${waitTag}`,
+        title: `길목 맞부딪힘 — ${hdef.name}`,
+        body: `<div class="march-event">
+            <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
+            <p>우리가 ${josa(tc.name, 'euro')} 가는 길목에서, <b>${josa(foeName, 'i')}</b> ${josa(foeFrom, 'euro')} <b>${josa(SK.CITY[m.origin].name, 'eul')}</b> 치러 오고 있습니다. 같은 길에서 두 군세가 마주쳤습니다. <b>${hdef.desc}</b></p>
+            <div class="me-nums"><span>우리 병력 <b>${fmt(troops)}</b></span><span>적 침공군 <b>${fmt(foe)}</b></span><span>내 성 수비병 <b>${fmt((originSt ? originSt.troops : 0) || 0)}</b></span></div>
+            <p class="me-note">${hdef.skill || ''} 이기면 적 침공을 꺾고 그대로 <b>${tc.name}</b> 공성전으로 이어집니다. 지면 행군이 무산되고 적이 <b>${SK.CITY[m.origin].name}</b> 성 앞까지 밀고 들어옵니다(수성전).</p>
+            ${originNote}
+          </div>`,
+        actions: [{ label: '길목에서 맞아친다', primary: true, onClick: () => {
+          s.pendingMarch = null;
+          marchQueueDrop(s, m.id);
+          SK.save();
+          const inv0 = cl.inv || { from: m.target, target: m.origin, faction: (ts ? ts.owner : null), troops: foe };
+          SK.startBattle({ origin: m.origin, targetId: m.target, type: htype, units: m.units,
+            intercept: headOnInterceptOf(s, m, inv0) });
+        } }],
+        dismissible: false,
+      });
       return;
     }
     if (s.pendingMarch.kind === 'field') {
@@ -11564,9 +11703,11 @@
       const campNote = m.camp === 'rest'
         ? `<p class="me-support">야영 · 보급 — 군량을 나눠 쉬었습니다. 아군 사기 +12로 전장에 들어갑니다</p>`
         : (m.surprise ? `<p class="me-support">강행군 기습 — 적이 미처 진을 치지 못했습니다 (적 사기 −8)</p>` : '');
-      const fieldNote = m.fieldSeen
-        ? `<p class="me-support">성하 야전에서 이겼습니다 — 나온 적은 이미 꺾였고, 남은 수비병으로 성을 지킵니다</p>`
-        : '';
+      const fieldNote = m.clashSeen
+        ? `<p class="me-support">길목 맞공격에서 이겼습니다 — 적 침공은 꺾였고, 남은 수비병으로 성을 칩니다</p>`
+        : (m.fieldSeen
+          ? `<p class="me-support">성하 야전에서 이겼습니다 — 나온 적은 이미 꺾였고, 남은 수비병으로 성을 지킵니다</p>`
+          : '');
       SK.modal({
         kicker: `행군 ${m.total}/${m.total}개월${m.surprise ? ' · 강행군 한 달 당김' : ''}${waitTag}`,
         title: `${tc.name} 성 앞 도착`,
@@ -11600,10 +11741,26 @@
      (battle.js `interceptVictory` 가 적 수비병을 깎은 뒤 이 함수를 부른다)
      행군대는 남아 있으니 도착 사건(arrive)을 다시 큐에 올려 도착 창을 연다.
      ══════════════════════════════════════════════════════════════ */
-  SK.afterFieldBattle = function (marchId) {
+  SK.afterFieldBattle = function (marchId, kind) {
     const s = SK.state;
     const m = marchId ? (s && (s.marches || []).find((x) => x.id === marchId)) : null;
     if (!s || !m) { if (SK.showMap) SK.showMap(); return false; }
+    if (kind === 'clash') {
+      /* v5.80 — 길목 요격 승리: 아직 가는 길이면 행군을 이어가고, 도착한 달이면 바로 공성전 */
+      m.clashSeen = true;
+      m.fieldSeen = true;
+      m.fieldDone = true;
+      s.pendingMarch = null;
+      if ((m.left || 0) <= 0) marchQueuePush(s, 'arrive', m.id);
+      SK.save();
+      if (SK.showMap) SK.showMap();
+      if ((m.left || 0) > 0) return true;
+      setTimeout(() => {
+        if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
+        if (s.pendingMarch && SK.openPendingMarch) SK.openPendingMarch();
+      }, 380);
+      return true;
+    }
     m.left = 0;
     m.fieldSeen = true;
     m.fieldDone = true;
@@ -11630,17 +11787,20 @@
 
   function heroPickRow(h, on, cost) {
     /* v5.7 — 소속 성·현재 상태 배지 (업무 중인 장수를 실수로 빼지 않게)
-       v5.75 — 선택 상태를 한눈에: 고른 장수만 ✓·병력칸 활성, 나머지는 ○·흐림 */
+       v5.75 — 선택 상태를 한눈에: 고른 장수만 ✓·병력칸 활성, 나머지는 ○·흐림
+       v5.80 — 이번 달에 이미 행동한 장수(내정·주점·출전)는 출진 목록에서 고를 수 없다 */
     const duty = dutyOf(h, h.city);
     const loy = loyalOf(h);
-    const busy = duty !== '대기' && duty !== '이번 달 완료';
-    return `<div class="hero-pick ${on ? 'on' : 'off'} ${busy ? 'busy' : ''}" data-uid="${h.uid}" data-on="${on ? '1' : '0'}" aria-pressed="${on ? 'true' : 'false'}">
+    const locked = !!h.actedThisMonth;
+    const busy = !locked && duty !== '대기' && duty !== '이번 달 완료';
+    const dutyTxt = locked ? '이번 달 행동 완료' : duty;
+    return `<div class="hero-pick ${locked ? 'locked' : (on ? 'on' : 'off')} ${busy ? 'busy' : ''}" data-uid="${h.uid}" data-on="0" data-locked="${locked ? '1' : '0'}" aria-pressed="false"${locked ? ' aria-disabled="true"' : ''}>
       <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
       <div class="hp-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span>
-        <em class="hp-badges"><i class="hp-city">${(CITY[h.city] || {}).name || '-'}</i><i class="hp-duty ${duty === '대기' ? 'hp-duty-wait' : 'hp-duty-busy'}">${duty}</i>${loy < 40 ? `<i class="hp-loyal-low">충성 ${loy}</i>` : ''}</em></div>
+        <em class="hp-badges"><i class="hp-city">${(CITY[h.city] || {}).name || '-'}</i><i class="hp-duty ${locked || duty !== '대기' ? 'hp-duty-busy' : 'hp-duty-wait'}">${dutyTxt}</i>${loy < 40 ? `<i class="hp-loyal-low">충성 ${loy}</i>` : ''}</em></div>
       <div class="hp-stats"><span>무 ${h.wu}</span><span>지 ${h.ji}</span><span>통 ${h.tong}</span></div>
-      <div class="hp-step"><button data-d="-1" aria-label="줄이기" ${on ? '' : 'disabled'}>−</button><button class="hp-count" type="button" title="직접 입력" ${on ? '' : 'disabled'}>${fmt(cost)}</button><button data-d="1" aria-label="늘리기" ${on ? '' : 'disabled'}>＋</button></div>
-      <span class="hp-check" aria-hidden="true">${on ? '✓' : '○'}</span>
+      <div class="hp-step"><button data-d="-1" aria-label="줄이기" ${on && !locked ? '' : 'disabled'}>−</button><button class="hp-count" type="button" title="직접 입력" ${on && !locked ? '' : 'disabled'}>${fmt(cost)}</button><button data-d="1" aria-label="늘리기" ${on && !locked ? '' : 'disabled'}>＋</button></div>
+      <span class="hp-check" aria-hidden="true">${locked ? '–' : (on ? '✓' : '○')}</span>
     </div>`;
   }
 
@@ -12747,6 +12907,21 @@
     /* v5.33 — 이미 요격 출진에서 진 침공이면 선택 창을 건너뛰고 수성전 배치로 바로 간다 */
     if (inv.intercepted) {
       setTimeout(() => { if (SK.openDefenseDeploy) SK.openDefenseDeploy(inv); }, 140);
+      return;
+    }
+    /* v5.80 — 맞공격: 우리 군이 이미 그 적 성으로 가고 있으면, 성 공방전 대신 길목 야전 */
+    const clashMarch = (s.marches || []).find((mm) => mm && mm.origin === inv.target && mm.target === inv.from
+      && (mm.units || []).length && !mm.clash);
+    if (clashMarch) {
+      clashMarch.clash = { from: inv.from, troops: Math.round(inv.troops || 0), faction: inv.faction, inv };
+      clashMarch.interceptType = SK.interceptTypeFor ? SK.interceptTypeFor(clashMarch) : 'plain';
+      s.pendingInvasion = null;
+      marchQueuePush(s, 'clash', clashMarch.id);
+      SK.save();
+      setTimeout(() => {
+        if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
+        if (s.pendingMarch && SK.openPendingMarch) SK.openPendingMarch();
+      }, 260);
       return;
     }
     /* v5.29 — 같은 달에 더 들어오는 침공이 있으면 미리 알린다 */

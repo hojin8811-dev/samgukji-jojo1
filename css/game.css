@@ -6389,6 +6389,16 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .hero-pick .hp-step button:disabled, .hero-pick .hp-count:disabled { cursor: not-allowed; }
 .hero-pick.on .hp-check { font-weight: 900; }
 
+/* v5.80 — 이번 달 행동을 마친 장수: 목록에 남지만 아예 고를 수 없다 */
+.hero-pick.locked { opacity: 0.5; border-color: #b3a894; border-style: dashed; cursor: not-allowed;
+  background: repeating-linear-gradient(135deg, rgba(214, 205, 189, 0.55) 0 6px, rgba(230, 222, 208, 0.55) 6px 12px); }
+.hero-pick.locked .hp-main b { color: #6b6455; }
+.hero-pick.locked .hp-main span { color: #8a8377; }
+.hero-pick.locked img { filter: grayscale(0.85); }
+.hero-pick.locked .hp-duty { background: #b9b1a1; color: #403c35; }
+.hero-pick.locked .hp-check { color: #8b8475; border-style: dotted; border-color: #a89f8d; }
+.hero-pick.locked .hp-step button, .hero-pick.locked .hp-count { opacity: 0.35; }
+
 /* ④ 2칸 출진 경유지 */
 .mn-via { color: #8a5a12; font-weight: 800; margin-left: 2px; }
 .march-note .mn-via::before { content: ' · '; color: #a89060; }
