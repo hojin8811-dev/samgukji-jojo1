@@ -702,7 +702,7 @@
       cities, heroes: [], citiesOwned: 0, log: [], lastCity: 'xuchang', treasures: [],
       playerFaction: factionId || 'caocao', factions: {}, scenario: sc ? Number(sc.id) : null,
       eraYear: sc ? Number(sc.year) : 200, timelineSeen: [], talentLuck: 0, talentsVersion: 3,
-      rp: 0, techs: [], truce: {}, pacts: {}, genLoyal: {}, deadGens: {}, deadNames: {},
+      rp: 0, techs: [], truce: {}, pacts: {}, aiPacts: {}, genLoyal: {}, deadGens: {}, deadNames: {},
       marches: [], marchSeq: 0, pendingMarch: null, recruitFail: {}, autoBestDuty: false,
       capitalAuto: false,      // v5.66 — 수도(본성) 자동 내정 (기본 꺼짐)
       prisoners: [], captured: [],   // v5.11 — 억류 포로 · 적에게 사로잡힌 아군
@@ -802,8 +802,36 @@
     delete st.gold; delete st.food;
     st.purseCity = capital;
     installPurse(st);
+    /* v5.72 — 이번 판의 세력 색을 지금 팔레트(data.js SK.FACTION_COLOR)로 맞춘다 */
+    applyFactionColors(st);
     return st;
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.72 — 세력 색 다시 칠하기
+     · 색의 정본은 data.js 한 곳(SK.FACTION_COLOR)이다. 판(s.factions)에 색이 굳어
+       저장돼 있어도, 새 판을 열거나 저장을 불러올 때 여기서 한 번 맞춘다.
+     · 팔레트에 없는 세력(앞으로 추가될 판)은 예비색을 돌려 쓴다.
+     · 지도는 map.js territorySignature 가 세력 색까지 서명에 넣어 두어서,
+       색이 바뀌면 SKMap.refresh() 때 영토를 다시 칠한다.
+     ══════════════════════════════════════════════════════════════ */
+  const FACTION_EXTRA_COLORS = ['#FF4FA3', '#2DD4BF', '#FACC15', '#60A5FA', '#FB7185', '#A3E635'];
+  function applyFactionColors(s) {
+    s = s || SK.state;
+    if (!s || !s.factions) return 0;
+    const table = SK.FACTION_COLOR || {};
+    let n = 0, extra = 0;
+    Object.keys(s.factions).forEach((k) => {
+      const f = s.factions[k];
+      if (!f || k === 'neutral') return;
+      const c = table[k] || table[f.id] || '';
+      const next = c || FACTION_EXTRA_COLORS[extra++ % FACTION_EXTRA_COLORS.length];
+      if (f.color !== next) { f.color = next; n += 1; }
+    });
+    if (n && window.SKMap && SKMap.refresh) { try { SKMap.refresh(); } catch (e) { /* 지도가 아직 없으면 넘어간다 */ } }
+    return n;
+  }
+  SK.applyFactionColors = applyFactionColors;
 
   /* 세력 하나가 거느릴 장수 수 — 큰 세력은 12~25명, 작은 군웅은 6~10명 */
   const MAJOR_FACTIONS = ['dongzhuo', 'yuanshao', 'caocao', 'liubei', 'sunjian', 'sunquan', 'yuanshu',
@@ -1600,6 +1628,9 @@
       }
       s.techs = s.techs || [];
       s.truce = s.truce || {};
+      /* v5.72 — AI끼리의 동맹·휴전 자리, 그리고 새 세력 색 팔레트 이관 */
+      s.aiPacts = s.aiPacts || {};
+      applyFactionColors(s);
       s.rp = s.rp || 0;
       s.marches = s.marches || [];
       s.recruitFail = s.recruitFail || {};
@@ -3687,7 +3718,7 @@
   }
   SK.genAura = genAura;
 
-  function showHeroInfo(uid) {
+  function showHeroInfo(uid, opts) {
     const g = SK.state.heroes.find((h) => h.uid === uid);
     if (!g) return;
     const C = SK.CLASSES[g.cls];
@@ -3740,7 +3771,7 @@
         </div>
       </div>`,
       actions: [
-        { label: '← 뒤로', onClick: () => setTimeout(() => openRoster('gen'), 40) },
+        ...(opts && opts.noBack ? [] : [{ label: '← 뒤로', onClick: () => setTimeout(() => openRoster('gen'), 40) }]),
         { label: '보물', onClick: () => openTreasures(g) },
         ...(SK.state.cities[g.city] && SK.state.cities[g.city].owner === PF()
           ? [{ label: '전출', onClick: () => openTransfer(g) }] : []),
@@ -6429,7 +6460,10 @@
         </span>
         <span class="fl-go">▾</span>
       </div>
-      <div class="fl-detail" hidden>${r.cities.map((c) => c.name).join(' · ')}<em>병력 ${fmt(r.troops)}</em></div>`;
+      <div class="fl-detail" hidden>
+        <span class="fl-cities">${r.cities.map((c) => c.name).join(' · ')}</span><em>병력 ${fmt(r.troops)}</em>
+        ${factionHeroChips(r)}
+      </div>`;
     };
     const body = `
       <p class="talent-note">세력을 가진 곳 <b>${rows.length}곳</b> 가운데 휴전·동맹 <b>${pactN}</b> · 교전 <b>${rows.length - pactN - (mine ? 1 : 0)}</b>. 막대는 세력이 가진 <b>${totalCities}성</b> 중 비중입니다. 줄을 누르면 가진 성이 펼쳐집니다.</p>
@@ -6449,8 +6483,100 @@
         SK.sfx.play('ui');
       };
     });
+    /* v5.72 — 소속 장수 이름을 누르면 그 장수의 상세 창이 세력일람 위로 뜬다 */
+    m.el.querySelectorAll('.fh-badge').forEach((b) => {
+      b.onclick = (ev) => {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        SK.sfx.play('ui');
+        SK.openFactionHero(b.dataset.fid, b.dataset.hero, b.dataset.city);
+      };
+    });
   }
   SK.openFactionList = openFactionList;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.72 — 세력일람 펼침 영역의 『소속 장수』
+     · 내 세력: 성에 있는 아군 장수(s.heroes, 초상·레벨·충성까지 있는 실제 장수)
+     · 다른 세력: 그 세력 성에 주둔한 적장(s.cities[].genIds → SK.GEN_BY_ID)
+     · 이름을 누르면 장수 보기 — 내 장수는 기존 상세창, 적장은 읽기 전용 상세창
+     ══════════════════════════════════════════════════════════════ */
+  const TIER_ORDER = { S: 0, A: 1, B: 2, C: 3 };
+  function factionHeroChips(r) {
+    const s = SK.state;
+    if (!s) return '';
+    const rows = [];
+    if (r.fid === PF()) {
+      (s.heroes || []).forEach((h) => {
+        if (h.captured) return;
+        const cs = s.cities[h.city];
+        if (!cs || cs.owner !== r.fid) return;
+        rows.push({ id: h.uid, city: h.city, name: h.name, lv: h.lv || 1, tier: h.tier || '' });
+      });
+    } else {
+      r.cities.forEach((c) => {
+        const cs = s.cities[c.id];
+        (cs.genIds || []).forEach((gid) => {
+          const g = SK.GEN_BY_ID[gid];
+          if (!g) return;
+          const lv = (cs.genLv && Number(cs.genLv[gid])) || SK.genLv(g);
+          rows.push({ id: gid, city: c.id, name: g.name, lv: lv, tier: g.tier || '' });
+        });
+      });
+    }
+    if (!rows.length) {
+      return `<div class="fh-wrap"><div class="fh-title">소속 장수</div><div class="fh-empty">거느린 장수가 없습니다</div></div>`;
+    }
+    rows.sort((a, b) => (TIER_ORDER[a.tier] ?? 4) - (TIER_ORDER[b.tier] ?? 4) || b.lv - a.lv || (a.name < b.name ? -1 : 1));
+    const chips = rows.map((h) => `<button type="button" class="fh-badge${h.tier ? ' t' + h.tier : ''}" data-fid="${r.fid}" data-hero="${h.id}" data-city="${h.city}" title="${h.name} 장수 보기가 열립니다">${h.name}<i>${h.lv}</i></button>`).join('');
+    return `<div class="fh-wrap"><div class="fh-title">소속 장수 <small>${rows.length}명</small><em>이름을 누르면 장수 보기</em></div>
+      <div class="fh-list">${chips}</div></div>`;
+  }
+  SK.factionHeroChips = factionHeroChips;
+
+  /* 다른 세력 장수 — 내 장수처럼 초상·등급·능력치·특기를 보여 주는 읽기 전용 창 */
+  function openFactionHero(fid, id, cityId) {
+    const s = SK.state;
+    if (!s) return;
+    if (fid === PF()) {
+      const own = (s.heroes || []).find((x) => x.uid === id);
+      if (own) { showHeroInfo(own.uid, { noBack: true }); return; }
+    }
+    const g = SK.GEN_BY_ID[id] || (s.heroes || []).find((x) => x.uid === id);
+    if (!g) { SK.toast('장수 정보를 찾을 수 없습니다.'); return; }
+    const f = SK.factionInfo(fid);
+    const cs = cityId ? s.cities[cityId] : null;
+    const cityName = cityId && CITY[cityId] ? CITY[cityId].name : '';
+    const lv = (cs && cs.genLv && Number(cs.genLv[id])) || SK.genLv(g);
+    const cls = SK.genClass(g);
+    const C = SK.CLASSES[cls] || {};
+    const loy = (s.genLoyal && s.genLoyal[id]) || (g.tier === 'S' ? 92 : g.tier === 'A' ? 82 : g.tier === 'B' ? 72 : 62);
+    const ps = SK.PASSIVES && SK.PASSIVES[g.name];
+    const attrs = [
+      { k: '통솔', v: g.leadership }, { k: '무력', v: g.war }, { k: '지력', v: g.intel },
+      { k: '정치', v: g.politics }, { k: '매력', v: g.charm },
+    ].map((a) => `<div><span>${a.k}</span><b>${Number(a.v) || 0}</b></div>`).join('');
+    const mm = SK.modal({
+      kicker: `${f.name}${cityName ? ' · ' + cityName + ' 주둔' : ''}`,
+      title: `${g.name} <em class="fh-tier t${g.tier || 'C'}">${g.tier || 'C'}급</em>`,
+      body: `<div class="hero-info">
+        <div class="hi-portrait tf ${SK.tcls(g)}"><img src="${SK.ptSrc(SK.genPortrait(g))}" alt=""></div>
+        <div class="hi-body">
+          <p class="hi-cls">${SK.classTitle(cls, lv)} · ${C.role || '장수'} · Lv.${lv}</p>
+          ${g.skill ? `<p class="hi-skill">특기 — ${g.skill}</p>` : ''}
+          <div class="hi-attrs five">${attrs}</div>
+          <p class="hi-merit">충성 <b>${loy}</b>${g.birthYear ? ` · ${SK.ageOf(g)}세` : ''}${cityName ? ` · ${cityName} 주둔` : ''}</p>
+          ${ps ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${ps.tier || g.tier || 'C'}">${ps.tier || g.tier || 'C'}급</i></span><b>${ps.title}</b><p>${ps.effect}</p></div>` : ''}
+          <p class="hi-desc">${C.desc || ''}</p>
+          <p class="hi-quote">“${SK.quoteOf(g.name, 'deploy') || '필승을 기원한다.'}”</p>
+        </div>
+      </div>
+      <p class="fh-note">다른 세력의 장수입니다 — 능력치·특기만 볼 수 있습니다.</p>`,
+      actions: [{ label: '닫기', primary: true }],
+    });
+    /* 세력일람 창 위로 — 같은 #modal-root 안에서 이 층이 더 높게 쌓인다 */
+    try { mm.el.style.zIndex = String(4 + (SK.modalStack ? SK.modalStack.length : 1)); } catch (e) { /* ignore */ }
+  }
+  SK.openFactionHero = openFactionHero;
 
   function openPeaceTerms(cityId, fid) {
     const s = SK.state;
@@ -11460,6 +11586,122 @@
   }
   SK.loseCity = loseCity;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.72 — AI ↔ AI 동맹 · 휴전 (s.aiPacts)
+     · 플레이어와 맺는 휴전(s.truce)·동맹(s.pacts)과는 별개로, AI 세력끼리도
+       맞닿은 이웃과 손을 잡는다. 전력 격차가 크면 휴전, 비슷하면 동맹.
+     · 조약이 살아 있는 동안은 서로를 치지 않는다 (aiAttackPlan 후보에서 제외).
+     · 체결·만료·파기는 그 달 '천하 소식'에 남는다.
+     · 저장 형식: s.aiPacts = { "a|b": { type:'ally'|'truce', until: 턴 } } (키는 id 정렬)
+     ══════════════════════════════════════════════════════════════ */
+  const AI_PACT_MAX = 2;          // 한 세력이 동시에 맺을 수 있는 조약 수
+  function aiPactKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
+  function aiPactOf(s, a, b) {
+    if (!s || !a || !b || a === b) return null;
+    return (s.aiPacts || {})[aiPactKey(a, b)] || null;
+  }
+  function aiPactLive(s, a, b) {
+    s = s || SK.state;
+    const p = aiPactOf(s, a, b);
+    return !!p && p.until > ((s && s.turn) || 0);
+  }
+  SK.aiPactOf = aiPactOf;
+  SK.aiPactLive = aiPactLive;
+  function aiPactCount(s, fid) {
+    let n = 0;
+    Object.keys(s.aiPacts || {}).forEach((k) => {
+      const pair = k.split('|');
+      if (pair[0] === fid || pair[1] === fid) n += 1;
+    });
+    return n;
+  }
+  function aiFactionPower(s, fid) {
+    let p = 0;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (cs && cs.owner === fid) p += cityPower(cs);
+    });
+    return p;
+  }
+  function aiOwnsCity(s, fid) {
+    return SK.CITY_LIST.some((c) => s.cities[c.id] && s.cities[c.id].owner === fid);
+  }
+  /* 달마다 한 번 — 만료·소멸·파기를 정리하고 새 조약을 맺는다. 소식은 news 배열에 쌓는다 */
+  function updateAiPacts(s, news) {
+    s = s || SK.state;
+    if (!s) return;
+    s.aiPacts = s.aiPacts || {};
+    const push = (kind, text) => { if (news) news.push({ kind, text }); };
+    const now = s.turn || 0;
+    /* 1) 만료 · 성을 다 잃은 세력 · 이따금 파기 */
+    Object.keys(s.aiPacts).forEach((k) => {
+      const pair = k.split('|');
+      const A = SK.factionName(pair[0]), B = SK.factionName(pair[1]);
+      const p = s.aiPacts[k];
+      if (!p || !aiOwnsCity(s, pair[0]) || !aiOwnsCity(s, pair[1])) { delete s.aiPacts[k]; return; }
+      if (p.until <= now) {
+        delete s.aiPacts[k];
+        push(p.type === 'ally' ? 'pactEnd' : 'pactEnd',
+          p.type === 'ally' ? `${SK.josa(A, 'gwa')} ${B}의 동맹 기간이 끝났습니다` : `${SK.josa(A, 'gwa')} ${B}의 휴전이 끝났습니다`);
+        return;
+      }
+      if (p.type === 'ally' && Math.random() < 0.04) {
+        delete s.aiPacts[k];
+        push('pactEnd', `${SK.josa(A, 'i')} ${SK.josa(B, 'gwa')}의 동맹을 깨고 등을 돌렸습니다`);
+      }
+    });
+    /* 2) 체결 — 서로 맞닿은 AI 세력끼리, 소국일수록 적극적 */
+    const me = PF();
+    const ai = Object.keys(s.factions || {}).filter((fid) => fid !== 'neutral' && fid !== me && aiOwnsCity(s, fid));
+    if (ai.length < 2) return;
+    const pw = {};
+    ai.forEach((fid) => { pw[fid] = aiFactionPower(s, fid) || 1; });
+    const sorted = ai.map((fid) => pw[fid]).sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)] || 0;
+    const neighboursOf = (fid) => {
+      const out = new Set();
+      SK.CITY_LIST.forEach((c) => {
+        const cs = s.cities[c.id];
+        if (!cs || cs.owner !== fid) return;
+        SK.allNeighbors(c.id).forEach((nid) => {
+          const ns = s.cities[nid];
+          const o = ns && ns.owner;
+          if (o && o !== fid && o !== 'neutral' && o !== me) out.add(o);
+        });
+      });
+      return out;
+    };
+    ai.forEach((a) => {
+      neighboursOf(a).forEach((b) => {
+        if (!ai.includes(b) || a >= b) return;                 // 쌍당 한 번만 판정
+        if (s.aiPacts[aiPactKey(a, b)]) return;
+        if (aiPactCount(s, a) >= AI_PACT_MAX || aiPactCount(s, b) >= AI_PACT_MAX) return;
+        const weak = pw[a] < median || pw[b] < median;          // 약소국은 더 적극적으로 손을 잡는다
+        if (Math.random() >= (weak ? 0.12 : 0.05)) return;
+        const hi = Math.max(pw[a], pw[b]), lo = Math.min(pw[a], pw[b]);
+        const type = (hi / lo) > 1.6 ? 'truce' : 'ally';        // 격차가 크면 휴전, 비슷하면 동맹
+        const months = type === 'ally' ? 12 + Math.floor(Math.random() * 13) : 6 + Math.floor(Math.random() * 7);
+        s.aiPacts[aiPactKey(a, b)] = { type, until: now + months };
+        const A = SK.factionName(a), B = SK.factionName(b);
+        push('pact', type === 'ally' ? `${SK.josa(A, 'gwa')} ${SK.josa(B, 'i')} 동맹을 맺었습니다` : `${SK.josa(A, 'gwa')} ${SK.josa(B, 'i')} 휴전했습니다`);
+      });
+    });
+  }
+  SK.updateAiPacts = updateAiPacts;
+  /* 세력일람·디버그에서 보는 지금 살아 있는 AI 조약 목록 */
+  SK.listAiPacts = function (s) {
+    s = s || SK.state;
+    if (!s) return [];
+    const now = s.turn || 0;
+    return Object.keys(s.aiPacts || {}).map((k) => {
+      const pair = k.split('|'), p = s.aiPacts[k] || {};
+      return {
+        a: pair[0], b: pair[1], type: p.type, until: p.until, left: Math.max(0, (p.until || 0) - now),
+        text: `${SK.factionName(pair[0])}·${SK.factionName(pair[1])} ${p.type === 'ally' ? '동맹' : '휴전'} (~${p.until}월)`,
+      };
+    });
+  };
+
   /* AI 세력 하나가 노릴 만한 이웃 성 (플레이어 성은 제외 — 따로 경고·침공) */
   function aiAttackPlan(s, fid) {
     const owned = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
@@ -11482,6 +11724,8 @@
       SK.allNeighbors(a.id).forEach((tid) => {
         const ts = s.cities[tid];
         if (!ts || ts.owner === fid || ts.owner === PF()) return;
+        /* v5.72 — 동맹·휴전 중인 AI 세력의 성은 후보에서 뺀다 */
+        if (aiPactLive(s, fid, ts.owner)) return;
         const ratio = strength / cityPower(ts);
         if (ratio < needRatio) return;
         /* v5.66 — 중후반에는 마지막 한 성만 남은 약소 세력을 마무리하는 쪽에 가산점
@@ -11624,6 +11868,8 @@
   function runAiCampaigns(s) {
     const news = [];
     if (!s) return news;
+    /* v5.72 — AI끼리의 동맹·휴전을 먼저 갱신한다 (체결·만료·파기 소식도 여기 쌓인다) */
+    try { updateAiPacts(s, news); } catch (e) { console.error('[aiPacts]', e); }
     /* 1) 지난달 경고는 이번 달 실제 침공으로 이어진다 (여러 성이면 대기열에 차례로) */
     const warns = invasionWarnList(s);
     if (warns.length) {
@@ -13027,7 +13273,7 @@
         ${crewLog.length ? `<div class="mr-auto"><p class="mr-auto-title">연병장 수련</p>
           ${crewLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.name}</b><span>EXP +${l.gain}</span></div>`).join('')}${crewLog.length > 6 ? `<p class="mr-note">${crewLog.length - 6}명 더 수련했습니다.</p>` : ''}</div>` : ''}
         ${aiNews.length ? `<div class="mr-ai"><p class="mr-ai-title">천하 소식 — 다른 세력의 움직임</p>
-          ${aiNews.map((n) => `<div class="mr-ai-row"><em>${n.kind === 'warn' ? '❗' : n.kind === 'invasion' ? '⚔' : n.kind === 'capture' ? '◈' : '·'}</em><span>${n.text}</span></div>`).join('')}</div>` : ''}
+          ${aiNews.map((n) => `<div class="mr-ai-row"><em>${n.kind === 'warn' ? '❗' : n.kind === 'invasion' ? '⚔' : n.kind === 'capture' ? '◈' : n.kind === 'pact' ? '⚑' : n.kind === 'pactEnd' ? '⌛' : '·'}</em><span>${n.text}</span></div>`).join('')}</div>` : ''}
         ${ev ? `<div class="mr-event ${ev.type === '위기' ? 'crisis' : ''}"><span class="me-seal">${ev.hanja}</span>
           <div class="me-main"><b>${ev.title} <em class="me-season">${ev.type || ''} · ${ev.season || ''}</em></b><span>${ev.text}</span><em>${ev.gain}</em></div></div>` : ''}
         ${slotLog.some((l) => l.troops) ? `<div class="mr-auto"><p class="mr-auto-title">병영 징집</p>

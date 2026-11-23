@@ -762,6 +762,10 @@
       const t = SK.state.cities[c.id];
       s += t ? (t.owner || '.') + ',' : ',';
     }
+    /* v5.72 — 세력 색 팔레트가 바뀌면(저장 이관·새 판) 영토를 다시 칠한다.
+       소유가 그대로여도 색이 갈아입었으면 지도가 옛 색으로 남지 않게. */
+    const fs = SK.state.factions || {};
+    Object.keys(fs).sort().forEach((k) => { s += k + ':' + ((fs[k] && fs[k].color) || '') + ';'; });
     return s;
   }
 

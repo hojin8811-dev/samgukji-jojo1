@@ -6232,3 +6232,56 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .bt-card.ready{border-color:#ffd21a;animation:sxReady .6s infinite alternate;cursor:pointer}
 @keyframes sxReady{from{box-shadow:0 0 0 #ffd21a}to{box-shadow:0 0 14px 3px #ffd21a;filter:brightness(1.35)}}
 #expRoot .bt-card.dead{filter:grayscale(1) brightness(.5);pointer-events:none}
+
+/* ═══════════ v5.72 — 세력일람 소속 장수 · 성벽 카드 제목 ═══════════ */
+/* 세력일람 펼침 영역 — 가진 성·병력 아래에 소속 장수 이름 배지 */
+.fl-detail .fl-cities { display: inline; }
+.fh-wrap { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(150, 120, 60, 0.45); }
+.fh-title { display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px; font-size: 9.5px; font-weight: 800; color: #7a5a1c; }
+.fh-title small { color: #8a7448; font-weight: 800; }
+.fh-title em { margin-left: auto; font-style: normal; font-size: 8.5px; color: #a08b5e; }
+.fh-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.fh-badge {
+  appearance: none; display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
+  border: 1px solid #c9a24e; border-radius: 999px; padding: 3px 7px;
+  background: linear-gradient(180deg, #fffaf0, #f3e6c8); color: #3a2d15;
+  font: inherit; font-size: 9.5px; font-weight: 800; line-height: 1.1; white-space: nowrap;
+}
+.fh-badge i { font-style: normal; font-size: 8px; font-weight: 900; color: #8a6a26; background: rgba(184, 134, 47, 0.16); border-radius: 999px; padding: 0 4px; }
+.fh-badge.tS { border-color: #cf5145; }
+.fh-badge.tA { border-color: #9b62c8; }
+.fh-badge.tB { border-color: #4a83d6; }
+.fh-badge.tC { border-color: #5c9c6e; }
+.fh-badge:active { transform: scale(0.96); background: #fff3d6; }
+.fh-empty { font-size: 9px; color: #a3906a; }
+/* 다른 세력 장수 상세창 — 이름 옆 등급 배지 */
+.fh-tier { font-style: normal; font-size: 10px; font-weight: 900; color: #fff6e0; background: #8a6a34; border-radius: 7px; padding: 1px 6px; margin-left: 4px; vertical-align: 2px; }
+.fh-tier.tS { background: linear-gradient(180deg, #e8453a, #b8201a); }
+.fh-tier.tA { background: linear-gradient(180deg, #9b62c8, #7742a3); }
+.fh-tier.tB { background: linear-gradient(180deg, #3d7ddb, #2559ab); }
+.fh-tier.tC { background: linear-gradient(180deg, #4f9c66, #33764a); }
+.fh-note { margin: 6px 0 0; font-size: 9px; color: #8a7448; text-align: center; }
+
+/* 내정 시설 카드 — '성벽' + [계략방어 67%] + Lv.5 가 잘리지 않게
+   (예전: .sc-top 이 한 줄 고정 + b 에 ellipsis 라서 제목이 '성..' 으로 깎였다)
+   제목과 Lv 는 첫 줄, 배지는 폭이 모자라면 다음 줄로 내려가 카드가 조금 높아진다 */
+.slot-grid .slot-card .sc-top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 1px 3px; min-width: 0;
+  /* 시나리오 화면의 전역 .sc-top(grid + padding 10px 14px)을 물려받아 제목 칸이 44px로 눌리던 것 */
+  padding: 0; grid-template-columns: none;
+}
+.slot-grid .slot-card .sc-top b {
+  flex: 0 0 auto; min-width: max-content; max-width: 100%;
+  white-space: nowrap; overflow: visible; text-overflow: clip; line-height: 1.2;
+}
+/* 순서: 제목(1) · Lv(2) · 배지(3) — 첫 줄에 제목과 Lv, 배지는 둘째 줄로 내려간다
+   (배지가 제목 사이에 끼면 48px 폭에서 세 줄로 늘어나 카드가 길쭉해졌다) */
+.slot-grid .slot-card .sc-top b { order: 1; }
+.slot-grid .slot-card .sc-top em { order: 2; }
+.slot-grid .slot-card .sc-top .sc-craft { order: 3; flex: 0 0 auto; margin-left: 0; line-height: 1.35; max-width: 100%; }
+.slot-grid .slot-card .sc-top em { flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+@media (max-width: 430px) {
+  /* 좁은 화면(390px)에서 제목·배지·Lv 세 조각이 카드 밖으로 넘치지 않게 폭을 기본값(104px)으로 되돌린다 */
+  .slot-grid .slot-card { width: 104px; }
+  .slot-grid .slot-card .sc-main b { font-size: 9.5px; }
+}

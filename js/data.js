@@ -333,32 +333,33 @@ SK.markOf = function (f) {
   return String(f.name || '재야').replace(/군$/, '').charAt(0) || '야';
 };
 
-/* 세력 색 — 지도·UI에서 한눈에 갈리도록 고대비로 고정한다 (v4.2)
-   위=군청 · 촉=에메랄드 · 오=크림슨 · 여포=보라먹 · 원소=금 · 동탁=숯회색
-   고구려=인디고 · 백제=틸 · 신라=주황, 나머지 군웅은 서로 겹치지 않는 밝은 색
-   v5.18 — 여포군(보라)과 고구려가 같은 보라로 겹쳐 보여 고구려를 더 진한 인디고(#312E81)로 낮짼다 */
+/* 세력 색 — 지도·UI에서 한눈에 갈리도록 고대비로 고정한다 (v4.2 → v5.72 재배치)
+   위=군청 · 촉=에메랄드 · 오=크림슨 · 여포=자보라 · 원소=금 · 동탁=숯보라
+   고구려=청록 · 백제=자주 · 신라=하늘청록 · 고려=보라 · 조선=흑홍
+   v5.72 — 28세력 판도(190년)와 이후 판(200·208·220)의 실제 소유 성을 기준으로,
+   길·해로로 맞닿거나 영토가 스치는(거리 300px 이내) 세력끼리 색이 겹치던 곳을 다시 잡았다.
+   맞닿은 쌍의 CIELAB 색거리(ΔE) 목표: 150px 이내 45 · 200px 이내 42 · 260px 이내 36 · 그 밖 30.
+   예) 원술 분홍 ↔ 장로 자홍 10 → 55 · 조조 파랑 ↔ 고구려 인디고 33 → 98(청록) ·
+       조조 파랑 ↔ 엄백호 파랑 30 → 70(자주) · 동탁 숯회 ↔ 공융 회청 9 → 42
+   큰 줄기만 옮겼다: 고구려 인디고→짙은 청록, 엄백호 파랑→자주, 공융 회청→먹청록,
+   동탁 숯회색→숯보라, 유장·도겸·공손강 갈색 계열은 밝기를 갈라 서로 구분되게. */
 SK.FACTION_COLOR = {
-  /* v5.0.3 — 190년 지도에서 길·근접으로 맞닿는 세력끼리 색 거리(ΔE) 49 이상이 되도록 다시 배치했다.
-     (유비군 녹색 ↔ 도겸군 연두색이 거의 같아 보이던 문제) 조조·유비·손견·동탁·원소는 상징색 유지. */
-  caocao: '#1D4ED8', cao_wei_pre: '#1D4ED8', cao_wei: '#1D4ED8',
-  liubei: '#15803D', shu_han: '#15803D',
-  sunjian: '#DC2626', sunquan: '#DC2626', sun_wu: '#B91C1C',
-  lubu: '#7E22CE', lvbu: '#7E22CE',
-  yuanshao: '#CA8A04', dongzhuo: '#374151',
-  goguryeo: '#312E81', baekje: '#7E1D3E', silla: '#0B7285',
-  yuanshu: '#DB2777', liubiao: '#0E7490', liuzong: '#9333EA', liuyan: '#7E22CE',
-  liuzhang: '#92400E', mateng: '#B45309', hansui: '#3F6212', gongsunzan: '#9F1239',
-  taoqian: '#7C2D12', zhanglu: '#BE185D', gongsunkang: '#78350F', shi_xie: '#A16207',
+  caocao: '#1E4FD8', cao_wei_pre: '#1E4FD8', cao_wei: '#1E4FD8',
+  liubei: '#1B8A4B', shu_han: '#1B8A4B',
+  sunjian: '#CF2A2A', sunquan: '#CF2A2A', sun_wu: '#CF2A2A',
+  lubu: '#8A1296', lvbu: '#8A1296',
+  yuanshao: '#CBA016', dongzhuo: '#312B51',
+  goguryeo: '#175040', baekje: '#75256A', silla: '#1F9FB8', goryeo: '#5A20B4', joseon: '#6E1212',
+  yuanshu: '#D65A8A', liubiao: '#0E849F', liuzong: '#0E7490', liuyan: '#6B3A12', liuzhang: '#6B3A12',
+  mateng: '#D98324', hansui: '#4F7A1F', gongsunzan: '#A3153F', taoqian: '#753328',
+  zhanglu: '#B723C5', gongsunkang: '#7B4A28', shi_xie: '#A16207', shexie: '#A16207',
+  zhangjiao: '#A08A12',
+  hanxuan: '#A21CAF', meng_huo: '#C2410C', menghuo: '#C2410C', nanjung: '#8A5A2A',
+  kongrong: '#25605C', liuyao: '#16B0D0', yanbaihu: '#B0156E', wanglang: '#5B7D1E',
   neutral: '#8B8777',
-  zhangjiao: '#7C6A0A',
-  /* v5.19 — 한현군(장사)은 이웃한 손견군 빨강·유표군 청록·유요군 하늘·왕랑군 올리브와
-     색이 갈리도록 자주(#A21CAF), 맹획군(운남)은 남만 흙빛 주황(#C2410C).
-     4막 남중 호족(meng_huo → nanjung)은 기존 올리브를 그대로 쓴다. */
-  hanxuan: '#A21CAF', meng_huo: '#C2410C', nanjung: '#4D7C0F',
-  kongrong: '#475569', liuyao: '#0891B2', yanbaihu: '#1E40AF', wanglang: '#4D7C0F',
-  /* v5.20 — 1막 한국 5세력 색: 조선 진홍(#991B1B), 고려 보라(#6B21A8).
-     완산·개성에서 이웃한 백제(자주빛)·신라(청록)·고구려(남보라)와 ΔE 30 이상으로 갈린다. */
-  joseon: '#991B1B', goryeo: '#6B21A8',
+  /* 아직 판에 없는 세력 — 뒤에 붙을 시나리오를 위해 색만 미리 잡아 둔다 */
+  zhangxiu: '#C08A4A', zhangyang: '#C026D3', xiongnu: '#3F3F46', wuhuan: '#E0A56B',
+  xianbei: '#D14D6E', shanyue: '#4C8C5A', qiang: '#7A5230', gongsundu: '#7B4A28',
 };
 
 /* v5.20 — 군주·왕은 재야 인재로 등용되지 않는다.

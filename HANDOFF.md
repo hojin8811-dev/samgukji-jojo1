@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.71** 아군 거점 경유 2칸 출진 출발지 수정 · 2026-11-23 · 라이브 `?v=89`
+> 기준: **v5.72** 세력 색 재배치 · AI 동맹/휴전 · 세력일람 소속 장수 · 성벽 카드 여백 · 2026-11-23 · 라이브 `?v=90`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,21 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=88`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=90`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **701장수**(json 596 + 시나리오·재야 인물 105, 한국 181) · 19병과(군주 포함) · **고유특기 642**(전투형 510·내정형 132) · **보물 250** · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
 
 ---
+
+## 0.0 v5.72 — 세력 색 · AI 동맹/휴전 · 세력일람 소속 장수 · 성벽 카드 (2026-11-23 · `?v=90`)
+
+- **세력 색의 정본은 `js/data.js` 의 `SK.FACTION_COLOR` 한 곳**입니다. 새 색을 넣거나 바꿀 때 다른 파일을 고칠 필요는 없습니다 — `newState`(새 판)와 `SK.load`(옛 저장)가 `SK.applyFactionColors()` 로 판의 `s.factions[k].color` 를 다시 채웁니다. 지도 영토는 `js/map.js` `territorySignature()` 가 세력 색까지 서명에 넣으므로 색이 바뀌면 `SKMap.refresh()` 에서 다시 칠해집니다.
+- **색 배치는 추측이 아니라 판도 계산으로** 했습니다. `tools/v572_color_audit.py` 가 게임을 시작하지 않고 `SK.resolveScenario()` 로 190·200·208·220년 소유 성을 구해, 길·해로 인접 + 거리 300px 이내의 세력 쌍과 CIELAB ΔE 를 뽑습니다. 색을 또 바꿀 일이 있으면 이 스크립트로 **ΔE 목표(150px 45 · 200px 42 · 260px 36 · 그 밖 30)** 위반이 0인지 확인하세요. 현재 `preview/v572/color_pairs.json` · `adj_union.json` 이 그 결과입니다.
+- **AI 동맹/휴전은 `s.aiPacts`** 에만 있습니다(플레이어용 `s.truce`/`s.pacts` 와 분리). `updateAiPacts(s, news)` 가 달마다 만료·소멸·파기를 정리하고 새 조약을 맺으며, **공격 금지는 `aiAttackPlan` 의 후보 필터 한 줄**(`if (aiPactLive(s, fid, ts.owner)) return;`)**이 전부**입니다. 다른 곳에 공격 판정을 새로 만들면 그 한 줄도 같이 넣어야 조약이 지켜집니다. 소식은 달말 「천하 소식」(`kind: 'pact' | 'pactEnd'`)으로 나갑니다.
+- **세력일람 소속 장수**는 `factionHeroChips(r)`(배지 HTML) + `SK.openFactionHero(fid, id, cityId)`(창)입니다. 내 세력은 `s.heroes`(uid), 다른 세력은 성의 `genIds`(적장 id)라 **id 체계가 다릅니다** — 배지의 `data-fid` 로 갈라집니다. 적장 창은 읽기 전용이며, 겹쳐 뜨는 창은 `mm.el.style.zIndex` 로 세력일람 위에 올립니다.
+- **성벽 카드가 잘린 진짜 원인은 전역 `.sc-top`**(시나리오 화면용 `display:grid; grid-template-columns:44px 1fr 44px; padding:10px 14px`)을 시설 카드가 물려받은 것이었습니다. 새 시설 카드 규칙을 넣을 때도 `.slot-card .sc-top` 의 `padding:0`·`flex-wrap` 을 유지하세요.
+- **검수**: `python3 tools/qa_v572.py` → `preview/v572/result_v572.json`(전 항목 OK) · `map_factions.png` · `city_wall.png` · `faction_hero.png`.
 
 ## 0.0 v5.69 — 원정 3×3 전투 '치비 전신 난투' (2026-11-23 · `?v=87`)
 
