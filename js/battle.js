@@ -8827,6 +8827,39 @@
     SKBattle.refreshUI();
     const m2 = marchOf(B.intercept && B.intercept.marchId);
     const left = m2 ? m2.left : 0;
+    /* v5.66 — 성하 야전 승리: 나온 적만큼 성안 수비병을 깎고, 같은 달 곧바로 공성전으로 */
+    if (B.intercept && B.intercept.field) {
+      const fld = B.intercept.field;
+      const mid = B.intercept.marchId;
+      const ts = s.cities[fld.cityId] || null;
+      const before = Math.round((ts && ts.troops) || 0);
+      const cut = Math.max(0, Math.min(before, Math.round(fld.troops || 0)));
+      if (ts) ts.troops = Math.max(0, before - cut);
+      SK.save();
+      if (SK.refreshHud) SK.refreshHud();
+      const after = ts ? Math.round(ts.troops || 0) : 0;
+      SK.modal({
+        kicker: '성하 야전 승리',
+        title: `${(SK.CITY[fld.cityId] || {}).name || ''} 성하 돌파`,
+        body: `<div class="result-modal win"><div class="rm-seal">승</div>
+          <p class="rm-line">성 밖으로 나온 적을 꺾었습니다. 성안 수비병이 <b>${before.toLocaleString('ko-KR')} → ${after.toLocaleString('ko-KR')}</b>으로 줄었습니다 — 이 달 바로 공성전으로 이어집니다.</p>
+          ${battleReportHTML()}
+          <div class="rm-rewards">
+            <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
+            <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
+            <div><span>병력</span><b>${Math.round(survivors.reduce((a, u) => a + u.hp, 0)).toLocaleString('ko-KR')}</b></div>
+            <div><span>적 수비병</span><b>${after.toLocaleString('ko-KR')}</b></div>
+          </div>
+          ${ts ? `<p class="rm-note">성벽 ${Math.round(ts.def || 0)} · 성안에 남은 수비병으로 성을 지킬 것입니다.</p>` : ''}</div>`,
+        actions: [{ label: '성으로 밀어넣는다', primary: true, onClick: () => {
+          closeBattle();
+          if (SK.afterFieldBattle) setTimeout(() => SK.afterFieldBattle(mid), 320);
+          else SK.showMap();
+        } }],
+        dismissible: false,
+      });
+      return;
+    }
     SK.modal({
       kicker: '요격전 승리',
       title: `${B.def.name} 돌파`,
@@ -8884,11 +8917,12 @@
     s.pendingMarch = null;
     SK.save();
     const homeName = hid && SK.CITY[hid] ? SK.CITY[hid].name : null;
+    const fieldLost = !!(B.intercept && B.intercept.field);
     SK.modal({
-      kicker: '행군 실패',
+      kicker: fieldLost ? '성하 야전 패배' : '행군 실패',
       title: homeName ? '회군' : '유랑군',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
-        <p class="rm-line">요격대에 길이 막혔습니다. ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.josa(SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성', 'i')} 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
+        <p class="rm-line">${fieldLost ? '성 밖으로 나온 적에게 밀렸습니다.' : '요격대에 길이 막혔습니다.'} ${homeName ? `남은 병력은 <b>${homeName}</b>으로 돌아갑니다.` : '돌아갈 성이 없어 남은 병력이 흩어졌습니다.'}${hid && hid !== B.origin ? `<br><em>출발 성 ${SK.josa(SK.CITY[B.origin] ? SK.CITY[B.origin].name : '본성', 'i')} 이미 함락되어 가장 가까운 아군 성으로 향했습니다.</em>` : ''}</p>
         ${battleReportHTML()}
         <p class="rm-note">복귀 병력 ${Math.round(back).toLocaleString('ko-KR')}${cut ? ` (패전 피해 감소 +${Math.round(back - troopsLeft)})` : ''} · 금 -100</p></div>`,
       actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],

@@ -1,6 +1,17 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=82`
+기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=83`
+
+## ✅ v5.66 — 후반 루즈 해소 밸런스 4종 · AI 대국 재편 (2026-11-23 · `?v=83`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 수도 자동 내정 | 관아 `[수도 자동 내정]` 토글(기본 꺼짐). 켜면 달이 바뀔 때 수도도 증축 → 방침별 징병·훈련·개간. 월정산 위임 보고에 `수도` 배지 행 | `js/app.js` `runAutoDomestic`·`openOffice`, `s.capitalAuto`, `css/game.css` `.mgc-cap` |
+| 행군 1개월 | 육로 1홉 = **1개월**(80성 확인사살 루즈 완화), 해로 1홉 2개월, 2홉+ 2~3개월. 편성·도착·토스트 문구 일치 | `js/app.js` `marchTurns`·`marchHops` |
+| 성하 야전 | 1개월 행군 도착 시 수비병 2,500+ 이면 **50%** 확률로 야전 → 승리 시 수비병 42% 감소 후 **같은 달 공성전** | `js/app.js` `stepMarches`·`openPendingMarch`·`SK.afterFieldBattle`, `js/battle.js` `interceptVictory`/`interceptDefeat` |
+| 60성 조기 천통 | 60성(75%) + 병력 1.6배 우세면 「대세는 이미 기울었습니다」 → `[일괄 항복 권유]`/`[끝까지 직접 정복]`. 거절 12개월·+5성 쿨다운. 항복 시 80성 통일 + 장수 일부 합류 | `js/app.js` `surrenderStanding`·`surrenderReady`·`maybeSurrenderOffer`·`acceptMassSurrender`, `css/game.css` `.surrender-offer` |
+| AI 성장·교전 | 12~60개월 성장 스케일(징병 상한 ×1.55), 10~40개월 교전 스케일(한 달 2 → 6건), 개전 배율 1.45 → 1.15, 마지막 성 마무리·대국 2방향, 이긴 군세 주둔 | `js/app.js` `aiLateBoost`·`aiAggroPhase`·`aiAttackPlan`·`resolveAiRaid`·`runAiCampaigns` |
+| 검수 | `tools/qa_v566.py` a·b·c·d (①~⑦). 40개월 시뮬레이션 `tools/_sim_v566.py` — 최대 세력 2 → 8~14성, AI 병력 30만 → 100만+ | `preview/v566/` |
 
 ## ✅ v5.65 — 실플레이 UX 7종 · 필살기 비활성 · 늦은 합류 레벨 AI 맞춤 (2026-11-23 · `?v=82`)
 

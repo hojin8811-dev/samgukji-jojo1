@@ -1,7 +1,7 @@
 # 인수인계서 — 《꼬마영웅 대난투》
 
 > 이 문서 하나만 읽으면 바로 이어서 개발할 수 있게 정리했습니다.
-> 기준: **v5.65** 실플레이 UX 7종 · 필살기 비활성 · 늦은 합류 레벨 AI 맞춤 · 2026-11-23 · 라이브 `?v=82`
+> 기준: **v5.66** 후반 루즈 해소 밸런스 4종 · AI 대국 재편 · 2026-11-23 · 라이브 `?v=83`
 > 함께 보면 좋은 문서: `HANDOFF_PROMPT.md`(복붙용 지시서) · `README.md`(버전별 변경 이력) · `V5_ROADMAP.md`(완료/남은 일 상세) · `DESIGN.md`(초기 설계)
 
 ---
@@ -14,12 +14,21 @@
 | 화면 | ① 타이틀 → ② 천하 지도 → ③ 성 내정 → ④ 격자 전장 (모바일 세로 **390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS 뿐.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 JSON 로드. |
 | 저장소 | `https://github.com/hojin8811-dev/samgukji-jojo1` (기본 브랜치 `main`, 최상위 폴더에 그대로 배포) |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=81`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=83`) |
 | 규모 | 80거점(대도시 12·중도시 20·소도시 37·관문 9·요새 2) · **701장수**(json 596 + 시나리오·재야 인물 105, 한국 181) · 19병과(군주 포함) · **고유특기 642**(전투형 510·내정형 132) · **보물 250** · 기술 24 · 시나리오 4(190/200/208/220) · 요격전 8종 · **24/28/32 대형 전장·미니맵·1×1 본진/마을** |
 | 배포 | `main`에 push → GitHub Pages가 몇 초 뒤 자동 반영. 별도 CI·워크플로 없음. |
 | 다음 목표 | 8라운드까지 실플레이·실기기 제보를 반영(사기·상태이상 장기전 튜닝, 3턴 원정 야영/강행군, 미니맵 확대, 도감 전원 열전·획득 경로, 주점 누수 0, 훈련·일괄 탐색, 뒤로가기 종료 확인, 침공 요격 출진). 다음 후보는 실폰 재확인, 조각배 2프레임 SD, 도감 검색, 전투 중 실시간 EXP, 성 3단계 등급 |
 
 ---
+
+## 0.0 v5.66 — 후반 루즈 해소 밸런스 4종 · AI 대국 재편 (2026-11-23 · `?v=83`)
+
+- **수도 자동 내정**(`runAutoDomestic`, 관아 `[data-o="capAuto"]`, `s.capitalAuto` 기본 false): 켜면 달이 바뀔 때 수도도 태수 자동 내정과 같은 규칙(증축 → 방침별 순서)으로 내정합니다. 월정산 위임 보고에 `수도` 배지 행.
+- **행군 1개월**(`marchTurns`·`marchHops`): 육로 1홉 = 1개월, 해로 1홉 = 2개월, 2홉 이상 = 2~3개월. `MARCH_MIN`이 1로 바뀌었으니 `m.total === 1` 경로를 새로 넣을 때 주의하세요.
+- **성하 야전**(`stepMarches` kind `field`, `FIELD_CHANCE = 0.5`, `FIELD_MIN_TROOPS = 2500`, `FIELD_RATIO = 0.42`): 1개월 행군 도착 시 적 수비병이 충분하면 절반 확률로 야전 → 승리하면 `battle.js interceptVictory`의 field 분기가 수비병을 깎고 `SK.afterFieldBattle(marchId)`가 **같은 달 도착 사건(arrive)을 다시 큐에 올려** 공성전으로 잇습니다.
+- **60성 일괄 항복**(`SK.surrenderStanding`·`surrenderReady`·`maybeSurrenderOffer`, `SURRENDER_NEED = ceil(80×0.75)`): 지도 복귀(`SK.showMap`)·월말 사건 종료(`chainPendingEvents`) 때 조건을 봅니다. 거절하면 `s.surrenderAsk = {turn, owned}`로 12개월 + 5성 쿨다운. 수락하면 남은 성(재야 포함)이 모두 우리 것이 되고 `s.surrenderSealed`가 천통 엔딩에 한 줄을 더합니다.
+- **AI 스케일**(`aiLateBoost` 12~60개월, `aiAggroPhase` 10~40개월, `aiAttackPlan`·`resolveAiRaid`·`runAiCampaigns`): 징병 상한 ×최대 1.55, 한 달 교전 2 → 6건, 개전 배율 1.45 → 1.15, 마지막 성 마무리·대국 2방향 가산점, 이긴 군세가 성에 주둔.
+- **검수**: `tools/qa_v566.py` a·b·c·d. 40개월 AI 시뮬레이션은 `tools/_sim_v566.py`. 스샷 `preview/v566/`.
 
 ## 0.0 v5.65 — 실플레이 UX 7종 · 필살기 비활성 · 늦은 합류 레벨 AI 맞춤 (2026-11-23 · `?v=82`)
 

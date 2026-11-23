@@ -704,6 +704,7 @@
       eraYear: sc ? Number(sc.year) : 200, timelineSeen: [], talentLuck: 0, talentsVersion: 3,
       rp: 0, techs: [], truce: {}, pacts: {}, genLoyal: {}, deadGens: {}, deadNames: {},
       marches: [], marchSeq: 0, pendingMarch: null, recruitFail: {}, autoBestDuty: false,
+      capitalAuto: false,      // v5.66 — 수도(본성) 자동 내정 (기본 꺼짐)
       prisoners: [], captured: [],   // v5.11 — 억류 포로 · 적에게 사로잡힌 아군
       codex: { g: {}, t: {} },        // v5.16 — 인물·보물 도감 누적 기록
     };
@@ -1603,12 +1604,20 @@
       s.marches = s.marches || [];
       s.recruitFail = s.recruitFail || {};
       if (s.autoBestDuty == null) s.autoBestDuty = false;
+      /* v5.66 — 옛 저장은 수도 자동 내정 꺼짐 · 항복 제안 기록 없음 */
+      if (s.capitalAuto == null) s.capitalAuto = false;
+      if (s.surrenderAsk == null) s.surrenderAsk = null;
       s.prisoners = s.prisoners || [];   // v5.11 — 억류 포로
       s.codex = s.codex || { g: {}, t: {} };   // v5.16 — 도감
       s.captured = s.captured || [];     // v5.11 — 적에게 사로잡힌 아군
       if (s.pendingMarch == null) s.pendingMarch = null;
       /* v5.28 — 같은 달 도착 대기열: 없는 저장은 빈 배열, 사라진 행군은 걸러 낸다 */
       s.marchQueue = (s.marchQueue || []).filter((q) => q && q.marchId && (s.marches || []).some((m) => m.id === q.marchId));
+      /* v5.66 — 이미 도착한(m.left ≤ 0) 부대가 대기열에서 빠져 영영 멈춰 서는 일이 없게
+         (전투 중 이탈·재접속) 도착 사건으로 되살린다 */
+      (s.marches || []).forEach((m) => {
+        if ((m.left || 0) <= 0) { m.fieldSeen = false; marchQueuePush(s, 'arrive', m.id); }
+      });
       (s.heroes || []).forEach((h) => { if (!s.marches.some((m) => m.id === h.marchId)) h.marchId = null; });
       /* v5.9 — 저장을 다시 열면 전투가 없으므로, 지원군은 원래 성으로 돌려보낸다 */
       if (s.reinforce) {
@@ -1942,6 +1951,8 @@
       || (SK.state.invasionQueue || []).length)) armPendingWatch();
     /* v5.16 — 모든 거점을 손에 넣었으면 천하통일 엔딩으로 */
     if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 620);
+    /* v5.66 — 60성 이상 + 압도적 우세면 일괄 항복을 한 번 물어본다 */
+    if (SK.maybeSurrenderOffer) setTimeout(() => SK.maybeSurrenderOffer(), 1400);
   };
 
   /* ══════════════════════════════════════════════════════════════
@@ -6746,6 +6757,7 @@
     office: { t: '관아 — 성의 본부', lines: [
       '관아는 <b>시설 칸(6/8/10)을 쓰지 않는 성의 본부 건물</b>입니다. 본성은 <b>군주</b>가, 지성은 임명한 <b>태수</b>가 자동으로 관아 머리에 앉습니다(태수가 없으면 [태수 임명]으로 배속).',
       '머리 자리에 앉았다고 그 달 행동을 잠그지는 않습니다 — 군주·태수는 내정도 출진도 그대로 할 수 있습니다.',
+      '<b>수도(본성) 자동 내정</b> — 기본은 꺼짐입니다. 관아의 <b>[수도 자동 내정]</b>을 켜면 달이 바뀔 때 수도도 태수 자동 내정과 같은 규칙(증축 → 방침별 징병·훈련·개간)으로 내정합니다. 성이 많아진 중후반에 손이 덜 힘듭니다.',
       '능력치마다 <b>소폭 가산점</b>이 붙습니다(40 이하 0%, 90에서 상한): <b>정치 → 생산</b>(금 수입·농원 수확·병영 징병, 최대 +8%) · <b>통솔 → 징병·훈련</b>(최대 +6%) · <b>무력 → 순찰·치안</b>(매달 치안·도적 억제, 최대 +6%) · <b>지력 → 계략</b>(적 계략 방어·우리 첩보 성공, 최대 +6%) · <b>매력 → 탐색·등용</b>(최대 +6%).',
       '가산점은 성벽·치안과 합처도 <b>계략 방어 80% 상한</b>을 넘지 못합니다 — 밸런스가 무너지지 않도록 최대치를 작게 잡았습니다.',
     ] },
@@ -8378,6 +8390,7 @@
     const headTitle = ob.head ? ob.head.title : (isCapital ? '군주' : '태수');
     const ready = gens.filter((g) => !g.actedThisMonth).length;
     const autoOn = cs.auto !== false;
+    const capAuto = !!s.capitalAuto;
     const pol = policyOf(cs);
     const supplyName = cs.supplyTo && s.cities[cs.supplyTo] && s.cities[cs.supplyTo].owner === PF()
       ? CITY[cs.supplyTo].name : '지정 안 됨';
@@ -8417,13 +8430,15 @@
         <div class="office-policy">
           <p>위임 방침 — 달이 바뀔 때 내정 순서와 <b>실제 수치</b>가 함께 바뀝니다${isCapital ? ' (본성에도 적용)' : ''}</p>
           <div class="op-grid">${POLICY_KEYS.map((k) => `<button class="op-btn ${pol === k ? 'on' : ''}" data-pol="${k}"><b>${POLICIES[k].name}</b><span class="op-fx">${POLICIES[k].fxShort || POLICIES[k].fx}</span></button>`).join('')}</div>
-          <p class="op-note"><b>지금 적용 — ${POLICIES[pol].name}</b> · ${POLICIES[pol].fx}${pol === 'supply' ? ` · 보내는 곳 <b>${supplyName}</b>` : ''}<br>${POLICIES[pol].desc}${isCapital ? '<br>본성은 자동 내정을 하지 않지만, 방침의 수치 효과는 본성에도 그대로 붙습니다.' : ''}</p>
+          <p class="op-note"><b>지금 적용 — ${POLICIES[pol].name}</b> · ${POLICIES[pol].fx}${pol === 'supply' ? ` · 보내는 곳 <b>${supplyName}</b>` : ''}<br>${POLICIES[pol].desc}${isCapital ? `<br>수도 자동 내정이 ${capAuto ? '켜져 있어 방침대로 수도도 내정합니다' : '꺼져 있어도 방침의 수치 효과는 수도에 그대로 붙습니다'}.` : ''}</p>
           ${pol === 'supply' ? `<button class="grp-row" data-o="supplyTo" style="margin-top:4px"><div><b>수송 목적지 — ${supplyName}</b><span>남는 병력을 매달 이 성으로 보냅니다</span></div><span class="grp-go">▸</span></button>` : ''}
         </div>
-        ${isCapital ? `<div class="office-auto info">
-          <b>본성은 직접 다스립니다</b>
-          <span>자동 내정은 태수를 앉힌 다른 성에서만 돕니다. 본성은 늘 직접 지시합니다</span>
-        </div>` : `<button class="office-auto ${autoOn ? 'on' : ''}" data-o="auto">
+        ${isCapital ? `<button class="office-auto ${capAuto ? 'on' : ''}" data-o="capAuto">
+          <b>수도 자동 내정 ${capAuto ? '켜짐' : '꺼짐'}</b>
+          <span>${capAuto
+            ? `달이 바뀌면 ${gov ? josa(gov.name, 'i') + ' 남은 행동으로' : '수도의 군주·대기 장수가'} 이 수도도 내정합니다 (징병·훈련·개간·증축)`
+            : '기본은 꺼짐 — 수도는 직접 지시합니다. 켜면 달마다 알아서 징병·훈련·개간을 돕습니다'}</span>
+        </button>` : `<button class="office-auto ${autoOn ? 'on' : ''}" data-o="auto">
           <b>자동 내정 ${autoOn ? '켜짐' : '꺼짐'}</b>
           <span>${gov ? `달이 바뀌면 ${josa(gov.name, 'i')} 남은 행동으로 내정합니다` : '태수를 앉히지 않으면 자동 내정하지 않습니다'}</span>
         </button>`}
@@ -8464,6 +8479,13 @@
           m.close();
           openOffice(cityId);
           SK.toast(`자동 내정을 ${cs.auto ? '켰습니다' : '껐습니다'}.`);
+        } else if (k === 'capAuto') {
+          /* v5.66 — 수도(본성) 자동 내정 켜기/끄기 */
+          s.capitalAuto = !capAuto;
+          SK.save();
+          m.close();
+          openOffice(cityId);
+          SK.toast(`수도 자동 내정을 ${s.capitalAuto ? '켰습니다 — 달이 바뀌면 수도도 알아서 내정합니다' : '껐습니다 — 수도는 직접 지시합니다'}.`);
         } else if (k === 'advice') {
           m.close();
           openAdvice(cityId);
@@ -9399,7 +9421,7 @@
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 인사`,
       title: '태수로 임명할 장수',
-      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>${hasBatchim(lordHero.name) ? '이' : '가'} 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다. <b>정치 60% + 통솔 40%</b> 순으로 세우고 상위 2명에게 <em class="duty-reco">추천</em>을 달았습니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(본성 제외).</p><div class="target-list">${rows}</div>`,
+      body: `<p class="talent-note">${lordHero ? `군주 <b>${lordHero.name}</b>${hasBatchim(lordHero.name) ? '이' : '가'} 이 성에 주둔하고 있어 친히 다스립니다. 군주가 있는 동안에는 다른 장수를 태수로 앉힐 수 없습니다.` : '태수의 정치·통솔이 높을수록 개간·상업·성벽 보수·민심 위로가 잘 되고, 징병도 많이 모입니다. <b>정치 60% + 통솔 40%</b> 순으로 세우고 상위 2명에게 <em class="duty-reco">추천</em>을 달았습니다.'} 달이 바뀔 때 남은 행동으로 내정을 맡깁니다(수도는 [수도 자동 내정]을 켴 때만).</p><div class="target-list">${rows}</div>`,
       actions: [{ label: '취소' }],
       wide: true,
     });
@@ -9592,14 +9614,18 @@
   /* v5.50 — 위임 거점 보고에 쓰는 행동 이름 (CMDS의 짧은 이름 대신 화면에 익숙한 말로) */
   const AUTO_ACT_NAME = { farm: '개간', trade: '상업', recruit: '징병', train: '훈련', repair: '성벽 보수', comfort: '백성 위로', supply: '수송', upgrade: '증축' };
 
-  /* 태수 자동 내정 — 본성과 태수가 없는 성은 움직이지 않는다.
+  /* 태수 자동 내정 — 태수(또는 수도의 군주)가 앉은 성에서 움직인다.
+     v5.66 — 수도(본성)도 [수도 자동 내정]을 켜면 달마다 자동으로 내정한다.
+       · 기본값은 꺼짐 — 초반 튜토리얼과 군자금을 해치지 않게.
+       · 켜면 태수 자동 내정과 같은 규칙(증축 → 방침별 순서)을 수도의 군주·대기 장수가 수행한다.
      v5.50 — 이번 달에 태수가 실제로 한 일(또는 아무 일도 못 한 이유)을 한 일마다
      이름·수치로 남겨 월정산 '위임 거점 보고'에 그대로 넘긴다. 한 일이 없는 성도
      한 줄 남겨서 '보고가 빠진 것처럼' 보이지 않게 한다. */
   function runAutoDomestic(s) {
     const out = [];
     SK.CITY_LIST.forEach((c) => {
-      if (c.id === s.playerCapital) return;
+      const isCap = c.id === s.playerCapital;
+      if (isCap && !s.capitalAuto) return;
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
       if (cs.auto === false) return;
@@ -9695,7 +9721,7 @@
         idle = '증축할 금이 모자랍니다';
       if (acts.length) SK.gainExp(gov, 8 * acts.length);
       out.push({
-        city: CITY[c.id].name, cityId: c.id, gov: gov.name, govUid: gov.uid,
+        city: CITY[c.id].name, cityId: c.id, gov: gov.name, govUid: gov.uid, capital: isCap,
         policy: POLICIES[pol].name, policyKey: pol, acts, idle,
       });
     });
@@ -9713,8 +9739,9 @@
     const idle = rows.filter((r) => !r.acts.length);
     const order = acted.concat(idle);   // 일한 성을 먼저, 대기한 성을 뒤에
     const LIMIT = 4;
+    const capN = rows.filter((r) => r.capital).length;
     const rowHtml = (r) => `<div class="mgc${r.acts.length ? '' : ' idle'}">
-        <div class="mgc-head"><b>${r.city}</b><span>${r.gov}</span><i class="mgc-pol">${r.policy}</i></div>
+        <div class="mgc-head"><b>${r.city}</b>${r.capital ? '<i class="mgc-cap">수도</i>' : ''}<span>${r.gov}</span><i class="mgc-pol">${r.policy}</i></div>
         <div class="mgc-acts">${r.acts.length
           ? r.acts.map((a) => `<span class="mgc-chip"><i>${a.name}</i>${a.short}</span>`).join('')
           : `<span class="mgc-chip rest">대기 — ${r.idle || '한 일이 없습니다'}</span>`}</div>
@@ -9722,7 +9749,7 @@
     const shown = order.slice(0, LIMIT).map(rowHtml).join('');
     const folded = order.slice(LIMIT).map(rowHtml).join('');
     return `<div class="mr-auto mr-gov">
-        <p class="mr-auto-title">위임 거점 보고 <em>태수 ${rows.length}곳 · 활동 ${acted.length}곳</em></p>
+        <p class="mr-auto-title">위임 거점 보고 <em>자동 내정 ${rows.length}곳 · 활동 ${acted.length}곳${capN ? ' · 수도 포함' : ''}</em></p>
         ${shown}
         ${folded ? `<details class="mgc-more"><summary>${order.length - LIMIT}곳 더 보기</summary>${folded}</details>` : ''}
       </div>`;
@@ -10143,7 +10170,7 @@
         <div><b>${armyName(f)} 수비병 ${fmt(ts.troops)}</b><span>${fc ? `전장 적 총병력 <b class="df-total">${fmt(fc.total)}</b> (${fc.count}부대)${fc.supportMax ? ` · 원군 최대 +${fmt(fc.supportMax)}` : ''} · ` : ''}성벽 ${ts.def} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, Object.keys(pick), s)}
-      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2개월째에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : '')}</p>
+      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2개월째에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ' — 바로 이어진 길입니다. 다음 달 도착해 성하 야전(수비병 2,500 이상이면 50%)을 거쳐 곧바로 공성전으로 이어집니다')}</p>
       ${(ts.genIds && ts.genIds.length) ? `<p class="enemy-gens">적장 — ${ts.genIds.map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean).map((g) => `${g.name}(${g.tier})`).join(' · ')}</p>` : ''}
       ${aiSup.length ? `<p class="enemy-support">⚠ 인접 ${aiSup.map((x) => x.name).join(' · ')}에 원군 병력 — 수성전에 <b>적 지원군</b>이 합류할 수 있습니다</p>` : ''}
       <div class="troop-ledger">
@@ -10338,11 +10365,13 @@
   SK.openDeploy = openDeploy;
 
   /* ───────────── v5.6 — 행군 · 도중 요격전 ─────────────
-     v5.15 — 모든 성 공격은 무조건 2개월(2턴) 행군. 첫 달 길에서 요격전/대비를 거친다.
-     v5.65 — 표기 통일: 턴은 한 달이므로 행군도 '일'이 아니라 '개월'로 적는다. */
-  /* v5.31 — 아주 먼 원정(기준 거리의 2.6배 이상)은 3턴 행군.
-     중도 요격을 더 자주 만나고, [긴급 회군]으로 전선을 바꿀 판단이 생긴다. */
-  const MARCH_MIN = 2, MARCH_MAX = 2, MARCH_LONG = 3;
+     v5.15 — 성 공격은 행군을 거친다. 첫 달 길에서 요격전/대비를 거친다.
+     v5.65 — 표기 통일: 턴은 한 달이므로 행군도 '일'이 아니라 '개월'로 적는다.
+     v5.66 — 바로 길로 이어진 성(1홉)은 **1개월** 행군. 80성을 2개월씩 오가며
+             확인사살하던 중후반 루즈를 줄인다(밸런스 분석: 성 하나당 행군 2개월 고정).
+             1개월 행군도 성 아래에서 절반 확률로 성하 야전을 먼저 치른다(stepMarches).
+             2홉 이상 먼 원정은 예전처럼 2~3개월이다. */
+  const MARCH_MIN = 1, MARCH_MAX = 2, MARCH_LONG = 3;
   const MARCH_REF = ['xiapi', 'langya'];
   function marchRefDist() {
     const A = CITY[MARCH_REF[0]], B = CITY[MARCH_REF[1]];
@@ -10350,13 +10379,40 @@
     return Math.hypot((A.u - B.u) * 2000, (A.v - B.v) * 1333);
   }
   SK.marchRefDist = marchRefDist;
+  /* 도로·해로를 따라 몇 홉인지 (BFS). 길이 없으면 99 */
+  function marchHops(origin, targetId) {
+    if (!CITY[origin] || !CITY[targetId]) return 99;
+    if (origin === targetId) return 0;
+    const seen = new Set([origin]);
+    let frontier = [origin];
+    for (let d = 1; d <= 6 && frontier.length; d++) {
+      const next = [];
+      frontier.forEach((id) => {
+        const nb = SK.allNeighbors ? SK.allNeighbors(id) : (SK.neighbors(id) || []);
+        nb.forEach((n) => {
+          if (seen.has(n)) return;
+          seen.add(n);
+          next.push(n);
+        });
+      });
+      if (seen.has(targetId)) return d;
+      frontier = next;
+    }
+    return 99;
+  }
+  SK.marchHops = marchHops;
   function marchTurns(origin, targetId) {
     const a = CITY[origin], b = CITY[targetId];
-    if (!a || !b) return MARCH_MIN;
+    if (!a || !b) return MARCH_MAX;
     const d = Math.hypot((a.u - b.u) * 2000, (a.v - b.v) * 1333);
     const ref = marchRefDist();
-    if (d <= ref * 1.05) return MARCH_MIN;
-    if (d >= ref * 2.6) return MARCH_LONG;
+    const hops = marchHops(origin, targetId);
+    /* v5.66 — 바로 길로 이어진 성(육로 1홉)은 한 달.
+       배로만 건너는 성(해로 1홉)은 항해라 2개월, 2홉 이상은 2~3개월로 남긴다. */
+    const roadAdj = (SK.neighbors(origin) || []).indexOf(targetId) >= 0;
+    if (hops === 1 && roadAdj) return MARCH_MIN;
+    if (hops <= 1) return MARCH_MAX;
+    if (hops >= 3 || d >= ref * 2.6) return MARCH_LONG;
     return MARCH_MAX;
   }
   SK.marchTurns = marchTurns;
@@ -10469,6 +10525,7 @@
         <div class="unify-seal">통일</div>
         ${lord ? `<img class="unify-lord ${SK.tcls(lord)}" src="${SK.ptSrc(SK.genPortrait(lord))}" alt="">` : ''}
         <p class="unify-line"><b>${f.name || SK.factionName(s.playerFaction)}</b>의 깃발이 <b>${SK.CITY_LIST.length}개 거점</b> 모두에 섰습니다. ${months}개월의 난투 끝에 천하가 하나가 되었습니다.</p>
+        ${s.surrenderSealed ? `<p class="unify-line">마지막은 칼이 아니라 <b>항복</b>이었습니다 — ${(s.surrenderSealed.factions || []).join(' · ')}이 문을 열었습니다${s.surrenderSealed.neutral ? ' (재야 호족도 따랐습니다)' : ''}.</p>` : ''}
         <div class="unify-rank">${rank}</div>
         <div class="unify-stats">
           <div><span>걸린 달</span><b>${months}</b></div>
@@ -10488,6 +10545,180 @@
     });
   }
   SK.showUnification = showUnification;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.66 — 60성 이상 장악 시 조기 천통(일괄 항복 권유)
+     · 밸런스 분석: 성 30개를 넘으면 이미 이긴 판을 남은 50성 먹으려고
+       한 달에 성 하나씩(행군 + 공성전) 반복하는 구간이 가장 늘어진다.
+     · 전체의 75%(60성)를 차지하고 남은 세력 병력이 명백히 열세(우리 1.6배 이상)면
+       한 번 물어본다.  [일괄 항복 권유(천하통일)] / [끝까지 직접 정복]
+     · 거절하면 12개월 쿨다운 + 다시 5성을 더 먹기 전에는 묻지 않는다.
+     ══════════════════════════════════════════════════════════════ */
+  const SURRENDER_NEED = Math.max(1, Math.ceil(SK.CITY_LIST.length * 0.75));
+  const SURRENDER_COOLDOWN = 12;
+  const SURRENDER_AGAIN = 5;
+  const SURRENDER_RATIO = 1.6;
+
+  function surrenderStanding(s) {
+    const mine = [], rest = [];
+    SK.CITY_LIST.forEach((c) => {
+      const st = s.cities[c.id];
+      if (!st) return;
+      if (st.owner === PF()) mine.push(c); else rest.push(c);
+    });
+    const aiRest = rest.filter((c) => s.cities[c.id].owner !== 'neutral');
+    const neutral = rest.length - aiRest.length;
+    const myTroops = mine.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0) + marchTroopsOf(s);
+    const theirTroops = rest.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
+    const byF = {};
+    aiRest.forEach((c) => {
+      const fid = s.cities[c.id].owner;
+      const row = byF[fid] || (byF[fid] = { id: fid, name: SK.factionName(fid), cities: 0, troops: 0 });
+      row.cities += 1;
+      row.troops += Math.round(s.cities[c.id].troops || 0);
+    });
+    const rows = Object.keys(byF).map((k) => byF[k]).sort((a, b) => b.troops - a.troops);
+    return {
+      mine: mine.length, total: SK.CITY_LIST.length, rest: rest.length, neutral,
+      myTroops: Math.round(myTroops), theirTroops: Math.round(theirTroops),
+      ratio: myTroops / Math.max(1, theirTroops), factions: rows,
+    };
+  }
+  SK.surrenderStanding = surrenderStanding;
+
+  /* 지금 뜨일 형세인가 (쿨다운·조건 포함) */
+  function surrenderReady(s) {
+    if (!s || s.over || s.unified) return null;
+    const st = surrenderStanding(s);
+    if (st.mine < SURRENDER_NEED) return null;
+    if (!st.factions.length) return null;            // 남은 세력이 없으면(재야 정리만) 뜨지 않는다
+    if (st.ratio < SURRENDER_RATIO) return null;     // 병력 우위가 확실할 때만
+    const ask = s.surrenderAsk || null;
+    if (ask && ask.turn && (s.turn || 1) - ask.turn < SURRENDER_COOLDOWN) return null;
+    if (ask && ask.owned != null && st.mine < ask.owned + SURRENDER_AGAIN) return null;
+    return st;
+  }
+  SK.surrenderReady = surrenderReady;
+
+  function showSurrenderOffer(st) {
+    const s = SK.state;
+    const pct = Math.max(1, Math.min(99, Math.round(100 / Math.max(1.01, st.ratio))));
+    SK.modal({
+      kicker: '천하의 형세',
+      title: '대세는 이미 기울었습니다',
+      wide: true,
+      body: `<div class="surrender-offer">
+        <div class="surr-card"><span class="surr-seal">降</span>
+          <div><b>남은 세력이 항복을 청할 형세입니다</b>
+          <p>우리 깃발이 <b>${st.mine} / ${st.total} 거점</b>에 섰고, 남은 땅의 병력을 다 합쳐도 우리의 <b>${pct}%</b>에 못 미칩니다 (우리 병력 ${fmt(st.myTroops)} · 상대 ${fmt(st.theirTroops)}).</p>
+          <em>${st.factions.length}개 세력이 아직 버티고 있습니다${st.neutral ? ` · 재야 호족 ${st.neutral}성` : ''}</em></div></div>
+        <div class="so-rows">${st.factions.map((f) => `<div class="so-row"><b>${f.name}</b><span>거점 ${f.cities}곳</span><em>병력 ${fmt(f.troops)}</em></div>`).join('')}</div>
+        <p class="so-note">[일괄 항복 권유]를 고르면 남은 세력과 재야 호족이 모두 문을 열어 <b>곧바로 천하통일</b>을 선언합니다. 성안 장수 일부는 새 조정에 남습니다.<br>[끝까지 직접 정복]을 고르면 지금처럼 하나씩 치러 갈 수 있습니다(한동안 다시 묻지 않습니다).</p>
+      </div>`,
+      actions: [
+        { label: '끝까지 직접 정복', onClick: () => {
+          s.surrenderAsk = { turn: s.turn, owned: st.mine };
+          SK.save();
+          SK.toast('끝까지 직접 정복합니다 — 한동안 다시 묻지 않습니다.');
+        } },
+        { label: '일괄 항복 권유(천하통일)', primary: true, onClick: () => {
+          s.surrenderAsk = { turn: s.turn, owned: st.mine, accepted: true };
+          acceptMassSurrender(st);
+        } },
+      ],
+      dismissible: false,
+    });
+  }
+  SK.showSurrenderOffer = showSurrenderOffer;
+
+  function acceptMassSurrender(st) {
+    const s = SK.state;
+    if (!s || s.unified) return;
+    const fids = {};
+    st.factions.forEach((f) => { fids[f.id] = true; });
+    const pool = [];
+    const taken = [];
+    SK.CITY_LIST.forEach((c) => {
+      const ts = s.cities[c.id];
+      if (!ts || ts.owner === PF()) return;
+      taken.push(c.name);
+      (ts.genIds || []).forEach((gid) => {
+        const g = SK.GEN_BY_ID[gid];
+        if (g && !s.heroes.some((h) => h.genId === g.id)) pool.push({ g, cityId: c.id });
+      });
+      ts.owner = PF();
+      ts.genIds = [];
+      ts.governor = null;
+      ts.advisor = null;
+      ts.auto = true;
+      ts.bandit = false;
+      ts.scoutedUntil = 0;
+      if (ts.train == null) ts.train = 50;
+      if ((ts.loyalty || 0) < 55) ts.loyalty = 55;
+    });
+    /* 항복한 성의 장수 일부는 새 조정에 남는다 (S·A급 우선, 최대 10명) */
+    const rank = { S: 0, A: 1, B: 2, C: 3 };
+    pool.sort((a, b) => (rank[a.g.tier] != null ? rank[a.g.tier] : 3) - (rank[b.g.tier] != null ? rank[b.g.tier] : 3));
+    const joined = [];
+    pool.forEach((x) => {
+      if (joined.length >= 10) return;
+      const p = (x.g.tier === 'S' || x.g.tier === 'A') ? 0.75 : 0.3;
+      if (Math.random() >= p) return;
+      const hero = makeHero(x.g.name, x.cityId, joinLevelOf(x.g));
+      if (!hero) return;
+      hero.loyal = 60;
+      s.heroes.push(hero);
+      joined.push(hero.name);
+    });
+    /* 침공 예약 정리 — 성이 다 우리 것이 되었으니 적 침공은 없다 */
+    s.pendingInvasion = null;
+    s.invasionQueue = [];
+    s.invasionWarns = [];
+    s.fame = (s.fame || 0) + 30;
+    const fnameList = st.factions.map((f) => f.name);
+    s.surrenderSealed = { turn: s.turn, factions: fnameList, cities: st.rest, neutral: st.neutral };
+    const freedBefore = (s.captured || []).filter((c) => fids[c.by]).map((c) => c.name);
+    if (SK.syncFactionCities) syncFactionCities(s);
+    if (SK.pruneLandlessFactions) { try { SK.pruneLandlessFactions(s); } catch (e) { /* ignore */ } }
+    Object.keys(s.factions || {}).forEach((k) => {
+      if (k !== 'neutral' && k !== s.playerFaction) delete s.factions[k];
+      if (s.truce) delete s.truce[k];
+      if (s.pacts && k !== s.playerFaction) delete s.pacts[k];
+    });
+    SK.save(); SK.refreshHud();
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    SK.sfx.play('victory');
+    SK.modal({
+      kicker: '천하통일', title: '모두가 문을 열었습니다', wide: true,
+      body: `<div class="surrender-offer">
+        <div class="surr-card"><span class="surr-seal">降</span>
+          <div><b>${fnameList.join(' · ')}</b> 항복했습니다
+          <p>남은 <b>${taken.length}개 거점</b>의 성문이 한꺼번에 열렸습니다. 피 한 방울 흘리지 않고 천하가 한 깃발 아래 모였습니다.</p>
+          ${joined.length ? `<em>새 조정에 남은 장수 — ${joined.join(' · ')}</em>` : '<em>성안 장수들은 고향으로 돌아갔습니다</em>'}</div></div>
+        <div class="so-rows"><div class="so-row"><b>거점</b><span>전 거점 장악</span><em>${SK.CITY_LIST.length} / ${SK.CITY_LIST.length}</em></div>
+          <div class="so-row"><b>명성</b><span>항복을 받아낸 위엄</span><em>+30</em></div>
+          ${freedBefore.length ? `<div class="so-row"><b>해방</b><span>사로잡혀 있던 아군</span><em>${freedBefore.join(' · ')}</em></div>` : ''}</div>
+        <p class="so-note">걸린 달 ${Math.max(1, s.turn || 1)}개월 — 이제 천하통일을 선언합니다.</p>
+      </div>`,
+      actions: [{ label: '천하통일 선언', primary: true, onClick: () => {
+        if (SK.checkUnification) SK.checkUnification(true);
+        else if (SK.showUnification) SK.showUnification();
+      } }],
+      dismissible: false,
+    });
+  }
+  SK.acceptMassSurrender = acceptMassSurrender;
+
+  /* 월말·점령 뒤 지도로 돌아올 때 한 번씩 형세를 살핀다 (다른 창이 떠 있으면 건너뜀) */
+  SK.maybeSurrenderOffer = function () {
+    const s = SK.state;
+    if (!s || document.querySelector('#modal-root .modal-layer')) return false;
+    const st = surrenderReady(s);
+    if (!st) return false;
+    SK.save();
+    showSurrenderOffer(st);
+    return true;
+  };
 
   /* ══════════════════════════════════════════════════════════════
      v5.11 — 유랑군 배수진
@@ -10672,6 +10903,8 @@
     if (promoteMarchQueue(s)) { setTimeout(() => { if (SK.openPendingMarch) SK.openPendingMarch(); }, 320); return; }
     if (promoteInvasionQueue(s)) { setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320); return; }
     if (s.pendingInvasion && SK.openPendingInvasion) setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320);
+    /* v5.66 — 월말 사건이 모두 끝난 뒤 형세를 살핀다 (60성 이상 일괄 항복) */
+    if (SK.maybeSurrenderOffer) setTimeout(() => SK.maybeSurrenderOffer(), 700);
   }
   SK.chainPendingEvents = chainPendingEvents;
 
@@ -10719,6 +10952,16 @@
   SK.pendingInvasionCount = pendingInvasionCount;
 
   /* 한 달에 한 사건만 — 도착이 먼저, 없으면 요격. 같은 달 사건은 큐에 쌓아 차례로 연다 */
+  /* v5.66 — 1개월 행군의 성하 야전.
+     · 바로 이어진 성을 한 달 만에 치면 길에서 요격전을 만날 틈이 없어
+       공성전만 반복된다. 그래서 도착하는 순간, 수비병이 충분(2,500+)하면
+       절반(50%) 확률로 적이 성문을 열고 나와 성하에서 야전을 벌인다.
+     · 이기면 나온 적만큼 수비병이 줄어든 채 **같은 달 바로 공성전**으로 이어진다.
+     · 지면 기존 요격 패전과 같다(남은 병력 회군). */
+  const FIELD_MIN_TROOPS = 2500;
+  const FIELD_CHANCE = 0.5;
+  const FIELD_RATIO = 0.42;      // 성문을 나오는 수비병 비율
+  const FIELD_MAX = 6000;
   function stepMarches(s) {
     if (!s.marches || !s.marches.length) return s.pendingMarch;
     if (s.pendingMarch) return s.pendingMarch;
@@ -10728,6 +10971,17 @@
       if (queued.has(m.id)) continue;      // v5.28 — 이미 도착 대기 중인 부대는 더 세지 않는다
       if (m.left > 0) m.left -= 1;
       if (m.left <= 0) {
+        /* v5.66 — 1개월 행군 도착: 성하 야전 판돈을 한 번 저울질한다 */
+        if ((m.total || 2) <= 1 && !m.fieldSeen && !m.fieldDone) {
+          const ts0 = s.cities[m.target];
+          if (ts0 && ts0.owner !== PF() && (ts0.troops || 0) >= FIELD_MIN_TROOPS && Math.random() < FIELD_CHANCE) {
+            m.fieldSeen = true;
+            m.fieldTroops = Math.max(1200, Math.min(FIELD_MAX, Math.round((ts0.troops || 0) * FIELD_RATIO)));
+            m.interceptType = interceptTypeFor(m);
+            marchQueuePush(s, 'field', m.id);
+            continue;
+          }
+        }
         marchQueuePush(s, 'arrive', m.id);
         continue;
       }
@@ -10880,6 +11134,36 @@
       openMarchCamp(m, troops, originNote);
       return;
     }
+    if (s.pendingMarch.kind === 'field') {
+      /* v5.66 ─ 성하 야전 — 1개월 행군으로 바로 닿은 성에서 적이 성문을 열고 나온다 */
+      let ftype = m.interceptType || 'plain';
+      if (ftype === 'ambush') ftype = 'forest';
+      const fdef = SK.BATTLE_TYPES[ftype] || SK.BATTLE_TYPES.plain;
+      const fieldT = m.fieldTroops || 2400;
+      const tsNow = s.cities[m.target];
+      const stayed = Math.max(0, Math.round((tsNow ? tsNow.troops : 0) || 0) - fieldT);
+      SK.modal({
+        kicker: `행군 ${Math.max(1, m.total || 1)}개월 · ${SK.CITY[m.origin].name} → ${tc.name}${waitTag}`,
+        title: `성하 야전 — ${fdef.name}`,
+        body: `<div class="march-event">
+            <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
+            <p><b>${tc.name}</b> 성문이 열렸습니다. 성 밖으로 나온 수비병이 길을 막습니다. <b>${fdef.desc}</b></p>
+            <div class="me-nums"><span>우리 병력 <b>${fmt(troops)}</b></span><span>나온 적 <b>${fmt(fieldT)}</b></span><span>성안 잔류 <b>${fmt(stayed)}</b></span></div>
+            <p class="me-note">${fdef.skill || ''} 이기면 나온 적만큼 수비병이 줄어든 채 <b>같은 달 바로 공성전</b>으로 이어집니다. 지면 남은 병력으로 회군합니다.</p>
+            ${originNote}
+          </div>`,
+        actions: [{ label: '성하에서 맞아친다', primary: true, onClick: () => {
+          s.pendingMarch = null;
+          marchQueueDrop(s, m.id);
+          SK.save();
+          SK.startBattle({ origin: m.origin, targetId: m.target, type: ftype, units: m.units,
+            intercept: { marchId: m.id, name: `${tc.name} 성하`, troops: fieldT,
+              faction: tsNow ? tsNow.owner : null, field: { cityId: m.target, troops: fieldT } } });
+        } }],
+        dismissible: false,
+      });
+      return;
+    }
     if (s.pendingMarch.kind === 'intercept') {
       /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
       let itype = m.interceptType || 'plain';
@@ -10913,15 +11197,19 @@
       const campNote = m.camp === 'rest'
         ? `<p class="me-support">야영 · 보급 — 군량을 나눠 쉬었습니다. 아군 사기 +12로 전장에 들어갑니다</p>`
         : (m.surprise ? `<p class="me-support">강행군 기습 — 적이 미처 진을 치지 못했습니다 (적 사기 −8)</p>` : '');
+      const fieldNote = m.fieldSeen
+        ? `<p class="me-support">성하 야전에서 이겼습니다 — 나온 적은 이미 꺾였고, 남은 수비병으로 성을 지킵니다</p>`
+        : '';
       SK.modal({
         kicker: `행군 ${m.total}/${m.total}개월${m.surprise ? ' · 강행군 한 달 당김' : ''}${waitTag}`,
         title: `${tc.name} 성 앞 도착`,
         body: `<div class="march-event">
             <div class="me-flag" style="background:${f.color}">${SK.markOf(f)}</div>
-            <p>${m.total}개월 행군 끝에 <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
+            <p>${m.total === 1 ? '하룻길을 달려' : `${m.total}개월 행군 끝에`} <b>${tc.name}</b> 성 아래에 닿았습니다.</p>
             <div class="me-nums"><span>도착 병력 <b>${fmt(troops)}</b></span><span>적 수비병 <b>${fmt(ts.troops)}</b></span>${fc ? `<span>전장 적 총병력 <b>${fmt(fc.total)}</b> (${fc.count}부대)</span>` : ''}</div>
             <p class="me-note">${SK.BATTLE_TYPES[m.type].name} — ${SK.BATTLE_TYPES[m.type].desc}</p>
             ${campNote}
+            ${fieldNote}
             ${originNote}
             ${supCands.length ? `<p class="me-support">⚠ 인접 ${supCands.map((x) => x.name).join(' · ')}의 원군이 성으로 들어가고 있습니다 — 적 지원군이 합류할 수 있습니다</p>` : ''}
           </div>`,
@@ -10939,6 +11227,29 @@
     }
   }
   SK.openPendingMarch = openPendingMarch;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.66 — 성하 야전 승리 뒤 같은 달 공성전으로 이어 준다.
+     (battle.js `interceptVictory` 가 적 수비병을 깎은 뒤 이 함수를 부른다)
+     행군대는 남아 있으니 도착 사건(arrive)을 다시 큐에 올려 도착 창을 연다.
+     ══════════════════════════════════════════════════════════════ */
+  SK.afterFieldBattle = function (marchId) {
+    const s = SK.state;
+    const m = marchId ? (s && (s.marches || []).find((x) => x.id === marchId)) : null;
+    if (!s || !m) { if (SK.showMap) SK.showMap(); return false; }
+    m.left = 0;
+    m.fieldSeen = true;
+    m.fieldDone = true;
+    s.pendingMarch = null;
+    marchQueuePush(s, 'arrive', m.id);
+    SK.save();
+    if (SK.showMap) SK.showMap();
+    setTimeout(() => {
+      if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
+      if (s.pendingMarch && SK.openPendingMarch) SK.openPendingMarch();
+    }, 380);
+    return true;
+  };
 
   function deployQuote(pool, picked, s) {
     const lead = (picked || []).map((uid) => s.heroes.find((h) => h.uid === uid)).find((h) => h && SK.quoteOf(h.name, 'deploy'))
@@ -11112,6 +11423,17 @@
   /* AI 세력 하나가 노릴 만한 이웃 성 (플레이어 성은 제외 — 따로 경고·침공) */
   function aiAttackPlan(s, fid) {
     const owned = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
+    /* 세력별 성 수 — 상대의 마지막 성을 노리면 그 세력이 지도에서 사라진다 */
+    const countBy = {};
+    SK.CITY_LIST.forEach((c) => { const st = s.cities[c.id]; countBy[st.owner] = (countBy[st.owner] || 0) + 1; });
+    /* v5.66 — 중후반 교전 조건: 12개월까지 1.45배 그대로, 60개월에는 1.15배까지 낮춰
+       대국이 약소 세력을 실제로 삼키게 한다. 재야 선호는 초반에만 두고,
+       중후반에는 세력 성(이미 자란 땅)을 치는 쪽에 가산점을 준다. */
+    const late = aiAggroPhase(s);
+    /* 성을 많이 가진 대국은 이웃을 더 세게 압박한다 (군세를 모아 치는 셈) */
+    const fsize = clamp((owned.length - 2) / 10, 0, 1);
+    /* 초반(late=0)에는 예전과 똑같은 1.45배 — 대국 압박도 중후반에만 붙는다 */
+    const needRatio = 1.45 - 0.30 * late - 0.15 * fsize * late;
     let best = null;
     owned.forEach((a) => {
       const as = s.cities[a.id];
@@ -11121,9 +11443,13 @@
         const ts = s.cities[tid];
         if (!ts || ts.owner === fid || ts.owner === PF()) return;
         const ratio = strength / cityPower(ts);
-        if (ratio < 1.45) return;
-        const score = ratio + (ts.owner === 'neutral' ? 0.18 : 0);
-        if (!best || score > best.score) best = { from: a.id, target: tid, strength, ratio, score };
+        if (ratio < needRatio) return;
+        /* v5.66 — 중후반에는 마지막 한 성만 남은 약소 세력을 마무리하는 쪽에 가산점
+           (세력 수가 자연히 줄어 대국 중심으로 재편된다) */
+        const finish = (ts.owner !== 'neutral' && countBy[ts.owner] === 1) ? (0.2 + 0.2 * late) * late : 0;
+        const aiBonus = (0.12 + 0.3 * late) * late;
+        const score = ratio + (ts.owner === 'neutral' ? 0.18 * (1 - late) : aiBonus) + finish;
+        if (!best || score > best.score) best = { from: a.id, target: tid, strength, ratio, score, needRatio };
       });
     });
     return best;
@@ -11135,12 +11461,16 @@
     const ts = s.cities[plan.target];
     const commit = Math.round(plan.strength * 0.8);
     as.troops = Math.max(AI_CITY_RESERVE, (as.troops || 0) - commit);
-    const winP = clamp(0.32 + (plan.ratio - 1.45) * 0.5, 0.25, 0.92);
+    /* v5.66 — 중후반 교전은 우세한 쪽이 더 자주 이긴다 (같은 배율이면 예전과 같은 식) */
+    const needRatio = plan.needRatio != null ? plan.needRatio : 1.45 - 0.30 * aiAggroPhase(s);
+    const winP = clamp(0.32 + (plan.ratio - needRatio) * 0.5, 0.25, 0.92);
     const win = Math.random() < winP;
     if (win) {
       const prev = ts.owner;
       ts.owner = fid;
-      ts.troops = Math.max(500, Math.round(commit * (0.28 + Math.random() * 0.18)));
+      /* v5.66 — 이긴 군세가 성에 들어가 주둔한다 (예전엔 70%가 증발해 전쟁이
+         병력만 태우고 대국이 서지 못했다) */
+      ts.troops = Math.max(600, Math.round(commit * (0.55 + Math.random() * 0.2)));
       ts.def = Math.max(28, Math.round((ts.def || 50) * 0.7));
       ts.loyalty = 40;
       ts.bandit = false;
@@ -11151,12 +11481,12 @@
       syncFactionCities(s);
       return { win: true, from: plan.from, target: plan.target, faction: fid, prev };
     }
-    const back = Math.round(commit * 0.3);
+    const back = Math.round(commit * 0.45);
     as.troops = Math.min(cityCap(as), (as.troops || 0) + back);
     /* v5.12 — 실패한 공격으로 재야 수비병이 300명까지 깎여 거저먹기 표적이 되지 않게
        중립 성은 기지의 40%(최소 600명) 아래로는 내려가지 않는다. */
     const floor = ts.owner === 'neutral' ? Math.round((1500 + (hashStr(plan.target) % 1001)) * 0.4) : 300;
-    ts.troops = Math.max(floor, (ts.troops || 0) - Math.round(commit * 0.45));
+    ts.troops = Math.max(floor, (ts.troops || 0) - Math.round(commit * 0.35));
     return { win: false, from: plan.from, target: plan.target, faction: fid };
   }
 
@@ -11288,22 +11618,31 @@
       s.invasionWarns = [];
     }
     if ((s.turn || 1) <= graceOf(s)) return news;
-    /* 2) 다른 세력·중립 성 침공 — 한 달 최대 2건 */
+    /* 2) 다른 세력·중립 성 침공
+       v5.66 — 한 달 교전 상한을 중후반으로 갈수록 늘린다(2 → 5).
+       강한 세력부터 순서를 잡아 대국이 약소 성을 삼켜 세력 수가 자연히 줄어들게 한다. */
+    const lateAI = aiAggroPhase(s);
     const fids = Object.keys(s.factions || {}).filter((k) => k !== 'neutral' && k !== PF());
-    const order = fids.slice().sort(() => Math.random() - 0.5);
+    const sizeOf = (fid) => SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid).length;
+    const order = fids.slice().sort((a, b) => (sizeOf(b) - sizeOf(a)));
+    const raidCap = AI_RAID_BASE + Math.round(AI_RAID_LATE * lateAI);
     let raids = 0;
     order.forEach((fid) => {
-      if (raids >= 2) return;
-      const plan = aiAttackPlan(s, fid);
-      if (!plan) return;
-      const r = resolveAiRaid(s, plan, fid);
-      raids += 1;
-      news.push({
-        kind: r.win ? 'capture' : 'repelled',
-        text: r.win
-          ? `${SK.josa(SK.factionName(fid), 'i')} ${SK.josa(CITY[r.target].name, 'eul')} 차지했습니다`
-          : `${SK.factionName(fid)}의 공격을 ${SK.josa(CITY[r.target].name, 'i')} 막아냈습니다`,
-      });
+      if (raids >= raidCap) return;
+      /* 성 6곳 이상 대국은 두 방향으로 동시에 나간다 (군세를 모아 치는 셈) */
+      const tries = (lateAI > 0 && sizeOf(fid) >= 6) ? 2 : 1;
+      for (let t = 0; t < tries && raids < raidCap; t++) {
+        const plan = aiAttackPlan(s, fid);
+        if (!plan) return;
+        const r = resolveAiRaid(s, plan, fid);
+        raids += 1;
+        news.push({
+          kind: r.win ? 'capture' : 'repelled',
+          text: r.win
+            ? `${SK.josa(SK.factionName(fid), 'i')} ${SK.josa(CITY[r.target].name, 'eul')} 차지했습니다`
+            : `${SK.factionName(fid)}의 공격을 ${SK.josa(CITY[r.target].name, 'i')} 막아냈습니다`,
+        });
+      }
     });
     /* 3) 플레이어 접경 성에 대한 첩보 경고 (한 달 두 곳까지) */
     const warned = planPlayerInvasion(s);
@@ -11338,31 +11677,70 @@
   }
   SK.enemyGenLevel = enemyGenLevel;
 
+  /* v5.66 — 중후반 AI 스케일링 (밸런스 분석: 41개월에 AI 성 병력이 5,000~8,000에서 멈춤)
+     · 12개월까지 boost 0 — 초반 1~10개월 난이도는 예전 그대로
+     · 60개월에 최대(1.0). 자기 세력 성이 많을수록(16성에서 최대) 더 크게 붙는다
+     · 징병 상한(성 인구 17% × 최대 +55%)·징병 속도·훈련도·성벽·농업·상업·인구가 함께 오른다 */
+  const AI_LATE_FROM = 12, AI_LATE_FULL = 60, AI_CAP_BONUS = 0.55;
+  const AI_RAID_BASE = 2, AI_RAID_LATE = 4;     // 한 달 AI끼리 교전 수 2 → 6
+  function aiLatePhase(s) {
+    return clamp(((s && s.turn || 1) - AI_LATE_FROM) / (AI_LATE_FULL - AI_LATE_FROM), 0, 1);
+  }
+  SK.aiLatePhase = aiLatePhase;
+  /* v5.66 — AI끼리 교전 템포: 10개월까지 0(예전 그대로), 40개월에 최대.
+     성장 스케일(12~60개월)보다 빨리 올려 41개월 무렵 이미 대국이 서게 한다. */
+  const AI_AGGRO_FROM = 10, AI_AGGRO_FULL = 40;
+  function aiAggroPhase(s) {
+    return clamp(((s && s.turn || 1) - AI_AGGRO_FROM) / (AI_AGGRO_FULL - AI_AGGRO_FROM), 0, 1);
+  }
+  SK.aiAggroPhase = aiAggroPhase;
+  function aiLateBoost(s, cityCount) {
+    const late = aiLatePhase(s);
+    const size = clamp(((cityCount || 1) - 1) / 15, 0, 1);
+    return late * (0.65 + 0.35 * size);
+  }
+  SK.aiLateBoost = aiLateBoost;
+
   function runAiDomestic(s) {
     const news = [];
+    /* v5.66 — 세력별 성 수 (자기 세력이 클수록 더 세게 자란다) */
+    const ownCount = {};
+    SK.CITY_LIST.forEach((c) => {
+      const st0 = s.cities[c.id];
+      if (!st0 || st0.owner === PF() || st0.owner === 'neutral') return;
+      ownCount[st0.owner] = (ownCount[st0.owner] || 0) + 1;
+    });
     SK.CITY_LIST.forEach((c) => {
       const st = s.cities[c.id];
       if (!st || st.owner === PF() || st.owner === 'neutral') return;
+      /* v5.66 — 중후반 스케일 (초반 12개월은 예전과 똑같음) */
+      const boost = aiLateBoost(s, ownCount[st.owner] || 1);
       /* 군비 */
       const tBefore = Math.round(st.troops || 0);
-      const tAfter = Math.min(cityCap(st), Math.round((st.troops || 0) * 1.04 + 120));
+      const aiCap = Math.round(cityCap(st) * (1 + AI_CAP_BONUS * boost));
+      const tAfter = Math.min(aiCap, Math.round((st.troops || 0) * (1.04 + 0.05 * boost) + 120 + 260 * boost));
       st.troops = tAfter;
       /* v5.56 — 적 AI도 징병한 신병만큼 훈련도가 내려가고, 그래서 훈련을 챙긴다.
-         훈련도가 72 미만이면 달마다 +3, 그 위면 +1 (아군 태수 자동 내정과 같은 마음쓰기) */
+         훈련도가 72 미만이면 달마다 +3, 그 위면 +1 (아군 태수 자동 내정과 같은 마음쓰기)
+         v5.66 — 중후반에는 +3/+1에 최대 +3을 더 붙여 성벽·수비병과 함께 따라 올라간다 */
       const addT = Math.max(0, tAfter - tBefore);
       if (addT > 0) {
         const tch = recruitTrainAfter(st, addT);
         st.train = tch.after;
       }
       const trNow = st.train == null ? 50 : Math.round(st.train);
-      st.train = clamp(trNow + (trNow < 72 ? 3 : 1), 0, 100);
-      st.pop = Math.round((st.pop || 10000) * 1.003);
-      if (st.def < 95 && Math.random() < 0.4) st.def = Math.min(95, st.def + 1);
-      /* 내정 — 농업·상업·치안 */
-      if (st.agri < 95) st.agri = clamp(Math.round((st.agri || 50) + (Math.random() < 0.62 ? 1 : 0)), 0, 100);
-      if (st.comm < 95) st.comm = clamp(Math.round((st.comm || 50) + (Math.random() < 0.62 ? 1 : 0)), 0, 100);
+      st.train = clamp(trNow + (trNow < 72 ? 3 : 1) + Math.round(3 * boost), 0, 100);
+      st.pop = Math.round((st.pop || 10000) * (1.003 + 0.004 * boost));
+      if (st.def < 95 && Math.random() < 0.4 + 0.35 * boost) {
+        st.def = Math.min(100, st.def + (boost > 0.5 && Math.random() < 0.4 ? 2 : 1));
+      }
+      /* 내정 — 농업·상업·치안 (중후반엔 95를 넘어 100까지) */
+      const pollCap = 95 + Math.round(5 * boost);
+      const pollP = 0.62 + 0.3 * boost;
+      if (st.agri < pollCap) st.agri = clamp(Math.round((st.agri || 50) + (Math.random() < pollP ? 1 : 0)), 0, 100);
+      if (st.comm < pollCap) st.comm = clamp(Math.round((st.comm || 50) + (Math.random() < pollP ? 1 : 0)), 0, 100);
       const oq = st.order == null ? 55 : st.order;
-      if (oq < 92) st.order = clamp(Math.round(oq + (Math.random() < 0.45 ? 1 : 0)), 0, 100);
+      if (oq < 92) st.order = clamp(Math.round(oq + (Math.random() < 0.45 + 0.3 * boost ? 1 : 0)), 0, 100);
       if (st.loyalty < 82 && Math.random() < 0.35) st.loyalty = clamp(st.loyalty + 1, 0, 100);
       /* 장수 성장 — 경험치·공훈치·레벨업 */
       aiGenBook(st);
@@ -12629,7 +13007,7 @@
           ${spyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 첩보소</b><span>${l.note ? l.note : `${l.hero} — ${l.acts.map((a) => a.text).join(' · ')}${l.fail ? `${l.acts.length ? ' · ' : ''}첩보 ${l.fail}건은 들통` : ''}`}</span></div>`).join('')}
           ${spyLog.length > 6 ? `<p class="mr-note">${spyLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
         ${debuted.length ? `<div class="mr-event"><span class="me-seal">영</span><div class="me-main"><b>새 명장이 세상에 나왔습니다</b><span>${debuted.slice(0, 6).map((g) => g.name).join(' · ')}${debuted.length > 6 ? ' 외' : ''} — 각지 주점에 소문이 돕니다.</span></div></div>` : ''}
-        <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 대기 장수로 내정을 마칩니다(본성 제외). 건물 담당 장수는 건물 일을 맡은 것으로 칩니다.</p>
+        <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 대기 장수로 내정을 마칩니다(수도는 [수도 자동 내정]을 켰을 때만). 건물 담당 장수는 건물 일을 맡은 것으로 칩니다.</p>
       </div>`,
       actions: [{ label: '계속', primary: true, onClick: () => {
         const inv = () => { if (s.pendingInvasion) setTimeout(openPendingInvasion, 280); };
