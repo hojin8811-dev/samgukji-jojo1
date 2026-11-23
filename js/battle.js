@@ -5098,7 +5098,7 @@
       }
       /* v5.58 — '적 처치 시' 고유 특기(여몽·관흥·여포): 이 부대 공격력이 오른다 */
       const pk = a.passive;
-      if (pk && pk.trigger === 'on_kill' && !(a.pUsed && a.pUsed.on_kill)) {
+      if (pk && pk.trigger === 'on_kill' && !pk.fx && !(a.pUsed && a.pUsed.on_kill)) {
         a.pUsed = a.pUsed || {};
         a.pUsed.on_kill = true;
         const pv = Math.max(0.03, Math.min(0.2, (Number(pk.valuePct) || 10) / 100));
