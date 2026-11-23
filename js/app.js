@@ -2214,6 +2214,11 @@
         const r4 = await fetch('data/a_rank_units_manifest.json', { cache: 'no-cache' });
         if (r4.ok) SK.addTopArt(await r4.json());
       } catch (e4) { console.warn('v5.42 통합 SD 목록을 불러오지 못했습니다.', e4); }
+      /* v5.76 — 새 A급 17인 초상(5×4 시트에서 잘라 낸 투명 WebP). 위 목록보다 나중에 얹어 이 그림이 이긴다. */
+      try {
+        const r5 = await fetch('data/v576_art_manifest.json', { cache: 'no-cache' });
+        if (r5.ok) SK.addTopArt(await r5.json());
+      } catch (e5) { console.warn('v5.76 A급 17인 초상 목록을 불러오지 못했습니다.', e5); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }

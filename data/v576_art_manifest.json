@@ -1,0 +1,70 @@
+{
+ "온달": {
+  "id": 70,
+  "portrait": "assets/portraits/a_rank/70_ondal.webp"
+ },
+ "이유": {
+  "id": 179,
+  "portrait": "assets/portraits/a_rank/179_iyu.webp"
+ },
+ "복지겸": {
+  "id": 310,
+  "portrait": "assets/portraits/a_rank/310_bokjigyeom.webp"
+ },
+ "최치원": {
+  "id": 313,
+  "portrait": "assets/portraits/a_rank/313_choechiwon.webp"
+ },
+ "김취려": {
+  "id": 325,
+  "portrait": "assets/portraits/a_rank/325_kimchwiryeo.webp"
+ },
+ "배중손": {
+  "id": 329,
+  "portrait": "assets/portraits/a_rank/329_baejungsong.webp"
+ },
+ "정지": {
+  "id": 335,
+  "portrait": "assets/portraits/a_rank/335_jeongji.webp"
+ },
+ "황희": {
+  "id": 344,
+  "portrait": "assets/portraits/a_rank/344_hwanghui.webp"
+ },
+ "신숙주": {
+  "id": 351,
+  "portrait": "assets/portraits/a_rank/351_sinsukju.webp"
+ },
+ "김덕령": {
+  "id": 363,
+  "portrait": "assets/portraits/a_rank/363_kimdeongnyeong.webp"
+ },
+ "서산대사": {
+  "id": 364,
+  "portrait": "assets/portraits/a_rank/364_seosandaesa.webp"
+ },
+ "사명대사": {
+  "id": 365,
+  "portrait": "assets/portraits/a_rank/365_samyeongdaesa.webp"
+ },
+ "유성룡": {
+  "id": 366,
+  "portrait": "assets/portraits/a_rank/366_yuseongryong.webp"
+ },
+ "이황": {
+  "id": 368,
+  "portrait": "assets/portraits/a_rank/368_yihwang.webp"
+ },
+ "이이": {
+  "id": 369,
+  "portrait": "assets/portraits/a_rank/369_yii.webp"
+ },
+ "이각": {
+  "id": 388,
+  "portrait": "assets/portraits/a_rank/388_igak.webp"
+ },
+ "사섭": {
+  "id": 480,
+  "portrait": "assets/portraits/a_rank/480_saseop.webp"
+ }
+}
