@@ -344,6 +344,8 @@
   function cityPassivePct(cityId, key) {
     const s = SK.state;
     if (!s || !s.heroes || !SK.PASSIVES) return 0;
+    /* v5.81 — '징병량'은 이제 행정 특기 adm.conscript 가 맡는다 (등용 성공률과 이름이 갈렸다) */
+    if (key === 'recruit') return cityAdminPct(cityId, 'conscript');
     let v = 0;
     s.heroes.forEach((h) => {
       if (h.city !== cityId || h.captured) return;
@@ -354,18 +356,55 @@
     return Math.min(0.15, v / 100);
   }
   SK.cityPassivePct = cityPassivePct;
+  /* ══════════════════════════════════════════════════════════════
+     v5.81 — B·C급 장수의 행정형 고유 특기 (data/unique_passives.json 의 adm)
+     · 이 성에 주둔한 장수들의 adm 값을 키별로 더한다. 키마다 상한을 둔다.
+       gold·food·build·recruit(등용)·diplo·spy·supply·conscript·healCost·healRate
+     · 도시 하나에 몰아도 판이 뒤집히지 않게 상한: gold/food 15% · build 30% ·
+       recruit/diplo 25%p · supply 40% · healCost 40% · conscript/healRate 30% */
+  const ADMIN_CAP = { gold: 0.15, food: 0.15, build: 0.30, recruit: 0.25, diplo: 0.25, diploCost: 0.30,
+    spy: 1, supply: 0.40, supplyLoss: 0.9, conscript: 0.30, healCost: 0.40, healRate: 0.30 };
+  function cityAdminPct(cityId, key) {
+    const s = SK.state;
+    if (!s || !s.heroes || !SK.PASSIVES) return 0;
+    let v = 0;
+    s.heroes.forEach((h) => {
+      if (h.city !== cityId || h.captured) return;
+      const p = SK.PASSIVES[h.name];
+      if (!p) return;
+      const adm = p.adm || (p.kind === 'domestic' ? p.dom : null);
+      if (!adm || adm[key] == null) return;
+      v += Number(adm[key]) || 0;
+    });
+    if (key === 'supplyLoss') return Math.min(0.9, v / 100);
+    if (key === 'spy') return v > 0 ? 1 : 0;
+    return Math.min(ADMIN_CAP[key] == null ? 0.3 : ADMIN_CAP[key], v / 100);
+  }
+  SK.cityAdminPct = cityAdminPct;
+  /* 이 성에 첩보형 특기(밀정망)가 있는가 — 지도·침공 예고에 적성 정보를 보여 준다 */
+  function cityHasIntel(cityId) { return cityAdminPct(cityId, 'spy') > 0; }
+  SK.cityHasIntel = cityHasIntel;
   /* 화면·보고용 — 이 성에서 도는 내정 특기 한눈에 */
   function cityPassiveLines(cityId) {
     const s = SK.state;
     if (!s || !s.heroes || !SK.PASSIVES) return [];
-    const label = { gold: '금 수입', food: '군량 수확', train: '훈련도', recruit: '징병량' };
+    const label = { gold: '금 수입', food: '군량 수확', train: '훈련도', recruit: '등용 성공',
+      build: '건설비 감소', diplo: '외교 성공', diploCost: '외교 비용 감소', spy: '첩보',
+      supply: '보급 소모 감소', supplyLoss: '약탈 손실 방지', conscript: '징병량',
+      healCost: '치료비 감소', healRate: '치료 회복' };
     const out = [];
     s.heroes.forEach((h) => {
       if (h.city !== cityId || h.captured) return;
       const p = SK.PASSIVES[h.name];
-      if (!p || !p.dom) return;
-      Object.keys(p.dom).forEach((k) => out.push({ name: h.name, title: p.title, key: k, v: p.dom[k],
-        text: `${label[k] || k} +${p.dom[k]}%` }));
+      if (!p) return;
+      const src = p.adm || p.dom;
+      if (!src) return;
+      Object.keys(src).forEach((k) => {
+        const v = src[k];
+        const unit = (k === 'recruit' || k === 'diplo') ? '%p' : (k === 'spy' ? '' : '%');
+        out.push({ name: h.name, title: p.title, key: k, v: v,
+          text: k === 'spy' ? '적성 정보 파악' : `${label[k] || k} +${v}${unit}` });
+      });
     });
     return out;
   }
@@ -574,7 +613,8 @@
     const troops = cs.troops || 0;
     const full = troops >= cap;
     /* advanceMonth — 매달 자동 징집 160 × 도시 배율 × 관아 통솔 가산, 그 뒤 병영 징병 */
-    const draftAll = Math.round(160 * econMul(c) * (1 + officeBonusOf(cityId).tong));
+    /* v5.81 — 모병 특기(adm.conscript): 자동 징집량 +N% */
+    const draftAll = Math.round(160 * econMul(c) * (1 + officeBonusOf(cityId).tong) * (1 + cityAdminPct(cityId, 'conscript')));
     const afterDraft = clamp(troops + draftAll, 0, cap);
     const draft = Math.max(0, Math.round(afterDraft - troops));
     const barracks = Math.max(0, Math.round(Math.min(cap - afterDraft, slot.troops || 0)));
@@ -2306,6 +2346,8 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const list = await res.json();
       SK.setGenerals(list);
+      /* v5.81 — A급 필살기 수 (검수·보고용) */
+      SK.A_ULT_COUNT = SK.aUltCount ? SK.aUltCount() : 0;
       return true;
     } catch (e) {
       console.warn('장수 데이터를 불러오지 못했습니다.', e);
@@ -2462,6 +2504,8 @@
       });
     }
     SK.show('screen-scenario');
+    /* v5.81 — 시나리오 화면에서도 난이도(보통/어려움/패왕)를 고른다 */
+    renderDiffRow();
     const back = $('#btn-scenario-back');
     if (back) back.onclick = () => { if (SK.state) SK.showMap(); else SK.show('screen-title'); };
   }
@@ -2492,11 +2536,15 @@
     </button>`;
   }
 
-  /* v5.8 — 난이도. 쉬움은 시작 자금이 넉넉하고 AI가 늦게 움직인다 */
+  /* v5.8 — 난이도. v5.81 — 보통 / 어려움 / 패왕 3단계로 개편 (사용자 요청).
+     · stat: 적 부대 스펙 배율 · recruit: AI 징병 배율 · aggr: AI 공세 배율 ·
+       lvf: AI 장수 레벨 동기화 배율 · grace: 플레이어 침공 유예 개월
+     · easy는 옛 저장 호환용으로만 남기고 선택 화면에는 띄우지 않는다. */
   const DIFFICULTIES = {
-    easy: { key: 'easy', name: '쉬움', desc: '시작 금 +35% · 침공 8개월 유예', goldMul: 1.35, grace: 8 },
-    normal: { key: 'normal', name: '보통', desc: '시작 금 그대로 · 침공 4개월 유예', goldMul: 1, grace: 4 },
-    hard: { key: 'hard', name: '어려움', desc: '시작 금 −20% · 침공 2개월 유예', goldMul: 0.8, grace: 2 },
+    easy: { key: 'easy', name: '쉬움', desc: '옛 저장 호환', goldMul: 1.35, grace: 8, stat: 0.95, recruit: 0.85, aggr: 0.85, lvf: 0.85, hidden: true },
+    normal: { key: 'normal', name: '보통', desc: '적 스펙 100% · 침공 4개월 유예', goldMul: 1, grace: 4, stat: 1.00, recruit: 1.00, aggr: 1.00, lvf: 0.90 },
+    hard: { key: 'hard', name: '어려움', desc: '적 스펙 +12% · 징병 +25% · 공세 +20%', goldMul: 0.8, grace: 2, stat: 1.12, recruit: 1.25, aggr: 1.20, lvf: 1.00 },
+    king: { key: 'king', name: '패왕', desc: '적 스펙 +25% · 징병 +50% · 공세 +40%', goldMul: 0.65, grace: 1, stat: 1.25, recruit: 1.50, aggr: 1.40, lvf: 1.10 },
   };
   let chosenDiff = 'normal';
   function diffOf(s) { return DIFFICULTIES[(s && s.difficulty) || chosenDiff] || DIFFICULTIES.normal; }
@@ -2690,14 +2738,19 @@
 
   /* 난이도 줄 — 세력 선택 화면 위쪽 */
   function renderDiffRow() {
-    const box = $('#fx-diff');
-    if (!box) return;
-    box.innerHTML = Object.keys(DIFFICULTIES).map((k) => `<button class="fd-btn ${chosenDiff === k ? 'on' : ''}" data-diff="${k}">
+    /* v5.81 — 보통 / 어려움 / 패왕. 세력 선택 화면과 시나리오 선택 화면 두 곳에 같은 줄을 그린다. */
+    ['#fx-diff', '#fx-diff-sc'].forEach((sel) => {
+      const box = $(sel);
+      if (!box) return;
+      box.innerHTML = Object.keys(DIFFICULTIES).filter((k) => !DIFFICULTIES[k].hidden)
+        .map((k) => `<button class="fd-btn ${chosenDiff === k ? 'on' : ''}" data-diff="${k}">
         <b>${DIFFICULTIES[k].name}</b><span>${DIFFICULTIES[k].desc}</span></button>`).join('');
-    box.querySelectorAll('[data-diff]').forEach((b) => {
-      b.onclick = () => { chosenDiff = b.dataset.diff; renderDiffRow(); };
+      box.querySelectorAll('[data-diff]').forEach((b) => {
+        b.onclick = () => { chosenDiff = b.dataset.diff; renderDiffRow(); };
+      });
     });
   }
+  SK.renderDiffRow = renderDiffRow;
 
   function beginScenario(sc, factionId) {
     SK.state = newState(sc, factionId);
@@ -3493,6 +3546,71 @@
   }
   SK.openTreasures = openTreasures;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.81 — 보물 350종 · 한국 175 : 삼국지 175 균형 추첨 (사용자 제보: 한국 보물만 편중)
+     원인: 등급 가중치가 일반 = 5로 가장 높은데 일반 35종이 전부 한국 보물이었고,
+          진영을 보는 규칙이 없어 일반이 뽑힐 때마다 한국만 나왔다.
+     고침: ① 등급을 먼저 뽑고 ② 그 등급 안에서 진영을 최근 획득 기록으로 번갈아 고르며
+          ③ 같은 등급·진영 후보가 없을 때만 다른 진영으로 넘어간다. 
+          지역·장수 힌트는 '진영을 고른 뒤 같은 진영 후보 안의 가중치'로만 쓴다.
+     ══════════════════════════════════════════════════════════════ */
+  const T_GRADE_W = { '전설': 0.02, '영웅': 0.10, '희귀': 0.30, '일반': 0.58 };
+  function treasureOriginLog(s) {
+    s.treasureOriginLog = Array.isArray(s.treasureOriginLog) ? s.treasureOriginLog : [];
+    return s.treasureOriginLog;
+  }
+  SK.treasureOriginLog = treasureOriginLog;
+  SK.rollTreasureFrom = function (pool, opts) {
+    opts = opts || {};
+    const s = SK.state;
+    if (!Array.isArray(pool) || !pool.length) return null;
+    const grades = opts.grades || Object.keys(T_GRADE_W);
+    let grade = opts.grade;
+    if (!grade) {
+      const tw = grades.reduce((a, g) => a + (T_GRADE_W[g] || 0), 0) || 1;
+      let r = Math.random() * tw;
+      for (const g of grades) { r -= (T_GRADE_W[g] || 0); if (r <= 0) { grade = g; break; } }
+      grade = grade || grades[grades.length - 1];
+    }
+    let cand = pool.filter((t) => t.grade === grade);
+    if (!cand.length) cand = pool.slice();
+    /* 최근 10개 획득의 진영을 보고 더 적은 쪽을 고른다 (동률이면 무작위) */
+    const log = s ? treasureOriginLog(s) : [];
+    const recent = log.slice(-10);
+    const krN = recent.filter((o) => o === 'korea').length;
+    const skN = recent.filter((o) => o === 'threeKingdoms').length;
+    let origin = opts.forceOrigin;
+    if (!origin) origin = krN < skN ? 'korea' : (skN < krN ? 'threeKingdoms' : (Math.random() < 0.5 ? 'korea' : 'threeKingdoms'));
+    let list = cand.filter((t) => (t.origin || 'threeKingdoms') === origin);
+    if (!list.length) {
+      origin = origin === 'korea' ? 'threeKingdoms' : 'korea';
+      list = cand.filter((t) => (t.origin || 'threeKingdoms') === origin);
+    }
+    if (!list.length) list = cand;
+    /* 지역·장수 힌트 가중치 — 같은 진영 후보 안에서만 완만하게 작용한다 */
+    const names = opts.names || [];
+    const cityName = String(opts.cityName || '').replace(' 요새', '').replace(' 관문', '');
+    const weights = list.map((t) => {
+      let b = 1;
+      const hint = String(t.dropHint || '');
+      if (names.some((n) => n && hint.includes(n))) b = 6;
+      else if (cityName && hint.includes(cityName)) b = 4;
+      else if (SK.treasureWhere && cityName) {
+        const w = SK.treasureWhere(t);
+        if (w.regions.some((r) => r.cities.some((nm) => String(nm).replace(' 요새', '').replace(' 관문', '') === cityName))) b = 2;
+      }
+      return b;
+    });
+    const total = weights.reduce((a, b) => a + b, 0);
+    let pick = list[0], r = Math.random() * total;
+    for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) { pick = list[i]; break; } }
+    if (s && pick) {
+      log.push(pick.origin || 'threeKingdoms');
+      while (log.length > 20) log.shift();
+    }
+    return pick;
+  };
+
   SK.rollTreasure = function (names, cityName) {
     if (!SK.TREASURES.length) return null;
     const s = SK.state;
@@ -3502,22 +3620,8 @@
     /* v5.36 — 고증 전용 보물은 주인 장수를 격파했을 때만 후보에 오른다 */
     const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && sigOwnerDown(t, names));
     if (!pool.length) return null;
-    const weights = pool.map((t) => {
-      /* v5.36 — 전설을 크게 희귀하게: 전설 0.2 · 영웅 2 · 희귀 5 */
-      let b = t.grade === '전설' ? 0.2 : t.grade === '영웅' ? 2 : 5;
-      if ((names || []).some((n) => n && t.dropHint.includes(n)) || (cityName && t.dropHint.includes(cityName))) b *= 12;
-      /* v5.33 — 장수 이름이 없어도 그 지역 성에서 싸우면 힌트대로 조금 더 잘 나온다 */
-      else if (SK.treasureWhere && cityName) {
-        const w = SK.treasureWhere(t);
-        const here = String(cityName).replace(' 요새', '').replace(' 관문', '');
-        if (w.regions.some((r) => r.cities.some((nm) => String(nm).replace(' 요새', '').replace(' 관문', '') === here))) b *= 4;
-      }
-      return b;
-    });
-    let total = weights.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
-    let pick = pool[0];
-    for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { pick = pool[i]; break; } }
+    const pick = SK.rollTreasureFrom(pool, { names, cityName });
+    if (!pick) return null;
     s.treasures.push(pick.id);
     if (SK.codexTreasure) SK.codexTreasure(pick.id);
     return pick;
@@ -4289,7 +4393,9 @@
   function buildCost(sl, cityId) {
     const base = sl.key ? ECON.buildUp[clamp(sl.lv, 1, 4)] : ECON.buildNew;
     const cut = cityId ? Math.min(0.4, cityTfx(cityId, 'buildCost', 40) / 100) : 0;
-    return Math.max(1, Math.round(base * (1 - cut)));
+    /* v5.81 — 토목 영선(행정 특기): 이 성 장수의 건설 할인 */
+    const adm = cityId ? cityAdminPct(cityId, 'build') : 0;
+    return Math.max(1, Math.round(base * (1 - cut) * (1 - adm)));
   }
   SK.buildCost = buildCost;
 
@@ -4361,12 +4467,20 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b>${extra}<em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i></div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
     box.querySelectorAll('.slot-card').forEach((b) => {
-      b.onclick = () => openSlot(cityId, Number(b.dataset.slot));
+      b.onclick = (ev) => {
+        /* v5.81 — 카드 안 [철거] 칩을 누르면 상세창 대신 철거 확인창 */
+        if (ev && ev.target && ev.target.closest && ev.target.closest('[data-demolish]')) {
+          SK.sfx.play('ui');
+          demolishSlot(cityId, Number(ev.target.closest('[data-demolish]').dataset.demolish));
+          return;
+        }
+        openSlot(cityId, Number(b.dataset.slot));
+      };
     });
     /* v5.48 — 관아 고정 카드: 누르면 관아 창(미임명이면 태수 임명 창)이 열린다 */
     const hq = box.querySelector('#hq-card');
@@ -4403,6 +4517,45 @@
     }
   }
   SK.renderCitySlots = renderCitySlots;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.81 — 내정 시설 철거 (사용자 요청 2026-11-24)
+     · 이미 지어진 시설을 확인 뒤 허물어 공터로 되돌린다 → 다른 시설을 지을 자리가 생긴다.
+     · 담당·부장은 자동으로 해제되고, 건설비는 돌려받지 않는다(확인 창에 그대로 적는다).
+     ══════════════════════════════════════════════════════════════ */
+  function demolishSlot(cityId, idx) {
+    const s = SK.state;
+    const cs = s && s.cities[cityId];
+    if (!cs || !Array.isArray(cs.slots)) return false;
+    const sl = cs.slots[idx];
+    if (!sl || !sl.key) { SK.toast('이미 비어 있는 공터입니다.'); return false; }
+    const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
+    const owner = slotOwner(cityId, sl);
+    const dep = slotDeputy(cityId, sl);
+    const m = SK.modal({
+      kicker: `${CITY[cityId].name} · 철거`,
+      title: `${def.name} Lv.${sl.lv}을(를) 허물까요?`,
+      body: `<div class="demolish-card">
+        <img src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt="">
+        <div><b>${def.name} <em>Lv.${sl.lv}</em></b>
+        <span>${def.desc}</span>
+        <em>${owner ? `담당 ${owner.name} 해제` : '담당 없음'}${dep ? ` · 부장 ${dep.name} 해제` : ''}</em></div>
+      </div>
+      <p class="talent-note">철거하면 이 칸이 <b>공터</b>가 되어 다른 시설을 지을 수 있습니다. <b>건설비는 돌려받지 못하고, 시설 경험도 사라집니다.</b></p>`,
+      actions: [{ label: '취소' }, { label: '철거하기', primary: true, onClick: () => {
+        /* 슬롯을 공터로 되돌린다 */
+        sl.key = null; sl.lv = 0; sl.exp = 0; sl.uid = null; sl.deputy = null; sl.craft = 0;
+        if (owner) owner.actedThisMonth = false;
+        if (dep) dep.actedThisMonth = false;
+        SK.save(); m.close();
+        SK.openCity(cityId);
+        SK.sfx.play('hammer');
+        SK.toast(`${def.name}을(를) 철거했습니다 — 이 칸은 이제 공터입니다.`);
+      } }],
+    });
+    return true;
+  }
+  SK.demolishSlot = demolishSlot;
 
   /* 증축 가능한 시설 목록 — 경험이 찼고 Lv.5 미만 */
   function upgradableSlots(cs) {
@@ -4655,6 +4808,7 @@
           ${depG ? '<button data-a="freeDep">부장 해제</button>' : ''}
           ${g ? '<button data-a="free">주담당 해제 — 이번 달 자유 행동</button>' : ''}
           ${sl.key === 'training' ? `<button data-a="crew">수련 명단 — 함께 수련할 대기 장수 (${trainCrewOf(cs).length}명)</button>` : ''}
+          <button data-a="demolish" class="slot-demolish">철거 — 공터로 되돌리기</button>
         </div>
         ${targetRole && free.length ? `<p class="duty-pick-head">${targetRole === 'deputy' ? '부장' : '주담당'}으로 앉힐 장수 <em>카드를 누르면 바로 배속됩니다</em></p><div class="target-list">${opts}</div>` : ''}`,
       wide: true, actions: [{ label: '닫기' }],
@@ -4688,6 +4842,9 @@
         } else if (a === 'crew') {
           m.close();
           openTrainCrew(cityId, idx);
+        } else if (a === 'demolish') {
+          m.close();
+          setTimeout(() => demolishSlot(cityId, idx), 40);
         }
       };
     });
@@ -4925,7 +5082,8 @@
     let pool = SK.TREASURES.filter((t) => !owned.has(t.id) && treasureOpen(t) && t.grade === grade);
     if (!pool.length) pool = SK.TREASURES.filter((t) => !owned.has(t.id) && treasureOpen(t));
     if (!pool.length) return { progress: CRAFT_MONTHS, need: CRAFT_MONTHS, done: false, full: true, city: c.name, hero: g ? g.name : '' };
-    const t = pool[Math.floor(Math.random() * pool.length)];
+    /* v5.81 — 공방도 진영을 번갈아 고른다 */
+    const t = SK.rollTreasureFrom(pool, { grade: pool.some((x) => x.grade === grade) ? grade : null }) || pool[0];
     s.treasures = s.treasures || [];
     s.treasures.push(t.id);
     if (SK.codexTreasure) SK.codexTreasure(t.id);
@@ -5286,20 +5444,10 @@
       /* v5.36 — 고증 전용 보물(장팔사모·청룡언월도·적토마 등)은 탐색에서 나오지 않는다 */
       const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && treasureOpen(t));
       if (pool.length) {
-        /* v5.33 — 도감 힌트의 지역이 실제로 통하게: 이 성·이 지역에서 나오는 보물은 잘 나온다 */
-      const hereName = String(c.name).replace(' 요새', '').replace(' 관문', '');
-      const weights = pool.map((t) => {
-        /* v5.36 — 전설 0.2 · 영웅 2 · 희귀 5 */
-        let b = (t.grade === '전설' ? 0.2 : t.grade === '영웅' ? 2 : 5);
-        const w = SK.treasureWhere ? SK.treasureWhere(t) : null;
-        if (w) {
-          if (w.cities.indexOf(cityId) >= 0) b *= 8;
-          else if (w.regions.some((r) => r.cities.some((nm) => String(nm).replace(' 요새', '').replace(' 관문', '') === hereName))) b *= 4;
-        }
-        return b;
-      });
-        let total = weights.reduce((a, b) => a + b, 0), r = Math.random() * total, hit = pool[0];
-        for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { hit = pool[i]; break; } }
+        /* v5.81 — 등급 → 진영(한국/삼국지 번갈아) → 같은 진영 안에서 지역 힌트 가중치 */
+        const hereName = String(c.name).replace(' 요새', '').replace(' 관문', '');
+        const hit = SK.rollTreasureFrom(pool, { cityName: hereName });
+        if (!hit) return null;
         s.treasures.push(hit.id);
         if (SK.codexTreasure) SK.codexTreasure(hit.id);
         return { ok: true, kind: 'treasure', title: `보물을 찾았다 — ${hit.name}`, text: `${c.name} 근방 산야에서 ${hit.grade} 등급의 ${josa(hit.name, 'eul')} 캐냈습니다. ${hit.effect}`, gain: '보관함에 넣었습니다' };
@@ -5913,7 +6061,9 @@
     const fTroops = fCities.reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
     const mine = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).reduce((a, c) => a + (s.cities[c.id].troops || 0), 0);
     const ratio = mine / Math.max(1, fTroops);
-    return clamp(0.1 + ((actor.cha || 60) - 60) * 0.008 + Math.max(0, ratio - 1.4) * 0.14 + Math.max(0, 3 - fCities.length) * 0.07, 0.05, 0.85);
+    /* v5.81 — 절충 사절(행정 특기): 사자를 보낸 성의 외교 성공률 */
+    const diplo = cityAdminPct(actor.city || cityId, 'diplo');
+    return clamp(0.1 + ((actor.cha || 60) - 60) * 0.008 + Math.max(0, ratio - 1.4) * 0.14 + Math.max(0, 3 - fCities.length) * 0.07 + diplo, 0.05, 0.9);
   }
   SK.surrenderChance = surrenderChance;
   /* 휴전·동맹 성사 확률 */
@@ -5922,7 +6072,9 @@
     if (!actor || !term) return 0;
     const fx = heroTfx(actor) || {};
     const diploB = Math.min(0.25, (fx.diplo || 0) / 100);
-    return clamp(term.base + Math.min(0.3, ((actor.cha || 60) - 60) * 0.006) + Math.min(0.1, (s.fame || 0) * 0.00002) + diploB, 0.08, 0.95);
+    /* v5.81 — 절충 사절(행정 특기) */
+    const diploA = cityAdminPct(actor.city || s.playerCapital, 'diplo');
+    return clamp(term.base + Math.min(0.3, ((actor.cha || 60) - 60) * 0.006) + Math.min(0.1, (s.fame || 0) * 0.00002) + diploB + diploA, 0.08, 0.95);
   }
   SK.peaceChance = peaceChance;
   /* N개월 뒤가 몇 년차 몇 월인지 (휴전·동맹 만료 시점) */
@@ -6287,7 +6439,9 @@
 
   function surrenderStrike(cityId, tid, mine) {
     const s = SK.state;
-    if (s.gold < 300) { SK.sfx.play('deny'); SK.toast('금이 부족합니다. (필요 금 300)'); SK.openCity(cityId); return; }
+    /* v5.81 — 절충 사절(행정 특기): 외교 비용 -N% */
+    const diploCost = Math.max(150, Math.round(300 * (1 - cityAdminPct(cityId, 'diploCost'))));
+    if (s.gold < diploCost) { SK.sfx.play('deny'); SK.toast(`금이 부족합니다. (필요 금 ${fmt(diploCost)})`); SK.openCity(cityId); return; }
     const ts = s.cities[tid];
     const fid = ts.owner;
     const fCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid);
@@ -6298,7 +6452,7 @@
     const p = surrenderChance(cityId, actor, tid);
     const tsTroopsBefore = Math.round(ts.troops || 0);
     const tsDefBefore = Math.round(ts.def || 50);
-    s.gold -= 300;
+    s.gold -= diploCost;
     consumeDispatch(cityId, actor);
     const ok = Math.random() < p;
     if (ok) {
@@ -7081,8 +7235,11 @@
     if (add > 0) cs.wounded = Math.round(cs.wounded || 0) + add;
     return add;
   };
-  /* 부상병 치료 비용 — 1명당 금 0.45 */
-  SK.healCostOf = function (n) { return Math.max(1, Math.ceil(Math.max(0, n) * WOUND.cost)); };
+  /* 부상병 치료 비용 — 1명당 금 0.45 (v5.81 — 모야·야전치료 특기가 있는 성은 할인) */
+  SK.healCostOf = function (n, cityId) {
+    const cut = cityId ? cityAdminPct(cityId, 'healCost') : 0;
+    return Math.max(1, Math.ceil(Math.max(0, n) * WOUND.cost * (1 - cut)));
+  };
   /* 금을 내고 치료 — 주둔병 상한까지 돌아온다 (돌려준 인원) */
   SK.tendWounded = function (cityId, opts) {
     SK.setPurse(cityId);
@@ -7095,11 +7252,12 @@
     const room = Math.max(0, cap - Math.round(cs.troops || 0));
     const can = Math.min(n, room);
     if (can <= 0) { if (!(opts && opts.silent)) SK.toast('주둔병이 이미 최대입니다 — 자리가 날 때까지 회복을 기다리세요.'); return 0; }
-    const cost = SK.healCostOf(can);
+    const payN = can;
+    const cost = SK.healCostOf(payN, cityId);
     if (Math.floor(s.gold) < cost) { if (!(opts && opts.silent)) SK.toast(`금이 모자랍니다 — 치료에 금 ${fmt(cost)}이 필요합니다.`); return 0; }
     s.gold -= cost;
-    cs.wounded = n - can;
-    cs.troops = Math.round(cs.troops || 0) + can;
+    cs.wounded = Math.max(0, n - payN);
+    cs.troops = Math.min(cap, Math.round(cs.troops || 0) + can);
     SK.save();
     SK.refreshHud();
     if (document.querySelector('#screen-city.active')) SK.openCity(cityId);
@@ -7116,7 +7274,7 @@
     const cap = cityCap(cs);
     const room = Math.max(0, cap - Math.round(cs.troops || 0));
     const can = Math.min(n, room);
-    const cost = SK.healCostOf(can);
+    const cost = SK.healCostOf(can, cityId);
     const m = SK.modal({
       kicker: `${c.name} · 병영`, title: `부상병 ${fmt(n)}명`,
       body: `<div class="wound-card">
@@ -8457,6 +8615,8 @@
     const bond = actor ? SK.bondBetween(actor.name, g.name) : null;
     if (bond && bond.relation === '친밀') p += 15;
     else if (bond && bond.relation === '숙적') p -= 15;
+    /* v5.81 — 설객의 달변(행정 특기): 이 성의 등용 성공률 +N%p */
+    p += cityAdminPct(cityId, 'recruit') * 100;
     if (s.recruitFail && s.recruitFail[g.id] === s.turn) p = 0;
     return clamp(Math.round(p), 0, 95);
   }
@@ -9226,7 +9386,7 @@
         if ((rec.tier === 'S' || rec.tier === 'A') && Math.random() < 0.22 && SK.TREASURES && SK.TREASURES.length) {
           /* v5.36 — 고증 전용 보물은 몸값으로 나오지 않는다 */
           const tPool = SK.TREASURES.filter((x) => treasureOpen(x));
-          const t = tPool[Math.floor(Math.random() * tPool.length)];
+          const t = SK.rollTreasureFrom(tPool);
           if (t) offer.treasure = { id: t.id, name: t.name };
         }
         /* 적이 사로잡은 아군이 있으면 '포로 교환'을 제안해 온다
@@ -9603,7 +9763,12 @@
           <div class="cdx-filters"><div>${codexChips(GEN_FACS, cdx.fac, 'fac')}</div><div>${codexChips(TIERS, cdx.tier, 'tier')}</div></div>
           ${codexGenCells(st)}`;
       } else {
+        /* v5.81 — 보물 구성(한국 : 삼국지)을 도감에서 바로 보여 준다 */
+        const krN = (SK.TREASURES || []).filter((t) => t.origin === 'korea').length;
+        const skN = (SK.TREASURES || []).filter((t) => t.origin === 'threeKingdoms').length;
+        const originLine = `<p class="cdx-origin">한국 보물 <b>${krN}</b>종 · 삼국지 보물 <b>${skN}</b>종 — 합 <b>${krN + skN}</b>종</p>`;
         body.innerHTML = `${codexBar('보물 수집', st.tHave, st.tres.length, st.tPct)}
+          ${originLine}
           ${treasureSetStripHtml()}
           <div class="cdx-filters"><div class="cdx-types">${codexChips(TRE_TYPES, cdx.type, 'type')}</div><div>${codexChips(TRE_GRADES, cdx.grade, 'grade')}</div></div>
           ${codexTreRows(st)}`;
@@ -9713,11 +9878,11 @@
     const inStore = ((s && s.treasures) || []).includes(tid);
     const hold = owners.length ? `${owners.join(' · ')} 장착` : inStore ? '보물고에 보관 중' : (got ? '이전에 손에 넣었던 보물' : '아직 얻지 못했습니다');
     SK.modal({
-      kicker: `보물 도감 · ${t.grade} ${slot}`,
+      kicker: `보물 도감 · ${t.grade} ${slot} · ${t.originName || (t.origin === 'korea' ? '한국' : '삼국지')}`,
       title: got ? t.name : '？？？',
       body: `<div class="cdx-tre">
         <div class="cdx-tre-top"><span class="cdx-gd" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">${t.grade}</span>
-          <b>${t.type}</b><em>${hold}</em></div>
+          <b>${t.type}</b><em>${hold}</em><em class="cdx-origin-tag">${t.origin === 'korea' ? '한국' : '삼국지'}</em></div>
         <p class="cdx-tre-effect">${got ? (t.effect || '효과 없음') : '아직 얻지 못해 효과를 알 수 없습니다.'}</p>
         ${got && statTxt ? `<p class="cdx-tre-stat">능력치 ${statTxt}</p>` : ''}
         <p class="cdx-tre-hint"><b>획득 경로</b> ${t.dropHint || '어디서 나오는지 알려지지 않았습니다.'}</p>
@@ -10491,7 +10656,9 @@
       const send = Math.max(1200, Math.round((sp.troops || 0) * 0.45));
       supMax += Math.max(600, Math.round(send * 0.42 / n / 100) * 100) * n;
     });
-    return { total: plan.total, count: plan.count, garrison: Math.round(ts.troops || 0), supportMax: supMax };
+    /* v5.81 — 난이도(어려움·패왕)만큼 예상 적 병력도 함께 올려 적는다 */
+    const dStat = (diffOf(SK.state) || {}).stat || 1;
+    return { total: Math.round(plan.total * dStat), count: plan.count, garrison: Math.round(ts.troops || 0), supportMax: supMax, diffStat: dStat };
   }
   SK.enemyFieldForecast = enemyFieldForecast;
 
@@ -10602,8 +10769,9 @@
           }
           if (!unitCount()) { SK.toast('부대를 한 개 이상 편성하세요.'); return; }
           if (totalCost() > avail) { SK.toast(`보유 병력이 ${fmt(totalCost() - avail)} 부족합니다. 부대를 줄이세요.`); return; }
-          /* v5.11 — 출진 보급은 그 성 창고에서 (병력 1,000당 미 5) */
-          const supply = Math.ceil(totalCost() / 1000 * 5);
+          /* v5.11 — 출진 보급은 그 성 창고에서 (병력 1,000당 미 5)
+             v5.81 — 병참 수송로(행정 특기)가 있는 성은 보급 소모가 준다 */
+          const supply = Math.ceil(totalCost() / 1000 * 5 * (1 - cityAdminPct(origin, 'supply')));
           if ((s.cities[origin].food || 0) < supply) {
             SK.sfx.play('deny');
             SK.toast(`출진 보급 군량이 부족합니다 — ${SK.CITY[origin].name} 창고 ${fmt(s.cities[origin].food || 0)} / 필요 ${fmt(supply)}. [군량 상인]이나 이웃 성 수송으로 채우세요.`);
@@ -12338,6 +12506,11 @@
     const MAX_WARN = ownCities >= 6 ? 2 : 1;
     if (pendingTargets.size >= MAX_WARN) return [];
     const found = [];
+    /* v5.81 — 수비가 가장 약한 내 성을 먼저 노린다 (기습). 난이도가 높을수록 문턱도 낮다 */
+    const myPowers = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF())
+      .map((c) => ({ id: c.id, p: cityPower(s.cities[c.id]) })).sort((a, b) => a.p - b.p);
+    const weakestId = myPowers.length ? myPowers[0].id : null;
+    const aggr = diffOf(s).aggr || 1;
     SK.CITY_LIST.forEach((pc) => {
       if (s.cities[pc.id].owner !== PF()) return;
       if (pendingTargets.has(pc.id)) return;
@@ -12361,13 +12534,16 @@
         /* v5.75 — 내 평균 병력이 커지면 적도 그만큼 병력을 모아 온다 (침공 판단에 배율) */
         const pScale = aiPowerScale(s);
         const ratio = (sum * pScale) / cityPower(s.cities[pc.id]);
-        if (ratio < INVASION_RATIO) return;
+        /* v5.81 — 난이도 공세 + 가장 약한 성 기습 (문턱 15% 완화) */
+        const need = INVASION_RATIO / aggr * (pc.id === weakestId ? 0.85 : 1);
+        if (ratio < need) return;
         /* v5.35 — 지킬 수 없는 규모가 매달 몰려오지 않게 대상 전력의 2.4배로 묶는다
            v5.75 — 내 평균 병력이 큰 중후반에는 상한도 조금 풀어 큰 군세가 실제로 온다 */
         const capTroops = Math.max(1200, Math.round(cityPower(s.cities[pc.id]) * INVASION_POWER_CAP * (1 + 0.3 * Math.max(0, pScale - 1))));
         found.push({
-          from: lead.id, target: pc.id, faction: fid, ratio,
-          troops: Math.min(capTroops, Math.round(sum * 0.7)),
+          from: lead.id, target: pc.id, faction: fid, ratio, need,
+          raid: pc.id === weakestId,
+          troops: Math.min(capTroops, Math.round(sum * 0.7 * (0.9 + 0.25 * (aggr - 1) + (pc.id === weakestId ? 0.06 : 0)))),
           cap: capTroops,
           helpers: crew.filter((c) => c.id !== lead.id).slice(0, 2).map((c) => c.id),
         });
@@ -12376,7 +12552,7 @@
     /* 성 하나당 가장 센 세력 하나씩, 비율이 높은 순서로 남은 자리만큼 */
     const byTarget = {};
     found.forEach((f) => { if (!byTarget[f.target] || f.ratio > byTarget[f.target].ratio) byTarget[f.target] = f; });
-    const best = Object.values(byTarget).sort((a, b) => b.ratio - a.ratio)
+    const best = Object.values(byTarget).sort((a, b) => (b.ratio + (b.raid ? 0.12 : 0)) - (a.ratio + (a.raid ? 0.12 : 0)))
       .slice(0, Math.max(0, MAX_WARN - pendingTargets.size));
     if (!best.length) return [];
     const list = invasionWarnList(s).concat(best.map((b) => Object.assign({ turn: s.turn }, b)));
@@ -12453,7 +12629,12 @@
     /* 3) 플레이어 접경 성에 대한 첩보 경고 (한 달 두 곳까지) */
     const warned = planPlayerInvasion(s);
     (warned || []).forEach((w) => {
-      news.push({ kind: 'warn', text: `첩보 — ${SK.josa(SK.factionName(w.faction), 'i')} ${CITY[w.from].name}에 병력을 모읍니다. ${SK.josa(CITY[w.target].name, 'eul')} 노립니다` });
+      /* v5.81 — 밀정망(첩보 특기)이 있는 성은 적 침공 병력까지 보여 준다 */
+      const intel = cityHasIntel(w.target)
+        ? ` — 적 병력 약 ${fmt(Math.round((s.cities[w.from].troops || 0) * 0.55))}${(w.helpers || []).length ? ' · 합류 ' + w.helpers.length + '곳' : ''}`
+        : '';
+      news.push({ kind: 'warn', text: `첩보 — ${SK.josa(SK.factionName(w.faction), 'i')} ${CITY[w.from].name}에 병력을 모읍니다. ${SK.josa(CITY[w.target].name, 'eul')} 노립니다${w.raid ? ' (수비가 얇은 곳을 노린 기습)' : ''}${intel}` });
+      w.intel = intel;
     });
     if (news.length) s.aiNews = (s.aiNews || []).concat(news).slice(-6);
     return news;
@@ -12478,7 +12659,9 @@
     const s = SK.state;
     const cs = s && s.cities ? s.cities[cityId] : null;
     let lv = (cs && cs.genLv && Number(cs.genLv[genId])) || 1;
+    /* v5.81 — 난이도: 어려움 +1, 패왕 +2 */
     if (s && s.difficulty === 'hard') lv += 1;
+    else if (s && s.difficulty === 'king') lv += 2;
     return clamp(Math.round(lv), 1, 30);
   }
   SK.enemyGenLevel = enemyGenLevel;
@@ -12507,6 +12690,16 @@
   }
   SK.aiLateBoost = aiLateBoost;
 
+  /* v5.81 — AI 장수 성장 목표: 내 주력(레벨 상위 5명) 평균 레벨 */
+  function aiLevelGoal(s) {
+    s = s || SK.state;
+    if (!s || !s.heroes || !s.heroes.length) return 1;
+    const top = s.heroes.filter((h) => !h.captured).map((h) => Number(h.lv) || 1).sort((a, b) => b - a).slice(0, 5);
+    if (!top.length) return 1;
+    return Math.max(1, Math.round(top.reduce((a, b) => a + b, 0) / top.length));
+  }
+  SK.aiLevelGoal = aiLevelGoal;
+
   function runAiDomestic(s) {
     const news = [];
     /* v5.75 — 내 평균 성 병력이 커진 만큼 적도 더 징병한다 (중후반 추격) */
@@ -12527,7 +12720,10 @@
       const tBefore = Math.round(st.troops || 0);
       /* v5.75 — 병력 상한·월 징병량이 내 평균 병력을 따라간다 (pScale 1.0~2.2) */
       const aiCap = Math.round(cityCap(st) * (1 + AI_CAP_BONUS * boost) * (1 + 0.25 * Math.max(0, pScale - 1)));
-      const tAfter = Math.min(aiCap, Math.round((st.troops || 0) * (1.04 + 0.05 * boost) + (120 + 260 * boost) * pScale));
+      /* v5.81 — 난이도: 어려움·패왕은 같은 조건에서 더 많이 징병한다 */
+      const dMul = diffOf(s).recruit || 1;
+      const recruitGain = Math.round(((st.troops || 0) * (0.04 + 0.05 * boost) + (120 + 260 * boost) * pScale) * dMul);
+      const tAfter = Math.min(aiCap, Math.round((st.troops || 0) + recruitGain));
       st.troops = tAfter;
       /* v5.56 — 적 AI도 징병한 신병만큼 훈련도가 내려가고, 그래서 훈련을 챙긴다.
          훈련도가 72 미만이면 달마다 +3, 그 위면 +1 (아군 태수 자동 내정과 같은 마음쓰기)
@@ -12553,15 +12749,23 @@
       if (st.loyalty < 82 && Math.random() < 0.35) st.loyalty = clamp(st.loyalty + 1, 0, 100);
       /* 장수 성장 — 경험치·공훈치·레벨업 */
       aiGenBook(st);
+      /* v5.81 — AI 장수 레벨을 내 주력 5명 평균에 맞춰 끌어올린다 (달 +2 한도, 난이도 배율) */
+      const lvGoal = Math.round(aiLevelGoal(s) * (diffOf(s).lvf || 1));
       (st.genIds || []).forEach((gid) => {
         let lv = Number(st.genLv[gid]) || 1;
         let exp = (Number(st.genExp[gid]) || 0) + 26 + Math.floor(Math.random() * 18);
         let guard = 0;
         while (lv < 30 && exp >= SK.expNeed(lv) && guard++ < 40) { exp -= SK.expNeed(lv); lv += 1; }
+        if (lvGoal > lv) lv = Math.min(lvGoal, lv + 2);
         st.genLv[gid] = lv;
         st.genExp[gid] = Math.round(exp);
         st.genMerit[gid] = (Number(st.genMerit[gid]) || 0) + 2;
       });
+      /* v5.81 — 성마다 S·A급 에이스 장수에게 병력을 몰아준다 (전투 편성에서 공유) */
+      const aces = (st.genIds || []).map((gid) => ({ gid, g: SK.GEN_BY_ID[gid], lv: Number(st.genLv[gid]) || 1 }))
+        .filter((x) => x.g && (x.g.tier === 'S' || x.g.tier === 'A'))
+        .sort((a, b) => (SK.TIER_LV[b.g.tier] || 0) - (SK.TIER_LV[a.g.tier] || 0) || b.lv - a.lv);
+      st.aceId = aces.length ? aces[0].gid : null;
       /* 재야 인재 등용 — 가끔, 성 장수가 비좁지 않을 때 */
       st.talents = st.talents || [];
       if (st.talents.length && (st.genIds || []).length < 5 && Math.random() < 0.18) {
@@ -13224,7 +13428,7 @@
     const owned = new Set(s.treasures || []);
     s.heroes.forEach((h) => Object.values(h.equip || {}).forEach((id) => owned.add(id)));
     const pool = SK.TREASURES.filter((t) => !owned.has(t.id) && treasureOpen(t) && (t.grade === '희귀' || t.grade === '영웅'));
-    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    return pool.length ? SK.rollTreasureFrom(pool, { grades: ['희귀', '영웅'] }) : null;
   }
   function ownedCitySample(s, n) {
     const list = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF());
@@ -13942,9 +14146,11 @@
     const p = playerArmyAvg(s), a = aiArmyAvg(s);
     if (!p || !a) return 1;
     const raw = clamp(p / Math.max(1200, a), 0.8, 2.2);
-    /* 초반(1~6개월)은 예전 그대로 1.0 — 6개월부터 서서히, 24개월에 전부 붙는다 */
-    const phase = clamp(((s.turn || 1) - 6) / 18, 0, 1);
-    return 1 + (raw - 1) * phase;
+    /* v5.81 — 3개월부터 조기 가동 (사용자 요청). 3개월 0 → 24개월 1.0 */
+    const phase = clamp(((s.turn || 1) - 3) / 21, 0, 1);
+    /* 난이도 공세 배율: 어려움·패왕은 같은 병력 차이에서도 더 세게 붙는다 */
+    const aggr = (diffOf(s).aggr || 1);
+    return (1 + (raw - 1) * phase) * (1 + (aggr - 1) * 0.5);
   }
   SK.aiPowerScale = aiPowerScale;
   SK.playerArmyAvg = playerArmyAvg;
@@ -13995,8 +14201,9 @@
       /* v5.41 — 징집 보고와 실제 충원을 한 값으로 묶는다.
          예전에는 보고만 경제 배율을 곱해(+195) 실제로는 160만 들어가,
          월정산 숫자와 병력 유지가 매달 35명씩 어긋났다. */
-      /* v5.48 — 관아 머리의 통솔 → 매달 자동 징집량 (최대 +6%) */
-      const draftGain = Math.round(160 * base * (1 + officeBonusOf(c.id).tong));
+      /* v5.48 — 관아 머리의 통솔 → 매달 자동 징집량 (최대 +6%)
+         v5.81 — 모병 특기(adm.conscript) → +N% */
+      const draftGain = Math.round(160 * base * (1 + officeBonusOf(c.id).tong) * (1 + cityAdminPct(c.id, 'conscript')));
       const troopsBefore = st.troops;
       st.troops = clamp(st.troops + draftGain, 0, cityCap(st));
       pop += Math.max(0, Math.round(st.troops - troopsBefore));
@@ -14205,7 +14412,9 @@
       if (!w) return;
       const cap = cityCap(st);
       const room = Math.max(0, cap - Math.round(st.troops || 0));
-      const heal = Math.min(w, room, Math.max(Math.round(w * WOUND.healMonth), Math.min(w, WOUND.healMin)));
+      /* v5.81 — 모병과 야전치료 특기: 달마다 회복률 +N% */
+      const hRate = cityAdminPct(c.id, 'healRate');
+      const heal = Math.min(w, room, Math.round(Math.max(Math.round(w * WOUND.healMonth), Math.min(w, WOUND.healMin)) * (1 + hRate)));
       if (heal <= 0) return;
       st.wounded = w - heal;
       st.troops = Math.round(st.troops || 0) + heal;
@@ -14999,7 +15208,7 @@
     }
     const total = units.reduce((a, u) => a + u.troops, 0);
     if (!units.length || total < 2000) return;
-    const supply = Math.ceil(total / 1000 * 5);
+    const supply = Math.ceil(total / 1000 * 5 * (1 - cityAdminPct(best.origin, 'supply')));
     if ((cs.food || 0) < supply + 120) return;
     cs.food = Math.max(0, Math.round((cs.food || 0) - supply));
     cs.troops = Math.max(0, Math.round((cs.troops || 0) - total));

@@ -262,7 +262,13 @@
       });
     }
     for (let i = 0; !surv && i < enemyCount; i++) {
-      if (defGens[i]) { enemies.push(makeNamedEnemy(defGens[i], per, i === 0)); continue; }
+      if (defGens[i]) {
+        /* v5.81 — 성마다 S·A급 에이스에게 병력을 몰아준다 (S ×1.35 · A ×1.2, 후열 B·C는 ×0.85) */
+        const gt = defGens[i].tier;
+        const aceMul = gt === 'S' ? 1.35 : gt === 'A' ? 1.2 : (i >= 3 ? 0.85 : 1);
+        enemies.push(makeNamedEnemy(defGens[i], Math.round(per * aceMul), i === 0));
+        continue;
+      }
       if (i === 0 && bossInfo && !defGens.length) { enemies.push(makeBoss(bossInfo, faction, per)); continue; }
       let cls = SK.enemyClassesFor(combatType, i);
       if (SUPPORT_CLS[cls]) {
@@ -291,6 +297,18 @@
       });
       if (ids.length) supportNames.push(sp.name);
     });
+    /* v5.81 — 난이도(어려움·패왕): 적 부대 스펙 상향. 아군 부대에는 붙이지 않는다. */
+    const diffNow = SK.diffOf ? SK.diffOf(s) : null;
+    if (diffNow && diffNow.stat && diffNow.stat !== 1) {
+      const mul = diffNow.stat;
+      enemies.forEach((u) => {
+        u.atk = u.atk * mul;
+        u.def = u.def * mul;
+        u.maxHp = Math.round(u.maxHp * mul);
+        u.hp = Math.round(u.hp * mul);
+        u.train = Math.min(100, Math.round((u.train || 60) * (1 + (mul - 1) * 0.5)));
+      });
+    }
     /* v5.65 — 실제로 세운 적 부대의 총병력 (편성·도착 카드의 예측과 같은 수) */
     const enemyTotal = enemies.reduce((a, u) => a + Math.max(0, u.hp || 0), 0);
 
@@ -365,6 +383,10 @@
       ];
     }
     placeSide(allies, SK.allySlots(type, rings, cols), 'ally', type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null);
+    /* v5.81 — AI 진형: 탱커(검병·창병·등갑병)를 전열에, 원거리·보조를 후열에 세운다 */
+    const DEPLOY_RANK = { geombyung: 0, changbyung: 1, deunggabyung: 0, mudoga: 2, yasubyung: 2, sanjeok: 2, sujeok: 2, gibi: 2, gunwoong: 3,
+      gungsu: 4, gunggi: 4, yeonnobyung: 4, pocha: 5, balseokcha: 5, chaeksa: 6, dosa: 6, pungsusa: 7, muhui: 7, gunakdae: 7 };
+    enemies.sort((a, b) => (DEPLOY_RANK[a.cls] == null ? 3 : DEPLOY_RANK[a.cls]) - (DEPLOY_RANK[b.cls] == null ? 3 : DEPLOY_RANK[b.cls]));
     placeSide(enemies, SK.enemySlots(type, rings, cols), 'enemy');
     /* v5.31 — 사기·상태이상 초기화 (보물의 사기 +N·상태이상 저항이 여기서 붙는다) */
     B.units.forEach(initStatus);
@@ -2066,6 +2088,8 @@
     let m = Number(u.mov) || 0;
     /* v5.31 — 둔화(이동 −1) */
     if (u.slow) m -= 1;
+    /* v5.81 — 유연신법 같은 '이동력 +1' 버프 */
+    m += Math.max(0, Math.round(buffVal(u, 'move')));
     if (u.cls === 'yasubyung') {
       const ch = B && B.tiles && B.tiles[u.y] ? B.tiles[u.y][u.x] : 'P';
       if (ch === 'F' || ch === 'M' || (B && BEAST_TERRAIN_TYPES[B.type])) m += 1;
@@ -4392,6 +4416,32 @@
   /* ───────────── 전투 규칙 ───────────── */
   function terr(u) { return SK.TERRAIN[B.tiles[u.y][u.x]] || SK.TERRAIN.P; }
   function buffVal(u, k) { const b = u.buffs[k]; return b && b.t > 0 ? b.v : 0; }
+  /* ══════════════════════════════════════════════════════════════
+     v5.81 — 병과 고유 패시브 · 장수 고유 특기(fx)를 전투 계산에 붙인다
+     · classPassiveOf: 무도가(치명+10·회피+10) · 야수병(숲·산지 치명+15)
+     · pasFx: 장수 특기 data/unique_passives.json 의 fx/p (예: lifesteal 25)
+     ══════════════════════════════════════════════════════════════ */
+  function classPas(u) { return (u && SK.CLASS_PASSIVE && SK.CLASS_PASSIVE[u.cls]) || null; }
+  function pasFx(u, fx) {
+    const p = u && u.passive;
+    return (p && p.fx === fx) ? (Number(p.p) || 0) / 100 : 0;
+  }
+  /* 실수치(MP +18 같은) — 분수가 아닌 값 */
+  function pasP(u, fx) {
+    const p = u && u.passive;
+    return (p && p.fx === fx) ? (Number(p.p) || 0) : 0;
+  }
+  function classCrit(u) {
+    const c = classPas(u);
+    if (!c) return 0;
+    let v = c.crit || 0;
+    if (c.ambushCrit) {
+      const ch = B && B.tiles && B.tiles[u.y] ? B.tiles[u.y][u.x] : '';
+      if (ch === 'F' || ch === 'M') v += c.ambushCrit;
+    }
+    return v;
+  }
+  function classEva(u) { const c = classPas(u); return (c && c.eva) || 0; }
 
   /* ══════════════════════════════════════════════════════════════
      v5.31 — 사기(morale)와 상태이상(ailment)
@@ -4483,7 +4533,8 @@
   function moraleShift(u, d) {
     if (!u || !u.alive || !d) return;
     const before = u.morale == null ? MORALE_BASE : u.morale;
-    const cut = d < 0 ? Math.max(0, Math.min(0.7, fxPct(u, 'moraleSave'))) : 0;
+    /* v5.81 — 백절불굴(고유 특기): 사기 감소 N% 경감 */
+    const cut = d < 0 ? Math.max(0, Math.min(0.9, fxPct(u, 'moraleSave') + pasFx(u, 'moraleGuard'))) : 0;
     /* v5.56 — 하한 25를 없앴다. 20 이하까지 내려가면 그 자리에서 '사기 붕괴'(위 moraleCollapse)가
        터지므로, 부대가 0에서 판을 버티는 일도 잠기는 일도 없다. */
     const next = clamp(before + (d < 0 ? d * (1 - cut) : d), 0, u.moraleMax || 100);
@@ -4588,6 +4639,8 @@
     const out = [];
     /* v5.58 — classes.json 이 적어 준 기절·혼란·위축·둔화를 먼저 본다 */
     if (sk && sk.stun) out.push({ k: 'stun', p: Math.min(0.6, Number(sk.stun) / 100) });
+    /* v5.81 — 이동불가(20~30%)를 적어 준 기술(마상돌격·백수급습) */
+    if (sk && sk.root) out.push({ k: 'root', p: Math.min(0.6, Number(sk.root) / 100) });
     if (sk && sk.confuse) out.push({ k: 'confuse', p: 0.7 });
     if (sk && sk.fear) out.push({ k: 'fear', p: 0.75 });
     if (sk && sk.slow) out.push({ k: 'slow', p: 1 });
@@ -4854,6 +4907,9 @@
     let defNow = (opts && opts.ignoreTerrain) ? d.def : effDef(d);
     /* v5.58 — '방어력 N% 관통' 책략(천마돌파·파천격·집중노사) */
     if (opts && opts.defPierce) defNow *= Math.max(0, 1 - opts.defPierce);
+    /* v5.81 — 갑옷 파쇄(고유 특기): 언제나 대상 방어력을 N% 무시한다 */
+    const pPen = pasFx(a, 'pierce');
+    if (pPen) defNow *= Math.max(0, 1 - pPen);
     const def = (opts && opts.pierce) ? 0 : defNow;
     /* v5.15 — 병과 삼각 상성 (보병↔궁병↔기병↔창병) */
     const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
@@ -4876,6 +4932,9 @@
     /* v5.29 — 보물: 주는 피해(+), 받는 피해 감소(−), 첫 공격(선제) 피해 */
     const bonusDeal = fxPct(a, 'dmg');
     if (bonusDeal) base *= Math.max(0.4, 1 + bonusDeal);
+    /* v5.81 — 기동 타격(고유 특기): 이번 턴 이동한 칸 1칸당 피해 +N% (최대 3칸) */
+    const mvP = pasFx(a, 'moveDmg');
+    if (mvP && !(opts && opts.counterHit)) base *= 1 + mvP * Math.min(3, (a.movedTiles || 0));
     /* v5.30 — 측면·배후 추가 피해(비도단검): 대상이 바라보는 쪽의 반대에서 치면 붙는다 */
     const flank = fxPct(a, 'flank');
     if (flank && attackKind(a, opts) === 'melee' && !(opts && opts.counterHit)) {
@@ -4908,11 +4967,12 @@
     /* v5.2 — 투석차·발석차는 일반 부대에 약하고 성문·성벽에 강하다 */
     const kind = attackKind(a, opts);
     if (kind === 'rock') base *= 0.55;
-    /* v5.15 — 무희 오라의 회피(받는 피해 −8%) */
-    const ev = buffVal(d, 'evade');
+    /* v5.15 — 무희 오라의 회피(받는 피해 −8%) · v5.81 무도가 고유 회피 */
+    const ev = buffVal(d, 'evade') + classEva(d);
     if (ev > 0) base *= Math.max(0.6, 1 - ev);
     let crit = false;
-    const cc = critChanceOf(a);
+    /* v5.81 — 기술 자체의 치명 보너스(조준사격 +10 · 연환권 +15 등) */
+    const cc = critChanceOf(a) + (opts && opts.critBonus ? Number(opts.critBonus) / 100 : 0);
     if (!opts || !opts.noCrit) {
       if (Math.random() < cc) {
         crit = true;
@@ -5001,6 +5061,20 @@
     }
     if (a) statOf(a).dealt += dmg;
     statOf(d).taken += dmg;
+    /* v5.81 — 피의 갈증(고유 특기): 준 피해의 N%를 자기 병력으로 회복 */
+    if (a && a.alive && dmg > 0) {
+      const ls = pasFx(a, 'lifesteal');
+      if (ls) {
+        const hl = Math.max(1, Math.round(dmg * ls));
+        const before = a.hp;
+        a.hp = Math.min(a.maxHp, a.hp + hl);
+        if (a.hp > before) {
+          addHeal(a, a.hp - before, a);
+          addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.28) * TILE, '+' + (a.hp - before), '#a8f0b8');
+          addFx({ kind: 'heal', x: (rxOf(a) + 0.5) * TILE, y: (ryOf(a) + 0.5) * TILE, life: 420 });
+        }
+      }
+    }
     /* v5.30 — 검증용 마지막 타격 기록 (연격·광역·반사가 실제로 들어갔는지 확인) */
     if (B) {
       B.lastHits = B.lastHits || [];
@@ -5009,6 +5083,19 @@
     }
     if (wasAlive && d.hp <= 0 && a) {
       statOf(a).kills += 1;
+      /* v5.81 — 연격 돌파(고유 특기): 처치하면 곧바로 가장 가까운 다른 적을 한 번 더 친다 */
+      const kp = pasFx(a, 'killAct');
+      if (kp > 0 && !a.killActUsed && Math.random() < kp) {
+        a.killActUsed = true;
+        wait(() => {
+          if (!B || B.over || !a.alive) return;
+          const other = B.units.filter((o) => o.alive && o.side !== a.side)
+            .sort((x, y) => manh(a.x, a.y, x.x, x.y) - manh(a.x, a.y, y.x, y.y))[0];
+          if (!other) return;
+          feed(`${a.name}의 특기 「${(a.passive && a.passive.title) || '연격'}」 — ${other.name}을(를) 한 번 더 칩니다`, a.side === 'ally' ? 'good' : 'bad');
+          attackUnit(a, other, { mult: 1, noStrike: true });
+        }, 460);
+      }
       /* v5.58 — '적 처치 시' 고유 특기(여몽·관흥·여포): 이 부대 공격력이 오른다 */
       const pk = a.passive;
       if (pk && pk.trigger === 'on_kill' && !(a.pUsed && a.pUsed.on_kill)) {
@@ -5093,7 +5180,7 @@
      반격 피해는 일반 병과 75%, 검병은 방패 맞다이 특화로 90%. */
   const COUNTER_MUL = 0.75, COUNTER_MUL_SHIELD = 0.90;
   /* v5.29 — 보물 반격 피해 보정 (검병 90% · 일반 75% + 보물 %) */
-  function counterMulOf(u) { return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter'); }
+  function counterMulOf(u) { return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter') + pasFx(u, 'counter'); }
   function canCounterAt(a, d) {
     if (!a || !d || !a.alive || !d.alive) return false;
     const dist = manh(a.x, a.y, d.x, d.y);
@@ -5304,7 +5391,7 @@
   /* v5.29 — 치명타 확률은 한 곳에서만 계산한다 (예고·실제 전투가 같은 값을 쓰도록) */
   function critChanceOf(u) {
     return 0.05 + (u.wu - 60) * 0.0011 + (u.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(u, 'crit'))
-      + fxPct(u, 'crit') + trainCritBonus(u);
+      + fxPct(u, 'crit') + trainCritBonus(u) + classCrit(u) + pasFx(u, 'crit');
   }
   /* 조조전식 전투 예고 — 피해·반격·지형·인연 배지를 먼저 보여준다 */
   function openAttackPreview(a, d) {
@@ -5384,6 +5471,9 @@
     /* v5.58 — '성벽·성문 피해 +N%'도 성문 타격에 그대로 붙는다 (중복은 60%까지만) */
     const sg = Math.max(0, Math.min(0.6, fxPct(a, 'siegeDmg')));
     if (sg) base *= 1 + sg;
+    /* v5.81 — 공성 공병대(고유 특기): 성문 피해 +N% */
+    const gp = Math.max(0, Math.min(0.6, pasFx(a, 'gate')));
+    if (gp) base *= 1 + gp;
     const cc = 0.05 + (a.wu - 60) * 0.0011;
     let crit = false;
     if (Math.random() < cc) { crit = true; base *= 1.4; }
@@ -5515,6 +5605,9 @@
     const trig = p.trigger || 'on_attack';
     /* v5.56 — 내정형 특기(domestic)는 전장에서 발동하지 않는다 (성에 주둔했을 때만 힘을 낸다) */
     if (trig === 'domestic') return;
+    /* v5.81 — 개편된 전투 특기(fx: 이동비례·반격·흡혈·치명·관통·사기방어·MP·성문·처치재행동)는
+       각자의 전투 계산 자리에서 이미 일한다. 여기서 옛 '주변 아군 공격력 +%'를 또 발동하지 않는다. */
+    if (p.fx) return;
     if (when === 'turn_start' ? trig !== 'turn_start' : trig === 'turn_start') return;
     if (when !== 'turn_start' && u.pUsed && u.pUsed[trig]) {
       /* v5.31 — 사기병법서·육도비록: '전술 발동 확률 +N%'는 한 번 쓴 고유특기가 다시 터질 확률 */
@@ -5579,10 +5672,13 @@
     const dancers = B.units.filter((u) => u.alive && u.side === side && u.cls === 'muhui');
     const inDia = (o, u) => o.alive && manh(o.x, o.y, u.x, u.y) <= 2;
     band.forEach((u) => {
-      const list = B.units.filter((o) => o.side === side && inDia(o, u));
+      /* v5.81 — 군악대 참전 패시브: 전장에 서 있는 동안 아군 전체 공·방 +5% · 매 턴 사기 +3 */
+      const list = B.units.filter((o) => o.side === side && o.alive);
       list.forEach((o) => {
-        o.mp = Math.min(o.maxMp, o.mp + 4);
-        o.buffs.atk = { v: Math.max(0.08, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
+        o.mp = Math.min(o.maxMp, o.mp + 2);
+        o.buffs.atk = { v: Math.max(0.05, (o.buffs.atk && o.buffs.atk.t > 0 && o.buffs.atk.v) || 0), t: 1 };
+        o.buffs.def = { v: Math.max(0.05, (o.buffs.def && o.buffs.def.t > 0 && o.buffs.def.v) || 0), t: 1 };
+        moraleShift(o, 3);
         addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (rxOf(o) + 0.5) * TILE, life: 360, color: '255,214,140' });
       });
       /* v5.56 — 사기가 55 아래로 기운 아군이 곁에 있으면 북을 쳐 사기를 올린다(붕괴 20을 막는다) */
@@ -5591,13 +5687,14 @@
         moraleShift(shaky, 5);
         addFloat((rxOf(shaky) + 0.5) * TILE, (ryOf(shaky) + 0.15) * TILE, '북소리 — 사기 +5', '#ffe08a', { back: true });
       }
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 MP+4 · 공+8%' + (shaky ? ' · 사기 +5' : ''), '#ffe08a', { back: true });
-      feed(`${u.name}의 군악 — 주변 아군 MP +4 · 공격 +8%${shaky ? ` · ${shaky.name} 사기 +5` : ''}`, side === 'ally' ? 'good' : 'bad');
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「군악」 아군 공·방 +5% · 사기 +3', '#ffe08a', { back: true });
+      feed(`${u.name}의 군악 — 아군 전체 공·방 +5% · 매 턴 사기 +3${shaky ? ` · ${shaky.name} 사기 +5` : ''}`, side === 'ally' ? 'good' : 'bad');
     });
     dancers.forEach((u) => {
-      const allies = B.units.filter((o) => o.side === side && inDia(o, u));
+      /* v5.81 — 무희 참전 패시브: 전장에 서 있는 동안 아군 전체 회피 +8% · 치명 +5% (적 교란은 2칸) */
+      const allies = B.units.filter((o) => o.side === side && o.alive);
       allies.forEach((o) => {
-        o.buffs.crit = { v: 0.08, t: 1 };
+        o.buffs.crit = { v: 0.05, t: 1 };
         o.buffs.evade = { v: 0.08, t: 1 };
         addFx({ kind: 'ring', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 360, color: '240,170,220' });
       });
@@ -5611,8 +5708,8 @@
         moraleShift(low, 4);
         addFloat((rxOf(low) + 0.5) * TILE, (ryOf(low) + 0.15) * TILE, '춤사위 — 사기 +4', '#f0b8e0', { back: true });
       }
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 회피·치명 +8%' + (low ? ' · 사기 +4' : ''), '#f0b8e0', { back: true });
-      feed(`${u.name}의 춤 — 아군 회피·치명 +8%, 적 공격 −8%${low ? ` · ${low.name} 사기 +4` : ''}`, side === 'ally' ? 'good' : 'bad');
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '「무희」 아군 회피 +8% · 치명 +5%' + (low ? ' · 사기 +4' : ''), '#f0b8e0', { back: true });
+      feed(`${u.name}의 춤 — 아군 전체 회피 +8% · 치명 +5%, 2칸 안 적 공격 −8%${low ? ` · ${low.name} 사기 +4` : ''}`, side === 'ally' ? 'good' : 'bad');
     });
   }
 
@@ -5917,7 +6014,7 @@
     if (u.mp < sk.mp) return;
     pendingSkill = Object.assign({ key }, sk);
     mode = 'skillTarget';
-    if (sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffSelf' || sk.kind === 'buffAllAllies') {
+    if (sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffSelf' || sk.kind === 'buffAllAllies' || sk.kind === 'healAll') {
       castInstant(u, sk);
     } else {
       $('#battle-tip').textContent = `${sk.name} — 대상 지점을 선택하세요`;
@@ -5955,14 +6052,34 @@
           if (moH) moraleShift(t, moH);
         }
       });
+    } else if (sk.kind === 'healAll') {
+      /* v5.81 — 풍수사 4번 '산천진법': 전장 아군 전체 병력 10% 치유 */
+      battleExp(u, 10);
+      let nHeal = 0;
+      B.units.forEach((t) => {
+        if (!t.alive || t.side !== u.side) return;
+        const heal = Math.max(1, Math.round(t.maxHp * (sk.healPct || 0.1) * (1 + fxPct(u, 'heal'))));
+        t.hp = Math.min(t.maxHp, t.hp + heal);
+        addHeal(t, heal, u);
+        nHeal += 1;
+        addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.35) * TILE, '+' + heal, '#a8f0b8');
+        addFx({ kind: 'heal', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 620 });
+        const moH = skillMoraleOf(sk, true);
+        if (moH) moraleShift(t, moH);
+      });
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.05) * TILE, sk.name, '#bfe8ff', { back: true });
+      feed(`${u.name} — 「${sk.name}」 아군 ${nHeal}부대 병력 회복`, u.side === 'ally' ? 'good' : 'bad');
     } else if (sk.kind === 'buffSelf') {
-      /* v5.60 — 방어뿐 아니라 공격(기마돌격태세·무아지경)·사기까지 오른다 */
+      /* v5.60 — 방어뿐 아니라 공격(기마돌격태세·무아지경)·사기까지 오른다
+         v5.81 — 유연신법의 회피 +25%·이동력 +1까지 실제로 건다 */
       const tS = sk.turns || 3;
       if (sk.atk) u.buffs.atk = { v: sk.atk, t: tS };
       if (sk.def) u.buffs.def = { v: sk.def, t: tS };
+      if (sk.eva) u.buffs.evade = { v: Math.max(sk.eva, (u.buffs.evade && u.buffs.evade.t > 0 && u.buffs.evade.v) || 0), t: tS };
+      if (sk.move) u.buffs.move = { v: sk.move, t: tS };
       const moS = skillMoraleOf(sk, true);
       if (moS) moraleShift(u, moS);
-      const labS = sk.atk && sk.def ? '공격↑ 방어↑' : sk.atk ? '공격↑' : '방어↑';
+      const labS = sk.eva ? '회피↑ 이동+1' : (sk.atk && sk.def ? '공격↑ 방어↑' : sk.atk ? '공격↑' : '방어↑');
       addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, labS, sk.atk ? '#ffe08a' : '#9fd8ff');
       addFx({ kind: 'buff', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 600, color: sk.atk ? '255,226,150' : '150,210,255' });
     } else if (sk.kind === 'buffAllAllies') {
@@ -5991,8 +6108,11 @@
       B.units.forEach((t) => {
         if (t.alive && t.side === u.side && manh(u.x, u.y, t.x, t.y) <= rad) {
           if (sk.atk) t.buffs.atk = { v: sk.atk, t: sk.turns };
-          /* v5.58 — 방어 버프(산천진법·불침진형)도 실제로 건다 */
+          /* v5.58 — 방어 버프(산천진법·불침진형)도 실제로 건다
+             v5.81 — 광폭화의 회피 +15%도 실제로 건다 */
           if (sk.def) t.buffs.def = { v: sk.def, t: sk.turns };
+          if (sk.eva) t.buffs.evade = { v: Math.max(sk.eva, (t.buffs.evade && t.buffs.evade.t > 0 && t.buffs.evade.v) || 0), t: sk.turns };
+          if (sk.move) t.buffs.move = { v: sk.move, t: sk.turns };
           if (mo) moraleShift(t, mo);
           if (sk.cleanse || /상태이상\s*해제|공포\s*상태\s*해제/.test(sk.desc || '')) ailClear(t, 2);
           addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 600 });
@@ -6089,6 +6209,113 @@
       return;
     }
 
+    /* ══════════════════════════════════════════════════════════════
+       v5.81 — 여러 칸을 덮는 병과 기술 (사용자 개편안)
+       pattern: line2(전방 2칸 일렬) · rowFront(전방 가로 3칸) ·
+                colBehind(세로 일렬 2칸+돌파) · range2(주변 2칸 내 적 전원)
+       ══════════════════════════════════════════════════════════════ */
+    if (sk.kind === 'power' && sk.pattern) {
+      busy = true;
+      u.mp -= mpCostOf(u, sk);
+      castCircle(u, sk.pattern === 'range2' ? '255,170,215' : '255,236,160');
+      SK.sfx.play(sk.pattern === 'range2' ? 'spell' : 'sword');
+      skillFxAt(u, sk, x, y, { radius: sk.pattern === 'range2' ? 2 : 1 });
+      const dir = (function () {
+        const dx = x - u.x, dy = y - u.y;
+        return Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
+      })();
+      const perp = { x: -dir.y, y: dir.x };
+      let tiles = [];
+      if (sk.pattern === 'line2' || sk.pattern === 'colBehind') {
+        tiles = [1, 2].map((k) => ({ x: u.x + dir.x * k, y: u.y + dir.y * k }));
+      } else if (sk.pattern === 'rowFront') {
+        tiles = [-1, 0, 1].map((l) => ({ x: u.x + dir.x + perp.x * l, y: u.y + dir.y + perp.y * l }));
+      }
+      const foes = B.units.filter((o) => o.alive && o.side !== u.side);
+      let tg = sk.pattern === 'range2'
+        ? foes.filter((f) => manh(u.x, u.y, f.x, f.y) <= 2)
+        : tiles.map((t) => foes.find((o) => o.x === t.x && o.y === t.y)).filter(Boolean);
+      tg = tg.sort((a, b) => manh(u.x, u.y, a.x, a.y) - manh(u.x, u.y, b.x, b.y)).slice(0, sk.maxTargets || 99);
+      const after = () => {
+        if (sk.selfBuff) {
+          const tS = sk.selfBuff.turns || 2;
+          if (sk.selfBuff.atk) u.buffs.atk = { v: sk.selfBuff.atk, t: tS };
+          if (sk.selfBuff.def) u.buffs.def = { v: sk.selfBuff.def, t: tS };
+          addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, sk.selfBuff.atk ? '공격↑' : '방어↑', '#ffe08a');
+        }
+        /* 철기돌파 — 적 뒤 칸으로 돌파 (막혀 있거나 맵 끝이면 제자리) */
+        if (sk.dash === 'behind' && tg.length) {
+          const far = tg.reduce((m, t) => manh(u.x, u.y, t.x, t.y) > manh(u.x, u.y, m.x, m.y) ? t : m, tg[0]);
+          const to = { x: far.x + dir.x, y: far.y + dir.y };
+          const ch = (B.tiles[to.y] || [])[to.x];
+          const free = ch && ch !== 'C' && ch !== 'H' && ch !== 'W'
+            && !B.units.some((o) => o.alive && o.x === to.x && o.y === to.y);
+          if (free) {
+            u.x = to.x; u.y = to.y; u.rx = to.x; u.ry = to.y;
+            addFx({ kind: 'ring', x: (to.x + 0.5) * TILE, y: (to.y + 0.5) * TILE, life: 520, color: '255,236,160' });
+            addFloat((to.x + 0.5) * TILE, (to.y + 0.15) * TILE, '돌파!', '#ffe6a8', { back: true });
+          }
+        }
+        if (B && !B.over) finishCheck();
+        finish(420);
+      };
+      const step = (i) => {
+        if (!B || B.over) { finish(0); return; }
+        if (i >= tg.length) { after(); return; }
+        const t = tg[i];
+        if (!t.alive) { step(i + 1); return; }
+        let mult = sk.power || 1;
+        if (sk.ifHpBelow && t.hp / Math.max(1, t.maxHp) <= sk.ifHpBelow.thr / 100) mult *= 1 + sk.ifHpBelow.pct / 100;
+        attackUnit(u, t, { mult, defPierce: sk.defPierce || 0, critBonus: sk.crit || 0 }, () => {
+          if (!B || B.over) { finish(0); return; }
+          if (t.alive) {
+            skillAilApply(u, t, sk);
+            if (sk.morale < 0) moraleShift(t, Math.max(-20, Number(sk.morale) || 0));
+          }
+          const vs = sk.vsMount && (t.cls === 'gibi' || (SK.CLASSES[t.cls] && SK.CLASSES[t.cls].mount));
+          if (vs) {
+            wait(() => {
+              if (B && !B.over && t.alive) {
+                addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.1) * TILE, '기병 추가타', '#ffe08a', { back: true });
+                attackUnit(u, t, { mult: sk.vsMount }, () => wait(() => step(i + 1), 120));
+              } else step(i + 1);
+            }, 150);
+          } else wait(() => step(i + 1), 150);
+        });
+      };
+      if (!tg.length) { addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.15) * TILE, '허탕', '#cfcfcf'); after(); return; }
+      step(0);
+      return;
+    }
+
+    /* v5.81 — 궁수 '화시': 책략이 아닌 물리 공격력 기반 지점 범위 피해 */
+    if (sk.kind === 'powerArea') {
+      busy = true;
+      u.mp -= mpCostOf(u, sk);
+      castCircle(u, '255,225,170');
+      SK.sfx.play('bow');
+      const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
+      skillFxAt(u, sk, x, y, { radius: rad });
+      addFloat((x + 0.5) * TILE, (y + 0.15) * TILE, sk.name, '#ffe6a8');
+      wait(() => {
+        if (!B || B.over) { finish(0); return; }
+        const list = B.units.filter((t) => t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad);
+        let i = 0;
+        const one = () => {
+          if (!B || B.over) { finish(0); return; }
+          if (i >= list.length) { finishCheck(); finish(420); return; }
+          const t = list[i++];
+          if (!t.alive) { one(); return; }
+          attackUnit(u, t, { mult: sk.power || 1, critBonus: sk.crit || 0, forceKind: 'arrow' }, () => {
+            if (t.alive) { skillAilApply(u, t, sk); if (sk.morale < 0) moraleShift(t, sk.morale); }
+            wait(one, 120);
+          });
+        };
+        one();
+      }, 240);
+      return;
+    }
+
     if (sk.kind === 'magicArea') {
       busy = true;
       u.mp -= mpCostOf(u, sk);
@@ -6169,6 +6396,8 @@
     }
     // damaging power skill
     let mult = sk.power || 1.4;
+    /* v5.81 — 암살일격: 적 병력 50% 이하이면 추가 피해 +30% */
+    if (sk.ifHpBelow && target.hp / Math.max(1, target.maxHp) <= sk.ifHpBelow.thr / 100) mult *= 1 + sk.ifHpBelow.pct / 100;
     if (sk.waterBonus && B.tiles[u.y][u.x] === 'W') mult += 0.15;
     if (sk.vsMount && (target.cls === 'gibi' || (SK.CLASSES[target.cls] && SK.CLASSES[target.cls].mount))) mult += sk.vsMount;
     if (sk.siegeBonus) {
@@ -6189,7 +6418,7 @@
     const hits = sk.hits || 1;
     const apply = (n) => {
       attackUnit(u, target, { mult, ignoreTerrain: sk.ignoreTerrain, forceKind,
-        defPierce: sk.defPierce || 0, noDodge: !!sk.ignoreEvade }, () => {
+        defPierce: sk.defPierce || 0, noDodge: !!sk.ignoreEvade, critBonus: sk.crit || 0 }, () => {
         /* v5.31 — 파천격(기절 35%)·방패돌진(기절 20%) */
         if (target.alive && B && !B.over) skillAilApply(u, target, sk);
         /* v5.60 — 패왕참·산채습격처럼 '적 사기 -N'이 붙은 강타 */
@@ -6197,6 +6426,14 @@
         if (n > 1 && target.alive && B && !B.over) {
           wait(() => { if (B && !B.over && target.alive) apply(n - 1); else finish(300); }, 160);
         } else {
+          /* v5.81 — 공격 뒤에 자기 강화가 붙는 기술 (기마돌격태세·철벽방어·일섬·무아지경) */
+          if (B && !B.over && sk.selfBuff) {
+            const tS = sk.selfBuff.turns || 2;
+            if (sk.selfBuff.atk) u.buffs.atk = { v: sk.selfBuff.atk, t: tS };
+            if (sk.selfBuff.def) u.buffs.def = { v: sk.selfBuff.def, t: tS };
+            addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, sk.selfBuff.atk ? '공격↑' : '방어↑', '#ffe08a');
+          }
+          if (sk.morale > 0 && B && !B.over) moraleShift(u, sk.morale);
           if (B && !B.over) finishCheck();
           finish(300);
         }
@@ -6251,11 +6488,15 @@
     const t = giTierOf(u);
     return t || 'C';
   }
-  /* 이 부대의 고유 필살기 — S급이 아니면 null */
+  /* 이 부대의 고유 필살기 — v5.81: S급과 A급 모두 (A급은 cutinTier:'A' 로 한 단계 낮다) */
   function ultOf(u) {
     if (!u || !SK.ULTIMATES) return null;
-    if (unitTier(u) !== 'S') return null;
-    return SK.ULTIMATES[u.name] || null;
+    const t = unitTier(u);
+    if (t !== 'S' && t !== 'A') return null;
+    const spec = SK.ULTIMATES[u.name] || null;
+    if (!spec) return null;
+    if (!spec.tier) spec.tier = (t === 'A' ? 'A' : 'S');
+    return spec;
   }
   const ULT_TARGET_KINDS = { hit: 1, combo: 1, aoe: 1, arrow: 1, arrowAoe: 1, magic: 1, rock: 1, debuff: 1 };
   function ultNeedsTarget(spec) { return !!(spec && spec.e && ULT_TARGET_KINDS[spec.e.k]); }
@@ -6311,6 +6552,8 @@
     if (sk) sk.textContent = `「${spec.n}」`;
     if (q) q.textContent = spec.q || '';
     el.style.setProperty('--ult-c', spec.c || '255,220,140');
+    /* v5.81 — A급 컷인은 한 단계 조용한 연출 (CSS #ult-cutin[data-tier="A"]) */
+    el.dataset.tier = spec.tier || 'S';
     el.hidden = false;
     el.setAttribute('aria-hidden', 'false');
     el.classList.remove('show');
@@ -6496,9 +6739,10 @@
     clearAutoEnd();
     SKBattle.refreshUI();
     showUltCutin(u, spec);
-    feed(`${u.name}의 필살기 — 「${spec.n}」`, u.side === 'ally' ? 'good' : 'bad');
+    const isA = (spec.tier === 'A');
+    feed(`${u.name}의 필살기 — 「${spec.n}」${isA ? ' (A급)' : ''}`, u.side === 'ally' ? 'good' : 'bad');
     addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE, `「${spec.n}」`, '#ffe6a8', { back: true });
-    shakeScreen(7);
+    shakeScreen(isA ? 3 : 7);
     SK.sfx.play('spell');
     let ended = false;
     const end = () => {
@@ -6562,7 +6806,9 @@
         });
       });
       if (!best) return null;
-      if (!(best.kill || best.hitN >= 2 || best.ratio >= 0.3)) return null;
+      /* v5.81 — A급은 배율이 낮은 만큼 조금 더 자주 쓴다 */
+      const minRatio = spec.tier === 'A' ? 0.22 : 0.3;
+      if (!(best.kill || best.hitN >= 2 || best.ratio >= minRatio)) return null;
       return best;
     }
     if (e.k === 'heal') {
@@ -6599,20 +6845,20 @@
     if (!btn) return;
     const em = btn.querySelector('em');
     const spec = u ? ultOf(u) : null;
-    const isS = !!(u && unitTier(u) === 'S');
+    const isSA = !!(u && (unitTier(u) === 'S' || unitTier(u) === 'A'));
     const used = !!(u && u.ultUsed);
     const canUse = !!(u && u.side === 'ally' && !u.acted && spec && !used);
     /* v5.65 — 고유 필살기가 없는 일반 장수를 골랐을 때는 회색 잠금으로 확실히 비활성 표시 */
     const noUlt = !!(u && u.side === 'ally' && !spec);
-    if (em) em.textContent = !u ? '—' : (spec ? (used ? '0/1' : '1/1') : (isS ? '없음' : 'S급 전용'));
+    if (em) em.textContent = !u ? '—' : (spec ? (used ? '0/1' : '1/1') : '없음');
     btn.classList.toggle('ready', canUse);
     btn.classList.toggle('off', !canUse);
     btn.classList.toggle('locked', noUlt);
     btn.classList.toggle('active', mode === 'ultTarget' && canUse);
     btn.setAttribute('aria-disabled', canUse ? 'false' : 'true');
     btn.title = !u ? '부대를 고르면 필살기를 쓸 수 있습니다'
-      : !spec ? (isS ? '이 장수의 고유 필살기가 아직 없습니다' : '고유 필살기는 S급 장수만 씁니다')
-        : used ? `「${spec.n}」 — 이 전투에서 사용 완료` : `「${spec.n}」 — 전투당 1회`;
+      : !spec ? (isSA ? '이 장수의 고유 필살기가 아직 없습니다' : '고유 필살기는 S·A급 장수가 씁니다')
+        : used ? `「${spec.n}」 — 이 전투에서 사용 완료` : `「${spec.n}」 — 전투당 1회${spec.tier === 'A' ? ' (A급)' : ''}`;
     const lab = btn.querySelector('b');
     if (lab) lab.textContent = '필살기';
   }
@@ -6622,7 +6868,7 @@
     if (!B || B.phase !== 'ally' || B.over) return;
     if (!u || u.side !== 'ally' || u.acted) { SK.toast('먼저 내 부대를 선택하세요.'); return; }
     const spec = ultOf(u);
-    if (!spec) { SK.toast(unitTier(u) === 'S' ? '이 장수의 고유 필살기가 아직 없습니다.' : '고유 필살기는 S급 장수만 씁니다.'); return; }
+    if (!spec) { SK.toast((unitTier(u) === 'S' || unitTier(u) === 'A') ? '이 장수의 고유 필살기가 아직 없습니다.' : '고유 필살기는 S·A급 장수가 씁니다.'); return; }
     if (u.ultUsed) { SK.toast(`「${spec.n}」은(는) 이 전투에서 이미 썼습니다.`); return; }
     if (!ultNeedsTarget(spec)) {
       castUlt(u, spec, null);
@@ -7168,8 +7414,9 @@
 
   function estSkillDmg(u, f, sk) {
     const tri = SK.triangleMul ? SK.triangleMul(u.cls, f.cls) : { mul: 1 };
-    if (sk.kind === 'power') {
+    if (sk.kind === 'power' || sk.kind === 'powerArea') {
       let mult = sk.power || 1.4;
+      if (sk.ifHpBelow && f.hp / Math.max(1, f.maxHp) <= sk.ifHpBelow.thr / 100) mult *= 1 + sk.ifHpBelow.pct / 100;
       if (sk.vsMount && (f.cls === 'gibi' || (SK.CLASSES[f.cls] && SK.CLASSES[f.cls].mount))) mult += sk.vsMount;
       let base = (effAtk(u) * mult * 0.92 - effDef(f) * 0.52) * 12 * sizeScale(f) * atkScale(u) * tri.mul;
       if (attackKind(u) === 'rock') base *= 0.55;
@@ -7307,7 +7554,7 @@
     }
 
     /* 4) 공격 책략 — 기대 피해가 기본 공격보다 확실히 크거나 처치 가능할 때 */
-    const dmgs = skills.filter((s) => s.kind === 'power' || s.kind === 'magic' || s.kind === 'magicArea');
+    const dmgs = skills.filter((s) => s.kind === 'power' || s.kind === 'powerArea' || s.kind === 'magic' || s.kind === 'magicArea');
     if (dmgs.length && foes.length) {
       let basic = 0;
       tiles.forEach((t) => {
@@ -7340,8 +7587,12 @@
               const d = dTo(t, f.x, f.y);
               if (d < minR || d > range) return;
               const e = estSkillDmg(u, f, sk);
+              /* v5.81 — 여러 명을 덮는 기술(창진·천장관통·철기돌파·제왕의 위엄)은 묶어서 값을 매긴다 */
+              let nHit = 1;
+              if (sk.pattern === 'range2') nHit = Math.min(3, foes.filter((o) => manh(u.x, u.y, o.x, o.y) <= 2).length);
+              else if (sk.pattern) nHit = Math.min(sk.maxTargets || 2, 2);
               const kill = e >= f.hp;
-              const sc = e * (sk.hits || 1) + (kill ? 170 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
+              const sc = e * (sk.hits || 1) * Math.max(1, nHit * 0.75) + (kill ? 170 : 0) + (nHit >= 2 ? 90 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
               if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
             });
           });
@@ -7382,13 +7633,15 @@
     const tgt = B.units.find((o) => o.alive && o.x === x && o.y === y);
     if (sk.kind === 'heal' || sk.kind === 'buffAlly') { if (!tgt || tgt.side !== u.side) return false; }
     if (sk.kind === 'power' || sk.kind === 'magic') { if (!tgt || tgt.side === u.side) return false; }
+    /* v5.81 — 화시(powerArea)는 적이 없는 지점도 노릴 수 있다 */
+    if (sk.kind === 'powerArea') { if (tgt && tgt.side === u.side) return false; }
     const dist = manh(u.x, u.y, x, y);
     if (sk.minRange && dist < sk.minRange) return false;
-    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && sk.kind !== 'buffAllAllies' && dist > skRange(u, sk)) return false;
+    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && sk.kind !== 'buffAllAllies' && sk.kind !== 'healAll' && dist > skRange(u, sk)) return false;
     B.sel = u;
     mode = 'skillTarget';
     pendingSkill = Object.assign({ key: sk.key }, sk);
-    if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies') { castInstant(u, sk); return true; }
+    if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies' || sk.kind === 'healAll') { castInstant(u, sk); return true; }
     trySkillAt(x, y);
     return true;
   }
@@ -7874,8 +8127,10 @@
           u.turnStartX = u.x; u.turnStartY = u.y;
           lastMovedUid = null;
           Object.keys(u.buffs).forEach((k) => { u.buffs[k].t -= 1; if (u.buffs[k].t <= 0) delete u.buffs[k]; });
-          if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3 + Math.max(0, (u.tfx && u.tfx.mp) || 0));
-          else u.mp = Math.min(u.maxMp, u.mp + 2);
+          /* v5.81 — 기백 순환(고유 특기): 매 턴 MP 회복 */
+          const pMp = pasP(u, 'mpRegen');
+          if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3 + Math.max(0, (u.tfx && u.tfx.mp) || 0) + pMp);
+          else u.mp = Math.min(u.maxMp, u.mp + 2 + pMp);
           /* v5.3 — 망루·본성에 선 부대는 턴마다 병력 15% 회복 */
           const holdCh = B.tiles[u.y][u.x];
           if ((holdCh === 'T' || holdCh === 'K') && u.hp < u.maxHp) {
@@ -7946,10 +8201,16 @@
     if (e.x != null) trackTurn(e, true);
     const targets = B.units.filter((u) => u.side === 'ally' && u.alive);
     if (!targets.length) { done(); return; }
-    /* v5.33 — 적 전투 병과도 자기 문관을 노리는 아군을 먼저 친다 */
+    /* v5.33 — 적 전투 병과도 자기 문관을 노리는 아군을 먼저 친다
+       v5.81 — 일점사: 킬각(한 방에 잡히는 아군) > 피 적은 아군 > 힐러·원거리 > 가까운 순 */
     let target = targets.reduce((best, t) => {
       const d = manh(e.x, e.y, t.x, t.y);
       let sc = d;
+      const est = estBasicDmg(e, t);
+      if (est >= t.hp) sc -= 9;                                        // 이번 타격에 쓰러뜨릴 수 있다
+      sc -= (1 - t.hp / Math.max(1, t.maxHp)) * 4;                     // 피가 적을수록 먼저
+      if (SUPPORT_CLS_SET[t.cls]) sc -= 3.2;                           // 풍수사·무희·군악대 우선
+      else if (effRng(t) >= 2) sc -= 1.4;                              // 원거리 딜러
       if (!SUPPORT_CLS_SET[e.cls] && B.units.some((o) => o.alive && o.side === e.side && SUPPORT_CLS_SET[o.cls] && manh(t.x, t.y, o.x, o.y) <= 3)) sc -= 2;
       /* v5.56 — 사기가 낮은 아군을 먼저 노려 붕괴를 만든다 */
       if (t.morale != null && t.morale <= 32) sc -= 2.5;
@@ -8056,6 +8317,9 @@
       const d = manh(t.x, t.y, target.x, target.y);
       const inRange = d >= minR && d <= rng;
       let score = inRange ? -100 + d : (d < minR ? 150 - d : d);
+      /* v5.81 — 원거리 부대 카이팅: 붙으면 한 대 더 맞으므로 한 칸 물러나 쏘는 자리를 고른다 */
+      if (rng >= 2 && minR < 2 && d <= 1 && inRange) score += 28;
+      if (rng >= 2 && minR < 2 && d >= 2 && inRange) score -= 6;
       /* v5.17 — 수비대는 본진 곁을, 돍격대는 마을·아군 본진 쪽으로 움직인다 */
       if (aiGoal) {
         const gd = manh(t.x, t.y, aiGoal.x, aiGoal.y);
@@ -10018,6 +10282,58 @@
         const card = (id) => { const im = el && el.querySelector(id); return im ? im.parentElement.className : null; };
         return { ok, a: card('#dc-img-a'), b: card('#dc-img-b') };
       },
+      /* v5.81 — 병과 4스킬·패시브 검수 훅 */
+      skillInfo(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return (u.skills || []).map((k) => {
+          const s = SK.SKILLS[k] || {};
+          return { key: k, name: s.name, kind: s.kind, pattern: s.pattern || null, power: s.power || null,
+            hits: s.hits || 1, mp: s.mp, unlockLv: s.unlockLv, desc: s.desc };
+        });
+      },
+      skillMenu(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return false;
+        if (u.acted) u.acted = false;
+        B.sel = u; mode = 'idle'; busy = false;
+        openSkillMenu();
+        return true;
+      },
+      castSkillAt(name, key, tx, ty) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        const sk = SK.SKILLS[key];
+        if (!u || !sk) return { ok: false, why: 'no-unit-or-skill' };
+        if (u.acted) { u.acted = false; }
+        B.sel = u; mode = 'idle'; busy = false;
+        const before = B.units.filter((o) => o.alive && o.side !== u.side).map((o) => ({ name: o.name, hp: Math.round(o.hp), x: o.x, y: o.y }));
+        beginSkill(u, key);
+        const md = mode, pend = pendingSkill ? pendingSkill.name : null;
+        trySkillAt(tx == null ? u.x : tx, ty == null ? u.y : ty);
+        return { ok: true, before, pos: { x: u.x, y: u.y }, modeBefore: md, pendingName: pend,
+          mp: Math.round(u.mp), acted: !!u.acted, dist: manh(u.x, u.y, tx == null ? u.x : tx, ty == null ? u.y : ty), range: skRange(u, sk) };
+      },
+      unit(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { name: u.name, cls: u.cls, side: u.side, hp: Math.round(u.hp), maxHp: Math.round(u.maxHp), mp: Math.round(u.mp),
+          x: u.x, y: u.y, buffs: Object.keys(u.buffs || {}), morale: u.morale, passive: u.passive ? { title: u.passive.title, fx: u.passive.fx, p: u.passive.p } : null,
+          atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), crit: Math.round(critChanceOf(u) * 100), mov: movOf(u) };
+      },
+      move(name, x, y) { const u = B && B.units.find((o) => o.name === name); if (!u) return false; u.x = x; u.y = y; u.rx = x; u.ry = y; return true; },
+      setHp(name, hp) { const u = B && B.units.find((o) => o.name === name); if (!u) return false; u.hp = Math.max(1, Math.min(u.maxHp, hp)); return true; },
+      diff() { return SK.diffOf && SK.state ? SK.diffOf(SK.state) : null; },
+      enemyStats() {
+        return B ? B.units.filter((u) => u.side === 'enemy').slice(0, 3).map((u) => ({ name: u.name, atk: Math.round(u.atk), hp: Math.round(u.maxHp) })) : [];
+      },
+      lastHits() { return (B && B.lastHits) || []; },
+      morale(name, delta) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const before = u.morale;
+        if (delta) moraleShift(u, delta);
+        return { before, after: u.morale, max: u.moraleMax || 100 };
+      },
       ultCast(name, targetName) {
         const u = B && B.units.find((o) => o.name === name && o.alive);
         const t = targetName ? B.units.find((o) => o.name === targetName && o.alive) : null;
@@ -10122,7 +10438,7 @@
         B.sel = u; mode = 'skillTarget';
         pendingSkill = Object.assign({ key }, sk);
         const px = tx == null ? u.x : tx, py = ty == null ? u.y : ty;
-        if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies') castInstant(u, sk);
+        if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies' || sk.kind === 'healAll') castInstant(u, sk);
         else trySkillAt(px, py);
         return { ok: true, kind: sk.kind, fx: sk.fx || null, tag: skillFxTag(u, sk), mp: sk.mp, before };
       },

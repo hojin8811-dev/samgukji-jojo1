@@ -6563,3 +6563,42 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .fb-prison-box b { color: inherit; }
 /* v5.78 — 제목을 카드 안에서만 쓰는 창(멸망 속보)은 빈 h3 자리를 남기지 않는다 */
 .modal h3:empty { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v5.81 (?v=100) — 대규모 밸런스 패치 화면 조각
+   · A급 필살기 컷인: S급보다 한 단계 조용한 배너
+   · 내정 시설 카드의 [철거] 칩과 확인 창
+   · 시나리오 화면의 난이도 줄
+   ═══════════════════════════════════════════════════════════════════ */
+#ult-cutin[data-tier="A"] .ult-band {
+  padding: 6px 10px 6px 6px; border-radius: 10px; border-width: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+  transform: scale(0.94);
+}
+#ult-cutin[data-tier="A"] .ult-face { width: 32px; height: 32px; border-radius: 7px; }
+#ult-cutin[data-tier="A"] .ult-lines strong { font-size: 14px; text-shadow: 0 1px 0 #2a1c08; }
+#ult-cutin[data-tier="A"] .ult-lines b { font-size: 11.5px; }
+
+#fx-diff-sc { padding-top: 2px; }
+#screen-scenario #fx-diff-sc { padding: 0 12px 8px; }
+
+/* 시설 카드 [철거] 칩 — 카드(버튼) 안에서 따로 눌린다 */
+.sc-demolish {
+  margin-left: auto; flex: none; padding: 1px 6px; border-radius: 999px;
+  font-size: 9px; font-style: normal; font-weight: 900; letter-spacing: -0.02em;
+  color: #8a3a2a; background: rgba(255, 236, 220, 0.92);
+  border: 1px solid rgba(168, 68, 58, 0.55); white-space: nowrap; cursor: pointer;
+}
+.sc-demolish:active { background: #f3cdbd; }
+.slot-demolish { color: #8a3a2a !important; }
+.demolish-card { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 10px;
+  background: rgba(255, 246, 228, 0.8); border: 1px solid #d7b87a; }
+.demolish-card img { width: 56px; height: 56px; object-fit: contain; flex: none; }
+.demolish-card b { display: block; font-size: 14px; color: #3a2b12; }
+.demolish-card b em { font-style: normal; font-size: 10.5px; color: #8a7448; margin-left: 4px; }
+.demolish-card span { display: block; font-size: 11px; color: #5a4a2c; line-height: 1.35; margin-top: 2px; }
+.demolish-card > div > em { display: block; font-style: normal; font-size: 10px; color: #8a7448; margin-top: 3px; }
+.cdx-origin { margin: 2px 0 6px; font-size: 10.5px; color: #5a4a2c; letter-spacing: -0.02em; }
+.cdx-origin b { color: #8a3a2a; }
+.cdx-origin-tag { font-style: normal; font-size: 9px; padding: 1px 5px; border-radius: 999px;
+  background: rgba(168, 68, 58, 0.1); border: 1px solid rgba(168, 68, 58, 0.35); color: #8a3a2a; margin-left: 4px; }

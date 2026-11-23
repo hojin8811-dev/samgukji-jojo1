@@ -75,6 +75,18 @@ SK.CLASSES = {
    바뀌고 cls는 그대로다)만 0.65로 살짝 올려 책략을 한두 번 더 쓸 수 있게 한다.
    예: 책사 Lv.1 60 → 39 · 도사 64 → 42 · 풍수사 70 → 46 · 예전엔 30·32·35.
    나머지 병과는 0.5 그대로다. app.js maxMpOf 와 battle.js maxMpBase 가 이 표를 함께 쓴다. */
+/* ───────────── v5.81 — 병과 고유 패시브 (개편된 4스킬과 짝을 이룬다) ─────────────
+   · 무도가(자객형): 기본 치명 +10% · 회피 +10%
+   · 야수병(자객형): 숲·산지에서 공격할 때 치명 +15%
+   · 무희·군악대: 전장에 서 있는 동안 아군 전체에 거는 오라 (battle.js classAuraPhase) */
+SK.CLASS_PASSIVE = {
+  mudoga: { crit: 0.10, eva: 0.10 },
+  yasubyung: { ambushCrit: 0.15 },
+  muhui: { aura: { eva: 0.08, crit: 0.05 } },
+  gunakdae: { aura: { atk: 0.05, def: 0.05 }, morale: 3 },
+};
+SK.classPassiveOf = function (cls) { return (cls && SK.CLASS_PASSIVE[cls]) || null; };
+
 SK.MP_SCALE = 0.5;
 SK.MP_SCALE_BY_CLASS = { chaeksa: 0.65, dosa: 0.65, pungsusa: 0.65 };
 SK.mpScaleOf = function (cls) {
@@ -976,9 +988,11 @@ SK.applyClassData = function (list) {
         def.kind = sk.kind;
         /* v5.60 — poison(중독 부여)·defDown(방어 약화)·selfBuff/allyBuff(공격+버프 복합)·fx(이펙트 태그)까지
            classes.json 이 적은 그대로 넘긴다. 여기 빠지면 실행부가 없는 값을 보게 된다. */
-        ['power', 'hits', 'range', 'minRange', 'radius', 'amount', 'turns', 'atk', 'def',
+        ['power', 'hits', 'range', 'minRange', 'radius', 'amount', 'turns', 'atk', 'def', 'eva', 'move',
          'healPct', 'vsMount', 'waterBonus', 'siegeBonus', 'defPierce', 'ignoreEvade', 'slow',
-         'stun', 'confuse', 'fear', 'cleanse', 'poison', 'defDown', 'selfBuff', 'allyBuff', 'fx'].forEach((k) => {
+         'stun', 'confuse', 'fear', 'cleanse', 'poison', 'defDown', 'selfBuff', 'allyBuff', 'fx',
+         /* v5.81 — 병과 4스킬 개편: 여러 칸을 덮는 형태(pattern)와 부가 효과 */
+         'pattern', 'maxTargets', 'crit', 'ifHpBelow', 'dash', 'root'].forEach((k) => {
           if (sk[k] != null) def[k] = sk[k];
         });
         if (sk.morale != null) def.morale = sk.morale;
@@ -1411,6 +1425,8 @@ SK.setGenerals = function (list) {
   SK.registerExtras();
   SK.GENERALS.forEach((g) => { g.hanja = ''; g.origTier = g.tier; });
   SK.rebalanceTiers();
+  /* v5.81 — A급 필살기: 등급이 정해진 뒤에 한 번 만든다 (244명 + 승격된 A 포함) */
+  if (SK.ensureAUltimates) SK.A_ULT_COUNT = SK.ensureAUltimates();
 };
 
 /* v4.1 — 등급을 능력치 피라미드로 다시 세운다 (S 5% · A 15% · B 35% · C 45%)
@@ -3056,6 +3072,94 @@ SK.ULTIMATES = {
   '김구': { n: '백범결심', q: '이 몸이 가진 것은 오직 한 점 결심이다.', v: 'royal_aura', c: '240,220,190', e: { k:'heal', p:0.14, r:2, atk:0.1, clear:true } },
   '홍범도': { n: '봉오동매복', q: '봉오동의 매복이 적을 삼킨다!', v: 'shadow_blade', c: '180,200,180', e: { k:'aoe', m:1.05, r:1, ail:'stun', ch:0.4 } },
 };
+
+/* ══════════════════════════════════════════════════════════════
+   v5.81 — A급 장수 필살기 개방 (사용자 요청 2026-11-24)
+   · S급(위 표)은 그대로 두고, A급은 병과·특성에 맞는 자기 필살기를 하나씩 받는다.
+   · S급보다 한 단계 낮은 수치: 단일 120~128% · 범위 82~90% · 버프/디버프 ±10~14%
+   · 컷인도 cutinTier:'A' 로 한 단계 조용하다 (battle.js showUltCutin/castUlt).
+   · 이름은 병과 묶음별 풀에서 장수마다 다른 것을 고른다(같은 이름이 몰리지 않게).
+   ══════════════════════════════════════════════════════════════ */
+SK.A_ULT_GROUPS = {
+  inf: {
+    who: ['gibi', 'changbyung', 'geombyung', 'deunggabyung', 'sanjeok', 'sujeok', 'mudoga', 'yasubyung', 'gunggi'],
+    names: ['철벽 돌격타', '일섬 참격', '분쇄 강타', '선봉 돌파'],
+    vfx: ['slash_crimson', 'spear_storm', 'iron_wall', 'beast_charge'],
+    col: ['240,150,120', '210,220,255', '220,200,170', '230,190,140'],
+    eff: [{ k: 'hit', m: 1.24, ail: 'stun', ch: 0.2 }, { k: 'hit', m: 1.26 }, { k: 'combo', m: 1.22, n: 2 }, { k: 'hit', m: 1.22, ail: 'slow' }],
+  },
+  arc: {
+    who: ['gungsu', 'yeonnobyung', 'pocha', 'balseokcha'],
+    names: ['연발 사선사격', '백보 관통시', '화살 세례'],
+    vfx: ['arrow_rain', 'arrow_rain', 'stone_barrage'],
+    col: ['255,225,160', '220,235,250', '230,200,160'],
+    eff: [{ k: 'arrow', m: 1.22, n: 2 }, { k: 'arrowAoe', m: 0.86, r: 1, n: 2 }, { k: 'arrow', m: 1.2, n: 2, ail: 'slow' }],
+  },
+  str: {
+    who: ['chaeksa', 'dosa'],
+    names: ['기문 화계진', '팔괘 뇌격', '삼밀 화공'],
+    vfx: ['lightning_array', 'fire_storm', 'poison_mist'],
+    col: ['180,200,255', '255,140,80', '160,220,180'],
+    eff: [{ k: 'magic', p: 0.88, r: 1, ail: 'burn', ch: 0.5 }, { k: 'magic', p: 0.86, r: 1, ail: 'stun', ch: 0.2 }, { k: 'magic', p: 0.84, r: 1, ail: 'poison', ch: 0.5 }],
+  },
+  sup: {
+    who: ['pungsusa', 'muhui', 'gunakdae'],
+    names: ['고무의 북소리', '치유의 춤', '진군의 노래'],
+    vfx: ['royal_aura', 'petal_dance', 'wind_gale'],
+    col: ['230,215,160', '250,180,215', '210,220,180'],
+    eff: [{ k: 'buff', atk: 0.12, def: 0.1, morale: 10, r: 2, turns: 2 }, { k: 'heal', p: 0.1, r: 2, atk: 0.08 }, { k: 'buff', def: 0.14, morale: 8, r: 2, turns: 2 }],
+  },
+  lord: {
+    who: ['gunwoong'],
+    names: ['군령 일갈', '왕의 고동', '제왕의 한마디'],
+    vfx: ['royal_aura', 'royal_aura', 'goldWave'],
+    col: ['255,220,140', '245,205,120', '255,230,160'],
+    eff: [{ k: 'buff', atk: 0.12, def: 0.12, morale: 12, r: 2, turns: 2 }, { k: 'debuff', atk: -0.12, def: -0.1, r: 2, turns: 2 }, { k: 'buff', atk: 0.14, morale: 10, r: 2, turns: 2 }],
+  },
+};
+SK.aUltHash = function (s) {
+  let h = 0;
+  const t = String(s || '');
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 9973;
+  return h;
+};
+SK.makeAUltimate = function (g) {
+  if (!g || !g.name) return null;
+  const cls = SK.genClass ? SK.genClass(g) : '';
+  const key = Object.keys(SK.A_ULT_GROUPS).find((k) => SK.A_ULT_GROUPS[k].who.indexOf(cls) >= 0) || 'inf';
+  const G = SK.A_ULT_GROUPS[key];
+  const h = SK.aUltHash(g.name);
+  const i = h % G.names.length;
+  const eff = Object.assign({}, G.eff[h % G.eff.length]);
+  return {
+    n: (cls === 'gunwoong' ? g.name : (g.name.length > 5 ? g.name.slice(0, 5) : g.name)) + '의 ' + G.names[i],
+    q: '이 한 수로 판을 뒤집는다!',
+    v: G.vfx[i % G.vfx.length],
+    c: G.col[i % G.col.length],
+    tier: 'A', cutinTier: 'A',
+    e: eff,
+  };
+};
+/* 기존 S급 표시 — 컷인 단계 비교용 */
+Object.keys(SK.ULTIMATES).forEach((k) => {
+  const u = SK.ULTIMATES[k];
+  if (u && !u.tier) { u.tier = 'S'; u.cutinTier = 'S'; }
+});
+SK.ensureAUltimates = function () {
+  let n = 0;
+  (SK.GENERALS || []).forEach((g) => {
+    if (!g || !g.name) return;
+    const aGrade = (g.tier === 'A' || g.origTier === 'A');
+    if (!aGrade || SK.ULTIMATES[g.name]) return;
+    const spec = SK.makeAUltimate(g);
+    if (spec) { SK.ULTIMATES[g.name] = spec; n += 1; }
+  });
+  return n;
+};
+SK.aUltCount = function () {
+  return Object.keys(SK.ULTIMATES || {}).filter((n) => SK.ULTIMATES[n] && SK.ULTIMATES[n].tier === 'A').length;
+};
+SK.A_ULT_COUNT = 0;
 
 /* ══════════════════════════════════════════════════════════════
    v4.1 — 한글화 후처리 : 화면에 한자가 남지 않도록 데이터의 한자 표기를 비운다
