@@ -6286,3 +6286,92 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
   .slot-grid .slot-card { width: 100%; }
   .slot-grid .slot-card .sc-main b { font-size: 9.5px; }
 }
+
+/* ═══════════ v5.74 (?v=92) — 원정 등급색 · 필살기 · 장비 · 인연 24종 ═══════════
+   전부 #expRoot 안에서만 적용 — 본편 화면은 건드리지 않는다. */
+
+/* 1) 초상화 등급 테두리 4색: S 빨강 · A 보라 · B 파랑 · C 초록 (본편과 같은 값) */
+#expRoot{--g-S:#c42828;--g-A:#7742a3;--g-B:#2559ab;--g-C:#33764a}
+#expRoot [data-grade="S"]{--gc:var(--g-S)}
+#expRoot [data-grade="A"]{--gc:var(--g-A)}
+#expRoot [data-grade="B"]{--gc:var(--g-B)}
+#expRoot [data-grade="C"]{--gc:var(--g-C)}
+#expRoot :is(.ex-pt,.l-pt,.u-pt,.f-pt,.c-pt,.sx-pt,.exp-portrait,.exp-pt,.codex-pt,.gacha-pt,.gacha-card .pt,.cutin-pt,.ex-cutin .pt,.xb-pt)[data-grade]{
+  border:2px solid var(--gc);border-radius:10px;box-shadow:0 0 0 1px #000a,0 0 8px color-mix(in srgb,var(--gc) 70%,transparent);
+  box-sizing:border-box;background:#0004}
+/* 대기실 치비 전신은 테두리 대신 발밑 이름 배지에 링 */
+#expRoot .ex-chibi[data-grade]{border:0;box-shadow:none;background:none;border-radius:0}
+#expRoot .ex-badge[data-grade]{border:2px solid var(--gc);box-shadow:0 0 8px color-mix(in srgb,var(--gc) 65%,transparent)}
+/* 필살기 컷인 초상화는 조금 더 굵게 */
+#expRoot :is(.cutin-pt,.ex-cutin .pt)[data-grade]{border-width:3px;box-shadow:0 0 18px var(--gc),0 0 0 2px #000}
+
+/* 2) 장수 상세창 — 필살기 설명 블록 */
+#expRoot .u-skillbox{margin-bottom:10px}
+#expRoot .xs-skill{background:#0007;border:1px solid #ffd76a55;border-radius:10px;padding:8px 10px}
+#expRoot .xs-hd{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#expRoot .xs-hd b{color:#ffd76a;font-size:14px}
+#expRoot .xs-hd em{font-style:normal;font-size:10px;padding:1px 6px;border-radius:8px;background:#ffd76a22;border:1px solid #ffd76a66;color:#ffe9a8}
+#expRoot .xs-ic{font-size:16px}
+#expRoot .xs-ds{margin-top:5px;font-size:12px;line-height:1.5;color:#fff;word-break:keep-all}
+#expRoot .xs-ft{margin-top:4px;font-size:10px;color:#9a8e6e}
+#expRoot .xs-skill[data-type="heal"] .xs-hd b,#expRoot .xs-skill[data-type="buff"] .xs-hd b{color:#8fffb0}
+#expRoot .xs-skill[data-type="fire"] .xs-hd b{color:#ff9a5a}
+#expRoot .xs-skill[data-type="bolt"] .xs-hd b,#expRoot .xs-skill[data-type="control"] .xs-hd b{color:#9fd8ff}
+
+/* 3) 장비 카드 · 장착 슬롯 — 핵심 효과 칩 2개 */
+#expRoot .xt-card{position:relative;padding:8px 10px;border-radius:10px;background:#ffffff0f;border:2px solid var(--gc,#555)}
+#expRoot .xt-top{display:flex;align-items:center;gap:6px}
+#expRoot .xt-top b{flex:1;font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+#expRoot .xt-top em{font-style:normal;font-weight:900;font-size:11px;padding:1px 7px;border-radius:8px;background:var(--gc,#555);color:#fff}
+#expRoot .xt-slot{font-size:10px;color:#c9b98e;margin:2px 0 4px}
+#expRoot .xt-fx{display:flex;flex-wrap:wrap;gap:3px 5px}
+#expRoot .xt-fx span{font-size:10.5px;background:#0006;border-radius:8px;padding:2px 6px;white-space:nowrap;color:#fff}
+#expRoot .xt-fx b{color:#ffd76a}
+#expRoot .sx-card .xt-fx{justify-content:center;margin-top:2px}
+#expRoot .sx-card .xt-fx span{font-size:9px;padding:1px 4px}
+#expRoot .sx-tg{font-style:normal;font-size:9.5px;font-weight:900;color:#fff;background:var(--gc,#666);border-radius:6px;padding:0 4px;vertical-align:1px}
+#expRoot .sx-gear .xt-fx{margin-top:2px}
+#expRoot .sx-gear .xt-fx span{font-size:10px;padding:1px 6px}
+/* 장착 슬롯 셀 — 등급색 테두리 + 효과 칩 */
+#expRoot .u-eq.on[data-grade]{border-color:var(--gc);border-style:solid}
+#expRoot .u-eq small{display:block;color:#ffd76a;font-size:9px;line-height:1.3;white-space:nowrap;overflow:hidden}
+
+/* 4) 인연 도감 — 완성 강조 · 보유 ✓ · 효과 · 출진 중 배지 */
+#expRoot .xb-sum{font-size:12px;color:#e6c476;margin-bottom:8px}
+#expRoot .xb-sum b{color:#ffd76a;font-size:15px}
+#expRoot .xb-card{padding:9px 10px;margin-bottom:8px;border-radius:12px;background:#ffffff0c;border:1px solid #fff2;opacity:.92}
+#expRoot .xb-card.done{opacity:1;background:linear-gradient(#ffd76a26,#ffd76a0c);border:2px solid #ffd76a;box-shadow:0 0 12px #ffd76a55}
+#expRoot .xb-card.live{border-color:#8fffb0}
+#expRoot .xb-card.done.live{border-color:#ffd76a}
+#expRoot .xb-hd{display:flex;align-items:center;gap:6px}
+#expRoot .xb-hd b{font-size:14px;color:#fff}
+#expRoot .xb-hd small{font-size:10px;color:#c9b98e;border:1px solid #fff3;border-radius:7px;padding:0 5px}
+#expRoot .xb-st{margin-left:auto;font-size:12px;color:#aaa}
+#expRoot .xb-card.done .xb-st{color:#ffd76a;font-weight:800}
+#expRoot .xb-ds{font-size:11px;color:#b9ad8a;margin:3px 0}
+#expRoot .xb-fx{display:flex;flex-wrap:wrap;gap:4px 6px;margin:5px 0}
+#expRoot .xb-fx span{font-size:11px;background:#0006;border-radius:8px;padding:2px 7px;white-space:nowrap;color:#fff}
+#expRoot .xb-fx b{color:#8ff}
+#expRoot .xb-fx .xb-need{color:#c9b98e}
+#expRoot .xb-fx .xb-live{background:#2a7a3a;color:#fff;font-weight:700}
+#expRoot .xb-ms{display:flex;flex-wrap:wrap;gap:4px}
+#expRoot .xb-m{font-size:11px;padding:3px 8px;border-radius:10px;background:#0005;border:1px solid #fff2;color:#888}
+#expRoot .xb-m.own{color:#fff;border-color:#8fffb0;background:#1f5a32aa}
+
+/* 5) 전투 — 기절 · 화상 · 감속 · 버프 · 치명타 · 필살기 컷인 */
+#expRoot .bt-u.stun img{filter:grayscale(.7) brightness(.8)}
+#expRoot .bt-u.stun::after{content:"💫";position:absolute;left:50%;top:-12px;transform:translateX(-50%);font-size:14px;animation:sxSpin 1s linear infinite}
+#expRoot .bt-u.burn img{filter:brightness(1.25) sepia(.5) hue-rotate(-20deg)}
+#expRoot .bt-u.buffed::before{content:"⬆";position:absolute;right:-2px;top:-10px;color:#8fffb0;font-size:13px;font-weight:900;text-shadow:0 0 6px #000}
+#expRoot .bt-pop.crit{color:#ffd21a;font-size:19px}
+@keyframes sxSpin{to{transform:translateX(-50%) rotate(360deg)}}
+#expRoot .bt-fx.fire{width:34px;height:34px;border-radius:50%;background:radial-gradient(#fff6b0,#ff7a2a66 45%,#0000 72%);animation:sxFlash .35s forwards}
+#expRoot .bt-fx.stun{width:40px;height:40px;border-radius:50%;background:radial-gradient(#fff,#ffe35a88 45%,#0000 72%);animation:sxFlash .4s forwards}
+#expRoot .bt-fx.slow{width:46px;height:46px;border-radius:50%;border:2px solid #9fd8ff;background:radial-gradient(#9fd8ff44,#0000 70%);animation:sxFlash .4s forwards}
+#expRoot .ex-cutin{position:absolute;left:0;right:0;top:74px;display:flex;align-items:center;gap:10px;justify-content:center;z-index:190;pointer-events:none;animation:sxCutin 1s forwards}
+#expRoot .ex-cutin .cutin-pt{width:74px;height:84px;flex:none;background:#0006;border-radius:10px}
+#expRoot .cu-tx{max-width:230px;display:flex;flex-direction:column;gap:2px;text-shadow:0 2px 4px #000}
+#expRoot .cu-tx b{font-size:17px;color:#ffe9a8}
+#expRoot .cu-tx em{font-style:normal;font-size:12px;font-weight:900;color:#ffd76a}
+#expRoot .cu-tx small{font-size:10px;color:#e9e2cf;line-height:1.35;word-break:keep-all}
+@keyframes sxCutin{0%{opacity:0;transform:translateX(-24px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateX(18px)}}
