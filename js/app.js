@@ -10065,8 +10065,30 @@
     const origin = fromCityId || s.lastCity ||
       SK.CITY_LIST.find((c) => s.cities[c.id].owner === PF() && SK.allNeighbors(c.id).some((n) => s.cities[n].owner !== PF()))?.id;
     if (!origin) { SK.toast('출진할 아군 거점이 없습니다.'); return; }
-    let targets = SK.allNeighbors(origin).filter((n) => s.cities[n].owner !== PF()).map((t) => ({ t, from: origin }));
-    if (targetId) { openDeploy(origin, targetId); return; }
+    const isEnemy = (id) => !!s.cities[id] && s.cities[id].owner !== PF();
+    const isAlly = (id) => !!s.cities[id] && s.cities[id].owner === PF();
+    /* v5.71 — 아군 거점을 한 칸 거쳐 닿는 2칸 적성도 origin 에서 바로 출진한다.
+       (성도 → 노수 관문(아군) → 건녕(적)) 관문 병력 상한에 막히지 않도록 대도시 병력을 그대로 쓴다. */
+    const viaAllyTargets = () => {
+      const list = [];
+      const seen = new Set(SK.allNeighbors(origin).filter(isEnemy));
+      SK.allNeighbors(origin).filter(isAlly).forEach((mid) => {
+        SK.allNeighbors(mid).forEach((t) => {
+          if (t === origin || seen.has(t) || !isEnemy(t)) return;
+          seen.add(t); list.push(t);
+        });
+      });
+      return list;
+    };
+    if (targetId) {
+      /* 지도에서 적성을 직접 눌러 들어온 경우 — 출발지는 origin(보통 마지막 성)을 유지한다.
+         origin 에서 1칸이거나 아군 거점 경유 2칸이면 그대로, 그 밖이면 목표에 붙은 아군 성으로 물러난다. */
+      const reach = SK.allNeighbors(origin).includes(targetId) || viaAllyTargets().includes(targetId);
+      const from = (!fromCityId && !reach) ? (SK.allNeighbors(targetId).find(isAlly) || origin) : origin;
+      openDeploy(from, targetId); return;
+    }
+    let targets = SK.allNeighbors(origin).filter(isEnemy).map((t) => ({ t, from: origin }));
+    viaAllyTargets().forEach((t) => targets.push({ t, from: origin, via: true }));
     if (!targets.length) {
       const seen = new Set();
       SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).forEach((pc) => {
@@ -10092,9 +10114,9 @@
     const ok = pickCityOnMap({
       kicker: `${CITY[origin].name} 출진`,
       title: '어느 적성을 칠까',
-      hint: `금빛으로 표시된 <b>${ids.length}</b>개 적성 중 하나를 누르세요. 배지는 수비병 수(미정찰은 ?)입니다.`,
+      hint: `금빛으로 표시된 <b>${ids.length}</b>개 적성 중 하나를 누르세요. 배지는 수비병 수(미정찰은 ?)입니다. 아군 거점을 거쳐 2칸 안이면 <b>${CITY[origin].name}</b> 병력 그대로 출진합니다.`,
       origin, ids, chips,
-      block: '이웃한 적성에만 바로 출진할 수 있습니다.',
+      block: '이웃한 적성, 또는 아군 거점을 거쳐 2칸 안의 적성에만 출진할 수 있습니다.',
       onPick: (id) => openDeploy(fromOf[id] || origin, id),
       onCancel: () => SK.openCity(origin),
     });
