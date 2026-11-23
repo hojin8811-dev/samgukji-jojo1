@@ -6375,3 +6375,134 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .cu-tx em{font-style:normal;font-size:12px;font-weight:900;color:#ffd76a}
 #expRoot .cu-tx small{font-size:10px;color:#e9e2cf;line-height:1.35;word-break:keep-all}
 @keyframes sxCutin{0%{opacity:0;transform:translateX(-24px)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateX(18px)}}
+
+/* ══════════════════════════════════════════════════════════════
+   v5.75 — 총도독(군단) · 보물 세트 · 실플레이 버그 5종
+   ══════════════════════════════════════════════════════════════ */
+
+/* ① 출진 편성 — 고른 줄만 ✓·활성, 미선택은 ○·흐림 */
+.hero-pick.off { opacity: 0.58; background: rgba(236, 226, 203, 0.55); border-style: dashed; }
+.hero-pick.off .hp-main b { color: #6b5830; }
+.hero-pick.off .hp-check { color: #a8946a; border-style: dashed; border-color: #b99a5e; }
+.hero-pick.off .hp-count { background: #efe4cc; color: #9a8a66; border-style: dotted; }
+.hero-pick.off .hp-step button { opacity: 0.4; }
+.hero-pick .hp-step button:disabled, .hero-pick .hp-count:disabled { cursor: not-allowed; }
+.hero-pick.on .hp-check { font-weight: 900; }
+
+/* ④ 2칸 출진 경유지 */
+.mn-via { color: #8a5a12; font-weight: 800; margin-left: 2px; }
+.march-note .mn-via::before { content: ' · '; color: #a89060; }
+
+/* ⑤ 방어 장수 부족 경고 */
+.ci-defwarn {
+  margin: 6px 0 2px; padding: 7px 9px; border-radius: 8px;
+  border: 1px solid #b4553f; background: rgba(180, 85, 63, 0.12);
+  color: #7e2c1c; font-size: 11px; font-weight: 800; line-height: 1.35; word-break: keep-all;
+}
+.sk-defense-warn {
+  margin: 6px 0; padding: 7px 9px; border-radius: 8px;
+  border: 1px solid #b4553f; background: rgba(180, 85, 63, 0.12);
+  color: #7e2c1c; font-size: 11.5px; font-weight: 800; line-height: 1.35; word-break: keep-all;
+}
+
+/* ② 세력일람 AI끼리 동맹·휴전 */
+.dp-ai-ally { background: rgba(45, 106, 79, 0.14); color: #1b4332; border-color: #2d6a4f; }
+.dp-ai-truce { background: rgba(63, 107, 138, 0.14); color: #24455c; border-color: #3f6b8a; }
+.fa-pact-strip {
+  margin: 6px 0 8px; padding: 7px 9px; border-radius: 8px;
+  border: 1px dashed #7f9a86; background: rgba(45, 106, 79, 0.08);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.fa-pact-strip b { font-size: 11.5px; color: #1b4332; }
+.fa-pact-strip span { font-size: 10.5px; color: #4a5b46; line-height: 1.4; }
+
+/* 지도 총도독 배지 */
+.map-pill.corps-pill { left: 8px; bottom: calc(44px + env(safe-area-inset-bottom)); }
+.map-pill.corps-pill:not(.ready) { opacity: 0.62; }
+
+/* 보물 세트 */
+.tsx-wrap { display: flex; flex-direction: column; gap: 8px; }
+.tsx-total {
+  padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; color: #3d2b18;
+  background: linear-gradient(180deg, #fff6d6, #f0dca8); border: 1px solid #c8a860;
+}
+.tsx-total b { color: #7c4d0c; }
+.tsx-sets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.tsx-set {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid #d8c193; background: rgba(255, 252, 243, 0.8);
+}
+.tsx-set.on { border-color: #b8862f; background: linear-gradient(180deg, #fff7dd, #f3e2b6); box-shadow: inset 0 0 0 1px rgba(184, 134, 47, 0.35); }
+.tsx-ic { font-size: 15px; }
+.tsx-main { flex: 1; min-width: 0; }
+.tsx-main b { display: block; font-size: 11px; color: #33280f; }
+.tsx-main span { display: block; font-size: 9.5px; color: #7b6538; }
+.tsx-n { font-style: normal; font-size: 10px; font-weight: 900; color: #8a7448; white-space: nowrap; }
+.tsx-set.on .tsx-n { color: #7c4d0c; }
+.tsx-strip {
+  width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 4px 0 8px; padding: 7px 9px; border-radius: 9px; text-align: left;
+  border: 1px solid #c8a860; background: linear-gradient(180deg, #fff8e4, #f0dfb6);
+}
+.tsx-strip b { font-size: 11.5px; color: #5a3c0d; }
+.tsx-strip em { flex-basis: 100%; font-style: normal; font-size: 10px; color: #7b6538; }
+.tsx-minis { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.tsx-mini {
+  font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 999px;
+  border: 1px solid #cbb185; background: #fffdf6; color: #8a7448;
+}
+.tsx-mini.on { border-color: #2d6a4f; background: rgba(45, 106, 79, 0.12); color: #1b4332; }
+.tsx-groups { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.tsx-group { border: 1px solid #dcc9a0; border-radius: 8px; padding: 7px 8px; background: rgba(255, 252, 243, 0.6); }
+.tsx-group-head { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; margin-bottom: 5px; }
+.tsx-group-head b { font-size: 11.5px; color: #33280f; }
+.tsx-group-head em { font-style: normal; font-size: 10px; color: #7b6538; }
+.tsx-items { display: flex; flex-wrap: wrap; gap: 4px; }
+.tsx-item {
+  font-size: 9.5px; padding: 2px 6px; border-radius: 6px; color: #7b6a48;
+  border: 1px solid #e0d2b2; background: rgba(250, 245, 233, 0.8);
+}
+.tsx-item i { font-style: normal; font-size: 8px; margin-left: 3px; opacity: 0.75; }
+.tsx-item.got { color: #1b4332; border-color: #2d6a4f; background: rgba(45, 106, 79, 0.1); font-weight: 700; }
+
+/* 총도독(군단) */
+.cp-sum { display: flex; gap: 8px; flex-wrap: wrap; margin: 2px 0 6px; }
+.cp-sum span { font-size: 11px; color: #5a4a28; background: #f7efdc; border: 1px solid #ddcba4; border-radius: 7px; padding: 3px 8px; }
+.cp-sum b { color: #2e2510; }
+.cp-sum em { font-style: normal; color: #8a7448; font-size: 10px; }
+.cp-list { display: flex; flex-direction: column; gap: 7px; margin: 8px 0; }
+.cp-card { border: 1px solid #d8c193; border-left: 4px solid #b8862f; border-radius: 9px; padding: 8px 10px; background: linear-gradient(180deg, #fffdf6, #f5ead0); }
+.cp-card-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.cp-card-head b { font-size: 13px; color: #2e2510; }
+.cp-card-head em { font-style: normal; font-size: 10px; font-weight: 800; color: #7c4d0c; background: #f3e2b6; border-radius: 999px; padding: 1px 7px; }
+.cp-card-meta { font-size: 10.5px; color: #6b5830; margin: 3px 0 5px; }
+.cp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.cp-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: #3d2b18; border: 1px solid #cbb185; background: #fff8e6; border-radius: 999px; padding: 2px 8px; }
+.cp-chip i { font-style: normal; font-size: 9px; color: #8a7448; }
+.cp-chip.front { border-color: #b4553f; background: rgba(180, 85, 63, 0.12); color: #7e2c1c; }
+.cp-card-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+.cp-card-foot .btn { padding: 6px 10px; font-size: 11px; }
+.cp-empty { font-size: 11px; color: #7b6538; margin: 6px 0; }
+.cp-form { border-top: 1px dashed #c8b48a; padding-top: 8px; margin-top: 6px; }
+.cp-form-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+.cp-form-head b { font-size: 12.5px; color: #2e2510; }
+.cp-form-head em { font-style: normal; font-size: 10px; color: #8a7448; }
+.cp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cp-row label, .cp-gov { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; font-weight: 800; color: #5a4a28; }
+.cp-gov { margin-top: 6px; }
+.cp-row input, .cp-row select, .cp-gov select { width: 100%; padding: 7px 8px; font-size: 11.5px; border-radius: 7px; border: 1px solid #c3a568; background: #fffdf6; color: #2e2510; }
+.cp-cities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: 7px; max-height: 168px; overflow-y: auto; padding: 5px; border: 1px solid #ddcba4; border-radius: 8px; background: rgba(255, 253, 246, 0.75); }
+.cp-city { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: #4a3a1a; border: 1px solid transparent; border-radius: 7px; padding: 3px 5px; }
+.cp-city.on { border-color: #b8862f; background: #fdf3dc; font-weight: 800; }
+.cp-city i { font-style: normal; font-size: 9px; color: #8a7448; margin-left: 3px; }
+.cp-form-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.cp-form-foot .btn { padding: 8px 14px; font-size: 12px; }
+.cp-warn { font-size: 10.5px; color: #7e2c1c; margin-top: 6px; }
+/* v5.75 — 행군 개월 수가 좁은 줄에서 쪼개지지 않게 */
+.march-note > b { white-space: nowrap; }
+/* v5.75 — 군단 성 칩의 직할 회수 버튼 */
+.cp-chip-x {
+  margin-left: 2px; padding: 0 4px; height: 15px; border-radius: 6px;
+  border: 1px solid #b4553f; background: rgba(180, 85, 63, 0.12); color: #7e2c1c;
+  font-size: 8.5px; font-weight: 900; line-height: 1;
+}

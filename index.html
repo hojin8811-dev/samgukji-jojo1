@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=92" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=93" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=92" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=92" />
+<link rel="stylesheet" href="css/game.css?v=93" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=93" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -272,6 +272,10 @@
       <!-- v5.63 — 세력일람: 살아 있는 세력을 성 수 순으로 -->
       <button id="btn-faction-list" class="map-pill" type="button" aria-label="세력일람 열기" title="세력일람 — 살아 있는 세력의 성·장수·휴전">
         <span class="mp-ic" aria-hidden="true">🚩</span><span class="mp-tx">세력일람</span><b class="mp-n" id="faction-pill-n">0</b>
+      </button>
+      <!-- v5.75 — 총도독(군단) 위임: 지도에서 바로 연다 -->
+      <button id="btn-corps-pill" class="map-pill corps-pill" type="button" aria-label="총도독 군단 열기" title="총도독(군단) — 3~5성을 맡겨 자동 내정·수송·출진">
+        <span class="mp-ic" aria-hidden="true">⚑</span><span class="mp-tx">총도독</span><b class="mp-n" id="corps-pill-n">0</b>
       </button>
       <div class="map-controls">
         <button id="zoom-in" class="round-btn" aria-label="확대">＋</button>
@@ -525,21 +529,21 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=92"></script>
-<script src="js/mapmask.js?v=92"></script>
-<script src="js/city_geo.js?v=92"></script>
-<script src="js/data.js?v=92"></script>
-<script src="js/bgm.js?v=92"></script>
-<script src="js/sfx.js?v=92"></script>
-<script src="js/app.js?v=92"></script>
-<script src="js/map.js?v=92"></script>
-<script src="js/battle.js?v=92"></script>
-<script src="js/expedition.js?v=92"></script>
-<script src="js/backguard.js?v=92"></script>
+<script src="js/mapgeo.js?v=93"></script>
+<script src="js/mapmask.js?v=93"></script>
+<script src="js/city_geo.js?v=93"></script>
+<script src="js/data.js?v=93"></script>
+<script src="js/bgm.js?v=93"></script>
+<script src="js/sfx.js?v=93"></script>
+<script src="js/app.js?v=93"></script>
+<script src="js/map.js?v=93"></script>
+<script src="js/battle.js?v=93"></script>
+<script src="js/expedition.js?v=93"></script>
+<script src="js/backguard.js?v=93"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=92').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=93').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

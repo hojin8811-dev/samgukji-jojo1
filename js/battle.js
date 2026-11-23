@@ -570,8 +570,10 @@
        레벨이 오르면 grow 값만 다시 곱해 부대 능력치를 그 자리에서 올린다. */
     const atkFlat = C.atk + (h.wu + eq.war - 60) * 0.17;
     const defFlat = C.def + (h.tong + eq.leadership - 60) * 0.09;
-    const atkMulBase = techAtk * pMul * loyMul * (1 + offB.atk);
-    const defMulBase = techDef * pMul * loyMul * (1 + offB.def);
+    /* v5.75 — 보물 세트(같은 계열 3종 이상 보유)의 영구 전장 보정 — 내 부대에만 */
+    const setB = (SK.treasureSetBonus ? SK.treasureSetBonus() : null) || { atk: 0, def: 0 };
+    const atkMulBase = techAtk * pMul * loyMul * (1 + offB.atk) * (1 + (setB.atk || 0));
+    const defMulBase = techDef * pMul * loyMul * (1 + offB.def) * (1 + (setB.def || 0));
     return {
       id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
