@@ -125,6 +125,43 @@
     return Math.max(1, Math.min(Math.round(maxHp * pct * bonus), Math.round(maxHp * 0.25)));
   }
   SK.healAmount = healAmount;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.65 — 적 편성 계획을 한 곳에서 계산 (편성·도착 카드 ↔ 실제 전장 일치)
+     · 예전에는 수비병 1,200~2,000인 약해진 성에도 부대마다 최소 900명을
+       채워 6부대 5,400명이 나왔다 — 화면에 적힌 수비병 수와 3배 넘게 어긋났다.
+     · 이제 부대당 최소 병력을 300까지 내려 총병력이 성 수비병을 따라간다.
+     · startBattle(실제 소환)과 js/app.js enemyFieldForecast(카드 표시)가
+       이 함수 하나를 같이 쓴다 — 수식을 고칠 때는 여기만 고친다.
+     ══════════════════════════════════════════════════════════════ */
+  const ENEMY_FRAC = [1, 0.9, 1.05, 0.95, 1, 0.9, 1.1, 0.95];
+  function enemyPlan(o) {
+    const opt = o || {};
+    const intercept = opt.intercept || null;
+    const cityTroops = Math.max(0, Math.round(Number(opt.cityTroops) || 0));
+    let count, per;
+    if (intercept) {
+      /* 요격전은 경고창에 적힌 요격대 병력과 같은 수로 (v5.21) */
+      count = clamp(2 + Math.round((intercept.troops || 800) / 1200), 2, 6);
+      per = Math.max(120, Math.round(((intercept.troops || 800) / (count + 0.5)) / 20) * 20);
+    } else {
+      count = clamp(6 + Math.floor(cityTroops / 3800), 6, 10);
+      per = clamp(Math.round(cityTroops / count / 100) * 100, 300, 5200);
+    }
+    const defGens = Math.max(0, Math.round(Number(opt.defGens) || 0));
+    const hasBoss = !!opt.hasBoss;
+    const troops = [];
+    for (let i = 0; i < count; i++) {
+      let mul = ENEMY_FRAC[i % 8];
+      if (i < defGens) mul = (i === 0) ? 1.5 : 1;
+      else if (i === 0 && hasBoss) mul = 1.5;
+      troops.push(Math.round(per * mul));
+    }
+    const total = troops.reduce((a, b) => a + b, 0);
+    return { count, per, troops, total };
+  }
+  SK.enemyPlan = enemyPlan;
+
   SK.startBattle = function (opts) {
     document.querySelectorAll('#modal-root .modal-layer').forEach((m) => m.remove());
     closeGenInfo();   // v5.53 — 앞 전투의 《장수 정보》 창이 새 전장에 남지 않게
@@ -165,14 +202,6 @@
 
     /* v5.7 — 수성전이면 적 병력은 침공군 규모, 지키는 쪽이 아군 */
     const cityTroops = defense ? Math.max(1200, defense.troops || 0) : s.cities[opts.targetId].troops;
-    /* v5.17 — 출진 10부대·병력 5,000/10,000 시대에 맞춰 적 편성도 6~10부대로 늘린다
-       v5.21 — 요격전은 경고창에 적힌 요격대 병력(intercept.troops)과 실제 편성이 같아야 한다.
-       예전에는 700명 요격대도 부대 수 5 × 최소 900명 = 4,500명으로 불어나 있었다. */
-    const enemyCount = intercept ? clamp(2 + Math.round((intercept.troops || 800) / 1200), 2, 6)
-      : clamp(6 + Math.floor(cityTroops / 3800), 6, 10);
-    const per = intercept
-      ? Math.max(120, Math.round(((intercept.troops || 800) / (enemyCount + 0.5)) / 20) * 20)
-      : clamp(Math.round(cityTroops / enemyCount / 100) * 100, 900, 5200);
     /* v5.33 — 요격전은 침공군이 데려온 장수(intercept.genIds)를 모두 세운다.
        예전에는 1명으로 잘라, 적 침공인데도 이름 있는 장수가 거의 없었다(사용자 제보 '적 장수는 1도 안 왔어?'). */
     const genIdSrc = (intercept && (intercept.genIds || []).length) ? intercept.genIds
@@ -188,6 +217,10 @@
       })
       .filter(Boolean)
       .slice(0, 99);
+    /* v5.65 — 부대 수·부대별 병력은 enemyPlan 하나가 정한다 (편성 카드 예측과 같은 수) */
+    const plan = enemyPlan({ cityTroops, intercept, defGens: defGens.length, hasBoss: !!bossInfo });
+    const enemyCount = plan.count;
+    const per = plan.per;
     const enemies = [];
     /* v5.0.1 — 수비 부대는 전투 병종 위주로 뽑고 보조 병종(군악·무희·풍수사)은 1기까지만 */
     const SUPPORT_CLS = { gunakdae: 1, muhui: 1, pungsusa: 1 };
@@ -256,6 +289,8 @@
       });
       if (ids.length) supportNames.push(sp.name);
     });
+    /* v5.65 — 실제로 세운 적 부대의 총병력 (편성·도착 카드의 예측과 같은 수) */
+    const enemyTotal = enemies.reduce((a, u) => a + Math.max(0, u.hp || 0), 0);
 
     /* v5.2 — 성문 내구도. v5.11 — 겹성벽이면 바깥 성문부터 차례로 부순다.
        수성전도 같은 성문·성벽을 그대로 쓴다 (진영만 바뀐다). */
@@ -305,6 +340,8 @@
       reinforce: opts.reinforce || null, supportNames: supportNames,
       /* v5.21 — 수성전에서 고르지 않아 성에 남긴 예비 병력 */
       reserve: Math.max(0, Math.round(opts.reserve || 0)),
+      /* v5.65 — 적 총병력(예측/실제) */
+      enemyTotal, enemyPlanTotal: plan.total,
     };
     /* v5.11 — 공성 진영 장식 (assets/battle). 격자 뒤에 깔려 부대를 가리지 않는다 */
     if (type === 'camp') {
@@ -6561,12 +6598,16 @@
     const isS = !!(u && unitTier(u) === 'S');
     const used = !!(u && u.ultUsed);
     const canUse = !!(u && u.side === 'ally' && !u.acted && spec && !used);
-    if (em) em.textContent = !u ? '—' : (spec ? (used ? '0/1' : '1/1') : (isS ? '—' : 'S급'));
+    /* v5.65 — 고유 필살기가 없는 일반 장수를 골랐을 때는 회색 잠금으로 확실히 비활성 표시 */
+    const noUlt = !!(u && u.side === 'ally' && !spec);
+    if (em) em.textContent = !u ? '—' : (spec ? (used ? '0/1' : '1/1') : (isS ? '없음' : 'S급 전용'));
     btn.classList.toggle('ready', canUse);
     btn.classList.toggle('off', !canUse);
+    btn.classList.toggle('locked', noUlt);
     btn.classList.toggle('active', mode === 'ultTarget' && canUse);
+    btn.setAttribute('aria-disabled', canUse ? 'false' : 'true');
     btn.title = !u ? '부대를 고르면 필살기를 쓸 수 있습니다'
-      : !spec ? '고유 필살기는 S급 장수만 씁니다'
+      : !spec ? (isS ? '이 장수의 고유 필살기가 아직 없습니다' : '고유 필살기는 S급 장수만 씁니다')
         : used ? `「${spec.n}」 — 이 전투에서 사용 완료` : `「${spec.n}」 — 전투당 1회`;
     const lab = btn.querySelector('b');
     if (lab) lab.textContent = '필살기';
@@ -9006,7 +9047,8 @@
   }
   /* GENERALS 데이터로 내 장수 하나 만들기 (전투 후 포로·투항용) */
   function makeHeroByGen(g, cityId) {
-    if (SK.makeHero) return SK.makeHero(g.name, cityId, SK.genLv(g));
+    /* v5.65 — 포로·투항 장수도 늦게 합류하면 시대 AI 평균 레벨에 맞춰 온다 */
+    if (SK.makeHero) return SK.makeHero(g.name, cityId, SK.joinLevelOf ? SK.joinLevelOf(g) : SK.genLv(g));
     const cls = SK.genClass(g);
     return {
       uid: 'g_' + g.id, baseId: 'gen', genId: g.id, name: g.name, hanja: '', cls,
@@ -9522,9 +9564,11 @@
     let i = 0;
     const ov = $('#battle-overlay');
     ov.hidden = false;
+    /* v5.65 — [건너뛰기 ⏭] — 전투마다 3~4번 터치해야 하던 인트로를 한 번에 넘긴다 */
+    const skipBtn = '<button type="button" class="intro-skip" aria-label="인트로 건너뛰기">건너뛰기 ⏭</button>';
     const render = () => {
       if (!B) return;
-      if (i >= B.introLines.length) { ov.hidden = true; ov.onclick = null; B.introDone = true; classAuraPhase('ally'); banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
+      if (i >= B.introLines.length) { ov.innerHTML = ''; ov.hidden = true; ov.onclick = null; B.introDone = true; classAuraPhase('ally'); banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
       const L = B.introLines[i];
       if (L.event) {
         const ev = L.event;
@@ -9532,7 +9576,7 @@
            플레이어가 아니라 적군을 가리킨다. 그대로 두면 김유신의 '아군 사기 +15'가 우리 군에
            붙는 줄 알고 수성전에 들어가게 된다. */
         const evReward = String(ev.reward || '').replace(/아군/g, '적군');
-        ov.innerHTML = `<div class="event-card">
+        ov.innerHTML = `${skipBtn}<div class="event-card">
           <div class="ev-seal">연</div>
           <div class="ev-main"><span class="ev-type">${ev.type || '특별 이벤트'} · 적 장수</span>
             <h4>${ev.title}</h4>
@@ -9541,10 +9585,13 @@
             <em class="ev-enemy">적 장수 효과 — 우리 군에는 적용되지 않습니다</em>
             <span class="ic-tap">터치하여 계속 ▸</span></div>
         </div>`;
-        ov.onclick = () => { i += 1; render(); };
+        ov.onclick = (ev) => {
+          if (ev && ev.target && ev.target.closest && ev.target.closest('.intro-skip')) { i = B.introLines.length; render(); return; }
+          i += 1; render();
+        };
         return;
       }
-      ov.innerHTML = `<div class="intro-card ${L.side}">
+      ov.innerHTML = `${skipBtn}<div class="intro-card ${L.side}">
         <img class="ic-portrait ${SK.tcls(L.who)}" src="${SK.ptSrc(L.pt)}" alt="">
         <div class="ic-box">
           <div class="ic-name">${L.who}</div>
@@ -9552,7 +9599,10 @@
           <span class="ic-tap">터치하여 계속 ▸</span>
         </div>
       </div>`;
-      ov.onclick = () => { i += 1; render(); };
+      ov.onclick = (ev) => {
+        if (ev && ev.target && ev.target.closest && ev.target.closest('.intro-skip')) { i = B.introLines.length; render(); return; }
+        i += 1; render();
+      };
     };
     render();
   }

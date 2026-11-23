@@ -1,6 +1,21 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=81`
+기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=82`
+
+## ✅ v5.65 — 실플레이 UX 7종 · 필살기 비활성 · 늦은 합류 레벨 AI 맞춤 (2026-11-23 · `?v=82`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 적 병력 일치 | 편성·도착 카드의 적 수비병과 실제 전장 편성이 3배까지 어긋나던 것. 부대당 최소 900 → **300**, 부대 수·부대별 병력은 **`SK.enemyPlan` 하나**가 정하고 **예측(`enemyFieldForecast`)과 실제 소환이 같은 식**. 카드에 `전장 적 총병력 N (부대)`·`원군 최대 +N` | `js/battle.js` `SK.enemyPlan`, `js/app.js` `enemyFieldForecast`·`openDeploy`·`openPendingMarch` |
+| 행군 표기 | `행군 2일`·`행군 1/2`·`행군 2/2일` → **`2개월`·`1/2개월`·`도착까지 2개월`**. 편성·도착·요격·야영 카드, 지도 표식, 토스트, 주석까지 | `js/app.js`, `js/map.js` |
+| 인트로 건너뛰기 | 전투마다 3~4번 터치하던 대사·사건 카드를 **`[건너뛰기 ⏭]`** 한 번에 | `showIntro`, `css/game.css` `.intro-skip` |
+| 미리보기 제목 | `.fprev-title b`가 안쪽 `<b>`(군주·수도)까지 블록으로 쪼개 세로로 깨지던 것을 **`.fprev-title > b`** 로. 안쪽은 `display:inline` | `css/game.css` |
+| 시설 직행·확인 | `[시설 관리 → 내성 시설 보기]`가 공터가 있으면 **건설 목록을 바로** 연다. 시설 탭 → **건물·비용· 효과 + `[짓기] [취소]`** 확인. 공터가 없을 때만 증축 안내 | `js/app.js` `openBuildList`·`openBuildConfirm`·`groupAction` |
+| 주점 사신 | 기본 사신 = **매력 최고인 대기 장수**(담당 뒤로). 사신 칩 `.envoy-row`를 **`flex-wrap: wrap`** 으로 잘림 제거. 카드에 `합류 Lv.N` | `js/app.js` `pickTavernActor`·`openTavern`, `css/game.css` |
+| 군량 경고 | `famine` 줄에 **성 이름**: `호로관 군량 바닥!` (4곳 이상 `외 N곳`) | `js/app.js` `famineNames` |
+| 필살기 버튼 | 일반 장수·기술 없는 S급을 고르면 **회색 잠금** + `S급 전용`/`없음` + `aria-disabled`. S급 usable은 금빛 `1/1` | `js/battle.js` `paintUltButton`, `css/game.css` `.act.ult.locked` |
+| 늦은 합류 레벨 | 주점·방랑·회유·항복·포로 설득으로 중후반 합류 시 **`max(등급 기본, 반올림(AI 평균) − 1)`**. AI가 없으면 연차 보정. **이미 높은 장수는 깎지 않음** | `js/app.js` `joinLevelOf`·`aiAverageGenLevel`, `js/battle.js` `makeHeroByGen` |
+| 검수 | `tools/qa_v565.py` a(390×844)·b(390×680)·c/d(라이브). 9종 실측, 예측↔실제 적 병력 **오차 0**·`일` 잔존 0·인트로 1탭·확인 전 금 불변 | `preview/v565/` |
 
 ## ✅ v5.64 — 장수 명부 Lv.N 표시 · 출시 직전 전구간 점검 (2026-11-23 · `?v=81`)
 

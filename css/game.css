@@ -717,6 +717,14 @@ b { font-weight: 700; }
 .act.ult.ready em { color: #6b3a06; }
 .act.ult.ready.active { background: linear-gradient(180deg, #ffd76a, #cf8a1c); }
 .act.ult.off { opacity: 0.5; }
+/* v5.65 — 고유 필살기가 없는 일반 장수: 활성처럼 보이지 않게 회색 잠금 */
+.act.ult.locked, .act.ult.off.locked {
+  opacity: 1; background: linear-gradient(180deg, #e7e3d7, #cbc6b8);
+  border-color: #a49c88; box-shadow: none; filter: grayscale(0.9);
+}
+.act.ult.locked span { color: #8c8574; }
+.act.ult.locked b { color: #7a7464; }
+.act.ult.locked em { color: #8c8574; }
 
 /* v5.54 — 필살기 컷인 배너 (전장 위에 잠깐 지나간다) */
 .ult-cutin { position: absolute; left: 0; right: 0; top: 8%; z-index: 6; pointer-events: none;
@@ -741,7 +749,7 @@ b { font-weight: 700; }
 .ult-lines span#ult-line { font-size: 10px; color: #e6d3a8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act.endturn span { color: #ffe9b0; }
 
-.battle-overlay { position: absolute; inset: 0; z-index: 10; background: linear-gradient(180deg, rgba(24, 18, 8, 0.2), rgba(24, 18, 8, 0.55)); display: flex; align-items: flex-end; padding: 14px; }
+.battle-overlay { position: absolute; inset: 0; z-index: 10; background: linear-gradient(180deg, rgba(24, 18, 8, 0.2), rgba(24, 18, 8, 0.55)); display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 8px; padding: 14px; }
 .battle-overlay[hidden] { display: none; }
 .intro-card { width: 100%; display: flex; gap: 10px; align-items: flex-end; animation: introIn 0.25s ease; }
 @keyframes introIn { from { opacity: 0; transform: translateY(14px); } }
@@ -759,6 +767,15 @@ b { font-weight: 700; }
 .ic-name em { font-size: 10px; color: #8a7448; margin-left: 4px; }
 .ic-text { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: #3a2f1a; flex: 1; }
 .ic-tap { align-self: flex-end; font-size: 9px; color: #8a7448; animation: blink 1.4s infinite; }
+/* v5.65 — 인트로 대사 [건너뛰기 ⏭] */
+.intro-skip {
+  align-self: flex-end; flex: 0 0 auto; z-index: 3;
+  padding: 7px 12px; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(52, 38, 12, 0.92), rgba(34, 24, 8, 0.94));
+  border: 1.4px solid #e3bd63; color: #ffeec2; font-size: 11.5px; font-weight: 900;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+}
+.intro-skip:active { transform: translateY(1px); }
 @keyframes blink { 50% { opacity: 0.35; } }
 
 /* ═══════════════ 모달 ═══════════════ */
@@ -874,6 +891,8 @@ b { font-weight: 700; }
 .db-flag { width: 30px; height: 30px; border-radius: 7px; background: var(--fc); color: #fff6e0; display: grid; place-items: center; font-family: var(--serif); font-weight: 900; }
 .deploy-banner b { display: block; font-size: 13px; color: #33280f; }
 .deploy-banner span { font-size: 9.5px; color: #7b6538; }
+/* v5.65 — 전장 적 총병력은 한 줄 안에서 강조 */
+.deploy-banner span b.df-total { display: inline; font-family: var(--serif); font-size: 11.5px; color: #a8443a; }
 .troop-ledger { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .troop-ledger div { background: rgba(255, 251, 240, 0.75); border: 1px solid #d9c396; border-radius: 8px; padding: 5px 2px; text-align: center; }
 .troop-ledger span { display: block; font-size: 8px; color: #8a7448; }
@@ -1086,6 +1105,8 @@ b { font-weight: 700; }
 .gp-main .gp-stats { display: flex; flex-wrap: wrap; gap: 2px 7px; margin-top: 1px; }
 .gp-main .gp-stats i { font-style: normal; font-size: 8.5px; color: #6b5830; }
 .gp-main .gp-stats i b { display: inline; font-size: 9.5px; color: #33280f; }
+/* v5.65 — 주점 등용 카드: 합류 레벨 안내 */
+.gp-main .gp-join { display: inline-block; margin-top: 2px; font-style: normal; font-size: 8.5px; font-weight: 800; color: #6a4a12; background: #f6e6bf; border: 1px solid #dcc28a; border-radius: 999px; padding: 0 6px; }
 .gp-cost { font-size: 9.5px; font-weight: 800; color: #8a5f2a; white-space: nowrap; }
 .hi-skill { margin: 0 0 4px; font-size: 9.5px; color: #8a2f22; font-weight: 700; }
 .bi-skill { margin: 0 0 3px; font-size: 9px; color: #8a2f22; font-weight: 700; }
@@ -1694,6 +1715,14 @@ b { font-weight: 700; }
 .build-row span { display: block; font-size: 9.5px; color: #7d6538; }
 .build-row .br-cost { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 800; color: #8a5a12; }
 .build-row[disabled] { opacity: 0.5; }
+/* v5.65 — 건설 확인 창 */
+.build-confirm { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.build-confirm .bc-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 5px 8px; border-radius: 7px; background: #fffaf0; border: 1px solid #e0cfa6; }
+.build-confirm .bc-row span { font-size: 10px; color: #7d6538; font-weight: 700; }
+.build-confirm .bc-row b { font-size: 12px; color: #33280f; }
+.build-confirm .bc-row b.bad { color: #a8443a; }
+.build-confirm .bc-fx { margin: 2px 0 0; padding: 6px 8px; border-radius: 7px; background: #f6ecd4; border: 1px dashed #d2b782; font-size: 10.5px; line-height: 1.45; color: #5b4a27; }
+.build-confirm .bc-fx b { display: block; font-size: 9px; color: #8a5a12; margin-bottom: 1px; }
 .slot-detail { display: flex; gap: 10px; align-items: center; border: 1px solid #d7c093; background: #fffaf0; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
 .slot-detail .sd-ico { width: 48px; height: 48px; object-fit: contain; }
 .slot-detail b { display: block; font-size: 12px; color: #33280f; }
@@ -2765,8 +2794,9 @@ b { font-weight: 700; }
 .tc-portrait.gold { border-radius: 9px; border: 1.5px solid #d8b25c; box-shadow: 0 0 0 1.5px rgba(255, 236, 186, 0.4); }
 
 /* v5.5 — 주점 사신 고르기 줄 */
+/* v5.65 — 사신 칩이 오른쪽에서 잘리지 않게 줄바꿈 (가로 스크롤 대신) */
 .envoy-row {
-  display: flex; align-items: center; gap: 6px; overflow-x: auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 5px 2px 7px; margin-bottom: 2px;
   border-bottom: 1px dashed rgba(150, 120, 60, 0.35);
   -webkit-overflow-scrolling: touch;
@@ -4356,9 +4386,11 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 }
 .fprev-port .fx-tier { position: absolute; right: -6px; top: -6px; }
 .fprev-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.fprev-title b { font-family: var(--serif); font-size: 16px; color: #2c2412; display: flex; align-items: center; gap: 5px; }
+/* v5.65 — 직계 자식만 flex 로: 예전에는 안쪽 <b>(군주·수도 이름)까지 블록으로 쪼개져
+   '군주 동탁 · 수도 낙양'이 세로로 깨졌다. */
+.fprev-title > b { font-family: var(--serif); font-size: 16px; color: #2c2412; display: flex; align-items: center; gap: 5px; }
 .fprev-title span { font-size: 11px; color: #6a5527; }
-.fprev-title span b { color: #3a2c10; }
+.fprev-title span b { display: inline; color: #3a2c10; }
 .fprev-mark {
   font-style: normal; display: inline-grid; place-items: center;
   width: 19px; height: 19px; border-radius: 4px; color: #fff8e8;

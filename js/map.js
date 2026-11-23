@@ -1154,7 +1154,8 @@
       const py = path[i0][1] + (path[i1][1] - path[i0][1]) * f;
       el.style.transform = `translate3d(${(cam.tx + px * s).toFixed(2)}px, ${(cam.ty + py * s).toFixed(2)}px, 0)`;
       const leg = Math.min(m.total, Math.max(1, m.total - m.left + 1));
-      if (tag) tag.textContent = `행군 ${leg}/${m.total}`;
+      /* v5.65 — 턴은 한 달 — '행군 1/2일'이 아니라 '행군 1/2개월' */
+      if (tag) tag.textContent = `행군 ${leg}/${m.total}개월`;
     });
   }
 
