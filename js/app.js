@@ -1614,9 +1614,12 @@
       /* v5.28 — 같은 달 도착 대기열: 없는 저장은 빈 배열, 사라진 행군은 걸러 낸다 */
       s.marchQueue = (s.marchQueue || []).filter((q) => q && q.marchId && (s.marches || []).some((m) => m.id === q.marchId));
       /* v5.66 — 이미 도착한(m.left ≤ 0) 부대가 대기열에서 빠져 영영 멈춰 서는 일이 없게
-         (전투 중 이탈·재접속) 도착 사건으로 되살린다 */
+         (전투 중 이탈·재접속) 도착 사건으로 되살린다. 도착 창이 이미 떠 있으면
+         성하 야전 경과 문구는 그대로 둔다. */
       (s.marches || []).forEach((m) => {
-        if ((m.left || 0) <= 0) { m.fieldSeen = false; marchQueuePush(s, 'arrive', m.id); }
+        if ((m.left || 0) > 0) return;
+        if (!s.pendingMarch) m.fieldSeen = false;
+        marchQueuePush(s, 'arrive', m.id);
       });
       (s.heroes || []).forEach((h) => { if (!s.marches.some((m) => m.id === h.marchId)) h.marchId = null; });
       /* v5.9 — 저장을 다시 열면 전투가 없으므로, 지원군은 원래 성으로 돌려보낸다 */
