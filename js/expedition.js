@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════════
    꼬마영웅 대난투 — 원정 시나리오 (비밀 · DEV)
-   v5.68 (?v=86) · 2단계 — 1막 「황건적의 난」 1~10관 풀오토 전투
+   v5.69 (?v=87) · 3단계 — 1막 「황건적의 난」 1~10관 풀오토 전투 (치비 전신 난투)
 
    · 독립 모듈: 본편(app.js · battle.js)의 흐름을 건드리지 않는다.
      공훈은 본편 상태(명성·점령지·천하통일)를 읽어 대기실을 열 때 적립한다.
@@ -1121,6 +1121,7 @@
       slot: o.slot,
       row: Math.floor(o.slot / 3),
       portrait: o.portrait,
+      sprite: o.sprite || unitSpriteOf(o.name, o.job),
       star: o.star || 0,
       boss: !!o.boss,
       skill: o.skill || '',
@@ -1246,30 +1247,178 @@
     }
   }
 
+  /* ══════════════════════════════════════════════════════════
+     전투 연출 — 수치는 먼저 계산하고, 그림은 그 뒤를 따라온다
+     ══════════════════════════════════════════════════════════ */
+  /* 연출 예약(setTimeout)이 전투를 갈아엎은 뒤에 늦게 터지지 않게 — 같은 전투일 때만 그린다 */
+  function stillSame(bt) { return !!B && B === bt && B.ui; }
+
+  function cellOf(uid) { return document.querySelector(`#exp-battle [data-uid="${uid}"]`); }
+  function figOf(uid) { const c = cellOf(uid); return c ? c.querySelector('.eb-fig') : null; }
+  function fxLayer() { return $('eb-fx'); }
+  function rectOf(uid) {
+    const c = cellOf(uid);
+    const img = c ? c.querySelector('.eb-sprite') : null;
+    return img ? img.getBoundingClientRect() : null;
+  }
+  function pointOf(uid, ratio) {
+    const f = $('eb-field'), r = rectOf(uid);
+    if (!f || !r) return null;
+    const fr = f.getBoundingClientRect();
+    return {
+      x: r.left + r.width / 2 - fr.left,
+      y: r.top + r.height * (ratio == null ? 0.44 : ratio) - fr.top,
+    };
+  }
+
   function popupAt(uid, text, kind) {
     if (!B || !B.ui) return;
-    const cell = document.querySelector(`#exp-battle [data-uid="${uid}"]`);
+    const cell = cellOf(uid);
     if (!cell) return;
     const s = document.createElement('span');
     s.className = 'eb-pop ' + (kind || '');
     s.textContent = text;
     cell.appendChild(s);
-    setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); }, B.speed > 1 ? 520 : 820);
+    setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); }, 900);
   }
 
-  function banner(text, sub, kind) {
+  function addFx(cls, x, y, life) {
+    const layer = fxLayer();
+    if (!layer) return null;
+    const s = document.createElement('span');
+    s.className = cls;
+    s.style.left = (x || 0) + 'px';
+    s.style.top = (y || 0) + 'px';
+    layer.appendChild(s);
+    setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); }, life || 620);
+    return s;
+  }
+
+  /* 피격 — 섬광 · 흔들림 · 큰 숫자 */
+  function flashCell(uid) {
+    const c = cellOf(uid);
+    if (!c) return;
+    c.classList.remove('hitflash');
+    void c.offsetWidth;
+    c.classList.add('hitflash');
+    setTimeout(() => c.classList.remove('hitflash'), 300);
+  }
+  function knockAt(uid, t) {
+    const f = figOf(uid);
+    if (!f) return;
+    f.style.setProperty('--ky', (t && t.side === 'ally' ? 5 : -5) + 'px');
+    f.classList.remove('hurt');
+    void f.offsetWidth;
+    f.classList.add('hurt');
+    setTimeout(() => f.classList.remove('hurt'), 380);
+  }
+  function slashAt(uid) {
+    const p = pointOf(uid, 0.46);
+    if (p) addFx('eb-slash', p.x, p.y, 620);
+  }
+  function burstAt(uid, kind, big) {
+    const p = pointOf(uid, 0.46);
+    if (p) addFx('eb-burst ' + (kind || 'blade') + (big ? ' big' : ''), p.x, p.y, big ? 800 : 560);
+  }
+
+  /* 근접 — 상대 칸 앞까지 쑥 돌진했다가 돌아온다 */
+  function dashTo(u, t) {
+    const f = figOf(u.uid);
+    const s = rectOf(u.uid), e = rectOf(t.uid);
+    if (!f || !s || !e) return;
+    const dx = (e.left + e.width / 2) - (s.left + s.width / 2);
+    const dy = (e.top + e.height * 0.48) - (s.top + s.height * 0.48);
+    /* 상대 코앞(약 0.6칸)에서 멈춰 — 맞는 쪽 그림이 가려지지 않게 */
+    const dist = Math.hypot(dx, dy) || 1;
+    const stop = Math.min(72, dist * 0.42);
+    const k = Math.max(0.2, Math.min(0.9, (dist - stop) / dist));
+    f.style.setProperty('--dx', (dx * k).toFixed(1) + 'px');
+    f.style.setProperty('--dy', (dy * k).toFixed(1) + 'px');
+    f.classList.remove('lunge');
+    void f.offsetWidth;
+    f.classList.add('lunge');
+    setTimeout(() => f.classList.remove('lunge'), 470);
+  }
+
+  /* 원거리 — 제자리에서 시전 포즈 */
+  function castPose(u) {
+    const f = figOf(u.uid);
+    if (!f) return;
+    f.classList.remove('cast');
+    void f.offsetWidth;
+    f.classList.add('cast');
+    setTimeout(() => f.classList.remove('cast'), 540);
+  }
+
+  /* 투사체 종류 — 화살 · 불/번개/독 · 돌 */
+  function projKind(u) {
+    const job = u.job;
+    if (job === '포차') return 'rock';
+    if (job === '궁기') return 'bolt';
+    if (job === '풍수사') return 'wind';
+    if (job === '도사') return 'poison';
+    if (isCasterJob(job)) return 'flame';
+    return 'arrow';
+  }
+
+  function shootAt(u, t, kind, delay) {
+    const a = pointOf(u.uid, 0.45), b = pointOf(t.uid, 0.46);
+    if (!a || !b) return;
+    const bt = B;
+    const fire = () => {
+      if (!stillSame(bt)) return;
+      const p = addFx('eb-proj ' + (kind || 'arrow'), a.x, a.y, 660);
+      if (!p) return;
+      p.style.setProperty('--px', (b.x - a.x).toFixed(1) + 'px');
+      p.style.setProperty('--py', (b.y - a.y).toFixed(1) + 'px');
+      p.style.setProperty('--rot', (Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI).toFixed(1) + 'deg');
+    };
+    if (delay) setTimeout(fire, delay); else fire();
+  }
+
+  /* 착탄 — 섬광·숫자·넉백, 여기서 죽으면 쓰러지는 연출까지 */
+  function hitFx(t, text, crit, kind, delay, big, close) {
+    if (!t.alive) t.diePending = true;
+    const bt = B;
+    setTimeout(() => {
+      if (!stillSame(bt)) { t.diePending = false; return; }
+      if (close) { slashAt(t.uid); burstAt(t.uid, 'blade', big); } else burstAt(t.uid, kind, big);
+      flashCell(t.uid);
+      knockAt(t.uid, t);
+      popupAt(t.uid, text, crit ? 'crit' : (t.side === 'ally' ? 'hurt' : ''));
+      t.diePending = false;
+      if (!t.alive) { const c = cellOf(t.uid); if (c) c.classList.add('dead'); }
+    }, Math.max(0, delay || 0));
+  }
+
+  /* 필살 — 잠깐 어두워지고 컷인이 훑고 지나간다 (+화면 흔들림) */
+  function cutIn(u, skill, quiet) {
     if (!B || !B.ui) return;
-    const el = $('eb-banner');
-    if (!el) return;
-    el.className = 'eb-banner ' + (kind || '');
-    el.innerHTML = `<b>${text}</b>${sub ? `<em>${sub}</em>` : ''}`;
-    el.hidden = false;
-    /* 같은 배너가 연달아 떠도 애니메이션이 다시 돌도록 */
-    el.style.animation = 'none';
-    void el.offsetWidth;
-    el.style.animation = '';
-    clearTimeout(el._t);
-    el._t = setTimeout(() => { el.hidden = true; }, B.speed > 1 ? 620 : 900);
+    const el = $('exp-battle');
+    const cut = $('eb-cutin');
+    if (el && !quiet) {
+      el.classList.remove('ult');
+      void el.offsetWidth;
+      el.classList.add('ult');
+      clearTimeout(el._ultT);
+      el._ultT = setTimeout(() => el.classList.remove('ult'), 760);
+      addFx('eb-dim', 0, 0, 840);
+    }
+    if (cut) {
+      cut.classList.toggle('enemy', u.side === 'enemy');
+      const img = cut.querySelector('img');
+      if (img) img.src = u.portrait || '';
+      const b = cut.querySelector('b');
+      if (b) b.textContent = u.name;
+      const em = cut.querySelector('em');
+      if (em) em.textContent = skill || '필살';
+      cut.hidden = false;
+      cut.classList.remove('show');
+      void cut.offsetWidth;
+      cut.classList.add('show');
+      clearTimeout(cut._t);
+      cut._t = setTimeout(() => { cut.hidden = true; }, 1040);
+    }
   }
 
   function act(u) {
@@ -1285,35 +1434,62 @@
     const ult = u.gauge >= 100;
     if (ult) u.gauge = 0;
 
+    const ranged = isRangedJob(u.job);
+    const caster = isCasterJob(u.job);
+    const kind = projKind(u);
+
     if (ult && HEAL_JOBS.indexOf(u.job) >= 0) {
+      /* 치유의 노래 — 제자리 시전, 아군 발밑에 푸른 물결 */
       const hurt = mates.slice().sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
       if (hurt) {
-        const heal = Math.round(hurt.maxHp * 0.28 + u.atk * 0.8);
-        hurt.hp = Math.min(hurt.maxHp, hurt.hp + heal);
-        popupAt(hurt.uid, '+' + fmt(heal), 'heal');
-        logLine(`${u.name} 치유 → ${hurt.name} +${fmt(heal)}`);
+        const amount = Math.round(hurt.maxHp * 0.28 + u.atk * 0.8);
+        hurt.hp = Math.min(hurt.maxHp, hurt.hp + amount);
+        cutIn(u, u.skill || '치유의 노래', true);
+        sfx('heal');
+        if (ranged) castPose(u);
+        const bt = B;
+        setTimeout(() => {
+          if (!stillSame(bt)) return;
+          burstAt(hurt.uid, 'heal', true);
+          flashCell(hurt.uid);
+          popupAt(hurt.uid, '+' + fmt(amount), 'heal');
+        }, 200);
+        logLine(`${u.name} 치유 → ${hurt.name} +${fmt(amount)}`);
       }
-      banner(u.name, u.skill || '치유의 노래', u.side);
-      sfx('heal');
     } else if (ult && AOE_JOBS.indexOf(u.job) >= 0) {
+      /* 필살 범위 — 컷인 뒤 적 전체에 투사체가 꽂힌다 */
       const targets = foes.filter((f) => f.alive);
-      banner(u.name, u.skill || (isCasterJob(u.job) ? '책략' : '연사'), u.side);
-      sfx(isCasterJob(u.job) ? 'spell' : 'bolt');
-      targets.forEach((t) => {
-        const r = rollDamage(u, t, 1.1, isCasterJob(u.job) ? 'spell' : 'normal');
+      cutIn(u, u.skill || (caster ? '책략' : '연사'));
+      sfx(caster ? 'spell' : 'bolt');
+      if (ranged) castPose(u);
+      targets.forEach((t, i) => {
+        const r = rollDamage(u, t, 1.1, caster ? 'spell' : 'normal');
         const real = applyDamage(u, t, r.dmg);
-        popupAt(t.uid, String(real), r.crit ? 'crit' : (u.side === 'ally' ? '' : 'hurt'));
+        const at = 180 + i * 70;
+        if (ranged) shootAt(u, t, kind, Math.max(0, at - 90));
+        hitFx(t, (r.crit ? '!' : '') + fmt(real), r.crit, kind, at + (ranged ? 300 : 0), true, !ranged);
         if (!t.alive) logLine(`${u.name} → ${t.name} 격파!`);
       });
-      if (u.side === 'ally') logLine(`${u.name} ${isCasterJob(u.job) ? '책략' : '연사'} — 적 전체!`);
+      if (u.side === 'ally') logLine(`${u.name} ${caster ? '책략' : '연사'} — 적 전체!`);
       else logLine(`${u.name}의 술법이 아군 전체를 덮칩니다!`);
     } else {
+      /* 단일 공격 — 근접은 돌진, 원거리는 투사체 */
       const t = pickTarget(u, foes);
       if (t) {
-        const r = rollDamage(u, t, ult ? 2.6 : 1.25, isCasterJob(u.job) ? 'spell' : (ult ? 'skill' : 'normal'));
+        const r = rollDamage(u, t, ult ? 2.6 : 1.25, caster ? 'spell' : (ult ? 'skill' : 'normal'));
         const real = applyDamage(u, t, r.dmg);
-        popupAt(t.uid, (r.crit ? '!' : '') + String(real), r.crit ? 'crit' : (u.side === 'ally' ? '' : 'hurt'));
-        if (ult) { banner(u.name, u.skill || '필살', u.side); sfx(u.side === 'ally' ? 'sword' : 'hit'); }
+        const txt = (r.crit ? '!' : '') + fmt(real);
+        if (ult) cutIn(u, u.skill || '필살');
+        if (ranged) {
+          castPose(u);
+          if (!ult) sfx(kind === 'rock' ? 'rock' : (kind === 'arrow' ? 'bow' : 'bolt'));
+          shootAt(u, t, kind, ult ? 90 : 40);
+          hitFx(t, txt, r.crit, kind, (ult ? 430 : 365), !!ult);
+        } else {
+          dashTo(u, t);
+          if (!ult) sfx('chop');
+          hitFx(t, txt, r.crit, 'blade', ult ? 180 : 165, !!ult, true);
+        }
         if (!t.alive) logLine(`${u.name} → ${t.name} 격파!`);
         else logLine(`${u.name} → ${t.name} ${fmt(real)}`);
       }
@@ -1337,16 +1513,39 @@
   /* ── 전투 화면 ───────────────────────────────────────────── */
   let B = null;
 
+  /* 병과 → 치비 전신 SD (assets/units/job_*.webp) · 장수 고유 SD가 있으면 그것 */
+  const JOB_SPRITE = {
+    '군주': 'lord', '기병': 'cavalry', '궁기': 'horse_archer', '창병': 'spear', '검병': 'sword',
+    '산적': 'bandit', '수적': 'pirate', '책사': 'strategist', '풍수사': 'geomancer', '도사': 'taoist',
+    '궁수': 'archer', '무도가': 'martial', '야수병': 'beast', '무희': 'dancer', '포차': 'catapult',
+    '연노병': 'crossbow', '등갑병': 'rattan', '군악대': 'drum',
+  };
+  function unitSpriteOf(name, job) {
+    try { if (SK.artUnit) { const a = SK.artUnit(name); if (a) return a; } } catch (e) { /* ignore */ }
+    try {
+      if (SK.classUnitFile && SK.JOB_CLASS && SK.JOB_CLASS[job]) return SK.classUnitFile(SK.JOB_CLASS[job]);
+    } catch (e) { /* ignore */ }
+    return `assets/units/job_${JOB_SPRITE[job] || 'sword'}.webp`;
+  }
+
+  /* 칸 하나 = 발판 + 치비 전신 + 머리 위 이름·별·HP/게이지 (카드 박스 없음) */
   function unitCell(u) {
-    if (!u) return `<div class="eb-unit blank"></div>`;
-    const cls = ['eb-unit', u.side, 'tier-' + u.tier];
+    if (!u) return `<div class="eb-cell blank" aria-hidden="true"><span class="eb-mark"></span></div>`;
+    const cls = ['eb-cell', u.side, 'tier-' + u.tier];
     if (!u.alive) cls.push('dead');
     if (u.boss) cls.push('boss');
+    const hpw = Math.max(0, Math.min(100, 100 * u.hp / u.maxHp));
     return `<div class="${cls.join(' ')}" data-uid="${u.uid}" style="--fc:${factionColor(u.faction)}">`
-      + `<div class="eb-uhead"><span class="exp-face tf tier-${u.tier}"><img src="${u.portrait}" alt="${u.name}" loading="lazy"></span>`
-      + `<span class="eb-uname">${u.name}${u.star >= 2 ? `<em>★${u.star}</em>` : ''}</span></div>`
-      + `<div class="eb-hp"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i></div>`
-      + `<div class="eb-gg"><i style="width:${Math.round(u.gauge)}%"></i></div>`
+      + `<span class="eb-mark"></span>`
+      + `<div class="eb-fig">`
+      + `<div class="eb-tag">`
+      + `<b class="eb-uname"><i class="eb-tier">${u.tier}</i>${u.name}${u.star >= 2 ? `<em>★${u.star}</em>` : ''}</b>`
+      + `<span class="eb-hp"><i style="width:${hpw}%"></i></span>`
+      + `<span class="eb-gg"><i style="width:${Math.round(u.gauge)}%"></i></span>`
+      + `</div>`
+      + `<img class="eb-sprite" src="${u.sprite}" alt="${u.name}" draggable="false" loading="eager">`
+      + `</div>`
+      + (u.boss ? `<span class="eb-crown" aria-hidden="true">👑</span>` : '')
       + `</div>`;
   }
 
@@ -1365,13 +1564,14 @@
         <span class="eb-turn" id="eb-turn">1턴</span>
       </header>
       <div class="eb-bonds" id="eb-bonds"></div>
-      <div class="eb-field">
-        <div class="eb-side enemy"><span class="eb-side-tag">적</span><div class="eb-grid" id="eb-enemy"></div></div>
-        <div class="eb-mid"><span>⚔</span></div>
+      <div class="eb-field" id="eb-field">
+        <div class="eb-ground" aria-hidden="true"></div>
+        <div class="eb-side enemy"><span class="eb-side-tag">적군</span><div class="eb-grid" id="eb-enemy"></div></div>
         <div class="eb-side ally"><span class="eb-side-tag">아군</span><div class="eb-grid" id="eb-ally"></div></div>
+        <div class="eb-fx" id="eb-fx" aria-hidden="true"></div>
+        <div class="eb-cutin" id="eb-cutin" hidden><img src="" alt="" aria-hidden="true"><span><b></b><em></em></span></div>
       </div>
-      <div class="eb-foot"><p id="eb-log">전투 준비…</p><div class="eb-count" id="eb-count"></div></div>
-      <div class="eb-banner" id="eb-banner" hidden></div>`;
+      <div class="eb-foot"><p id="eb-log">전투 준비…</p><div class="eb-count" id="eb-count"></div></div>`;
     /* #modal-root 와 같은 스택 안에 넣어야 결과창(모달)이 전투 화면 위로 올라온다 */
     const host = $('app') || document.body;
     const root = $('modal-root');
@@ -1394,8 +1594,11 @@
     const el = ensureBattleDom();
     el.hidden = false;
     el.classList.toggle('x2', B.speed >= 2);
+    el.classList.remove('ult');
     const sp = $('eb-speed');
     if (sp) sp.textContent = B.speed + '×';
+    const cut = $('eb-cutin');
+    if (cut) cut.hidden = true;
     const def = STAGE_DEFS[B.stage - 1] || {};
     const st = $('eb-stage'); if (st) st.textContent = `${B.stage}관${def.boss ? ' · 보스' : ''}`;
     const nm = $('eb-name'); if (nm) nm.textContent = def.name || '';
@@ -1419,6 +1622,9 @@
       allyGrid.innerHTML = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         .map((slot) => unitCell(B.units.find((u) => u.side === 'ally' && u.slot === slot))).join('');
     }
+    /* 연출 레이어 비우기 */
+    const fx = $('eb-fx');
+    if (fx) fx.innerHTML = '';
     const lg = $('eb-log'); if (lg) lg.textContent = '전투 시작!';
     paintBattle();
   }
@@ -1426,13 +1632,13 @@
   function paintBattle() {
     if (!B || !B.ui) return;
     B.units.forEach((u) => {
-      const cell = document.querySelector(`#exp-battle [data-uid="${u.uid}"]`);
+      const cell = cellOf(u.uid);
       if (!cell) return;
       const hp = cell.querySelector('.eb-hp > i');
       if (hp) hp.style.width = Math.max(0, Math.min(100, 100 * u.hp / u.maxHp)) + '%';
       const gg = cell.querySelector('.eb-gg > i');
       if (gg) gg.style.width = Math.max(0, Math.min(100, u.gauge)) + '%';
-      if (!u.alive && !cell.classList.contains('dead')) cell.classList.add('dead');
+      if (!u.alive && !u.diePending && !cell.classList.contains('dead')) cell.classList.add('dead');
       cell.classList.toggle('shielded', u.shield > 0 && u.alive);
       cell.classList.toggle('ready', u.gauge >= 100 && u.alive);
     });
@@ -1853,6 +2059,19 @@
       log: B.log.slice(-4),
     } : null),
     battleSpeed: (v) => { if (B) { B.speed = clamp(Number(v) || 1, 1, 8); const el = $('eb-speed'); if (el) el.textContent = B.speed + '×'; } },
+    /* 연출만 따로 재생 (검수·스샷용 — 수치·상태는 건드리지 않는다) */
+    fx: (kind, a, b) => {
+      if (!B || !B.ui) return false;
+      const pick = (v) => B.units.find((u) => u.uid === v || u.name === v);
+      const src = pick(a) || B.units.find((u) => u.side === 'ally' && u.alive);
+      if (!src) return false;
+      const tgt = pick(b) || B.units.find((u) => u.side !== src.side && u.alive);
+      if (!tgt) return false;
+      if (kind === 'dash') { dashTo(src, tgt); hitFx(tgt, '128', true, 'blade', 180, false, true); }
+      else if (kind === 'cast') { castPose(src); shootAt(src, tgt, projKind(src), 60); hitFx(tgt, '96', false, projKind(src), 400, false); }
+      else if (kind === 'ult') { cutIn(src, src.skill || '필살'); }
+      return true;
+    },
     battleStop: closeBattle,
     simulate: (stage, names) => {
       const prev = B;

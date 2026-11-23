@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=86" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=87" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=86" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=86" />
+<link rel="stylesheet" href="css/game.css?v=87" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=87" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -184,7 +184,7 @@
     <p class="sc-foot"><span class="sc-foot-ic" aria-hidden="true">ⓘ</span> 세력을 고르면 그 군주의 본거지에서 시작합니다.</p>
   </section>
 
-  <!-- ═══════════ 원정 시나리오 대기실 (v5.68 · 비밀 · DEV) ═══════════ -->
+  <!-- ═══════════ 원정 시나리오 대기실 (v5.69 · 비밀 · DEV) ═══════════ -->
   <section id="screen-expedition" class="screen">
     <header class="exp-top">
       <button id="exp-back" class="exp-back" type="button" aria-label="본편으로 돌아가기">← 본편으로</button>
@@ -217,7 +217,7 @@
         <p class="exp-hint">장수를 탭한 뒤 다른 칸을 탭하면 자리를 옮기거나 맞바꿉니다 · 길게 누르면 능력치</p>
         <div class="exp-grid" id="exp-grid"></div>
         <div class="exp-reserve" id="exp-reserve"></div>
-        <!-- v5.68 — 세력 시너지 · 인연 버프 칩 (진형에 따라 실시간) -->
+        <!-- v5.69 — 세력 시너지 · 인연 버프 칩 (진형에 따라 실시간) -->
         <div class="exp-synergy" id="exp-synergy" aria-live="polite"></div>
       </section>
 
@@ -525,21 +525,21 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=86"></script>
-<script src="js/mapmask.js?v=86"></script>
-<script src="js/city_geo.js?v=86"></script>
-<script src="js/data.js?v=86"></script>
-<script src="js/bgm.js?v=86"></script>
-<script src="js/sfx.js?v=86"></script>
-<script src="js/app.js?v=86"></script>
-<script src="js/map.js?v=86"></script>
-<script src="js/battle.js?v=86"></script>
-<script src="js/expedition.js?v=86"></script>
-<script src="js/backguard.js?v=86"></script>
+<script src="js/mapgeo.js?v=87"></script>
+<script src="js/mapmask.js?v=87"></script>
+<script src="js/city_geo.js?v=87"></script>
+<script src="js/data.js?v=87"></script>
+<script src="js/bgm.js?v=87"></script>
+<script src="js/sfx.js?v=87"></script>
+<script src="js/app.js?v=87"></script>
+<script src="js/map.js?v=87"></script>
+<script src="js/battle.js?v=87"></script>
+<script src="js/expedition.js?v=87"></script>
+<script src="js/backguard.js?v=87"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=86').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=87').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

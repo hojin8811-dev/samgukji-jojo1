@@ -1,6 +1,20 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=86`
+기준: 2026-11-23 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=87`
+
+## ✅ v5.69 — 원정 3×3 전투 치비 전신 난투 리뉴얼 (2026-11-23 · `?v=87`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 카드 박스 제거 | 초상 카드(`.eb-unit` 테두리·배경) 삭제 → `duel_arena_bg` 바닥(`.eb-ground`) + 3×3 **발판**(`.eb-mark`, 빈 칸 점선 타원) | `unitCell`·`renderBattle`, `.eb-field`·`.eb-ground`·`.eb-cell` |
+| 치비 전신 | `assets/units/` 256×256 SD를 발판 위에 `object-fit: contain`으로 세움. 장수 고유 SD 우선, 없으면 병과 공용 `job_*.webp`(19종 `JOB_SPRITE`) · 적군 `scaleX(-1)` | `unitSpriteOf`·`JOB_SPRITE`, `.eb-sprite` |
+| 머리 위 표시 | 등급 칩(S/A/B/C) + 이름 + ★ + 4px HP + 2.5px 게이지 · 보스 👑·붉은 광휘 | `.eb-tag`·`.eb-tier`·`.eb-hp`·`.eb-gg` |
+| 근접 돌진 | 상대 코앞(≈0.6칸)까지 translate(0.16s) → 참격 두 줄 + 섬광 + 넉백/흔들림 + 큰 데미지 숫자 → 복귀(0.47s). 돌진 중 이름표 접힘 | `dashTo`·`slashAt`·`burstAt`·`flashCell`·`knockAt`, `.eb-fig.lunge`·`.eb-slash`·`.eb-hitflash` |
+| 원거리 투사체 | 시전 포즈 → 화살·화염·독·번개·돌·바람 투사체가 `--px/--py/--rot`로 날아가 폭발 | `castPose`·`shootAt`·`projKind`, `.eb-proj` |
+| 필살 컷인 | 화면 어두워짐(`.eb-dim`) + 컷인 배너(`#eb-cutin` 초상·이름·기술명, 아군 좌·적 우) + 화면 흔들림 | `cutIn`, `.eb-cutin`·`exp-battle.ult` |
+| 사망 | `ebFall` — 옆으로 쓰러지며 회색 반투명(0.22) 소멸 | `.eb-cell.dead` |
+| 재도전 안전 | 전투를 갈아엎은 뒤 늦게 터지는 연출 차단(`stillSame`) — 유령 데미지 숫자 제거 | `stillSame`, `hitFx`·`shootAt` |
+| 검수 | `tools/qa_v569.py a` 로컬 **51/51**, `b` 라이브 · 360×640 포함 | `preview/exp_v3/` |
 
 ## ✅ v5.68 — 원정 시나리오 2단계(1막 10관 풀오토 · 뽑기 · 장비 · 시너지) (2026-11-23 · `?v=86`)
 
