@@ -1,0 +1,718 @@
+{
+ "조조": {
+  "id": 1,
+  "portrait": "assets/portraits/v579/1.webp"
+ },
+ "유비": {
+  "id": 2,
+  "portrait": "assets/portraits/v579/2.webp"
+ },
+ "손권": {
+  "id": 3,
+  "portrait": "assets/portraits/v579/3.webp"
+ },
+ "하후돈": {
+  "id": 4,
+  "portrait": "assets/portraits/v579/4.webp"
+ },
+ "하후연": {
+  "id": 5,
+  "portrait": "assets/portraits/v579/5.webp"
+ },
+ "장료": {
+  "id": 6,
+  "portrait": "assets/portraits/v579/6.webp"
+ },
+ "전위": {
+  "id": 7,
+  "portrait": "assets/portraits/v579/7.webp"
+ },
+ "허저": {
+  "id": 8,
+  "portrait": "assets/portraits/v579/8.webp"
+ },
+ "서황": {
+  "id": 9,
+  "portrait": "assets/portraits/v579/9.webp"
+ },
+ "장합": {
+  "id": 10,
+  "portrait": "assets/portraits/v579/10.webp"
+ },
+ "순욱": {
+  "id": 11,
+  "portrait": "assets/portraits/v579/11.webp"
+ },
+ "순유": {
+  "id": 12,
+  "portrait": "assets/portraits/v579/12.webp"
+ },
+ "곽가": {
+  "id": 13,
+  "portrait": "assets/portraits/v579/13.webp"
+ },
+ "가후": {
+  "id": 14,
+  "portrait": "assets/portraits/v579/14.webp"
+ },
+ "사마의": {
+  "id": 15,
+  "portrait": "assets/portraits/v579/15.webp"
+ },
+ "조인": {
+  "id": 16,
+  "portrait": "assets/portraits/v579/16.webp"
+ },
+ "관우": {
+  "id": 21,
+  "portrait": "assets/portraits/v579/21.webp"
+ },
+ "장비": {
+  "id": 22,
+  "portrait": "assets/portraits/v579/22.webp"
+ },
+ "조운": {
+  "id": 23,
+  "portrait": "assets/portraits/v579/23.webp"
+ },
+ "마초": {
+  "id": 24,
+  "portrait": "assets/portraits/v579/24.webp"
+ },
+ "황충": {
+  "id": 25,
+  "portrait": "assets/portraits/v579/25.webp"
+ },
+ "제갈량": {
+  "id": 26,
+  "portrait": "assets/portraits/v579/26.webp"
+ },
+ "방통": {
+  "id": 27,
+  "portrait": "assets/portraits/v579/27.webp"
+ },
+ "법정": {
+  "id": 28,
+  "portrait": "assets/portraits/v579/28.webp"
+ },
+ "강유": {
+  "id": 29,
+  "portrait": "assets/portraits/v579/29.webp"
+ },
+ "위연": {
+  "id": 30,
+  "portrait": "assets/portraits/v579/30.webp"
+ },
+ "주창": {
+  "id": 31,
+  "portrait": "assets/portraits/v579/31.webp"
+ },
+ "손견": {
+  "id": 36,
+  "portrait": "assets/portraits/v579/36.webp"
+ },
+ "손책": {
+  "id": 37,
+  "portrait": "assets/portraits/v579/37.webp"
+ },
+ "주유": {
+  "id": 38,
+  "portrait": "assets/portraits/v579/38.webp"
+ },
+ "노숙": {
+  "id": 39,
+  "portrait": "assets/portraits/v579/39.webp"
+ },
+ "여몽": {
+  "id": 40,
+  "portrait": "assets/portraits/v579/40.webp"
+ },
+ "육손": {
+  "id": 41,
+  "portrait": "assets/portraits/v579/41.webp"
+ },
+ "감녕": {
+  "id": 42,
+  "portrait": "assets/portraits/v579/42.webp"
+ },
+ "태사자": {
+  "id": 43,
+  "portrait": "assets/portraits/v579/43.webp"
+ },
+ "주태": {
+  "id": 44,
+  "portrait": "assets/portraits/v579/44.webp"
+ },
+ "여포": {
+  "id": 51,
+  "portrait": "assets/portraits/v579/51.webp"
+ },
+ "초선": {
+  "id": 52,
+  "portrait": "assets/portraits/v579/52.webp"
+ },
+ "동탁": {
+  "id": 53,
+  "portrait": "assets/portraits/v579/53.webp"
+ },
+ "원소": {
+  "id": 54,
+  "portrait": "assets/portraits/v579/54.webp"
+ },
+ "장각": {
+  "id": 57,
+  "portrait": "assets/portraits/v579/57.webp"
+ },
+ "맹획": {
+  "id": 58,
+  "portrait": "assets/portraits/v579/58.webp"
+ },
+ "축융": {
+  "id": 59,
+  "portrait": "assets/portraits/v579/59.webp"
+ },
+ "광개토대왕": {
+  "id": 66,
+  "portrait": "assets/portraits/v579/66.webp"
+ },
+ "을지문덕": {
+  "id": 67,
+  "portrait": "assets/portraits/v579/67.webp"
+ },
+ "연개소문": {
+  "id": 68,
+  "portrait": "assets/portraits/v579/68.webp"
+ },
+ "양만춘": {
+  "id": 69,
+  "portrait": "assets/portraits/v579/69.webp"
+ },
+ "계백": {
+  "id": 71,
+  "portrait": "assets/portraits/v579/71.webp"
+ },
+ "흑치상지": {
+  "id": 72,
+  "portrait": "assets/portraits/v579/72.webp"
+ },
+ "근초고왕": {
+  "id": 73,
+  "portrait": "assets/portraits/v579/73.webp"
+ },
+ "김유신": {
+  "id": 76,
+  "portrait": "assets/portraits/v579/76.webp"
+ },
+ "김춘추": {
+  "id": 77,
+  "portrait": "assets/portraits/v579/77.webp"
+ },
+ "이사부": {
+  "id": 79,
+  "portrait": "assets/portraits/v579/79.webp"
+ },
+ "김수로": {
+  "id": 81,
+  "portrait": "assets/portraits/v579/81.webp"
+ },
+ "조비": {
+  "id": 101,
+  "portrait": "assets/portraits/v579/101.webp"
+ },
+ "등애": {
+  "id": 111,
+  "portrait": "assets/portraits/v579/111.webp"
+ },
+ "종회": {
+  "id": 112,
+  "portrait": "assets/portraits/v579/112.webp"
+ },
+ "육항": {
+  "id": 146,
+  "portrait": "assets/portraits/v579/146.webp"
+ },
+ "동명성왕": {
+  "id": 181,
+  "portrait": "assets/portraits/v579/181.webp"
+ },
+ "대무신왕": {
+  "id": 183,
+  "portrait": "assets/portraits/v579/183.webp"
+ },
+ "장수왕": {
+  "id": 184,
+  "portrait": "assets/portraits/v579/184.webp"
+ },
+ "명림답부": {
+  "id": 185,
+  "portrait": "assets/portraits/v579/185.webp"
+ },
+ "온조왕": {
+  "id": 190,
+  "portrait": "assets/portraits/v579/190.webp"
+ },
+ "무령왕": {
+  "id": 191,
+  "portrait": "assets/portraits/v579/191.webp"
+ },
+ "성왕": {
+  "id": 192,
+  "portrait": "assets/portraits/v579/192.webp"
+ },
+ "진흥왕": {
+  "id": 195,
+  "portrait": "assets/portraits/v579/195.webp"
+ },
+ "선덕여왕": {
+  "id": 196,
+  "portrait": "assets/portraits/v579/196.webp"
+ },
+ "문무왕": {
+  "id": 197,
+  "portrait": "assets/portraits/v579/197.webp"
+ },
+ "고선지": {
+  "id": 301,
+  "portrait": "assets/portraits/v579/301.webp"
+ },
+ "왕건": {
+  "id": 302,
+  "portrait": "assets/portraits/v579/302.webp"
+ },
+ "강감찬": {
+  "id": 303,
+  "portrait": "assets/portraits/v579/303.webp"
+ },
+ "서희": {
+  "id": 304,
+  "portrait": "assets/portraits/v579/304.webp"
+ },
+ "윤관": {
+  "id": 305,
+  "portrait": "assets/portraits/v579/305.webp"
+ },
+ "척준경": {
+  "id": 306,
+  "portrait": "assets/portraits/v579/306.webp"
+ },
+ "양규": {
+  "id": 315,
+  "portrait": "assets/portraits/v579/315.webp"
+ },
+ "최무선": {
+  "id": 334,
+  "portrait": "assets/portraits/v579/334.webp"
+ },
+ "이성계": {
+  "id": 337,
+  "portrait": "assets/portraits/v579/337.webp"
+ },
+ "정도전": {
+  "id": 338,
+  "portrait": "assets/portraits/v579/338.webp"
+ },
+ "정몽주": {
+  "id": 339,
+  "portrait": "assets/portraits/v579/339.webp"
+ },
+ "이방원": {
+  "id": 340,
+  "portrait": "assets/portraits/v579/340.webp"
+ },
+ "세종대왕": {
+  "id": 346,
+  "portrait": "assets/portraits/v579/346.webp"
+ },
+ "장영실": {
+  "id": 347,
+  "portrait": "assets/portraits/v579/347.webp"
+ },
+ "김종서": {
+  "id": 348,
+  "portrait": "assets/portraits/v579/348.webp"
+ },
+ "이순신": {
+  "id": 354,
+  "portrait": "assets/portraits/v579/354.webp"
+ },
+ "권율": {
+  "id": 355,
+  "portrait": "assets/portraits/v579/355.webp"
+ },
+ "곽재우": {
+  "id": 356,
+  "portrait": "assets/portraits/v579/356.webp"
+ },
+ "김시민": {
+  "id": 357,
+  "portrait": "assets/portraits/v579/357.webp"
+ },
+ "정약용": {
+  "id": 370,
+  "portrait": "assets/portraits/v579/370.webp"
+ },
+ "최영": {
+  "id": 372,
+  "portrait": "assets/portraits/v579/372.webp"
+ },
+ "설총": {
+  "id": 373,
+  "portrait": "assets/portraits/v579/373.webp"
+ },
+ "임경업": {
+  "id": 374,
+  "portrait": "assets/portraits/v579/374.webp"
+ },
+ "김응하": {
+  "id": 375,
+  "portrait": "assets/portraits/v579/375.webp"
+ },
+ "장보고": {
+  "id": 376,
+  "portrait": "assets/portraits/v579/376.webp"
+ },
+ "방덕": {
+  "id": 410,
+  "portrait": "assets/portraits/v579/410.webp"
+ },
+ "안중근": {
+  "id": 591,
+  "portrait": "assets/portraits/v579/591.webp"
+ },
+ "김좌진": {
+  "id": 592,
+  "portrait": "assets/portraits/v579/592.webp"
+ },
+ "김구": {
+  "id": 593,
+  "portrait": "assets/portraits/v579/593.webp"
+ },
+ "홍범도": {
+  "id": 594,
+  "portrait": "assets/portraits/v579/594.webp"
+ },
+ "서서": {
+  "id": 595,
+  "portrait": "assets/portraits/v579/595.webp"
+ },
+ "조홍": {
+  "id": 17,
+  "portrait": "assets/portraits/v579/17.webp"
+ },
+ "우금": {
+  "id": 18,
+  "portrait": "assets/portraits/v579/18.webp"
+ },
+ "악진": {
+  "id": 19,
+  "portrait": "assets/portraits/v579/19.webp"
+ },
+ "이전": {
+  "id": 20,
+  "portrait": "assets/portraits/v579/20.webp"
+ },
+ "관평": {
+  "id": 32,
+  "portrait": "assets/portraits/v579/32.webp"
+ },
+ "미방": {
+  "id": 33,
+  "portrait": "assets/portraits/v579/33.webp"
+ },
+ "손건": {
+  "id": 34,
+  "portrait": "assets/portraits/v579/34.webp"
+ },
+ "간옹": {
+  "id": 35,
+  "portrait": "assets/portraits/v579/35.webp"
+ },
+ "황개": {
+  "id": 45,
+  "portrait": "assets/portraits/v579/45.webp"
+ },
+ "정보": {
+  "id": 46,
+  "portrait": "assets/portraits/v579/46.webp"
+ },
+ "능통": {
+  "id": 47,
+  "portrait": "assets/portraits/v579/47.webp"
+ },
+ "서성": {
+  "id": 48,
+  "portrait": "assets/portraits/v579/48.webp"
+ },
+ "정봉": {
+  "id": 49,
+  "portrait": "assets/portraits/v579/49.webp"
+ },
+ "엄준": {
+  "id": 50,
+  "portrait": "assets/portraits/v579/50.webp"
+ },
+ "안량": {
+  "id": 55,
+  "portrait": "assets/portraits/v579/55.webp"
+ },
+ "문추": {
+  "id": 56,
+  "portrait": "assets/portraits/v579/56.webp"
+ },
+ "올돌골": {
+  "id": 60,
+  "portrait": "assets/portraits/v579/60.webp"
+ },
+ "화웅": {
+  "id": 61,
+  "portrait": "assets/portraits/v579/61.webp"
+ },
+ "진궁": {
+  "id": 62,
+  "portrait": "assets/portraits/v579/62.webp"
+ },
+ "전풍": {
+  "id": 63,
+  "portrait": "assets/portraits/v579/63.webp"
+ },
+ "저수": {
+  "id": 64,
+  "portrait": "assets/portraits/v579/64.webp"
+ },
+ "유벽": {
+  "id": 65,
+  "portrait": "assets/portraits/v579/65.webp"
+ },
+ "성충": {
+  "id": 74,
+  "portrait": "assets/portraits/v579/74.webp"
+ },
+ "흥수": {
+  "id": 75,
+  "portrait": "assets/portraits/v579/75.webp"
+ },
+ "관창": {
+  "id": 78,
+  "portrait": "assets/portraits/v579/78.webp"
+ },
+ "거칠부": {
+  "id": 80,
+  "portrait": "assets/portraits/v579/80.webp"
+ },
+ "허황옥": {
+  "id": 82,
+  "portrait": "assets/portraits/v579/82.webp"
+ },
+ "유엽": {
+  "id": 83,
+  "portrait": "assets/portraits/v579/83.webp"
+ },
+ "마균": {
+  "id": 84,
+  "portrait": "assets/portraits/v579/84.webp"
+ },
+ "제갈첨": {
+  "id": 85,
+  "portrait": "assets/portraits/v579/85.webp"
+ },
+ "진도": {
+  "id": 86,
+  "portrait": "assets/portraits/v579/86.webp"
+ },
+ "장억": {
+  "id": 87,
+  "portrait": "assets/portraits/v579/87.webp"
+ },
+ "능조": {
+  "id": 88,
+  "portrait": "assets/portraits/v579/88.webp"
+ },
+ "반장": {
+  "id": 89,
+  "portrait": "assets/portraits/v579/89.webp"
+ },
+ "보연사": {
+  "id": 90,
+  "portrait": "assets/portraits/v579/90.webp"
+ },
+ "견희": {
+  "id": 91,
+  "portrait": "assets/portraits/v579/91.webp"
+ },
+ "채문희": {
+  "id": 92,
+  "portrait": "assets/portraits/v579/92.webp"
+ },
+ "고순": {
+  "id": 93,
+  "portrait": "assets/portraits/v579/93.webp"
+ },
+ "장임": {
+  "id": 94,
+  "portrait": "assets/portraits/v579/94.webp"
+ },
+ "엄안": {
+  "id": 95,
+  "portrait": "assets/portraits/v579/95.webp"
+ },
+ "학소": {
+  "id": 96,
+  "portrait": "assets/portraits/v579/96.webp"
+ },
+ "국수": {
+  "id": 97,
+  "portrait": "assets/portraits/v579/97.webp"
+ },
+ "왕쌍": {
+  "id": 98,
+  "portrait": "assets/portraits/v579/98.webp"
+ },
+ "진식": {
+  "id": 99,
+  "portrait": "assets/portraits/v579/99.webp"
+ },
+ "여범": {
+  "id": 100,
+  "portrait": "assets/portraits/v579/100.webp"
+ },
+ "조예": {
+  "id": 102,
+  "portrait": "assets/portraits/v579/102.webp"
+ },
+ "조창": {
+  "id": 103,
+  "portrait": "assets/portraits/v579/103.webp"
+ },
+ "조식": {
+  "id": 104,
+  "portrait": "assets/portraits/v579/104.webp"
+ },
+ "조진": {
+  "id": 105,
+  "portrait": "assets/portraits/v579/105.webp"
+ },
+ "조휴": {
+  "id": 106,
+  "portrait": "assets/portraits/v579/106.webp"
+ },
+ "하후상": {
+  "id": 107,
+  "portrait": "assets/portraits/v579/107.webp"
+ },
+ "만총": {
+  "id": 108,
+  "portrait": "assets/portraits/v579/108.webp"
+ },
+ "문빙": {
+  "id": 109,
+  "portrait": "assets/portraits/v579/109.webp"
+ },
+ "왕기": {
+  "id": 110,
+  "portrait": "assets/portraits/v579/110.webp"
+ },
+ "사마사": {
+  "id": 113,
+  "portrait": "assets/portraits/v579/113.webp"
+ },
+ "사마소": {
+  "id": 114,
+  "portrait": "assets/portraits/v579/114.webp"
+ },
+ "양호": {
+  "id": 115,
+  "portrait": "assets/portraits/v579/115.webp"
+ },
+ "두예": {
+  "id": 116,
+  "portrait": "assets/portraits/v579/116.webp"
+ },
+ "진군": {
+  "id": 117,
+  "portrait": "assets/portraits/v579/117.webp"
+ },
+ "화흠": {
+  "id": 118,
+  "portrait": "assets/portraits/v579/118.webp"
+ },
+ "종요": {
+  "id": 119,
+  "portrait": "assets/portraits/v579/119.webp"
+ },
+ "정욱": {
+  "id": 120,
+  "portrait": "assets/portraits/v579/120.webp"
+ },
+ "유선": {
+  "id": 121,
+  "portrait": "assets/portraits/v579/121.webp"
+ },
+ "관흥": {
+  "id": 122,
+  "portrait": "assets/portraits/v579/122.webp"
+ },
+ "장포": {
+  "id": 123,
+  "portrait": "assets/portraits/v579/123.webp"
+ },
+ "마대": {
+  "id": 124,
+  "portrait": "assets/portraits/v579/124.webp"
+ },
+ "요화": {
+  "id": 125,
+  "portrait": "assets/portraits/v579/125.webp"
+ },
+ "왕평": {
+  "id": 126,
+  "portrait": "assets/portraits/v579/126.webp"
+ },
+ "장완": {
+  "id": 127,
+  "portrait": "assets/portraits/v579/127.webp"
+ },
+ "비의": {
+  "id": 128,
+  "portrait": "assets/portraits/v579/128.webp"
+ },
+ "동윤": {
+  "id": 129,
+  "portrait": "assets/portraits/v579/129.webp"
+ },
+ "마속": {
+  "id": 130,
+  "portrait": "assets/portraits/v579/130.webp"
+ },
+ "마량": {
+  "id": 131,
+  "portrait": "assets/portraits/v579/131.webp"
+ },
+ "이엄": {
+  "id": 132,
+  "portrait": "assets/portraits/v579/132.webp"
+ },
+ "오의": {
+  "id": 133,
+  "portrait": "assets/portraits/v579/133.webp"
+ },
+ "황권": {
+  "id": 134,
+  "portrait": "assets/portraits/v579/134.webp"
+ },
+ "유봉": {
+  "id": 135,
+  "portrait": "assets/portraits/v579/135.webp"
+ },
+ "맹달": {
+  "id": 136,
+  "portrait": "assets/portraits/v579/136.webp"
+ },
+ "장익": {
+  "id": 137,
+  "portrait": "assets/portraits/v579/137.webp"
+ },
+ "곽준": {
+  "id": 138,
+  "portrait": "assets/portraits/v579/138.webp"
+ }
+}
