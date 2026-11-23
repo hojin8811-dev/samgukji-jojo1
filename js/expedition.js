@@ -294,7 +294,7 @@
     paintGrid();
     paintFoot();
     sfx('ui');
-    toast(b ? `${a} ↔ ${b} 자리를 바꿨습니다.` : `${a}을(를) ${posName(i)}으로 옮겼습니다.`);
+    toast(b ? `${a} ↔ ${b} 자리 바꿈` : `${a} → ${posName(i)}`);
   }
 
   function openInfo(i) {
