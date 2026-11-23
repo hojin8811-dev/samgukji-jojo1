@@ -2982,14 +2982,15 @@
               actions: [
                 { label: '닫기' },
                 { label: `정찰 먼저 (금 ${scoutCost()})`, onClick: () => SK.openScoutSheet(id) },
-                { label: '그래도 출진', onClick: () => { sheet.hidden = true; const from = SK.allNeighbors(id).find((n) => SK.state.cities[n].owner === PF()) || SK.state.lastCity; SK.openSortiePrep(id, from); } },
+                { label: '그래도 출진', onClick: () => { sheet.hidden = true; SK.openSortiePrep(id, null); } },
               ],
             });
             return;
           }
           sheet.hidden = true;
-          const from = SK.allNeighbors(id).find((n) => SK.state.cities[n].owner === PF()) || SK.state.lastCity;
-          SK.openSortiePrep(id, from);
+          /* v5.71 — 마지막 성이 1칸이거나 아군 거점 경유 2칸이면 그 성에서 출진한다(관문 병력 상한 우회).
+             아니면 openSortiePrep 이 목표에 붙은 아군 성으로 물러난다. */
+          SK.openSortiePrep(id, null);
         }
         else if (a === 'scout') { SK.openScoutSheet(id); }
         else if (a === 'far') { SK.toast('인접한 아군 거점에서만 출진할 수 있습니다.'); }
