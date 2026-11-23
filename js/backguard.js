@@ -141,6 +141,12 @@
       if (!press('#btn-scenario-back')) SK.show(SK.state ? 'screen-map' : 'screen-title');
       return 'sub';
     }
+    /* v5.68 — 원정 전투 중 뒤로가기는 전투만 닫고 대기실로 돌아간다 (본편으로 나가지 않게) */
+    const expBtl = document.getElementById('exp-battle');
+    if (scr === 'screen-expedition' && expBtl && !expBtl.hidden) {
+      if (!press('#eb-exit')) expBtl.hidden = true;
+      return 'sub';
+    }
     /* v5.67 — 원정 시나리오 대기실(비밀 · DEV): 뒤로가기는 본편 표지로 */
     if (scr === 'screen-expedition') {
       if (!press('#exp-back')) SK.show('screen-title');

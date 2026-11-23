@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>꼬마영웅 대난투</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=85" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=86" />
 <meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=85" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=85" />
+<link rel="stylesheet" href="css/game.css?v=86" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=86" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -184,7 +184,7 @@
     <p class="sc-foot"><span class="sc-foot-ic" aria-hidden="true">ⓘ</span> 세력을 고르면 그 군주의 본거지에서 시작합니다.</p>
   </section>
 
-  <!-- ═══════════ 원정 시나리오 대기실 (v5.67 · 비밀 · DEV) ═══════════ -->
+  <!-- ═══════════ 원정 시나리오 대기실 (v5.68 · 비밀 · DEV) ═══════════ -->
   <section id="screen-expedition" class="screen">
     <header class="exp-top">
       <button id="exp-back" class="exp-back" type="button" aria-label="본편으로 돌아가기">← 본편으로</button>
@@ -217,13 +217,15 @@
         <p class="exp-hint">장수를 탭한 뒤 다른 칸을 탭하면 자리를 옮기거나 맞바꿉니다 · 길게 누르면 능력치</p>
         <div class="exp-grid" id="exp-grid"></div>
         <div class="exp-reserve" id="exp-reserve"></div>
+        <!-- v5.68 — 세력 시너지 · 인연 버프 칩 (진형에 따라 실시간) -->
+        <div class="exp-synergy" id="exp-synergy" aria-live="polite"></div>
       </section>
 
       <!-- ③ 하단 4메뉴 -->
       <section class="exp-menus" aria-label="원정 메뉴">
-        <button class="exp-menu" type="button" data-exp-menu="hero"><span>🎴</span><b>장수 공훈 뽑기</b><small>1회 공훈 100 · S~C 영입</small></button>
-        <button class="exp-menu" type="button" data-exp-menu="gear"><span>🗡️</span><b>장비(보물) 뽑기</b><small>1회 공훈 80 · 무기·방어구</small></button>
-        <button class="exp-menu" type="button" data-exp-menu="roster"><span>🎒</span><b>내 원정단 · 장비</b><small>보유 3명 · 진형 배치·해제</small></button>
+        <button class="exp-menu" type="button" data-exp-menu="hero"><span>🎴</span><b>장수 공훈 뽑기</b><small>1회 100 · 10회 900 · 중복 ★승급</small></button>
+        <button class="exp-menu" type="button" data-exp-menu="gear"><span>🗡️</span><b>장비(보물) 뽑기</b><small>1회 80 · 10회 720 · 3칸 장착</small></button>
+        <button class="exp-menu" type="button" data-exp-menu="roster"><span>🎒</span><b>내 원정단 · 장비</b><small>장비 장착 · 진형 배치·해제</small></button>
         <button class="exp-menu" type="button" data-exp-menu="rank"><span>🏆</span><b>유저 랭킹전</b><small>클리어 관문 · 최고 층수</small></button>
       </section>
     </div>
@@ -523,21 +525,21 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=85"></script>
-<script src="js/mapmask.js?v=85"></script>
-<script src="js/city_geo.js?v=85"></script>
-<script src="js/data.js?v=85"></script>
-<script src="js/bgm.js?v=85"></script>
-<script src="js/sfx.js?v=85"></script>
-<script src="js/app.js?v=85"></script>
-<script src="js/map.js?v=85"></script>
-<script src="js/battle.js?v=85"></script>
-<script src="js/expedition.js?v=85"></script>
-<script src="js/backguard.js?v=85"></script>
+<script src="js/mapgeo.js?v=86"></script>
+<script src="js/mapmask.js?v=86"></script>
+<script src="js/city_geo.js?v=86"></script>
+<script src="js/data.js?v=86"></script>
+<script src="js/bgm.js?v=86"></script>
+<script src="js/sfx.js?v=86"></script>
+<script src="js/app.js?v=86"></script>
+<script src="js/map.js?v=86"></script>
+<script src="js/battle.js?v=86"></script>
+<script src="js/expedition.js?v=86"></script>
+<script src="js/backguard.js?v=86"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=85').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=86').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>
