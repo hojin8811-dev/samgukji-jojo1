@@ -6028,3 +6028,207 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
   background: rgba(255, 252, 244, 0.75); border: 1px solid #c3a97a;
 }
 .exp-syn-more:active { transform: translateY(1px); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v5.70 (?v=88) — 원정 시나리오 《삼국이분다》 대기실 · 대각선 실시간 난투
+   모든 선택자를 #expRoot 아래로 묶어 본편의 .ex-* · .bt-* 규칙과 부딪히지 않게 한다.
+   키프레임도 sx* 로 새 이름을 쓴다.
+   ═══════════════════════════════════════════════════════════════════ */
+#expRoot.ex-root{position:fixed;inset:0;z-index:9000;background:#07080c;overflow:hidden;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#expRoot .ex-stage{position:absolute;left:50%;top:50%;width:390px;height:844px;transform-origin:center center;overflow:hidden;background:#111;font-family:'Noto Sans KR',system-ui,sans-serif;color:#fff}
+#expRoot .ex-stage button{font-family:inherit;cursor:pointer;border:0;color:#fff}
+#expRoot .ex-stage img{-webkit-user-drag:none;pointer-events:none}
+#expRoot .ex-loading,#expRoot .ex-empty{position:absolute;left:0;right:0;top:46%;text-align:center;font-size:13px;color:#e6c476}
+
+/* ---- 대기실 ---- */
+#expRoot .ex-room,#expRoot .bt{position:absolute;inset:0}
+#expRoot .ex-bg{position:absolute;inset:0;background:url(../assets/title_bg.webp) center/cover no-repeat,#2a2118}
+#expRoot .ex-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(#000a 0,#0000 20%,#0006 46%,#000b 68%,#000d 100%)}
+#expRoot .ex-top{position:absolute;left:0;right:0;top:0;height:52px;display:flex;align-items:center;gap:6px;padding:0 8px;background:linear-gradient(#000d,#0000);z-index:30}
+#expRoot .ex-back{background:#0008;border:1px solid #fff4;border-radius:14px;padding:5px 9px;font-size:12px}
+#expRoot .ex-act{flex:1;text-align:center;font-weight:800;font-size:13px;color:#ffe9a8;text-shadow:0 1px 3px #000}
+#expRoot .ex-pw,#expRoot .ex-merit{background:#000a;border:1px solid #ffd76a66;border-radius:12px;padding:4px 8px;font-size:12px;font-weight:700;color:#ffd76a;white-space:nowrap}
+#expRoot .ex-goal{position:absolute;left:8px;top:60px;width:152px;padding:8px 10px;border-radius:10px;background:linear-gradient(#3b2a14ee,#1d140aee);border:1px solid #c9a24d;z-index:20;box-shadow:0 2px 8px #0008}
+#expRoot .ex-goal .g1{font-size:10px;color:#e6c476}
+#expRoot .ex-goal .g2{font-size:14px;font-weight:800;margin:2px 0}
+#expRoot .ex-goal .g3{font-size:12px;color:#ffd76a}
+#expRoot .ex-goal .g4{font-size:10px;color:#9fe29f;margin-top:2px}
+#expRoot .ex-side{position:absolute;right:8px;top:60px;display:flex;flex-direction:column;gap:6px;z-index:20}
+#expRoot .ex-sbtn{width:62px;height:54px;border-radius:12px;background:linear-gradient(#4a3a22ee,#241a0cee);border:1px solid #c9a24d;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:1px}
+#expRoot .ex-sbtn i{font-style:normal;font-size:19px}
+#expRoot .ex-sbtn:active,#expRoot .ex-dock button:active,#expRoot .ex-go:active{transform:scale(.95)}
+#expRoot .ex-yard{position:absolute;inset:0;z-index:10}
+#expRoot .ex-yard::before{content:"";position:absolute;left:0;right:0;top:300px;bottom:120px;background:linear-gradient(#0000,#0007 32%,#000c 78%,#0009);pointer-events:none}
+#expRoot .ex-char{position:absolute;width:120px;height:166px;margin:-142px 0 0 -60px;text-align:center;animation:sxBob 1.8s ease-in-out infinite;cursor:pointer}
+#expRoot .ex-char::before{content:"";position:absolute;left:50%;bottom:14px;width:92px;height:20px;margin-left:-46px;border-radius:50%;background:radial-gradient(#000c,#0000 72%)}
+@keyframes sxBob{50%{transform:translateY(-4px)}}
+#expRoot .ex-pt{position:relative}
+#expRoot .ex-pt img{width:100%;height:100%;object-fit:contain;display:block}
+#expRoot .ex-pt.noimg{display:flex;align-items:center;justify-content:center;background:#443;border-radius:50%;font-weight:900;font-size:22px}
+#expRoot .ex-chibi{width:116px;height:126px;margin:38px auto 0;filter:drop-shadow(0 4px 6px #0009) drop-shadow(0 0 10px #ffcf7a33)}
+#expRoot .ex-badge{position:absolute;left:50%;top:0;transform:translateX(-50%);margin:0;padding:2px 7px;border-radius:9px;background:#000b;border:1px solid #ffd76a88;font-size:11px;line-height:1.25;white-space:nowrap}
+#expRoot .ex-badge b{color:#ffd76a;font-size:10px}
+#expRoot .ex-syn{position:absolute;left:0;right:0;bottom:158px;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;padding:0 10px;z-index:20}
+#expRoot .ex-chip{background:#000b;border:1px solid #6ec6ff;border-radius:11px;padding:3px 8px;font-size:11px}
+#expRoot .ex-chip em{font-style:normal;color:#8ff;margin-left:3px}
+#expRoot .ex-chip.bond{border-color:#ff8fd0}
+#expRoot .ex-chip.bond em{color:#ffb8e6}
+#expRoot .ex-chip.off{border-color:#666;color:#aaa}
+#expRoot .ex-go{position:absolute;left:22px;right:22px;bottom:78px;height:64px;border-radius:32px;font-size:22px;font-weight:900;letter-spacing:1px;background:linear-gradient(#ff7a3d,#c4200f);border:2px solid #ffd76a;box-shadow:0 4px 14px #000a,inset 0 2px 0 #fff5;z-index:25;text-shadow:0 2px 3px #000a;animation:sxPulse 1.6s infinite}
+@keyframes sxPulse{50%{box-shadow:0 4px 22px #ff7a3daa,inset 0 2px 0 #fff5}}
+#expRoot .ex-dock{position:absolute;left:0;right:0;bottom:0;height:68px;display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(#1b140a,#0b0805);border-top:2px solid #c9a24d;z-index:30}
+#expRoot .ex-dock button{background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;gap:2px}
+#expRoot .ex-dock i{font-style:normal;font-size:22px}
+
+/* ---- 모달 공통 ---- */
+#expRoot .ex-modal{position:absolute;inset:0;background:#000b;z-index:200;display:flex;align-items:flex-end;justify-content:center}
+#expRoot .ex-mbox{width:100%;max-height:78%;background:linear-gradient(#2b2013,#150f08);border-top:2px solid #c9a24d;border-radius:18px 18px 0 0;display:flex;flex-direction:column;animation:sxUp .2s}
+#expRoot .ex-mbox.tall{height:78%}
+#expRoot .ex-mbox.res{border-radius:18px;margin:auto 14px;width:auto;max-height:80%;border:2px solid #c9a24d}
+#expRoot .ex-modal:has(.res){align-items:center}
+@keyframes sxUp{from{transform:translateY(40px);opacity:0}}
+#expRoot .ex-mh{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-size:16px;color:#ffe9a8;border-bottom:1px solid #fff2}
+#expRoot .ex-mx{background:#0006;border-radius:50%;width:28px;height:28px}
+#expRoot .ex-list,#expRoot .ex-unit,#expRoot .ex-form,#expRoot .ex-result{padding:10px 12px 18px;overflow-y:auto}
+#expRoot .l-hd{font-size:12px;color:#e6c476;margin:4px 0 8px}
+#expRoot .l-row{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:6px;border-radius:10px;background:#ffffff0f;border:1px solid #fff1}
+#expRoot .l-row.in{border-color:#ffd76a;background:#ffd76a18}
+#expRoot .l-row.lock{opacity:.45}
+#expRoot .l-row.clr .s-st{color:#9fe29f}
+#expRoot .l-pt{width:42px;height:46px;flex:none}
+#expRoot .l-mid{flex:1;display:flex;flex-direction:column;font-size:14px;min-width:0}
+#expRoot .l-mid small{color:#c9b98e;font-size:11px}
+#expRoot .s-no{width:28px;height:28px;border-radius:50%;background:#c9a24d;color:#111;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
+#expRoot .s-st{font-size:12px;color:#ffd76a;white-space:nowrap}
+#expRoot .ex-btn{flex:1;height:44px;border-radius:12px;background:linear-gradient(#4a6a9a,#26385a);font-size:14px;font-weight:800;border:1px solid #9cc0ff88}
+#expRoot .ex-btn.gold{background:linear-gradient(#e0a93a,#9a6a12);border-color:#ffe08a}
+#expRoot .ex-btn small{display:block;font-size:10px;font-weight:500;opacity:.9}
+#expRoot .ex-mini{width:38px;height:30px;border-radius:8px;background:#335d99;font-size:12px;font-weight:800}
+#expRoot .ex-mini.gold{background:#b98a1e}
+#expRoot .u-head{display:flex;gap:12px;align-items:center}
+#expRoot .u-pt{width:96px;height:108px;flex:none}
+#expRoot .u-info{flex:1}
+#expRoot .u-n{font-size:18px;font-weight:800}
+#expRoot .u-n small{font-size:11px;color:#c9b98e;font-weight:400}
+#expRoot .u-s{color:#ffd76a;margin:3px 0}
+#expRoot .u-bar{height:8px;background:#0008;border-radius:4px;overflow:hidden}
+#expRoot .u-bar i{display:block;height:100%;background:linear-gradient(90deg,#5ee0ff,#2a7fff)}
+#expRoot .u-x{font-size:10px;color:#aaa;margin-top:2px}
+#expRoot .u-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0}
+#expRoot .u-stats div{background:#0006;border-radius:10px;padding:7px;text-align:center}
+#expRoot .u-stats span{display:block;font-size:11px;color:#c9b98e}
+#expRoot .u-stats b{font-size:16px}
+#expRoot .u-skill{background:#0006;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+#expRoot .u-skill b{color:#ffd76a}
+#expRoot .u-skill small{color:#c9b98e;font-size:10px}
+#expRoot .u-equip{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+#expRoot .u-eq{background:#ffffff0d;border:1px dashed #fff4;border-radius:10px;padding:6px 2px;text-align:center;font-size:10px;color:#999;cursor:pointer;overflow:hidden}
+#expRoot .u-eq.on{border-style:solid;border-color:#ffd76a;color:#fff}
+#expRoot .u-eq i{display:block;font-style:normal;font-size:20px}
+#expRoot .u-eq span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#expRoot .u-btns{display:flex;gap:8px;margin-top:6px}
+#expRoot .u-note{font-size:11px;color:#c9b98e;text-align:center;margin-top:10px;line-height:1.5}
+#expRoot .u-note.big{font-size:13px;margin:10px 0;color:#ffe9a8}
+#expRoot .f-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px}
+#expRoot .f-slot{aspect-ratio:1/1.15;background:#0006;border:2px dashed #fff4;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px}
+#expRoot .f-slot.sel{border-color:#ffd76a;border-style:solid}
+#expRoot .f-slot em{font-style:normal;font-size:22px;color:#777}
+#expRoot .f-pt{width:46px;height:52px}
+#expRoot .f-bench{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:300px;overflow-y:auto}
+#expRoot .f-card{background:#ffffff0f;border:1px solid #fff2;border-radius:10px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;font-size:10px}
+#expRoot .f-card.in{border-color:#ffd76a;background:#ffd76a22}
+#expRoot .r-t{text-align:center;font-size:30px;font-weight:900;margin:6px 0}
+#expRoot .r-t.win{color:#ffd76a}
+#expRoot .r-t.lose{color:#ff8a8a}
+#expRoot .r-l{text-align:center;font-size:13px;color:#e6c476}
+#expRoot .r-h{text-align:center;color:#8ff;font-weight:800;margin-top:6px}
+#expRoot .r-row{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid #fff1;font-size:13px}
+#expRoot .r-row b{color:#ffd76a}
+#expRoot .ex-toast{position:absolute;left:50%;top:120px;transform:translateX(-50%);background:#000d;border:1px solid #ffd76a;border-radius:16px;padding:8px 16px;font-size:13px;z-index:500;animation:sxFade 1.7s forwards;white-space:nowrap}
+@keyframes sxFade{80%{opacity:1}to{opacity:0}}
+
+/* ---- 소환 / 보물 ---- */
+#expRoot .sx-rate{font-size:10px;color:#c9b98e;text-align:center;margin-bottom:6px;line-height:1.5}
+#expRoot .sx-rate em{font-style:normal;color:#ffd76a}
+#expRoot .sx-wallet{text-align:center;font-size:12px;color:#ffe9a8;margin-bottom:8px}
+#expRoot .sx-wallet b{color:#ffd76a}
+#expRoot .sx-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:6px 0 10px}
+#expRoot .sx-card{background:#0007;border:1px solid #fff3;border-radius:9px;padding:4px 2px;text-align:center;font-size:10px;overflow:hidden}
+#expRoot .sx-card.t-S{border-color:#e05a4a;background:#e05a4a22}
+#expRoot .sx-card.t-A{border-color:#a07be0;background:#a07be022}
+#expRoot .sx-card.t-B{border-color:#5a8ae0;background:#5a8ae022}
+#expRoot .sx-card b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#expRoot .sx-card em{font-style:normal;color:#ffd76a;font-size:10px}
+#expRoot .sx-pt{width:52px;height:56px;margin:0 auto}
+#expRoot .sx-ic{font-size:26px;line-height:1.2}
+#expRoot .sx-gear{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:6px;border-radius:10px;background:#ffffff0f;border:1px solid #fff1;cursor:pointer}
+#expRoot .sx-gear.on{border-color:#ffd76a;background:#ffd76a18}
+#expRoot .sx-gic{font-size:20px}
+#expRoot .sx-gmid{flex:1;display:flex;flex-direction:column;min-width:0}
+#expRoot .sx-gmid b{font-size:13px}
+#expRoot .sx-gmid small{font-size:10px;color:#c9b98e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
+
+/* ---- 전투 ---- */
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
+#expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
+#expRoot .bt-side small{font-size:10px;color:#ddd}
+#expRoot .bt-side.r{text-align:right}
+#expRoot .bt-bar{height:14px;background:#000a;border:1px solid #fff5;border-radius:7px;overflow:hidden}
+#expRoot .bt-bar i{display:block;height:100%;width:100%;transition:width .15s}
+#expRoot .bt-bar.a i{background:linear-gradient(#6fe27a,#1d9a3a)}
+#expRoot .bt-bar.e i{background:linear-gradient(#ff7a7a,#b21818);margin-left:auto}
+#expRoot .bt-time{text-align:center;font-size:22px;font-weight:900;color:#ffe9a8;text-shadow:0 2px 4px #000}
+#expRoot .bt-field{position:absolute;inset:0;z-index:100;overflow:hidden}
+#expRoot .bt-u{position:absolute;left:0;top:0;width:58px;height:58px;will-change:transform}
+#expRoot .bt-u img{width:58px;height:58px;object-fit:contain;display:block;filter:drop-shadow(0 4px 3px #0009);transition:transform .15s}
+#expRoot .bt-u.t1 img{transform:scaleX(-1)}
+#expRoot .bt-u.boss{width:68px}
+#expRoot .bt-u.boss img{width:68px;height:68px;margin:-10px 0 0 -5px}
+#expRoot .bt-u.noimg::before{content:attr(data-ch);position:absolute;inset:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;background:#3a5a9a}
+#expRoot .bt-u.t1.noimg::before{background:#9a3a3a}
+#expRoot .bt-u.lunge img{transform:translateX(14px) scale(1.12)}
+#expRoot .bt-u.t1.lunge img{transform:scaleX(-1) translateX(14px) scale(1.12)}
+#expRoot .bt-u.hurt img{filter:brightness(2.2) drop-shadow(0 0 4px #f44)}
+#expRoot .bt-u.cast img{filter:drop-shadow(0 0 10px #ffe35a) brightness(1.4)}
+#expRoot .bt-u.dead{opacity:0;transition:opacity .5s;pointer-events:none}
+#expRoot .bt-u.dead img{transform:translateY(8px) rotate(80deg)}
+#expRoot .bt-hp{position:absolute;left:6px;right:6px;top:-6px;height:5px;background:#000a;border-radius:3px;overflow:hidden}
+#expRoot .bt-hp i{display:block;height:100%;width:100%}
+#expRoot .bt-u.t0 .bt-hp i{background:#58e06a}
+#expRoot .bt-u.t1 .bt-hp i{background:#ff5252}
+#expRoot .bt-proj{position:absolute;left:0;top:0;width:16px;height:16px}
+#expRoot .bt-proj.arrow{height:3px;width:22px;margin-top:6px;background:linear-gradient(90deg,#0000,#ffe9a8);border-radius:2px}
+#expRoot .bt-proj.orb{border-radius:50%;background:radial-gradient(#fff,#7ad7ff 50%,#0000 72%);box-shadow:0 0 10px #7ad7ff}
+#expRoot .bt-fx{position:absolute;pointer-events:none;transform:translate(-50%,-50%)}
+#expRoot .bt-fx.slash{width:52px;height:6px;background:linear-gradient(90deg,#0000,#fff,#0000);border-radius:4px;animation:sxSlash .3s forwards}
+@keyframes sxSlash{from{transform:translate(-50%,-50%) rotate(-40deg) scaleX(.2);opacity:1}to{transform:translate(-50%,-50%) rotate(-40deg) scaleX(1.4);opacity:0}}
+#expRoot .bt-fx.flash{width:46px;height:46px;border-radius:50%;background:radial-gradient(#fff,#8fe0ff88 55%,#0000 72%);animation:sxFlash .3s forwards}
+@keyframes sxFlash{to{transform:translate(-50%,-50%) scale(1.8);opacity:0}}
+#expRoot .bt-fx.big{width:150px;height:150px;border-radius:50%;background:radial-gradient(#fff9,#ffb43a88 45%,#0000 70%);animation:sxFlash .45s forwards}
+#expRoot .bt-fx.bolt{width:8px;height:90px;margin-top:-50px;background:linear-gradient(#fff,#ffe35a,#0000);animation:sxBolt .35s forwards}
+@keyframes sxBolt{from{opacity:1;transform:translate(-50%,-50%) scaleY(.3)}to{opacity:0;transform:translate(-50%,-50%) scaleY(1.2)}}
+#expRoot .bt-pop{position:absolute;transform:translateX(-50%);font-weight:900;font-size:16px;color:#fff;text-shadow:-1px -1px #000,1px 1px #000,0 0 6px #000;animation:sxPop .8s forwards;pointer-events:none;z-index:9999}
+#expRoot .bt-pop.foe{color:#ff8a8a}
+#expRoot .bt-pop.heal{color:#7dff9a}
+@keyframes sxPop{to{transform:translate(-50%,-34px);opacity:0}}
+#expRoot .bt-banner{position:absolute;left:50%;top:92px;transform:translateX(-50%);padding:5px 16px;border-radius:14px;background:#000c;border:1px solid #ffd76a;color:#ffe9a8;font-weight:800;font-size:14px;z-index:400;white-space:nowrap;animation:sxFade 1.15s forwards}
+#expRoot .bt-banner.foe{border-color:#f66;color:#faa}
+#expRoot .bt-ctl{position:absolute;left:0;right:0;bottom:104px;display:flex;justify-content:center;gap:6px;z-index:300}
+#expRoot .bt-ctl button{height:32px;padding:0 12px;border-radius:16px;background:#000b;border:1px solid #fff5;font-size:12px;font-weight:700}
+#expRoot .bt-ctl .spd.hot{background:#b9801e;border-color:#ffe08a}
+#expRoot .bt-ctl .auto.on{background:#2a7a3a;border-color:#8f8}
+#expRoot .bt-ctl .out{background:#5a1f1f}
+#expRoot .bt-cards{position:absolute;left:0;right:0;bottom:0;height:98px;padding:8px 6px;display:grid;grid-template-columns:repeat(5,1fr);gap:5px;background:linear-gradient(#0000,#000d 30%);z-index:300}
+#expRoot .bt-card{position:relative;border-radius:10px;background:#1b140acc;border:2px solid #6b5a38;overflow:hidden;padding-top:4px}
+#expRoot .bt-card .c-pt{width:52px;height:50px;margin:0 auto}
+#expRoot .bt-card .c-nm{position:absolute;left:0;right:0;top:2px;text-align:center;font-size:9px;color:#ffe9a8;text-shadow:0 1px 2px #000;pointer-events:none}
+#expRoot .c-hp,#expRoot .c-sk{position:absolute;left:3px;right:3px;height:6px;background:#000a;border-radius:3px;overflow:hidden}
+#expRoot .c-hp{bottom:11px}
+#expRoot .c-sk{bottom:3px}
+#expRoot .c-hp i{display:block;height:100%;width:100%;background:#58e06a}
+#expRoot .c-sk i{display:block;height:100%;width:0;background:#ffd21a}
+#expRoot .bt-card.ready{border-color:#ffd21a;animation:sxReady .6s infinite alternate;cursor:pointer}
+@keyframes sxReady{from{box-shadow:0 0 0 #ffd21a}to{box-shadow:0 0 14px 3px #ffd21a;filter:brightness(1.35)}}
+#expRoot .bt-card.dead{filter:grayscale(1) brightness(.5);pointer-events:none}
