@@ -1,6 +1,18 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=103`
+기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=105`
+
+## ✅ v5.85 — 관리자 전장 타일 맵 에디터 · 천하 전략 지도 편집기 (2026-11-24 · `?v=105`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 진입 | `?admin=1` 패널의 탭 줄에 `[🗺️ 전장맵] [🌏 천하맵]`이 붙고, 누르면 편집기가 그 위에 열린다(닫으면 관리자 패널로). 일반 주소(`?v=105`)에서는 `SK.adminMode !== true`라 파일이 즉시 끝나 DOM·localStorage를 한 번도 건드리지 않는다 | `js/patch_v585_map_editor.js`·`index.html` |
+| 전장맵 | 엔진 `SK.MAPS`(12종: 평야·도하·산·밀림·협곡·야영·수전·요새·성 1·2·3중)를 그대로 불러오고, `SK.TERRAIN`의 16지형(P R F M W S B G C D H T K A E V) 브러시로 터치 칠하기, 되돌리기 20단계, ＋/－ 확대(0.6~4배), 이동 모드 끌기, 크기 16/20/24/28/32, 새 맵, 초기화 | `js/patch_v585_map_editor.js` `buildBattleSection`·`renderBattle` |
+| 테스트 전투 | `[⚔️ 테스트 전투]` — 편집한 타일을 `SK.MAPS['__map_editor']`·`SK.MAP_META`(A·E·V에서 본진·마을 자리 자동 추출)로 등록해 실제 `SK.startBattle`로 전장에 들어간다. 성벽(C)·성문(G)이 있으면 공성전 규칙(성문 내구도·`SK.siegeMapKey`), 없으면 평야전 규칙. 내 장수 최대 6명(없으면 일반 부대 3기)이 나간다. **판은 모래판** — 시작할 때 `SK.state`·도감(`samgukji-jojo-codex`)을 스냅숏하고 `SK.save`를 잠근 뒤, 전투가 끝나 `SK.showMap`을 거치는 순간(승리·패배·후퇴 모두) 원상복구하고 임시 거점·전장을 지운다. 끝나면 편집기가 다시 열린다 | `js/patch_v585_map_editor.js` `runTestBattle`·`restoreSandbox` |
+| 천하맵 | 엔진 `SK.CITY_LIST`(80거점)·`SK.ROADS`(104)·`SK.SEALANES`(7)를 2000×1333 픽셀로 옮겨 `assets/map_bg.webp` 위에 세력색 점·금색 육로·청색 해로로 그린다. 거점 검색·선택, 이름/유형/세력/전장 유형/기본 병력/방어도/좌표 편집, 지도 터치로 위치 이동(`📍 위치 찍기`), 새 거점 추가·삭제, 길 연결/해제, ＋/－·전체 보기 | `js/patch_v585_map_editor.js` `readEngineWorld`·`renderWorld`·`bindWorldPointer` |
+| 복사·적용 | `[📋 JSON 복사]` — 전장은 `{cols,rows,rows:[…],meta}`(엔진 투입 형식), 천하는 원본 대비 diff `{worldBounds,cities:{add,update,remove},roads:{add,remove},seaLanes}`. `[🗺️ 지도에 적용]`은 이번 판만 `SK.CITY.u/v`·`SK.ROADS`·`SK.SEALANES`를 고쳐 `SKMap.refresh()`로 미리 보여 준다(저장 안 함 · 새로고침하면 원래대로) | `js/patch_v585_map_editor.js` `battlePayload`·`worldDiff`·`applyWorldPreview` |
+| 저장 | `localStorage('samgukji-jojo-admin-maps-v1')` — 전장 타일 줄과 천하 거점·길 편집본이 남아 다음에 열 때 이어진다 | `js/patch_v585_map_editor.js` `saveStore` |
+| 검수 | `tools/v585_local.py` — 390×844 로컬 44항목 전부 통과: 일반 주소에 에디터 흔적 0, 관리자 탭 7개, 기존 전장 24×24 로드, 터치 드래그 칠하기→저장→Undo, 확대, 거점 80·길 104 읽기, 위치 찍기, 길 연결/해제, 거점 추가·삭제, diff 복사(클립보드 확인), 지도 적용(SK.CITY 좌표 일치), 테스트 전투 진입(편집 타일 그대로·공성 규칙·본진 5·성문 1), 전투 뒤 판 원상복구(장수 12·성 80·금 1,498·턴 1 동일, SK.save·SK.showMap 복구), 콘솔 0. 스샷 `preview/v585/` | `tools/v585_local.py`·`preview/v585/` |
 
 ## 📌 다음 패치 대기 (사용자 킵)
 
