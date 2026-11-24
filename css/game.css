@@ -7457,3 +7457,39 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 
 .hi-cap-note { margin: 3px 0 6px; font-size: 9.5px; color: #6b5427; line-height: 1.45; }
 .ap-pick-cap { color: #1e6b48; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v5.88 — 수송·장수 이동(1칸 = 1개월) · 군단 위임 잠금
+   ══════════════════════════════════════════════════════════════════════ */
+.city-transit {
+  margin: 4px 10px 8px; padding: 7px 9px; border: 1px solid #c8a86a; border-radius: 9px;
+  background: linear-gradient(180deg, #fdf6e4, #f3e7c8); box-shadow: inset 0 0 0 1px rgba(255,255,255,.5);
+}
+.city-transit .ct-head { margin: 0 0 4px; font-size: 11px; font-weight: 800; color: #6b4a1f; display: flex; gap: 6px; align-items: baseline; }
+.city-transit .ct-head em { font-style: normal; font-weight: 600; font-size: 10px; color: #8a6a3a; }
+.city-transit .ct-row { display: flex; align-items: baseline; gap: 6px; font-size: 11px; color: #4a3a20; padding: 2px 0; border-top: 1px dashed rgba(160,130,80,.35); }
+.city-transit .ct-row:first-of-type { border-top: 0; }
+.city-transit .ct-row b { flex: 0 0 auto; font-size: 11px; color: #3d2c14; }
+.city-transit .ct-row span { flex: 1 1 auto; color: #5c4726; font-size: 10.5px; }
+.city-transit .ct-row em { flex: 0 0 auto; font-style: normal; font-weight: 800; font-size: 10px; color: #8a2c22; }
+.city-transit .ct-more { margin: 3px 0 0; font-size: 10px; color: #8a6a3a; }
+.tr-eta { color: #6b4a1f; }
+
+/* 군단 위임 잠금 — 성 화면 위 안내줄과 잠금 표시 */
+.corps-lock-bar {
+  display: flex; align-items: center; gap: 8px; margin: 6px 10px 4px; padding: 8px 10px;
+  border: 1px solid #8a6a2a; border-radius: 10px; background: linear-gradient(180deg, #3f2f16, #2c2110);
+  color: #f3e7c8; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+.corps-lock-bar .clb-ic { font-size: 18px; color: #e8c268; }
+.corps-lock-bar .clb-main { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.corps-lock-bar .clb-main b { font-size: 11.5px; color: #ffe6a8; }
+.corps-lock-bar .clb-main span { font-size: 10px; line-height: 1.35; color: #d8c7a2; }
+.corps-lock-bar .clb-btn {
+  flex: 0 0 auto; padding: 7px 10px; border-radius: 8px; border: 1px solid #d8b464;
+  background: linear-gradient(180deg, #e8c268, #c9992f); color: #2c2110; font-weight: 900; font-size: 11px;
+}
+#screen-city.corps-locked .city-commands .cmd[data-grp] { opacity: .45; filter: grayscale(.5); }
+#screen-city.corps-locked .city-pane .slot-card,
+#screen-city.corps-locked .city-pane .dev-card,
+#screen-city.corps-locked .city-pane .gen-card { cursor: not-allowed; }

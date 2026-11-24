@@ -752,6 +752,8 @@
       rp: 0, techs: [], truce: {}, pacts: {}, aiPacts: {}, genLoyal: {}, deadGens: {}, deadNames: {},
       marches: [], marchSeq: 0, pendingMarch: null, recruitFail: {}, autoBestDuty: false,
       corps: [],               // v5.75 — 총도독(군단) 위임 [{ id, name, governorId, cityIds, policy }]
+      transitQueue: [],        // v5.88 — 수송·장수 이동 대기열 [{ id, from, to, left, total, troops, gold, food, heroes }]
+      buildLog: [],            // v5.88 — 이 달 지은·올린 건물 [{ cityId, key, name, from, to, turn }]
       capitalAuto: false,      // v5.66 — 수도(본성) 자동 내정 (기본 꺼짐)
       prisoners: [], captured: [],   // v5.11 — 억류 포로 · 적에게 사로잡힌 아군
       codex: { g: {}, t: {} },        // v5.16 — 인물·보물 도감 누적 기록
@@ -1681,6 +1683,13 @@
       s.treasures = s.treasures || [];
       /* v5.75 — 총도독 군단 저장 형식 보정 (옛 저장에는 없다) */
       s.corps = Array.isArray(s.corps) ? s.corps.filter((c) => c && Array.isArray(c.cityIds)) : [];
+      /* v5.88 — 수송·장수 이동 대기열·건설 기록 (옛 저장에는 없다) */
+      s.transitQueue = Array.isArray(s.transitQueue)
+        ? s.transitQueue.filter((e) => e && e.to && s.cities[e.to] && (Number(e.left) || 0) > 0) : [];
+      s.buildLog = Array.isArray(s.buildLog) ? s.buildLog.slice(-24) : [];
+      (s.heroes || []).forEach((h) => {
+        if (h.transitTo && !s.transitQueue.some((e) => (e.heroes || []).indexOf(h.uid) >= 0)) { h.transitTo = null; h.transitLeft = 0; }
+      });
       (s.heroes || []).forEach((h) => { h.equip = h.equip || {}; });
       /* v5.29 — 옛 저장의 단일 침공 경고(invasionWarn)를 배열로 옮기고, 대기열도 정리한다 */
       s.invasionQueue = (s.invasionQueue || []).filter((q) => q && s.cities && s.cities[q.target]);
@@ -2863,12 +2872,12 @@
         actions: [{ label: '가즈아 — 시작!', primary: true }],
       });
     }, 320);
-    // 시작 달의 연표 이벤트
+    /* v5.88 — 시작 달 연표 카드(시공초월 소식)도 띄우지 않는다. 개전 데스매치 창 1회만 남긴다.
+       이미 본 사건으로만 기록해 두어 다시 뜨지 않게 한다. */
     const ev = sc ? SK.timelineFor(sc, s.eraYear, s.month + 1) : null;
     if (ev) {
       s.timelineSeen = s.timelineSeen || [];
       s.timelineSeen.push(ev.title);
-      setTimeout(() => showTimelineCard(ev, true), 900);
     }
   }
 
@@ -3397,6 +3406,7 @@
     renderCityNav(id);
     renderCityDev(id);
     renderCityGuide();
+    renderCorpsLock(id);          // v5.88 — 군단 위임 성이면 명령 잠금 안내줄
     renderCitySlots(id);
     renderSceneLevel(id);
     renderCityGens(id);
@@ -3454,17 +3464,10 @@
     3: '<b>③ 정찰·출진</b> — <b>[외교·계략 → 정찰]</b>로 적성(어느 지역이든)을 살피고, <b>[군사 → 출진]</b>으로 성을 치세요. 성을 하나 차지하면 천하가 열립니다.',
   };
   function renderCityGuide() {
+    /* v5.88 — '책사 첫걸음' 배너 삭제. 처음 몇 달 성 화면 위를 덮던 3단 안내 줄을 걷어낸다
+       (입문 안내는 성 그림의 [📖 입문] 버튼 하나로 남긴다). */
     const box = $('#city-guide');
-    if (!box) return;
-    const s = SK.state;
-    if (!s) { box.hidden = true; return; }
-    const line = (s.turn || 1) <= 3 ? GUIDE_LINES[Math.max(1, s.turn || 1)] : null;
-    if (!line || s.guideClosed) { box.hidden = true; return; }
-    box.hidden = false;
-    const txt = box.querySelector('.cg-text');
-    if (txt) txt.innerHTML = line;
-    const close = box.querySelector('.cg-close');
-    if (close) close.onclick = () => { s.guideClosed = true; SK.save(); box.hidden = true; };
+    if (box) box.hidden = true;
   }
   SK.renderCityGuide = renderCityGuide;
 
@@ -4041,6 +4044,7 @@
 
   function openTransfer(g) {
     const s = SK.state;
+    if (SK.corpsGuard && SK.corpsGuard(g.city)) return;
     const towns = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF() && c.id !== g.city);
     if (!towns.length) { SK.toast('옮겨 갈 다른 성이 없습니다.'); return; }
     const rows = towns.map((c) => `<button class="target-card" data-c="${c.id}">
@@ -4052,12 +4056,20 @@
     m.el.querySelectorAll('.target-card').forEach((b) => {
       b.onclick = () => {
         const dest = b.dataset.c;
-        g.city = dest;
+        /* v5.88 — 장수 이동도 한 칸에 한 달. 이동 중에는 어느 성에도 주둔하지 않는다 */
+        const turns = transitTurns(g.city, dest);
+        const fromId = g.city;
+        releaseDuty(fromId, g.uid);
+        if (s.cities[fromId]) {
+          if (s.cities[fromId].governor === g.uid) s.cities[fromId].governor = null;
+          if (s.cities[fromId].advisor === g.uid) s.cities[fromId].advisor = null;
+        }
+        transitPush(s, { kind: 'hero', from: fromId, to: dest, left: turns, total: turns, heroes: [g.uid] });
         enforceLordGovernor(s);
         syncPlayerCapital(s);
         SK.save();
         m.close();
-        SK.toast(`${josa(g.name, 'i')} ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
+        SK.toast(`${josa(g.name, 'i')} ${josa(CITY[dest].name, 'euro')} 가는 길에 올랐습니다 — ${turns}개월 뒤 도착.`);
         if (document.querySelector('#screen-city.active')) SK.openCity(s.lastCity);
       };
     });
@@ -4069,14 +4081,15 @@
      · 전체 / 대기만 / 선택 해제 버튼, 고른 수가 버튼에 바로 뜬다
      · 건물 담당·부장·연병장 수련·태수·군사 자리는 옮길 때 자동으로 비운다(releaseDuty + governor/advisor)
      · 행군·지원군 파견 중인 장수는 목록에서 잠그고, 정원(99명)을 넘으면 남는 사람은 그대로 둔다 */
-  function canMoveHero(g) { return !!(g && !g.marchId && !g.rfgTo); }
+  function canMoveHero(g) { return !!(g && !g.marchId && !g.rfgTo && !g.transitTo); }
   function doTransferMany(fromId, destId, list) {
     const s = SK.state;
     const src = s.cities[fromId], dst = s.cities[destId];
-    if (!src || !dst) return { moved: [], stayed: [] };
-    const inDest = s.heroes.filter((h) => h.city === destId).length;
+    if (!src || !dst) return { moved: [], stayed: [], turns: 0 };
+    const inDest = s.heroes.filter((h) => h.city === destId && !h.transitTo).length;
     let room = Math.max(0, 99 - inDest);
     const moved = [], stayed = [];
+    const uids = [];
     list.forEach((g) => {
       if (!g || !canMoveHero(g)) { stayed.push(g && g.name); return; }
       if (room <= 0) { stayed.push(g.name); return; }
@@ -4085,21 +4098,19 @@
       if (src.advisor === g.uid) src.advisor = null;
       if (dst.governor === g.uid) dst.governor = null;
       if (dst.advisor === g.uid) dst.advisor = null;
-      g.city = destId;
+      uids.push(g.uid);
       moved.push(g.name);
       room -= 1;
     });
+    /* v5.88 — 한 명씩 바로 옮기지 않고, 길이 걸리는 만큼 달이 지나 도착한다 */
+    const turns = moved.length ? transitTurns(fromId, destId) : 0;
     if (moved.length) {
+      transitPush(s, { kind: 'hero', from: fromId, to: destId, left: turns, total: turns, heroes: uids });
       enforceLordGovernor(s);
       syncPlayerCapital(s);
-      if (!dst.governor) {
-        const gens = s.heroes.filter((h) => h.city === destId);
-        const gov = gens.slice().sort((a, b) => (b.pol * 0.6 + b.tong * 0.4) - (a.pol * 0.6 + a.tong * 0.4))[0];
-        if (gov) dst.governor = gov.uid;
-      }
       SK.save();
     }
-    return { moved, stayed: stayed.filter(Boolean) };
+    return { moved, stayed: stayed.filter(Boolean), turns };
   }
   SK.doTransferMany = doTransferMany;
 
@@ -4134,7 +4145,7 @@
     const res = doTransferMany(fromId, dest, list);
     if (res.moved.length) {
       SK.sfx.play('drum');
-      SK.toast(`${res.moved.length === 1 ? res.moved[0] : res.moved.join('·') + ' ' + res.moved.length + '명'} → ${josa(CITY[dest].name, 'euro')} 이동했습니다.`);
+      SK.toast(`${res.moved.length === 1 ? res.moved[0] : res.moved.join('·') + ' ' + res.moved.length + '명'} → ${josa(CITY[dest].name, 'euro')} 가는 길에 올랐습니다 — ${res.turns}개월 뒤 도착.`);
     }
     if (res.stayed.length) SK.toast(`${res.stayed.join(' · ')}은(는) 이번에 옮기지 못했습니다(행군 중이거나 정원 초과).`);
     if (SK.state.cities[fromId] && SK.state.cities[fromId].owner === PF()) SK.openCity(fromId);
@@ -4143,6 +4154,7 @@
   SK.openTransferDest = openTransferDest;
 
   function openTransferPick(cityId) {
+    if (SK.corpsGuard && SK.corpsGuard(cityId)) return;
     const s = SK.state;
     const gens = cityGens(cityId).slice().sort((a, b) => {
       const da = dutyLabelOf(cityId, a) ? 1 : 0, db = dutyLabelOf(cityId, b) ? 1 : 0;
@@ -4241,7 +4253,7 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
   /* 행군 중인 장수는 성에 없는 것으로 친다 (v5.3) */
-  function cityGens(cityId) { return SK.state.heroes.filter((h) => h.city === cityId && !h.marchId && !h.rfgTo && !h.captured); }
+  function cityGens(cityId) { return SK.state.heroes.filter((h) => h.city === cityId && !h.marchId && !h.rfgTo && !h.captured && !h.transitTo); }
 
   /* 세력 이름 뒤에 '군'을 한 번만 붙인다 (공융군군 → 공융군) */
   function armyName(f) {
@@ -4507,6 +4519,18 @@
     return null;
   }
   SK.cityIdOf = cityIdOf;
+  /* v5.88 — 이 달에 지은·올린 건물을 기록한다.
+     월정산이 '시장, 농장 끌어올렸습니다' 같은 뭉뚱그린 말 대신
+     `영안 시장 Lv.2 완공`처럼 성·건물·레벨을 그대로 적기 위한 바탕. */
+  function noteBuild(cityId, key, from, to) {
+    const s = SK.state;
+    if (!s || !key) return;
+    s.buildLog = Array.isArray(s.buildLog) ? s.buildLog : [];
+    s.buildLog.push({ cityId: cityId, key: key, name: (SLOT_DEFS[key] || {}).name || key, from: Number(from) || 0, to: Number(to) || 1, turn: s.turn || 1 });
+    if (s.buildLog.length > 24) s.buildLog = s.buildLog.slice(-24);
+  }
+  SK.noteBuild = noteBuild;
+
   /* v5.58 — 건축·성벽 수리 비용 (거중기·화성 축성 기록 같은 보물이 그 성의 증축비를 깎는다) */
   function buildCost(sl, cityId) {
     const base = sl.key ? ECON.buildUp[clamp(sl.lv, 1, 4)] : ECON.buildNew;
@@ -4718,6 +4742,7 @@
           s.gold -= x.cost;
           x.sl.exp = Math.max(0, (x.sl.exp || 0) - slotExpNeed(x.sl.lv));
           x.sl.lv += 1;
+          noteBuild(cityId, x.sl.key, x.sl.lv - 1, x.sl.lv);
           n += 1; paid += x.cost;
         });
         SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
@@ -4766,6 +4791,7 @@
        (예전에는 확인 없이 금이 바로 빠졌고, 같은 건물을 더 지을 때만 확인했다).
      ══════════════════════════════════════════════════════════════ */
   function openBuildList(cityId, idx) {
+    if (SK.corpsGuard && SK.corpsGuard(cityId)) return;
     SK.setPurse(cityId);
     const s = SK.state;
     const cs = s.cities[cityId];
@@ -4824,6 +4850,7 @@
           s.gold -= cost;
           sl.key = k; sl.lv = 1; sl.uid = null; sl.exp = 0;
           if (k === 'workshop') sl.craft = 0;
+          noteBuild(cityId, k, 0, 1);
           SK.save(); SK.refreshHud();
           if (closeList) closeList();
           m.close();
@@ -4939,7 +4966,9 @@
           if ((sl.exp || 0) < slotExpNeed(sl.lv)) { SK.toast(`시설 경험이 부족합니다. (${Math.round(sl.exp || 0)}/${slotExpNeed(sl.lv)})`); return; }
           s.gold -= cost;
           sl.exp = Math.max(0, (sl.exp || 0) - slotExpNeed(sl.lv));
+          const fromLv = sl.lv;
           sl.lv += 1;
+          noteBuild(cityId, sl.key, fromLv, sl.lv);
           SK.save(); SK.refreshHud(); m.close(); SK.openCity(cityId);
           SK.toast(`${def.name} Lv.${sl.lv} 증축 완료`);
           SK.sfx.play('hammer');
@@ -5988,6 +6017,8 @@
   SK.openGroupMenu = openGroupMenu;
 
   function groupAction(k, cityId) {
+    /* v5.88 — 군단 위임 성은 총도독이 맡는다. 직접 명령은 잠그고 해제만 안내한다. */
+    if (corpsGuard(cityId)) return;
     if (k === 'build') {
       /* v5.65 — 공터가 있으면 건설 목록을 바로 연다 (모달만 닫히고 토스트만 뜨던 막다른 안내) */
       const s = SK.state;
@@ -7052,6 +7083,7 @@
 
   /* 수송 — 아군 성 사이에 병력·군량·금과 장수를 옮긴다 (v5.7 장수 전출 포함) */
   function openTransport(cityId) {
+    if (SK.corpsGuard && SK.corpsGuard(cityId)) return;
     SK.setPurse(cityId);
     const s = SK.state;
     const dests = SK.CITY_LIST.filter((c) => c.id !== cityId && s.cities[c.id].owner === PF());
@@ -7078,6 +7110,8 @@
   SK.openTransport = openTransport;
   SK.openTransportAmount = openTransportAmount;   // v5.59 — 검수에서 지도 선택 없이 바로 여는 훅
   function openTransportAmount(from, to) {
+    if (SK.corpsGuard && SK.corpsGuard(from)) return;
+    if (SK.corpsGuard && SK.corpsGuard(to)) return;
     SK.setPurse(from);
     const s = SK.state;
     const src = s.cities[from];
@@ -7124,6 +7158,7 @@
         ${amtRow('금', 'g', g, '')}
         ${amtRow('군량', 'f', f, '')}
         <p class="talent-note">보내는 성 병력 ${fmt(src.troops)} / ${fmt(cityCap(src))} · 받는 성 병력 ${fmt(dst.troops)} / ${fmt(cityCap(dst))} — 남는 자리 <b>${fmt(room)}</b>.</p>
+        <p class="talent-note tr-eta">길이 <b>${transitTurns(from, to)}칸</b>이라 <b>${transitTurns(from, to)}개월</b> 뒤에 도착합니다 — 실은 병력·금·군량은 지금 출발 성에서 빠지고, 도착한 달 정산에 받는 성으로 들어갑니다.</p>
       </div>
       <div class="deploy-section"><span>호송 장수</span><em>한 명을 고르십시오 — 통솔이 높으면 많이 실어 나릅니다</em></div>
       <div class="escort-row">${escortPool.length ? escortPool.map((h) => `<button class="ev-chip ${h.uid === escortUid ? 'on' : ''}" data-esc="${h.uid}">
@@ -7140,28 +7175,27 @@
         const actor = s.heroes.find((x) => x.uid === escortUid && x.city === from) || null;
         const roomNow = Math.max(0, cityCap(dst) - dst.troops);
         const sendT = Math.min(t, roomNow);
+        if (!sendT && !g && !f && !movers.length) { SK.sfx.play('deny'); SK.toast('보낼 것이 없습니다. 병력·금·군량을 정하거나 장수를 고르세요.'); return; }
+        /* v5.88 — 누르자마자 도착하지 않는다. 길(육로·해로)을 따라 한 칸에 한 달 */
+        const turns = transitTurns(from, to);
         src.troops = Math.max(0, src.troops - sendT);
-        dst.troops += sendT;
         s.gold = Math.max(0, s.gold - g);
         s.food = Math.max(0, s.food - f);
-        dst.gold = (dst.gold || 0) + g;
-        dst.food = (dst.food || 0) + f;
         if (actor) { consumeDispatch(from, actor); SK.gainExp(actor, 18, 4); }
         movers.forEach((uid) => {
           const h = s.heroes.find((x) => x.uid === uid);
           if (!h) return;
-          (src.slots || []).forEach((sl) => { if (sl.uid === uid) sl.uid = null; });
-          src.trainCrew = (src.trainCrew || []).filter((id) => id !== uid);
-          h.city = to;
+          releaseDuty(from, uid);
           h.actedThisMonth = true;
         });
         if (src.governor && movers.indexOf(src.governor) >= 0) src.governor = null;
         if (src.advisor && movers.indexOf(src.advisor) >= 0) src.advisor = null;
         enforceLordGovernor(s);
         cityActorUid = null;
+        transitPush(s, { kind: 'supply', from: from, to: to, left: turns, total: turns, troops: sendT, gold: g, food: f, heroes: movers.slice() });
         SK.save(); SK.refreshHud(); m.close(); SK.openCity(from);
         SK.sfx.play('drum');
-        SK.toast(`${CITY[to].name}으로 수송 — 병력 ${fmt(sendT)} · 금 ${fmt(g)} · 군량 ${fmt(f)}${movers.length ? ` · 장수 ${movers.length}명` : ''}`);
+        SK.toast(`${CITY[to].name}까지 ${turns}개월 — 수송대가 길을 떠났습니다 (병력 ${fmt(sendT)} · 금 ${fmt(g)} · 군량 ${fmt(f)}${movers.length ? ` · 장수 ${movers.length}명` : ''})`);
       } }],
     });
     m.el.querySelectorAll('[data-esc]').forEach((b) => {
@@ -7471,7 +7505,7 @@
         ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm' })}
         ${devCard({ label: '성벽', icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
         ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
-      </div>`;
+      </div>${transitStripHtml(cityId)}`;
     const info = $('#city-info');
     if (info) {
       const cap = cityCap(cs);
@@ -10319,8 +10353,9 @@
         s.gold -= up.cost;
         up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(from));
         up.sl.lv = to;
+        noteBuild(c.id, up.sl.key, from, to);
         upUsed.push(up.sl);
-        upActs.push({ key: 'upgrade', name: '증축', short: `${up.name} Lv.${from}→${to} · 금 −${fmt(up.cost)}` });
+        upActs.push({ key: 'upgrade', name: '증축', short: `${up.name} Lv.${from}→${to} 완공 · 금 −${fmt(up.cost)}` });
       }
       let guard = 0;
       while (guard++ < 8) {
@@ -10726,8 +10761,18 @@
   /* ───────────── 출진 준비 ───────────── */
   SK.openSortiePrep = function (targetId, fromCityId) {
     const s = SK.state;
-    const origin = fromCityId || s.lastCity ||
+    if (fromCityId && SK.corpsGuard && SK.corpsGuard(fromCityId)) return;
+    let origin = fromCityId || s.lastCity ||
       SK.CITY_LIST.find((c) => s.cities[c.id].owner === PF() && SK.allNeighbors(c.id).some((n) => s.cities[n].owner !== PF()))?.id;
+    /* v5.88 — 지도에서 적성을 눌러 들어왔을 때 마지막 성이 군단 위임 성이면,
+       직접 지휘할 수 있는 다른 아군 성을 찾아 출진한다 (군단 성은 총도독 몫). */
+    if (origin && SK.corpsLockOf && SK.corpsLockOf(origin)) {
+      const alt = SK.CITY_LIST.find((c) => c.id !== origin && s.cities[c.id].owner === PF()
+        && !SK.corpsLockOf(c.id)
+        && (targetId ? SK.allNeighbors(c.id).includes(targetId) : true));
+      if (alt) origin = alt.id;
+      else if (SK.corpsGuard) { SK.corpsGuard(origin); return; }
+    }
     if (!origin) { SK.toast('출진할 아군 거점이 없습니다.'); return; }
     const isEnemy = (id) => !!s.cities[id] && s.cities[id].owner !== PF();
     const isAlly = (id) => !!s.cities[id] && s.cities[id].owner === PF();
@@ -10925,6 +10970,13 @@
             return;
           }
           s.cities[origin].food = Math.max(0, (s.cities[origin].food || 0) - supply);
+          /* v5.88 — 시설에 배속된 장수도 이번 달 미행동이면 출진한다.
+             출진을 확정하면 그 건물 배속만 자동으로 풀린다(장수는 성을 비운다). */
+          const releasedSlots = [];
+          Object.keys(pick).forEach((uid) => {
+            const was = releaseDuty(origin, uid);
+            if (was) releasedSlots.push(`${(heroOf(uid) || {}).name || ''}(${was})`);
+          });
           const units = [];
           Object.keys(pick).forEach((uid) => units.push({ kind: 'hero', uid, troops: pick[uid] }));
           SK.REGIMENTS.forEach((r) => {
@@ -10944,6 +10996,7 @@
           SK.showMap();
           if (window.SKMap) { try { SKMap.setScale(1.25); SKMap.focusCity(origin, true); } catch (e) { /* ignore */ } }
           SK.toast(`행군 시작 — ${turns}개월 뒤 ${tc.name} 도착 · 지도에 행군 부대가 표시됩니다`);
+          if (releasedSlots.length) SK.toast(`시설 배속 해제 — ${releasedSlots.join(' · ')}`);
         } },
       ],
     });
@@ -11149,6 +11202,145 @@
     return MARCH_MAX;
   }
   SK.marchTurns = marchTurns;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.88 — 수송·장수 이동도 한 달 한 칸 (SK.state.transitQueue)
+     · 예전에는 수송·전출을 누르면 그 자리에서 도착해 국경 너머 성에
+       병력이 순간이동했다. 이제 SK.ROADS·SK.SEALANES로 이어진 칸 수만큼
+       달이 걸리고, 월 턴이 바뀔 때 한 칸씩 당겨져 도착한다.
+     · 1칸 = 1턴(다음 달 도착) · 2칸 = 2턴 · 3칸 이상도 그대로 (최대 6)
+     · 실린 병력·금·군량은 출발 성에서 즉시 빠지고, 도착할 때 받는 성에 들어간다.
+     · 장수는 이동 중에 어느 성에도 주둔하지 않는다 (cityGens 제외, '이동 중' 표시).
+     ══════════════════════════════════════════════════════════════ */
+  function transitTurns(from, to) {
+    if (!from || !to || from === to) return 0;
+    const hop = SK.marchHops ? SK.marchHops(from, to) : 1;
+    const n = (hop >= 99 || hop < 1) ? 1 : hop;
+    return Math.max(1, Math.min(6, n));
+  }
+  SK.transitTurns = transitTurns;
+
+  function transitPush(s, entry) {
+    s.transitQueue = Array.isArray(s.transitQueue) ? s.transitQueue : [];
+    const e = Object.assign({ id: 'tr' + ((s.transitSeq = (s.transitSeq || 0) + 1)), started: s.turn || 1 }, entry);
+    e.left = Math.max(1, Number(e.left) || 1);
+    e.total = Math.max(e.left, Number(e.total) || e.left);
+    (e.heroes || []).forEach((uid) => {
+      const h = (s.heroes || []).find((x) => x.uid === uid);
+      if (!h) return;
+      h.transitTo = e.to; h.transitLeft = e.left; h.actedThisMonth = true;
+    });
+    s.transitQueue.push(e);
+    return e;
+  }
+  SK.transitPush = transitPush;
+
+  function transitCargoText(e) {
+    const parts = [];
+    if (e.troops) parts.push(`병력 ${fmt(e.troops)}`);
+    if (e.gold) parts.push(`금 ${fmt(e.gold)}`);
+    if (e.food) parts.push(`군량 ${fmt(e.food)}`);
+    if ((e.heroes || []).length) parts.push(`장수 ${e.heroes.length}명`);
+    return parts.join(' · ') || '빈 수레';
+  }
+  SK.transitCargoText = transitCargoText;
+
+  /* 월 턴이 바뀔 때 한 칸씩 — 도착한 수송을 실제로 풀어 준다 */
+  function transitStep(s) {
+    const out = [];
+    const q = Array.isArray(s.transitQueue) ? s.transitQueue : [];
+    if (!q.length) return out;
+    const keep = [];
+    q.forEach((e) => {
+      if (!e || !e.to) return;
+      e.left = Math.max(0, (Number(e.left) || 0) - 1);
+      (e.heroes || []).forEach((uid) => {
+        const h = (s.heroes || []).find((x) => x.uid === uid);
+        if (h) h.transitLeft = e.left;
+      });
+      if (e.left > 0) { keep.push(e); return; }
+      /* 도착 — 받는 성이 아직 내 것이면 그대로 넣고, 아니면 출발지·가까운 내 성으로 돌려보낸다 */
+      let dstId = e.to;
+      let dst = s.cities[dstId];
+      if (!dst || dst.owner !== PF()) {
+        const back = (s.cities[e.from] && s.cities[e.from].owner === PF()) ? e.from : fieldHome(e.from);
+        out.push({ kind: 'lost', text: `${CITY[e.to] ? CITY[e.to].name : '도착지'}이(가) 우리 것이 아니라 ${transitCargoText(e)}을(를) ${back && CITY[back] ? CITY[back].name : '가까운 성'}으로 되돌렸습니다` });
+        dstId = back; dst = back ? s.cities[back] : null;
+      }
+      if (!dst) {
+        out.push({ kind: 'lost', text: `${transitCargoText(e)}이(를) 길에서 사라졌습니다 (돌아갈 성이 없음)` });
+        (e.heroes || []).forEach((uid) => { const h = (s.heroes || []).find((x) => x.uid === uid); if (h) { h.transitTo = null; h.transitLeft = 0; } });
+        return;
+      }
+      const room = Math.max(0, cityCap(dst) - Math.round(dst.troops || 0));
+      const put = Math.min(Number(e.troops) || 0, room);
+      if (put) dst.troops = Math.round((dst.troops || 0) + put);
+      if (e.gold) dst.gold = (dst.gold || 0) + e.gold;
+      if (e.food) dst.food = (dst.food || 0) + e.food;
+      const overflow = (Number(e.troops) || 0) - put;
+      if (overflow > 0 && s.cities[e.from] && s.cities[e.from].owner === PF()) {
+        s.cities[e.from].troops = Math.round((s.cities[e.from].troops || 0) + overflow);
+      }
+      const names = [];
+      (e.heroes || []).forEach((uid) => {
+        const h = (s.heroes || []).find((x) => x.uid === uid);
+        if (!h) return;
+        h.city = dstId; h.transitTo = null; h.transitLeft = 0;
+        names.push(h.name);
+      });
+      const where = CITY[dstId] ? CITY[dstId].name : dstId;
+      out.push({ kind: 'arrive', text: `${where} 도착 — ${transitCargoText(e)}${overflow > 0 ? ` (자리 부족으로 병력 ${fmt(overflow)}은 출발 성에 남음)` : ''}` });
+    });
+    s.transitQueue = keep;
+    return out;
+  }
+  SK.transitStep = transitStep;
+
+  /* 아직 수성전에 못 들어간 원군 — 다음 달이 되면 성으로 들어간다 */
+  function reinforceStep(s) {
+    const r = s.reinforce;
+    if (!r || !r.target) return null;
+    if (Number(r.arriveTurn || 0) > Number(s.turn || 1)) return null;
+    if (s.pendingInvasion && s.pendingInvasion.target === r.target) return null;   // 그 수성전에서 함께 싸운다
+    const dest = s.cities[r.target];
+    const home = s.cities[r.from];
+    const targetOk = !!(dest && dest.owner === PF());
+    const total = (r.units || []).reduce((a, u) => a + (u.troops || 0), 0);
+    const room = targetOk ? Math.max(0, cityCap(dest) - Math.round(dest.troops || 0)) : 0;
+    const put = Math.min(total, room);
+    if (targetOk && put) dest.troops = Math.round((dest.troops || 0) + put);
+    if (!targetOk && home) home.troops = Math.min(cityCap(home), Math.round((home.troops || 0) + total));
+    (r.units || []).forEach((u) => {
+      if (!u.uid) return;
+      const h = (s.heroes || []).find((x) => x.uid === u.uid);
+      if (!h) return;
+      delete h.rfgTo;
+      if (targetOk) h.city = r.target;
+      h.actedThisMonth = true;
+    });
+    s.reinforce = null;
+    const nm = CITY[r.target] ? CITY[r.target].name : r.target;
+    return { kind: targetOk ? 'arrive' : 'lost', text: targetOk
+      ? `${nm} 원군 도착 — 병력 ${fmt(put)}${put < total ? ` (자리 부족 ${fmt(total - put)}은 원 성에 남음)` : ''}`
+      : `${nm}이(가) 우리 것이 아니라 원군 병력 ${fmt(total)}이(가) ${CITY[r.from] ? CITY[r.from].name : '원 성'}으로 돌아갔습니다` };
+  }
+  SK.reinforceStep = reinforceStep;
+
+  /* 성 화면 · 내정 탭에 붙는 '이동 중' 안내 */
+  function transitStripHtml(cityId) {
+    const s = SK.state;
+    const q = (s && Array.isArray(s.transitQueue) ? s.transitQueue : []).filter((e) => e && (e.from === cityId || e.to === cityId));
+    if (!q.length) return '';
+    const rows = q.slice(0, 5).map((e) => {
+      const outbound = e.from === cityId;
+      const other = CITY[outbound ? e.to : e.from];
+      const nm = outbound ? `이 성 → ${other ? other.name : '?'}` : `${other ? other.name : '?'} → 이 성`;
+      const hn = (e.heroes || []).map((uid) => ((s.heroes || []).find((h) => h.uid === uid) || {}).name).filter(Boolean);
+      return `<div class="ct-row"><b>${nm}</b><span>${transitCargoText(e)}${hn.length ? ` — ${hn.slice(0, 3).join('·')}${hn.length > 3 ? ' 외' : ''}` : ''}</span><em>${e.left}개월 남음</em></div>`;
+    }).join('');
+    return `<div class="city-transit"><p class="ct-head">이동 중 <em>칸마다 한 달 — 도착하면 다음 달 정산에 반영</em></p>${rows}${q.length > 5 ? `<p class="ct-more">${q.length - 5}건 더 있습니다.</p>` : ''}</div>`;
+  }
+  SK.transitStripHtml = transitStripHtml;
 
   function marchUnitTroops(units) { return (units || []).reduce((n, u) => n + (u.troops || 0), 0); }
 
@@ -12112,7 +12304,7 @@
     return `<div class="hero-pick ${locked ? 'locked' : (on ? 'on' : 'off')} ${busy ? 'busy' : ''}" data-uid="${h.uid}" data-on="0" data-locked="${locked ? '1' : '0'}" aria-pressed="false"${locked ? ' aria-disabled="true"' : ''}>
       <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
       <div class="hp-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span>
-        <em class="hp-badges"><i class="hp-city">${(CITY[h.city] || {}).name || '-'}</i><i class="hp-duty ${locked || duty !== '대기' ? 'hp-duty-busy' : 'hp-duty-wait'}">${dutyTxt}</i>${loy < 40 ? `<i class="hp-loyal-low">충성 ${loy}</i>` : ''}</em></div>
+        <em class="hp-badges"><i class="hp-city">${(CITY[h.city] || {}).name || '-'}</i><i class="hp-duty ${locked || duty !== '대기' ? 'hp-duty-busy' : 'hp-duty-wait'}" title="${busy ? '시설 배속 중 — 이번 달 미행동이면 출진할 수 있고, 출진하면 배속만 자동으로 풀립니다' : ''}">${dutyTxt}</i>${loy < 40 ? `<i class="hp-loyal-low">충성 ${loy}</i>` : ''}</em></div>
       <div class="hp-stats"><span>무 ${h.wu}</span><span>지 ${h.ji}</span><span>통 ${h.tong}</span></div>
       <div class="hp-step"><button data-d="-1" aria-label="줄이기" ${on && !locked ? '' : 'disabled'}>−</button><button class="hp-count" type="button" title="직접 입력" ${on && !locked ? '' : 'disabled'}>${fmt(cost)}</button><button data-d="1" aria-label="늘리기" ${on && !locked ? '' : 'disabled'}>＋</button></div>
       <span class="hp-check" aria-hidden="true">${locked ? '–' : (on ? '✓' : '○')}</span>
@@ -13062,15 +13254,17 @@
     const s = SK.state;
     const cs = s.cities[srcId];
     const c = CITY[srcId];
-    const gens = cityGens(srcId);
+    /* v5.88 — 지원 후보도 이번 달 미행동이면 시설 배속 중이어도 보낼 수 있다 (파견 시 배속 해제) */
+    const onDutyN = cityGens(srcId).filter((g) => !g.actedThisMonth && dutyLabelOf(srcId, g)).length;
+    const gens = cityGens(srcId).filter((g) => !g.actedThisMonth);
     const pool = Math.max(0, Math.round(cs.troops || 0) - 300);
     let send = Math.min(pool, Math.max(pool >= 600 ? 600 : 0, Math.round(pool * 0.5 / 100) * 100));
     const picked = [];
     const genRows = gens.length ? gens.map((g) => `<button class="rp-gen" data-uid="${g.uid}">
         <img class="${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
-        <span class="rp-main"><b>${g.name}</b><em>${SK.CLASSES[g.cls].name} · Lv.${g.lv}</em><i>통${g.tong} 무${g.wu} 지${g.ji}</i></span>
+        <span class="rp-main"><b>${g.name}</b><em>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyLabelOf(srcId, g) ? ` · ${dutyLabelOf(srcId, g)}` : ''}</em><i>통${g.tong} 무${g.wu} 지${g.ji}</i></span>
         <em class="rp-tick">＋</em></button>`).join('')
-      : '<p class="empty-gens">이 성에 장수가 없습니다 — 병력만 보냅니다.</p>';
+      : `<p class="empty-gens">이번 달에 보낼 수 있는 장수가 없습니다 — 병력만 보냅니다.${onDutyN ? ` (배속 ${onDutyN}명은 이미 이번 달 일을 했습니다)` : ''}</p>`;
     const m = SK.modal({
       kicker: `${c.name} → ${CITY[targetId].name}`, title: '지원군 편성',
       body: `<div class="rfg-pick">
@@ -13129,7 +13323,10 @@
     if (!units.length) { SK.toast('보낼 병력이나 장수를 고르세요.'); return; }
     cs.troops = Math.max(0, Math.round(cs.troops || 0) - sent);
     sel.forEach((h) => { releaseDuty(srcId, h.uid); h.rfgTo = targetId; });
-    s.reinforce = { target: targetId, from: srcId, units, turn: s.turn };
+    /* v5.88 — 지원군도 거리를 건넌다. 이웃 성(1칸)이라도 1개월이 걸려
+       그 달에 곧바로 벌어지는 수성전에는 합류하지 못한다(성에서 기다리면 다음 달에 합류). */
+    const rfgTurns = Math.max(1, transitTurns(srcId, targetId));
+    s.reinforce = { target: targetId, from: srcId, units, turn: s.turn, arriveTurn: (s.turn || 1) + rfgTurns, turns: rfgTurns };
     SK.save();
     SK.refreshHud();
     SK.sfx.play('month');
@@ -13255,6 +13452,23 @@
     const c = CITY[inv.target];
     const f = SK.factionInfo(inv.faction);
     const gens = cityGens(inv.target);
+    /* v5.88 — 군단 위임 성은 플레이어에게 지원을 청하지 않는다. 총도독이 성을 스스로 지킨다. */
+    const invCorps = corpsOfCity(inv.target);
+    if (invCorps) {
+      SK.modal({
+        kicker: `${c.name} · 군단 위임`,
+        title: '총도독 자체 방어',
+        body: `<div class="invasion-card">
+          <h4>${SK.josa(f.name, 'i')} ${SK.josa(c.name, 'euro')} 진군했습니다</h4>
+          <p><b>${invCorps.name}</b>${invCorps.governorId && (s.heroes || []).find((h) => h.uid === invCorps.governorId) ? ` (총도독 ${(s.heroes || []).find((h) => h.uid === invCorps.governorId).name})` : ''}에 맡긴 성이라 <b>지원 요청을 띄우지 않습니다</b> — 총도독이 주둔 장수·수비병으로 성을 직접 지킵니다.</p>
+          <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(ts.troops)}</b></span><span>성벽 <b>${Math.round(ts.def)}</b></span><span>주둔 장수 <b>${gens.length}명</b></span></div>
+          <p class="talent-note">직접 지휘·철수·요격을 하려면 이 성을 군단에서 빼 직할로 회수한 뒤 다음 침공부터 고르면 됩니다.</p>
+        </div>`,
+        actions: [{ label: '수성전 시작', primary: true, onClick: () => { setTimeout(() => startDefense(inv, null), 80); } }],
+        dismissible: false,
+      });
+      return;
+    }
     /* v5.33 — 이미 요격 출진에서 진 침공이면 선택 창을 건너뛰고 수성전 배치로 바로 간다 */
     if (inv.intercepted) {
       setTimeout(() => { if (SK.openDefenseDeploy) SK.openDefenseDeploy(inv); }, 140);
@@ -13280,9 +13494,13 @@
     const moreLine = more.length ? `<div class="rfg-tip"><b>뒤이을 침공 ${more.length}곳</b><span>${more.map((q) => `${CITY[q.target].name}(${SK.factionName(q.faction)} ${fmt(q.troops)})`).join(' · ')} — 이 수성전을 마치면 이어서 벌어집니다</span></div>` : '';
     /* v5.9 — 옆 성에서 원군을 보낼 수 있는가 */
     const near = reinforceNeighbors(inv.target);
-    const rfg = (s.reinforce && s.reinforce.target === inv.target) ? s.reinforce : null;
+    const rfgAll = (s.reinforce && s.reinforce.target === inv.target) ? s.reinforce : null;
+    /* v5.88 — 지원군도 1칸에 한 달. 아직 길에 있으면 이번 수성전에는 합류하지 못한다 */
+    const rfgReady = !!(rfgAll && (!rfgAll.arriveTurn || Number(rfgAll.arriveTurn) <= Number(s.turn || 1)));
+    const rfg = rfgReady ? rfgAll : null;
     const rfgTroops = rfg ? rfg.units.reduce((a, u) => a + (u.troops || 0), 0) : 0;
     const rfgGens = rfg ? rfg.units.filter((u) => u.uid).length : 0;
+    const rfgWait = (!rfgReady && rfgAll) ? Math.max(1, Number(rfgAll.arriveTurn || 0) - Number(s.turn || 1)) : 0;
     const woundNow = Math.round(ts.wounded || 0);
     SK.modal({
       kicker: `${c.name} 위급`, title: `${SK.factionName(inv.faction)}의 침공`,
@@ -13293,7 +13511,8 @@
         ${moreLine}
         <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(ts.troops)}</b></span><span>성벽 <b>${Math.round(ts.def)}</b></span><span>주둔 장수 <b>${gens.length}명</b></span>${woundNow ? `<span>부상병 <b>${fmt(woundNow)}</b></span>` : ''}</div>
         ${rfg ? `<div class="rfg-ready"><b>${CITY[rfg.from].name} 원군 대기</b><span>병력 ${fmt(rfgTroops)}${rfgGens ? ` · 장수 ${rfgGens}명` : ''} — 수성전에 함께 들어갑니다</span></div>`
-          : (near.length ? `<div class="rfg-tip"><b>지원군을 보낼 수 있습니다</b><span>${near.map((o) => `${o.name}(${o.via}·${fmt(o.troops)})`).join(' · ')}</span></div>` : '')}
+          : rfgAll ? `<div class="rfg-tip"><b>${CITY[rfgAll.from].name} 원군 이동 중 — ${rfgWait}개월 뒤 도착</b><span>거리를 건너는 중이라 <b>이번 [수성전]에는 합류하지 못합니다</b>. [성에서 기다리기]로 한 달 미루면 원군과 함께 싸웁니다.</span></div>`
+          : (near.length ? `<div class="rfg-tip"><b>지원군을 보낼 수 있습니다</b><span>${near.map((o) => `${o.name}(${o.via}·${fmt(o.troops)})`).join(' · ')} — 보내도 1개월이 걸려 다음 달에 도착합니다</span></div>` : '')}
         <p class="talent-note">[수성전] — 격자 전장에서 성을 지킵니다. 출진 장수(최대 10명)와 자리(외성·망루·내성)를 먼저 고릅니다. 이기면 적을 물리치고, 지면 성을 잃고 남은 병력·장수는 가까운 내 성으로 물러납니다.</p>
         <p class="talent-note">[요격 출진] — 성 밖 길목으로 나가 적을 먼저 맞아 싸웁니다. 이기면 <b>성벽 피해 없이</b> 침공을 꺾고 적 잔여 병력은 출발 성으로 쫓겨납니다. 지면 살아남은 병력이 성으로 돌아오고, 줄어든 적과 수성전을 치릅니다. 병력 1,200 이상이 필요합니다.</p>
         <p class="talent-note">[성에서 기다리기] — 싸우지 않고 성문을 걸어 잠급니다. 적은 다음 달 성 아래에 닿고, 수성전도 다음 달로 미뤄집니다 — 그동안 징병·원군·내 정비를 할 수 있습니다.</p>
@@ -13322,7 +13541,9 @@
     }
     const from = s.cities[inv.from] || {};
     /* v5.9 — 인접 성에서 보낸 원군을 수비 부대에 합류시킨다 */
-    const rfg = (s.reinforce && s.reinforce.target === inv.target) ? s.reinforce : null;
+    const rfgRaw = (s.reinforce && s.reinforce.target === inv.target) ? s.reinforce : null;
+    /* v5.88 — 도착 턴이 지난 원군만 합류한다 (1칸 = 1개월) */
+    const rfg = (rfgRaw && (!rfgRaw.arriveTurn || Number(rfgRaw.arriveTurn) <= Number(s.turn || 1))) ? rfgRaw : null;
     const all = rfg ? units.concat(rfg.units.map((u) => Object.assign({}, u, { rfg: 1 }))) : units;
     s.pendingInvasion = null;
     SK.save();
@@ -13980,6 +14201,113 @@
     return s.corps.find((cp) => (cp.cityIds || []).indexOf(cityId) >= 0) || null;
   }
   SK.corpsOfCity = corpsOfCity;
+
+  /* ══════════════════════════════════════════════════════════════
+     v5.88 — 총도독(군단) 위임 성의 직접 명령 잠금
+     · 군단에 맡긴 성은 총도독이 내정·출진·인사·수송·시설을 대신한다.
+       플레이어는 해제 전까지 직접 명령을 내릴 수 없고, 안내 창에서
+       [군단 해제](그 성만 직할 회수 또는 군단 해산)만 할 수 있다.
+     ══════════════════════════════════════════════════════════════ */
+  function corpsLockOf(cityId) {
+    const s = SK.state;
+    if (!s || !cityId) return null;
+    const cp = corpsOfCity(cityId);
+    if (!cp) return null;
+    return { cp: cp, name: cp.name || '군단', gov: (s.heroes || []).find((h) => h.uid === cp.governorId) || null };
+  }
+  SK.corpsLockOf = corpsLockOf;
+
+  function releaseCityFromCorps(cityId) {
+    const s = SK.state;
+    const cp = corpsOfCity(cityId);
+    if (!cp) return false;
+    if ((cp.cityIds || []).length <= 1) {
+      s.corps = (s.corps || []).filter((x) => x.id !== cp.id);
+      (cp.cityIds || []).forEach((id) => { const cs = s.cities[id]; if (cs && cs.auto === false) cs.auto = true; });
+      SK.toast(`${cp.name} 군단을 해산했습니다 — ${CITY[cityId].name}이 직할로 돌아왔습니다.`);
+    } else {
+      cp.cityIds = cp.cityIds.filter((id) => id !== cityId);
+      const cs = s.cities[cityId];
+      if (cs && cs.auto === false) cs.auto = true;
+      SK.toast(`${CITY[cityId].name}을(를) 군단에서 빼 직할로 회수했습니다.`);
+    }
+    SK.save();
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    if (document.querySelector('#screen-city.active')) SK.openCity(SK.state.lastCity || cityId);
+    return true;
+  }
+  SK.releaseCityFromCorps = releaseCityFromCorps;
+
+  function corpsLockNotice(cityId) {
+    const lock = corpsLockOf(cityId);
+    if (!lock) return;
+    const c = CITY[cityId] || { name: cityId };
+    SK.modal({
+      kicker: `${c.name} · 군단 위임`,
+      title: '군단 위임 중 — 총도독 해제 후 직접 명령 가능',
+      body: `<p class="modal-p"><b>${lock.name}</b>${lock.gov ? ` (총도독 <b>${lock.gov.name}</b>)` : ''}에 맡긴 성입니다. 이 성의 <b>내정·출진·인사·수송·시설</b> 명령은 총도독이 달마다 대신 합니다 — 플레이어가 직접 명령을 내릴 수 없습니다.</p>
+        <p class="modal-p">직접 다스리려면 이 성을 군단에서 빼거나 군단을 해산하세요. 병력·금·군량·장수는 그대로 남습니다.</p>`,
+      actions: [
+        { label: '닫기' },
+        { label: '군단 해제', primary: true, onClick: () => releaseCityFromCorps(cityId) },
+      ],
+    });
+  }
+  SK.corpsLockNotice = corpsLockNotice;
+
+  function corpsGuard(cityId) {
+    if (!cityId || !corpsLockOf(cityId)) return false;
+    corpsLockNotice(cityId);
+    return true;
+  }
+  SK.corpsGuard = corpsGuard;
+
+  function renderCorpsLock(cityId) {
+    const scr = document.getElementById('screen-city');
+    const lock = corpsLockOf(cityId);
+    const prev = document.getElementById('corps-lock-bar');
+    if (prev) prev.remove();
+    if (scr) scr.classList.toggle('corps-locked', !!lock);
+    /* 잠긴 성에서는 5개 명령 줄(시설·인사·외교·기술·군사)을 눌러도 열리지 않게 disabled */
+    document.querySelectorAll('.city-commands .cmd[data-grp]').forEach((b) => { b.disabled = !!lock; });
+    if (!lock) return;
+    const bar = document.createElement('div');
+    bar.id = 'corps-lock-bar';
+    bar.className = 'corps-lock-bar';
+    bar.innerHTML = `<span class="clb-ic">⚑</span>
+      <div class="clb-main"><b>군단 위임 중 — 총도독 해제 후 직접 명령 가능</b>
+        <span>${lock.name}${lock.gov ? ` · 총도독 ${lock.gov.name}` : ''} — 내정·출진·인사·수송·시설은 총도독이 맡습니다.</span></div>
+      <button type="button" class="clb-btn" id="btn-corps-release">군단 해제</button>`;
+    const wrap = document.getElementById('city-mid') || scr;
+    if (wrap) wrap.insertBefore(bar, wrap.firstChild);
+    const btn = bar.querySelector('#btn-corps-release');
+    if (btn) btn.onclick = () => releaseCityFromCorps(cityId);
+    bindCorpsLockCapture();
+  }
+  SK.renderCorpsLock = renderCorpsLock;
+
+  let corpsLockBound = false;
+  function bindCorpsLockCapture() {
+    if (corpsLockBound) return;
+    const scr = document.getElementById('screen-city');
+    if (!scr) return;
+    corpsLockBound = true;
+    /* 잠긴 성 화면에서는 명령 줄·시설·장수 카드를 눌러도 아무 일도 일어나지 않게 막고 안내만 띄운다.
+       [다음 달]·지도·뒤로·음소리·입문은 그대로 쓸 수 있다. */
+    scr.addEventListener('click', (e) => {
+      if (!scr.classList.contains('corps-locked')) return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('#btn-corps-release') || t.closest('#btn-city-back') || t.closest('#btn-city-map')
+        || t.closest('#btn-city-next') || t.closest('.icon-btn') || t.closest('.js-sound') || t.closest('#btn-city-intro')) return;
+      if (t.closest('.city-commands .cmd[data-grp]') || t.closest('.city-pane')
+        || t.closest('#scene-hotspots') || t.closest('#city-generals') || t.closest('#city-tabs')) {
+        e.preventDefault();
+        e.stopPropagation();
+        corpsLockNotice(SK.state.lastCity || '');
+      }
+    }, true);
+  }
   function enemyNeighborsOf(cityId) {
     const s = SK.state;
     return SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF());
@@ -14403,6 +14731,7 @@
   }
   SK.doCityUpgrade = doCityUpgrade;
   function openCityUpgrade(cityId) {
+    if (SK.corpsGuard && SK.corpsGuard(cityId)) return;
     const s = SK.state;
     if (!s || !cityId) return;
     const check = canUpgradeCity(cityId);
@@ -14753,6 +15082,12 @@
        (성 화면을 열기 전까지) 자동 내정이 돌지 않았다. 달이 바뀌 때마다
        군주 우선 규칙으로 빈 태수·군사를 다시 앉힌다. */
     if (enforceLordGovernor(s)) SK.save();
+    /* v5.88 — 길에 오른 수송대·장수가 한 칸씩 나아가고, 도착한 것은 이 달에 풀린다 */
+    const transitLog = transitStep(s);
+    const rfgLog = reinforceStep(s);
+    if (rfgLog) transitLog.push(rfgLog);
+    /* v5.88 — 지난달에 지은·올린 건물 (월정산 '완공' 줄) */
+    const buildRows = (s.buildLog || []).filter((e) => e && e.turn === (s.turn || 1) - 1);
     // 달이 바뀌기 전에 태수들이 남은 행동으로 내정을 마친다 (본성·태수 없는 성 제외)
     const autoLog = runAutoDomestic(s);
     let tax = 0, pop = 0, popGrowth = 0, popLoss = 0, unrest = 0, growCities = 0, shrinkCities = 0;
@@ -14886,7 +15221,7 @@
     /* v5.52 — 주점이 빈 성에 방랑 재야가 들어오면 주점 소식으로 먼저 알린다 */
     runWanderers(s).slice().reverse().forEach((w) => {
       tavernLog.unshift({ city: w.city, kind: 'wander',
-        text: `방랑 재야 — ${SK.josa(w.name, 'i')} 먼 고을에서 찾아와 ${w.city} 주점(${w.tier}급)에 앉았습니다` });
+        text: `방랑 재야 — ${SK.josa(w.name, 'i')} ${w.city} 주점(${w.tier}급)에 새로 모습을 드러냈습니다` });
     });
     /* v5.39 — 첩보소: 달마다 자동 첩보·이간·유언비어 (AI 첩보소 소식은 천하 소식에 합침) */
     const spyRun = runSpyOffices(s);
@@ -14979,10 +15314,12 @@
     // 역사 연표 이벤트
     const sc = s.scenario ? SK.histById(s.scenario) : null;
     const tl = sc ? SK.timelineFor(sc, s.eraYear, s.month + 1) : null;
+    /* v5.88 — 월별 역사 연표 팝업('천하 대난투 소식' — 3월 호로관 여포, 5월 동탁 장안 이사 …)을 끈다.
+       사건은 본 것으로만 기록하고, 달이 바뀔 때 창을 띄우지 않는다. */
     let tlEv = null;
     if (tl) {
       s.timelineSeen = s.timelineSeen || [];
-      if (s.timelineSeen.indexOf(tl.title) < 0) { s.timelineSeen.push(tl.title); tlEv = tl; }
+      if (s.timelineSeen.indexOf(tl.title) < 0) s.timelineSeen.push(tl.title);
     }
     /* v5.3 — 행군대가 한 달씩 전진하고, 도착·요격 사건을 예약한다 */
     stepMarches(s);
@@ -15031,6 +15368,10 @@
       title: '월정산',
       body: `<div class="month-report">
         ${govReportHtml(autoLog)}
+        ${transitLog.length ? `<div class="mr-auto"><p class="mr-auto-title">수송·장수 이동 <em>1칸 = 1개월</em></p>
+          ${transitLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.kind === 'lost' ? '되돌림' : '도착'}</b><span>${l.text}</span></div>`).join('')}${transitLog.length > 6 ? `<p class="mr-note">${transitLog.length - 6}건 더 있습니다.</p>` : ''}</div>` : ''}
+        ${buildRows.length ? `<div class="mr-auto"><p class="mr-auto-title">건설·증축 완공 <em>이번 달에 끝난 공사</em></p>
+          ${buildRows.slice(0, 6).map((b) => `<div class="mr-auto-row"><b>${(CITY[b.cityId] || {}).name || b.cityId}</b><span>${b.name} Lv.${b.to} 완공${b.from ? ` <i>(Lv.${b.from}→${b.to})</i>` : ' <i>(신축)</i>'}</span></div>`).join('')}${buildRows.length > 6 ? `<p class="mr-note">${buildRows.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
         <div class="mr-sec"><span>금</span><em>세수 · 녹봉 − 봉급</em></div>
         <div class="mr-row"><span>도시 세수</span><b class="plus">금 +${fmt(tax)}</b></div>
         ${marketGold ? `<div class="mr-row"><span>시장 · 공방</span><b class="plus">금 +${fmt(marketGold)}</b></div>` : ''}
@@ -15056,12 +15397,15 @@
         <div class="mr-row"><span>징집 <em>성마다 실제로 늘어난 수비병</em></span><b>병 +${fmt(pop)}</b></div>
         ${woundHeal ? `<div class="mr-row"><span>부상병 회복</span><b class="plus">병 +${fmt(woundHeal)}</b></div>` : ''}
         ${growth.length ? `<div class="mr-grow">
-          <p class="mr-grow-title">시설 성장 <em>경험이 차면 증축할 수 있습니다</em></p>
-          ${growth.slice(0, 6).map((g) => `<div class="mr-grow-row${g.exp >= g.need ? ' up' : ''}">
-            <b>${g.city} ${g.name} <i>Lv.${g.lv}</i></b>
-            <span class="mg-bar"><i style="width:${Math.min(100, Math.round(g.exp / g.need * 100))}%"></i></span>
-            <em>+${g.gain} <i>(${Math.round(g.exp)}/${g.need})</i>${g.exp >= g.need ? ' · 증축 가능!' : ''}</em>
-          </div>`).join('')}
+          <p class="mr-grow-title">건물 현황 <em>성·건물별 실제 레벨과 공사 진행도</em></p>
+          ${growth.slice(0, 6).map((g) => {
+            const pct = Math.min(100, Math.round((g.exp || 0) / Math.max(1, g.need) * 100));
+            return `<div class="mr-grow-row${pct >= 100 ? ' up' : ''}">
+            <b>${g.city} ${g.name} <i>Lv.${g.lv}→${g.lv + 1}</i></b>
+            <span class="mg-bar"><i style="width:${pct}%"></i></span>
+            <em>${pct >= 100 ? 'Lv.' + (g.lv + 1) + ' 완공 가능!' : '진행 ' + pct + '%'}<i> (${Math.round(g.exp || 0)}/${g.need})</i></em>
+          </div>`;
+          }).join('')}
           ${growth.length > 6 ? `<p class="mr-note">${growth.length - 6}곳 더 있습니다.</p>` : ''}
         </div>` : ''}
         <div class="mr-row"><span>인구 <em>성장 ${growCities}곳 · 감소 ${shrinkCities}곳</em></span><b class="${popGrowth - popLoss >= 0 ? 'plus' : 'minus'}">${popGrowth - popLoss >= 0 ? '＋' : '−'}${fmt(Math.abs(popGrowth - popLoss))}</b></div>
@@ -15755,6 +16099,7 @@
     s.gold = Math.round((s.gold || 0) - up.cost);
     up.sl.exp = Math.max(0, (up.sl.exp || 0) - slotExpNeed(up.sl.lv));
     up.sl.lv += 1;
+    noteBuild(c.id, up.sl.key, up.sl.lv - 1, up.sl.lv);
     obsLog(CITY[c.id].name + ' ' + up.name + ' Lv.' + up.sl.lv + ' 증축');
   }
 

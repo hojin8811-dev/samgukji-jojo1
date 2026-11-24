@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   v5.87b — 관리자 모드 (?admin=1)
+   v5.88 — 관리자 모드 (?admin=1)
    · 판 자체의 규칙 변경(성 증축·친화도·명성·지휘 상한·출진 1칸·관문 4칸·보물 등급)은
      앱 엔진(app.js·data.js·battle.js)에 직접 들어갔다. 이 파일은 그 값을 그대로 비춘다
      — 지휘 상한은 SK.troopCapOf()/SK.troopCapParts() 를 읽어 기본 2,000 + 레벨 + 관직으로 계산된다.
-   · 일반 주소(?v=110)에서는 이 파일이 SK.adminMode=false 만 남기고 즉시 끝난다.
+   · 일반 주소(?v=111)에서는 이 파일이 SK.adminMode=false 만 남기고 즉시 끝난다.
 
    v5.86 — 관리자 모드 (?admin=1)
    · 숨은 스탯 확장: 장수(통솔·회피%·치명%·반격피해%·흡혈%·필살기 교체)와
@@ -402,7 +402,7 @@
     el.innerHTML =
       '<div class="adm-box">' +
         '<header class="adm-h">' +
-          '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.87b</small></div>' +
+          '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.88</small></div>' +
           '<div class="adm-h-r">' +
             '<button type="button" class="adm-mini" id="adm-copy-top">📋 복사</button>' +
             '<button type="button" class="adm-mini ghost" id="adm-reset-top" aria-label="기본값 초기화">♻️</button>' +

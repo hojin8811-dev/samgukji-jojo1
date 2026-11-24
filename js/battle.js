@@ -2562,8 +2562,11 @@
     if (ch === 'G') {
       if (!gateTileAt(x, y)) return 1;
       /* v5.21 — 성 주인(수성전 아군)은 살아 있는 자기 성문을 그냥 지난다.
-         적 침공군만 문에 막힌다. (예전에는 아군까지 99라 성 안에 갇혔다) */
-      if (B && B.defense && side === 'ally') return 1;
+         적 침공군만 문에 막힌다. (예전에는 아군까지 99라 성 안에 갇혔다)
+         v5.88 — 공성전에서 성을 지키는 적도 자기 성문을 지난다.
+           (예전에는 수비측 적이 안쪽 문으로 물러나지 못해 마당에 갇혀 있었다) */
+      const keeper = B && (B.defense ? side === 'ally' : side === 'enemy');
+      if (keeper) return 1;
       return 99;
     }
     /* v5.31 — 수전·도하 전장에서는 누구나 조각배를 타고 물을 건넌다 (한 칸 2).
@@ -8855,6 +8858,24 @@
     B._home = { gateRow, wallRow, insideY: gateRow > 0 ? gateRow - 1 : N - 1, hq, towers };
     return B._home;
   }
+  /* v5.88 — 수비선(성 안쪽 어디까지 지킬 수 있는가).
+     바깥 성문이 살아 있으면 그 문 안쪽 줄, 뚫리면 다음 안쪽 문 앞 줄로 한 단계 물러난다.
+     모든 문이 뚫리면 본진 앞에서 막는다. */
+  function defenseBoundary(homeIn) {
+    const home = homeIn || defenseHome();
+    if (!B) return home ? home.insideY : N - 1;
+    const gates = (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []));
+    const intact = gates.filter((g) => g && g.hp > 0);
+    if (!intact.length) {
+      const hq = home && home.hq;
+      if (hq && hq.y != null) return Math.max(0, Math.min(N - 1, hq.y + 1));
+      return home ? Math.max(0, home.insideY - 1) : N - 1;
+    }
+    const out = intact.slice().sort((a, b) => (b.row || 0) - (a.row || 0))[0];
+    return Math.max(0, (out.row || 0) - 1);
+  }
+  SK.defenseBoundary = defenseBoundary;
+
   function defenseRoleOf(u) {
     if (!B || !B.defense || !u || u.side !== 'ally') return null;
     if (u._defRole == null) {
@@ -8891,11 +8912,12 @@
 
   function defenseAllowed(u, role, home) {
     if (!home) return null;
+    const line = defenseBoundary(home);      // v5.88 — 뚫린 문 수만큼 안으로 물러난 선
     const inside = (x, y) => {
       const row = B.tiles[y];
       if (!row || row[x] == null) return false;
       if (row[x] === 'C' || row[x] === 'H') return false;
-      return y <= home.insideY || row[x] === 'G';
+      return y <= line || row[x] === 'G';
     };
     const sortie = defenseSortieNeeded(home);
     const openField = (x, y) => {
@@ -8903,7 +8925,7 @@
       if (!row || row[x] == null || row[x] === 'C' || row[x] === 'H') return false;
       return true;
     };
-    const uOut = !!(u && u.y > home.insideY);
+    const uOut = !!(u && u.y > line);
     const foesNear = (x, y) => B.units.some((o) => o.alive && o.side !== 'ally' && manh(x, y, o.x, o.y) <= 3);
     if (role === 'keep') {
       /* 교착이면 보조도 문 밖으로 나가 출격한 아군을 받쳐 준다 */
@@ -8914,7 +8936,7 @@
       const ring = defenseSafeRing(home);
       return (x, y) => inside(x, y) && B.tiles[y][x] !== 'G' && (ring.none || ring.safe(x, y));
     }
-    if (role === 'wall') return (x, y) => inside(x, y) && y >= home.insideY - 5;
+    if (role === 'wall') return (x, y) => inside(x, y) && y >= line - 5;
     /* 근접 — 문이 버티는 동안에는 성문 안쪽에서 막고, 문이 깨지거나 교착이면 나가서 맞는다.
        이미 문 밖에 있는 부대는 다시 안으로 들어가지 않고 적 곁에서 계속 싸울 수 있다. */
     if (outerGateBroken() || sortie) return () => true;
@@ -9082,6 +9104,12 @@
       }));
     }
     const skipGate = fewFoes && (foeHitPossible || !foeBehindGate);
+    /* v5.88 — 공성 공격 AI: 가장 바깥에 남은 성문(B.gate)이 살아 있는 동안에는
+       · 문 너머(안쪽 성벽 뒤)의 먼 적을 쫓지 않고
+       · 문 하나에 병력을 집결시켜 집중 돌파한다. 문이 뚫리면 다음 문으로 이어진다. */
+    const stormGateObj = (stormGate && gateIntact()) ? activeGate() : null;
+    const stormGateRow = stormGateObj ? stormGateObj.row : null;
+    const stormGateX = stormGateObj ? stormGateObj.tiles.reduce((a, g) => a + g.x, 0) / stormGateObj.tiles.length : null;
     let best = null;
     const kind = attackKind(u);
     /* v5.49 — 마을 값. 수성전 성벽·본진 역할은 제자리를 지키는 게 우선이라 조금만 반영한다 */
@@ -9102,6 +9130,10 @@
           const ret = calcDamage(e, u, {}).dmg;
           if (ret > u.maxHp * 0.1) score -= 24;
         }
+        /* v5.88 — 문이 살아 있으면 문 너머의 먼 적은 값이 없다 (문을 먼저 부순다) */
+        if (stormGateRow != null && !skipGate && e.y < stormGateRow) {
+          score -= (d > 2 ? 70 : 45);
+        }
         /* v5.49 — 같은 적을 칠 수 있는 칸이라면 마을을 밟고 치는 쪽을 고른다 */
         score += vv(t, true);
         /* v5.33 — 후방 문관·보조에게 3칸 안으로 붙은 적을 먼저 친다 (전투 병과만) */
@@ -9111,7 +9143,7 @@
       if (stormGate && gateIntact() && activeGate() && !skipGate) {
         activeGate().tiles.forEach((g) => {
           if (manh(t.x, t.y, g.x, g.y) > rng) return;
-          const sc = (kind === 'rock' ? 90 : kind === 'melee' ? 55 : 25) + (home ? 4 : 0);
+          const sc = (kind === 'rock' ? 130 : kind === 'melee' ? 105 : 55) + (home ? 4 : 0);
           if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc, kind: 'gate' };
         });
       }
@@ -9123,7 +9155,11 @@
       const d = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
       const gy = (stormGate && gateIntact() && activeGate() && !skipGate)
         ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) - 1 : 99;
-      let score = -Math.min(d, gy);
+      /* v5.88 — 공성 공격수는 적과의 거리보다 '가장 바깥 문까지의 거리'로 움직인다 (문 앞 집결) */
+      let score = (stormGateRow != null && !skipGate && gy < 99)
+        ? (-gy * 1.6 - Math.min(d, 8) * 0.25)
+        : -Math.min(d, gy);
+      if (stormGateRow != null && !skipGate && stormGateX != null) score -= Math.abs(t.x - stormGateX) * 0.35;
       /* v5.33 — 보조 병과(풍수사·군악대·무희·도사·책사)는 공성·요격·들판에서도 전방으로 돌진하지 않는다.
          예전에는 home(수성전)이 없으면 점수가 '적과 가까울수록 높음'이라 풍수사가 1선으로 달려갔다.
          이제 아군 전투 부대에 지원이 닿는 자리 중 적과 4칸 이상 떨어진 칸을 고른다. */
@@ -9160,14 +9196,18 @@
       /* v5.22 — 역할별 자리 지키기 */
       if (defRole === 'wall' && home) {
         const ch = B.tiles[t.y][t.x];
+        const lineNow = defenseBoundary(home);
+        const gateNear = activeGate() ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) : 99;
         /* v5.26 — 망루 보너스는 사거리 안에 적이 있을 때만. 예전에는 적이 성문 반대편에 있어도
            망루(+12)에 붙어 있어 사거리 밖에서 7턴을 허비하는 부대가 있었다. */
         const foeD = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
         if (ch === 'T' && foeD <= rng + 1) score += 12;                 // 망루 위가 최선 (사거리 +1·방어 +45%)
         else if (ch === 'T') score += 1;                                // 사거리 밖이면 미련 없이 이동
-        else if (t.y >= home.insideY - 3) score += 4;                   // 성문 바로 안쪽 성벽
-        if (ch === 'G') score -= 3;                                    // 문통에 서면 뚫린 뒤 그대로 맞는다
-        if (t.y > home.insideY && ch !== 'G') score -= 20;
+        else if (t.y >= lineNow - 3) score += 4;                        // 성문 바로 안쪽 성벽
+        /* v5.88 — 문 앞 병목: 지금 살아 있는 문 가까운 성벽에서 막는다 */
+        if (gateNear <= 2 && ch !== 'G') score += 5;
+        if (ch === 'G') score += 1;                                    // 문통도 문을 지키는 자리 (뚫리면 안쪽으로 물러난다)
+        if (t.y > lineNow && ch !== 'G') score -= 20;
       } else if (defRole === 'keep' && home) {
         /* v5.27 — 보조는 본진 곁에 붙어 있는 대신, 아군에게 지원이 닿는 자리로 전진한다.
            (앞서는 본진과의 거리만 봐서 성문 앞 아군이 늘 사거리 밖이었다)
@@ -9188,9 +9228,14 @@
         if (B.tiles[t.y][t.x] === 'K') score += 1.5;
       } else if (defRole === 'melee' && home && gateIntact() && !defenseSortieNeeded(home)) {
         /* v5.33 — 교착(적이 성 밖에서만 버팀)이면 이 '문 안에서 막기' 점수를 끄고 나가서 친다 */
-        if (B.tiles[t.y][t.x] === 'G') score += 5;                     // 성문 안쪽에서 문을 막는다
-        else if (t.y >= home.insideY - 2) score += 2;
-        if (t.y > home.insideY && B.tiles[t.y][t.x] !== 'G') score -= 25;
+        /* v5.88 — 문 앞 병목 방어: 문 안쪽 바로 뒤에서 막는다. 바깥 문이 뚫리면
+           다음 안쪽 문(lineNow) 앞으로 물러나 다시 병목을 만든다. */
+        const lineM = defenseBoundary(home);
+        const gNear = activeGate() ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) : 99;
+        if (B.tiles[t.y][t.x] === 'G') score += 10;
+        else if (t.y >= lineM - 1) score += 4;
+        if (gNear <= 2) score += 6;
+        if (t.y > lineM && B.tiles[t.y][t.x] !== 'G') score -= 25;
       }
       /* v5.49 — 걸어갈 수 있는 마을은 밟고 지나간다. 그 칸에서 아직 적을 칠 수 있으면 더 크게. */
       score += vv(t, canStrikeFrom(u, t.x, t.y, foes, rng, minR));
@@ -9351,9 +9396,29 @@
     step();
   }
 
+  /* v5.88 — 공성전에서 성을 지키는 쪽(적군)이 문 밖으로 쏟아져 나오지 않게
+     '가장 바깥에 남은 문 안쪽 병목'을 목표로 삼는다. 문이 다 뚫리면 본진으로 물러난다. */
+  function enemySiegeDefense() {
+    if (!B || B.defense) return null;
+    if (B.type !== 'siege' && B.type !== 'fortress') return null;
+    const gates = (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : [])).filter((g) => g && g.hp > 0);
+    if (!gates.length) return null;
+    const out = gates.slice().sort((a, b) => (b.row || 0) - (a.row || 0))[0];
+    if (!out || !out.tiles || !out.tiles.length) return null;
+    const gx = out.tiles.reduce((a, t) => a + t.x, 0) / out.tiles.length;
+    return { gate: out, row: Math.max(0, (out.row || 0) - 1), x: gx };
+  }
+  SK.enemySiegeDefense = enemySiegeDefense;
+
   /* v5.17 — AI 역할별 목표지. 호위병은 본진, 돍격대는 빈 마을 → 아군 본진 */
   function aiGoalOf(e) {
     if (!B || !B.sites) return null;
+    const defSiege = enemySiegeDefense();
+    if (defSiege) {
+      /* v5.88 — 공성전 수비측은 문 앞 병목 → 문이 뚫리면 그다음 안쪽 문 → 다 뚫리면 본진 */
+      if (e.role !== 'guard') e.role = 'guard';
+      return { x: defSiege.x, y: defSiege.row };
+    }
     const enemyHQ = B.sites.find((s) => s.type === 'enemyHQ');
     const allyHQ = B.sites.find((s) => s.type === 'allyHQ');
     /* v5.33 — 군주(총대장)는 원래 role과 상관없이 적극 전진한다.
@@ -9384,11 +9449,18 @@
     if (e.x != null) trackTurn(e, true);
     const targets = B.units.filter((u) => u.side === 'ally' && u.alive);
     if (!targets.length) { done(); return; }
+    /* v5.88 — 성을 지키는 적(공성전 수비측)의 수비선 */
+    const defSiegeNow = enemySiegeDefense();
     /* v5.33 — 적 전투 병과도 자기 문관을 노리는 아군을 먼저 친다
        v5.81 — 일점사: 킬각(한 방에 잡히는 아군) > 피 적은 아군 > 힐러·원거리 > 가까운 순 */
     let target = targets.reduce((best, t) => {
       const d = manh(e.x, e.y, t.x, t.y);
       let sc = d;
+      /* v5.88 — 침공군은 문이 살아 있는 동안 문 너머 먼 아군을 쫓지 않는다 (문에 집중) */
+      const gNow = (isGateAttacker(e) && gateIntact()) ? activeGate() : null;
+      if (gNow && t.y < gNow.row && d > 3) sc += 8;
+      /* v5.88 — 성을 지키는 적은 문 밖 먼 아군을 쫓지 않는다 (문 앞 병목에서 맞는다) */
+      if (defSiegeNow && t.y > defSiegeNow.row + 2 && d > 3) sc += 8;
       const est = estBasicDmg(e, t);
       if (est >= t.hp) sc -= 9;                                        // 이번 타격에 쓰러뜨릴 수 있다
       sc -= (1 - t.hp / Math.max(1, t.maxHp)) * 4;                     // 피가 적을수록 먼저
@@ -9490,16 +9562,26 @@
     }
     const reach = reachSet(e);
     const freeTiles = [];
+    /* v5.88 — 공성전 수비측: 문이 살아 있는 동안 성 밖(문 너머)으로 나가는 칸은 버린다.
+       적이 2부대 이하로 줄었거나 모든 문이 뚫리면 나가서 맞는다. */
+    const fewFoesNow = targets.length <= 2;
     reach.forEach((k) => {
       const [x, y] = k.split(',').map(Number);
       const occ = B.units.find((o) => o.alive && o.x === x && o.y === y);
-      if (!occ) freeTiles.push({ x, y });
+      if (occ) return;
+      if (defSiegeNow && !fewFoesNow && e.y <= defSiegeNow.row && y > defSiegeNow.row) return;
+      freeTiles.push({ x, y });
     });
     let best = null;
     freeTiles.forEach((t) => {
       const d = manh(t.x, t.y, target.x, target.y);
       const inRange = d >= minR && d <= rng;
       let score = inRange ? -100 + d : (d < minR ? 150 - d : d);
+      /* v5.88 — 지금 문을 칠 수 없어도, 문이 살아 있으면 문 앞으로 집결한다 */
+      if (!already && isGateAttacker(e) && gateIntact() && activeGate()) {
+        const gd = Math.min(...activeGate().tiles.map((gg) => manh(t.x, t.y, gg.x, gg.y)));
+        score = gd * 1.6 + Math.min(d, 8) * 0.2;
+      }
       /* v5.81 — 원거리 부대 카이팅: 붙으면 한 대 더 맞으므로 한 칸 물러나 쏘는 자리를 고른다 */
       if (rng >= 2 && minR < 2 && d <= 1 && inRange) score += 28;
       if (rng >= 2 && minR < 2 && d >= 2 && inRange) score -= 6;
@@ -9508,6 +9590,13 @@
         const gd = manh(t.x, t.y, aiGoal.x, aiGoal.y);
         if (e.role === 'guard') score += gd * (inRange ? 0.25 : 0.85);
         else score += gd * 0.5;
+      }
+      /* v5.88 — 공성전 수비측은 문 앞 병목·성벽 안쪽에 붙어 있는 쪽을 고른다 */
+      if (defSiegeNow) {
+        score += Math.abs(t.x - defSiegeNow.x) * 0.45;                    // 문 기둥 쪽으로 모인다
+        if (t.y > defSiegeNow.row) score += 26;                           // 문 밖으로 나가는 칸
+        else if (t.y >= defSiegeNow.row - 2) score -= 5;                  // 문 바로 안쪽 병목
+        if (B.tiles[t.y] && (B.tiles[t.y][t.x] === 'T' || B.tiles[t.y][t.x] === 'C')) score -= 2;
       }
       /* v5.49 — 적군 AI도 마을을 밟고 차지한다 (적은 점수가 낮을수록 좋은 칸) */
       const vv = villageValueAt(e, t.x, t.y, { foes: targets, canStrike: inRange });
