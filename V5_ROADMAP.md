@@ -7,7 +7,7 @@
 | 갈래 | 내용 | 코드 |
 | --- | --- | --- |
 | ① 배속 출진 | 시설 배속(`slots[].uid`) 장수도 이번 달 미행동이면 출진·지원 후보에 포함. 출진 확정 시 `releaseDuty()`로 배속만 해제(+토스트). 지원 후보는 행동 완료자를 제외하고 배속자는 `시장 담당` 표시 | `js/app.js` `openDeploy`·`openReinforcePick`·`dispatchReinforce`·`heroPickRow` |
-| ② 안내 삭제 | `#city-guide`(책사 첫걸음) HTML 제거 + `renderCityGuide()` 항상 숨김. 달별 역사 연표 팝업('천하 대난투 소식')·시작 '시공초월 소식' 카드 비활성(사건은 `timelineSeen` 기록만). 개전 데스매치 1회 유지 | `index.html`·`js/app.js` `renderCityGuide`·`beginScenario`·`advanceMonth` |
+| ② 안내 삭제 | `#city-guide`(책사 첫걸음) HTML 제거 + `renderCityGuide()` 항상 숨김. 첫 성 진입 시 저절로 뜨던 입문 안내(`maybeAutoIntro`)도 비활성(📖 입문 버튼으로만). 달별 역사 연표 팝업('천하 대난투 소식')·시작 '시공초월 소식' 카드 비활성(사건은 `timelineSeen` 기록만). 개전 데스매치 1회 유지 | `index.html`·`js/app.js` `renderCityGuide`·`maybeAutoIntro`·`beginScenario`·`advanceMonth` |
 | ③ 공성 AI | 공격: 바깥 문 집결(문 거리 ×1.6·문 x 정렬)·문 타격 우선(근접 105/투석 130/원거리 55)·문 너머 적 −70점. 수비: `defenseBoundary()`(살아 있는 바깥 문 안쪽 줄) → 바깥 문 파괴 시 다음 안쪽 문·본진으로 후퇴, 성벽·망루·문 앞 병목 가점. 공성전 적 수비대도 문 밖 침범 금지 + 자기 문 통과 허용 | `js/battle.js` `planAuto`·`defenseBoundary`·`defenseAllowed`·`enemySiegeDefense`·`aiGoalOf`·`enemyAct`·`moveCostBase` |
 | ④ 군단 잠금 | 군단 위임 성: `⚑ 군단 위임 중 — 총도독 해제 후 직접 명령 가능` 안내줄 + [군단 해제]. 5개 명령 줄 disabled, 시설·장수·마당 클릭 차단(캡처 리스너), `groupAction`·시설·증축·수송·전출·출진 진입점 이중 차단 | `js/app.js` `corpsLockOf`·`corpsLockNotice`·`corpsGuard`·`renderCorpsLock`·`releaseCityFromCorps` |
 | ⑤ 월정산 | 방랑 재야 문구 교정(`새로 모습을 드러냈습니다`), `건설·증축 완공`(`진류 시장 Lv.2 완공`)·`건물 현황`(`Lv.1→2 진행 65%`, `완공 가능!`) 표시. `SK.noteBuild()`로 `s.buildLog` 기록 | `js/app.js` `noteBuild`·`runWanderers` 문구·`advanceMonth` 보고 |

@@ -15629,6 +15629,9 @@
      개전 브리핑(320ms)·시작 연표 카드(900ms)가 먼저 뜨는 동안은 기다렸다가,
      그 창들이 닫힌 뒤 성에 다시 들어올 때 연다(SK.show의 screen-city 훅이 부른다). */
   function maybeAutoIntro() {
+    /* v5.88 — 처음 성에 들어올 때 저절로 뜨던 입문 안내 창도 띄우지 않는다.
+       개전 데스매치 창 1회만 남기고, 입문서는 성 그림의 [📖 입문] 버튼으로 연다. */
+    return;
     const s = SK.state;
     if (!s || introAutoDone || SK.introGuideOff) return;
     if (introSeen()) return;
