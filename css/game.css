@@ -6871,3 +6871,6 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 
 /* v5.83 — hidden 속성이 display:flex 에 먹히지 않게 (패널·버튼이 처음부터 떠 있던 문제) */
 .adm[hidden], .adm-fab[hidden] { display: none !important; }
+.adm-mini.ghost { border-color: #8a7460; color: #e4d3b0; background: linear-gradient(180deg, #4a3b25, #2c2214); }
+.adm-sheet-btns { display: flex; gap: 6px; }
+.adm-sheet-btns .adm-wide { margin-top: 0; }

@@ -329,6 +329,7 @@
           '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.83</small></div>' +
           '<div class="adm-h-r">' +
             '<button type="button" class="adm-mini" id="adm-copy-top">📋 복사</button>' +
+            '<button type="button" class="adm-mini ghost" id="adm-reset-top" aria-label="기본값 초기화">♻️</button>' +
             '<button type="button" class="adm-x" id="adm-close" aria-label="닫기">✕</button>' +
           '</div>' +
         '</header>' +
@@ -356,6 +357,7 @@
 
     $('#adm-close', el).onclick = closePanel;
     $('#adm-copy-top', el).onclick = copyDiff;
+    $('#adm-reset-top', el).onclick = askReset;
     $$('.adm-tabs button', el).forEach(function (b) {
       b.onclick = function () { UI.tab = b.dataset.tab; UI.gen.sel = null; UI.tree.sel = null; UI.cls.sel = null; render(); };
     });
@@ -412,7 +414,7 @@
     if (UI.tab === 'cls') bindCls(body);
     if (UI.tab === 'save') {
       var c = $('#adm-copy', body); if (c) c.onclick = copyDiff;
-      var r = $('#adm-reset', body); if (r) r.onclick = resetAll;
+      var r = $('#adm-reset', body); if (r) r.onclick = askReset;
       var rr = $('#adm-reset-state', body); if (rr) rr.onclick = resetStateEdits;
     }
   }
@@ -1154,10 +1156,11 @@
         if (!live || !os) continue;
         var e = skillEff(live);
         var p = Math.round(num(e.val, 0) * 1000) / 10;
-        if (Math.abs(p - num(os.p, 0)) > 0.05 || num(live.cd, 0) !== num(os.cd, 0) || num(live.mp, 0) !== num(os.mp, 0)) {
-          skOut.push({ name: live.name, power: p, cd: num(live.cd, 0), mp: num(live.mp, 0) });
-          changed = true;
-        }
+        var one = { name: live.name };
+        if (Math.abs(p - num(os.p, 0)) > 0.05) one.power = p;
+        if (num(live.cd, 0) !== num(os.cd, 0)) one.cd = num(live.cd, 0);
+        if (num(live.mp, 0) !== num(os.mp, 0)) one.mp = num(live.mp, 0);
+        if (one.power != null || one.cd != null || one.mp != null) { skOut.push(one); changed = true; }
       }
       if (skOut.length) d.skills = skOut;
       if (changed) out.classes.push(d);
@@ -1196,6 +1199,19 @@
       '<textarea readonly rows="14">' + esc(txt) + '</textarea>' +
       '<button type="button" class="adm-wide">닫기</button></div>';
     el.querySelector('button').onclick = function () { el.remove(); };
+    document.body.appendChild(el);
+  }
+
+  function askReset() {
+    var el = document.createElement('div');
+    el.className = 'adm-sheet';
+    el.innerHTML = '<div class="adm-sheet-in"><b>정말 기본값으로 돌릴까요?</b>' +
+      '<p class="adm-hint">장수·보물·병과에 얹은 수정을 모두 지우고 처음 데이터로 되돌립니다. ' +
+      '(영입·보물 지급처럼 판 안에서 이미 일어난 일은 그대로 남습니다)</p>' +
+      '<div class="adm-sheet-btns"><button type="button" class="adm-wide" data-no>취소</button>' +
+      '<button type="button" class="adm-wide danger" data-yes>♻️ 초기화</button></div></div>';
+    el.querySelector('[data-no]').onclick = function () { el.remove(); };
+    el.querySelector('[data-yes]').onclick = function () { el.remove(); resetAll(); };
     document.body.appendChild(el);
   }
 
