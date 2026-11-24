@@ -875,11 +875,11 @@
     SK.save = function () {};
     var origModal = SK.modal;
     pendingBattle = true;
-    /* 전장 화면 위에 관리자 단추가 겹치지 않게 잠시 거둔다 */
+    /* 전장 화면 위에 관리자 단추가 겹치지 않게 잠시 거둔다 (SK.adminClose 가 도로 보여 주므로 그 뒤에 숨긴다) */
     var fabEl = document.getElementById('adm-fab');
-    if (fabEl) fabEl.hidden = true;
     if (reopen) closeEditor();
     if (typeof SK.adminClose === 'function') SK.adminClose();
+    if (fabEl) fabEl.hidden = true;
 
     /* 전투가 끝나 지도로 돌아오는 순간, 판을 원상복구한다 (victory·defeat·retreat 모두 SK.showMap 을 거친다) */
     SK.showMap = function () {
