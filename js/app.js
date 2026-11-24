@@ -2338,6 +2338,11 @@
         const r6 = await fetch('data/v579_art_manifest.json', { cache: 'no-cache' });
         if (r6.ok) SK.addTopArt(await r6.json());
       } catch (e6) { console.warn('v5.79 179명 초상 목록을 불러오지 못했습니다.', e6); }
+      /* v5.89a — A급 나머지 163명(9~25탄, 시트 17장) 초상. 맨 마지막에 얹어 이 그림이 이긴다. */
+      try {
+        const r7 = await fetch('data/v589a_art_manifest.json', { cache: 'no-cache' });
+        if (r7.ok) SK.addTopArt(await r7.json());
+      } catch (e7) { console.warn('v5.89a A급 163명 초상 목록을 불러오지 못했습니다.', e7); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }

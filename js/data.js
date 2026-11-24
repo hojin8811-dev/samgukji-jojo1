@@ -1372,8 +1372,9 @@ SK.addTopArt = function (manifest) {
 };
 SK.artFor = function (name) { return SK.ART[name] || null; };
 SK.ptSrc = function (p) {
-  if (!p) return 'assets/portraits/v2/gen_bobyung.webp';
-  return String(p).indexOf('/') >= 0 ? p : `assets/portraits/v2/${p}.webp`;
+  if (!p) return 'assets/portraits/v2/gen_bobyung.webp?v=113';
+  /* v5.89a — 병과 초상(투명 틈·헤일로 정리)을 바꿨으므로 ?v=113 으로 캐시를 새로 받게 한다 */
+  return String(p).indexOf('/') >= 0 ? p : `assets/portraits/v2/${p}.webp?v=113`;
 };
 SK.unitSrc = function (u) {
   const key = String(u || 'sword');
