@@ -1,5 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    v5.85 — 관리자(?admin=1) 전장 타일 맵 에디터 + 천하 전략 지도 편집기
+   v5.86b — 테스트 전투는 통이미지 대신 칠한 타일(강물·다리·성벽·성문…)을 그대로 그린다
+            (battle.js v5.86b — B.customTilesRender 로 판단, 저장·지도 동작은 그대로)
    v5.86a — 전장맵에 [💾 내 맵 저장] 슬롯: 여러 새 맵을 이름으로 폰에 보관하고
             [── 내 저장 맵 ──]에서 다시 불러오거나 [🗑️ 삭제]한다.
             저장은 같은 localStorage 키 안 savedBattleMaps 에 함께 들어가
@@ -28,7 +30,7 @@
   /* ── 경계: 관리자 주소가 아니면 여기서 끝. 아래 코드는 한 줄도 실행되지 않는다 ── */
   if (!SK || SK.adminMode !== true) return;
 
-  var VERSION = '5.86a';
+  var VERSION = '5.86b';
   var STORE_KEY = 'samgukji-jojo-admin-maps-v1';
   var WORLD_W = 2000, WORLD_H = 1333;   /* 엔진의 SK.MAPGEO.w/h 와 같은 크기 */
   var MAX_UNDO = 20;
@@ -1101,7 +1103,8 @@
 
     setStatus('테스트 전투를 엽니다 — ' + (type === 'siege' ? '공성전 규칙' : '평야전 규칙') + ' · ' + st.cols + '×' + st.rows);
     try {
-      SK.startBattle({ targetId: TMP_CITY, origin: origin, type: type, units: units });
+      /* v5.86b — customTiles: 칠한 타일을 통이미지 없이 그대로 그리는 전장으로 연다 */
+      SK.startBattle({ targetId: TMP_CITY, origin: origin, type: type, units: units, customTiles: true });
     } catch (err) {
       pendingBattle = false;
       SK.save = origSave;

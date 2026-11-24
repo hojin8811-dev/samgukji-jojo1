@@ -1,6 +1,17 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=107`
+기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=108`
+
+## ✅ v5.86b — 커스텀(에디터) 전장은 칠한 타일을 그대로 직접 렌더링 (2026-11-24 · `?v=108`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 원인 | `battle.js` 의 `draw()` 가 `assets/maps/v2/battle_${B.bgKey}.webp` 통이미지를 먼저 깔아, 에디터에서 `W`(강물)·`B`(다리)를 칠해도 평야 그림의 풀밭·십자길이 덮어 시각적으로 보이지 않았다 | `js/battle.js` `draw` |
+| 판단 | `SK.startBattle` 이 `B.customTilesRender` 를 정한다 — `opts.customTiles === true`(에디터 [⚔️ 테스트 전투]) 또는 `mapKey` 가 `__` 로 시작하는 커스텀 전장. **정식 12종 전장은 그대로** 이 값이 `false` 라 `battle_*.webp` 렌더링이 100% 유지된다 | `js/battle.js` `startBattle` |
+| 타일 렌더 | `B.customTilesRender` 면 통이미지 대신 `buildCustomTerrain()` 이 `B.tiles` 16지형(P R F M W S B G C D H T K A E V)을 64px 도트 타일로 한 번 그려 `B._terrain` 캔버스에 담고, 매 프레임엔 그 한 장만 얹는다. 잔디·도로(이어진 이웃 쪽으로만 뻗는 갈림길 모서리)·푸른 강물+물결과 모래 둑·나무판 다리(강이 좌우면 세로, 위아래면 가로로 건너고 난간·널빤지 이음)·돌벽돌 성벽(위아래가 벽이 아니면 윗면 밝은 띠·아래 그림자로 두께)·나무 문 두 짝 성문·산지 바위 봉우리·숲 나무 세 그루·기와지붕 관아·마당/본진/마을 바닥 | `js/battle.js` `CT`·`ctGrass`·`ctRoad`·`ctWaterTile`·`ctShallow`·`ctBridge`·`ctForest`·`ctMountain`·`ctWall`·`ctGate`·`ctHall`·`ctYard`·`buildCustomTerrain`·`drawCustomTerrain` |
+| 어우러짐 | `drawWaterWaves()` 가 커스텀 전장에서도 물결을 흘리고, `drawTerrainTint`(성벽 덧칠·성문 금테)·`drawKeyProps`(망루·본성 그림)·`drawSites`(본진·마을 그림·점령 깃발)는 그 위에 그대로 얹힌다. 미니맵도 통이미지 대신 칠한 타일을 같은 색 계열로 줄여 그린다 | `js/battle.js` `drawWaterWaves`·`buildMinimap`·`MM_CUSTOM` |
+| 에디터 | `runTestBattle` 이 `SK.startBattle({ …, customTiles: true })` 로 연다. 저장·불러오기·JSON 복사·천하맵 동작은 그대로이고 일반 주소(`?v=108`)에서는 여전히 `SK.adminMode !== true` 로 즉시 끝난다 | `js/patch_v585_map_editor.js` `runTestBattle` |
+| 검수 | `tools/v586b_local.py` — 로컬 390×844 42항목 전부 통과: 일반 주소 흔적 0, 정식 평야전은 `customTilesRender=false`·타일 캔버스 없음·`bgKey=plain` 유지, 강물 두 줄+다리+성벽/성문을 칠해 테스트 전투 진입(공성 규칙·타일 100% 일치), 화면 캔버스 픽셀 직접 확인(강물 파랑 `#2f6a90`·다리 나무색·도로 흙색·성벽 회색·숲 초록·산지 바위색·마당), 전체 배율 스샷에 파란 강물 4,237px·갈색 7,414px, 미니맵 색 653종, 32×32(2048² 캔버스) 첫 그림 92ms, 후퇴 뒤 판 원상복구(장수 12·성 80·금 1,498), 콘솔 0. 스샷 `preview/v586b/` | `tools/v586b_local.py`·`preview/v586b/` |
 
 ## ✅ v5.86a — 관리자 전장맵 [💾 내 맵 저장] 슬롯 · 여러 새 맵 보관·불러오기·삭제 (2026-11-24 · `?v=107`)
 

@@ -396,7 +396,7 @@
     el.innerHTML =
       '<div class="adm-box">' +
         '<header class="adm-h">' +
-          '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.86</small></div>' +
+          '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.86b</small></div>' +
           '<div class="adm-h-r">' +
             '<button type="button" class="adm-mini" id="adm-copy-top">📋 복사</button>' +
             '<button type="button" class="adm-mini ghost" id="adm-reset-top" aria-label="기본값 초기화">♻️</button>' +

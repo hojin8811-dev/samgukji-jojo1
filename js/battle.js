@@ -182,6 +182,8 @@
     const cellState = s.cities[opts.targetId];
     const rings = isSiege ? (SK.siegeRingsOfCity ? SK.siegeRingsOfCity(target) : 1) : 0;
     const mapKey = isSiege && SK.siegeMapKey ? SK.siegeMapKey(rings) : def.map;
+    /* v5.86b — 에디터에서 칠한 커스텀 전장(__map_editor)은 통이미지 대신 타일을 직접 그린다 */
+    const customTilesRender = !!(opts.customTiles) || (typeof mapKey === 'string' && mapKey.slice(0, 2) === '__');
     const mapRows = SK.MAPS[mapKey] || SK.MAPS[def.map];
     const tiles = mapRows.map((r) => r.split(''));
     /* v5.17 — 동적 격자 크기 + 1×1 본진·마을 자리 */
@@ -349,7 +351,7 @@
       type, def, name: defense ? `${target.name} 수성전` : (intercept ? `${intercept.name}` : `${target.name} ${def.name}`),
       targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null, insp: null,   // v5.53 — insp = 아래 카드에 띄운 부대(적군 포함, 읽기 전용)
-      cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey,
+      cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey, customTilesRender: customTilesRender,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings,
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
       event: SK.pickEvent(target, defGens),
@@ -1442,18 +1444,29 @@
     const sc = st.getContext('2d');
     sc.setTransform(dpr2, 0, 0, dpr2, 0, 0);
     sc.fillStyle = '#2a2317'; sc.fillRect(0, 0, S, S);
-    const img = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
-    if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, S, S);
-    else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, S, S); }
     const sx = S / N, sy = S / N;
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
-        const ch = B.tiles[y][x];
-        if (ch === 'C' || ch === 'H') { sc.fillStyle = 'rgba(34,26,14,0.62)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
-        else if (ch === 'W') { sc.fillStyle = 'rgba(40,96,150,0.55)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
+    /* v5.86b — 커스텀 전장은 칠한 타일을 색으로 줄여 미니맵에 그대로 보여 준다 */
+    const custom = !!B.customTilesRender;
+    const img = custom ? null : loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
+    if (custom) {
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          sc.fillStyle = MM_CUSTOM[B.tiles[y][x]] || MM_CUSTOM.P;
+          sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6);
+        }
+      }
+    } else {
+      if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, S, S);
+      else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, S, S); }
+      for (let y = 0; y < N; y++) {
+        for (let x = 0; x < N; x++) {
+          const ch = B.tiles[y][x];
+          if (ch === 'C' || ch === 'H') { sc.fillStyle = 'rgba(34,26,14,0.62)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
+          else if (ch === 'W') { sc.fillStyle = 'rgba(40,96,150,0.55)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
+        }
       }
     }
-    if (img.complete && img.naturalWidth) st.dataset.img = '1';
+    if (custom || (img.complete && img.naturalWidth)) st.dataset.img = '1';
     mmStatic = st;
   }
   function drawMinimap() {
@@ -1461,8 +1474,8 @@
     if (!cv || !B || !B.tiles || !mmOpen) return;
     const S = mmPx();
     if (!mmStatic || cv.width !== Math.round(S * Math.min(2.5, window.devicePixelRatio || 1))) buildMinimap();
-    /* 배경 그림이 늦게 도착하면 한 번 다시 그린다 */
-    if (mmStatic && !mmStatic.dataset.img) {
+    /* 배경 그림이 늦게 도착하면 한 번 다시 그린다 (커스텀 전장은 그림을 안 쓴다) */
+    if (mmStatic && !mmStatic.dataset.img && !B.customTilesRender) {
       const im0 = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
       if (im0.complete && im0.naturalWidth) { buildMinimap(); }
     }
@@ -1626,10 +1639,15 @@
     ctx.translate(cam.x + ox, cam.y + oy);
     ctx.scale(cam.s, cam.s);
 
-    // v5.17 — 모든 전장이 칸 수에 맞는 그림을 쓴다 (공성·수성은 겹성벽 그림)
-    const bg = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
-    if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
-    else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+    // v5.86b — 커스텀(에디터) 전장은 통이미지를 깔지 않고 B.tiles 를 한 칸씩 직접 그린다
+    if (B.customTilesRender) {
+      drawCustomTerrain();
+    } else {
+      // v5.17 — 모든 전장이 칸 수에 맞는 그림을 쓴다 (공성·수성은 겹성벽 그림)
+      const bg = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
+      if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
+      else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+    }
 
     drawTerrainTint();
     drawWaterWaves();
@@ -1791,6 +1809,428 @@
     });
   }
 
+  /* ══════════ v5.86b — 커스텀(에디터) 전장: 칸마다 타일을 직접 그린다 ══════════
+     정식 12종 전장은 통이미지(assets/maps/v2/battle_*.webp)를 그대로 쓰고,
+     관리자 전장맵 에디터에서 칠한 맵(B.customTilesRender)만 통이미지를 깔지 않고
+     B.tiles 의 16종 지형(P R F M W S B G C D H T K A E V)을 한 칸씩 도트 타일로 그린다.
+     · 이웃을 보고 도로가 이어지고, 물가에 모래 둑이 지고, 다리가 강을 건너고,
+       성벽·관아가 줄로 붙는다 (칸 테두리가 드러나지 않게).
+     · 한 번 그려 B._terrain 에 담아 두고, 매 프레임에는 그 그림 한 장만 얹는다.
+     · 잔물결은 지금처럼 drawWaterWaves 가 움직인다 (커스텀 전장에서도 켠다). */
+  const CT = {
+    grass: '#7b8c4e', grass2: '#8c9d5a', grass3: '#6c7c43',
+    dirt: '#c6a670', dirt2: '#b6945c', dirt3: '#dcbf8a',
+    water: '#2f6a90', water2: '#38789d', water3: '#66a9c4',
+    sand: '#c9b78c', sand2: '#ac996f',
+    wood: '#9c6f43', wood2: '#75502f', wood3: '#c29468',
+    stone: '#8f8f86', stone1: '#aaa99e', stone3: '#66655c', mortar: '#57564f',
+    roof: '#46506a', roof2: '#5f6c8a',
+    rock: '#8a7c69', rock2: '#6c6053', rock3: '#ab9d88',
+    leaf: '#356b34', leaf2: '#45803f', leaf3: '#61a851', trunk: '#5a4126',
+    yard: '#c9b489', yard2: '#b39c72',
+  };
+  /* 미니맵 축소판 색 (같은 지형이 같은 색으로 읽히게) */
+  const MM_CUSTOM = {
+    P: '#7b8c4e', R: '#c6a670', F: '#356b34', M: '#8a7c69', W: '#2f6a90', S: '#4f8fa4',
+    B: '#9c6f43', G: '#c2a05e', C: '#8f8f86', D: '#c9b489', H: '#46506a', T: '#a49c8c',
+    K: '#a49c8c', A: '#cbb98f', E: '#cbb98f', V: '#bda97e',
+  };
+
+  /* 칸 좌표로 정해지는 잡음 — 칠할 때마다 같은 자리에 같은 결이 남는다 */
+  function ctHash(x, y, s) {
+    let h = Math.imul(x + 1, 374761393) + Math.imul(y + 1, 668265263) + Math.imul((s || 0) + 1, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+  }
+  function ctAt(x, y) {
+    const row = (B && B.tiles) ? B.tiles[y] : null;
+    if (!row || x < 0 || x >= row.length) return 'P';
+    return row[x] || 'P';
+  }
+  function ctWater(ch) { return ch === 'W' || ch === 'S' || ch === 'B'; }
+  function ctRoadish(ch) { return ch === 'R' || ch === 'D' || ch === 'G' || ch === 'B' || ch === 'V' || ch === 'A' || ch === 'E'; }
+  function ctWallish(ch) { return ch === 'C' || ch === 'H' || ch === 'G'; }
+
+  function ctGrass(c, X, Y, x, y) {
+    c.fillStyle = CT.grass;
+    c.fillRect(X, Y, TILE, TILE);
+    c.save();
+    c.globalAlpha = 0.34;
+    for (let i = 0; i < 2; i++) {
+      const hx = ctHash(x, y, i * 5 + 1), hy = ctHash(x, y, i * 5 + 2), hr = ctHash(x, y, i * 5 + 3);
+      c.fillStyle = i ? CT.grass2 : CT.grass3;
+      c.beginPath();
+      c.ellipse(X + 8 + hx * (TILE - 16), Y + 8 + hy * (TILE - 16), 9 + hr * 11, 6 + hr * 7, hr * 3, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
+    /* 풀잎 몇 가닥 */
+    c.strokeStyle = 'rgba(94,114,58,0.62)';
+    c.lineWidth = 1.8;
+    for (let i = 0; i < 4; i++) {
+      const hx = ctHash(x, y, 20 + i * 3), hy = ctHash(x, y, 21 + i * 3);
+      const px = X + 8 + hx * (TILE - 16), py = Y + 14 + hy * (TILE - 22);
+      c.beginPath();
+      c.moveTo(px - 2, py); c.lineTo(px - 4.5, py - 5);
+      c.moveTo(px + 2, py); c.lineTo(px + 4.5, py - 6);
+      c.moveTo(px, py); c.lineTo(px, py - 7);
+      c.stroke();
+    }
+  }
+
+  /* 도로 — 이어진 이웃 쪽으로만 흙이 뻗는다 (모서리·갈림길이 자연스럽게) */
+  function ctRoad(c, X, Y, x, y) {
+    const up = ctRoadish(ctAt(x, y - 1)), dn = ctRoadish(ctAt(x, y + 1));
+    const lf = ctRoadish(ctAt(x - 1, y)), rt = ctRoadish(ctAt(x + 1, y));
+    const w = 40, cx = X + TILE / 2, cy = Y + TILE / 2;
+    const shape = () => {
+      c.beginPath();
+      c.rect(cx - w / 2, cy - w / 2, w, w);
+      if (up) c.rect(cx - w / 2, Y - 1, w, TILE / 2 + 2);
+      if (dn) c.rect(cx - w / 2, cy, w, TILE / 2 + 1);
+      if (lf) c.rect(X - 1, cy - w / 2, TILE / 2 + 2, w);
+      if (rt) c.rect(cx, cy - w / 2, TILE / 2 + 1, w);
+    };
+    shape();
+    c.fillStyle = CT.dirt;
+    c.fill();
+    c.save();
+    shape();
+    c.clip();
+    /* 흙 결 */
+    c.fillStyle = CT.dirt2;
+    c.globalAlpha = 0.38;
+    for (let i = 0; i < 6; i++) {
+      const hx = ctHash(x, y, 40 + i), hy = ctHash(x, y, 41 + i);
+      c.beginPath(); c.arc(X + hx * TILE, Y + hy * TILE, 2 + hx * 3.4, 0, Math.PI * 2); c.fill();
+    }
+    c.globalAlpha = 0.42;
+    c.fillStyle = CT.dirt3;
+    if (up || dn) c.fillRect(cx - 3, Y, 6, TILE);
+    if (lf || rt) c.fillRect(X, cy - 3, TILE, 6);
+    c.restore();
+    /* 가장자리 — 길이 아닌 이웃 쪽에만 (칸 끝마다 줄이 그어져 사닥다리처럼 보이지 않게) */
+    c.fillStyle = 'rgba(112,92,54,0.42)';
+    const hw = w / 2;
+    if (!up) c.fillRect(cx - hw, cy - hw, w, 2);
+    if (!dn) c.fillRect(cx - hw, cy + hw - 2, w, 2);
+    if (!lf) c.fillRect(cx - hw, cy - hw, 2, w);
+    if (!rt) c.fillRect(cx + hw - 2, cy - hw, 2, w);
+    /* 뻗은 팔의 옆선 */
+    if (up) { c.fillRect(cx - hw, Y, 2, TILE / 2 - hw + 2); c.fillRect(cx + hw - 2, Y, 2, TILE / 2 - hw + 2); }
+    if (dn) { c.fillRect(cx - hw, cy + hw, 2, TILE / 2 - hw); c.fillRect(cx + hw - 2, cy + hw, 2, TILE / 2 - hw); }
+    if (lf) { c.fillRect(X, cy - hw, TILE / 2 - hw + 2, 2); c.fillRect(X, cy + hw - 2, TILE / 2 - hw + 2, 2); }
+    if (rt) { c.fillRect(cx + hw, cy - hw, TILE / 2 - hw, 2); c.fillRect(cx + hw, cy + hw - 2, TILE / 2 - hw, 2); }
+  }
+
+  /* 강물 — 물이 아닌 이웃 쪽에 모래 둑. 칸마다 농도만 살짝 다르게 (칸 테두리가 돌출되지 않게) */
+  function ctWaterTile(c, X, Y, x, y) {
+    const d = ctHash(x, y, 71);
+    c.fillStyle = CT.water;
+    c.fillRect(X, Y, TILE, TILE);
+    c.save();
+    c.globalAlpha = 0.10 + d * 0.20;
+    c.fillStyle = CT.water2;
+    c.fillRect(X, Y, TILE, TILE);
+    c.restore();
+    /* 잔물결 (움직이는 물결은 drawWaterWaves 가 덧그린다) */
+    c.strokeStyle = 'rgba(150,205,226,0.30)';
+    c.lineWidth = 1.6;
+    for (let i = 0; i < 2; i++) {
+      const hy = ctHash(x, y, 80 + i);
+      const yy = Y + 17 + i * 22 + hy * 6;
+      c.beginPath();
+      c.moveTo(X + 8, yy);
+      c.quadraticCurveTo(X + TILE * 0.5, yy - 3.5, X + TILE - 8, yy);
+      c.stroke();
+    }
+    const bank = (dx, dy, horiz) => {
+      c.fillStyle = CT.sand;
+      if (horiz) c.fillRect(X, dy < 0 ? Y : Y + TILE - 5, TILE, 5);
+      else c.fillRect(dx < 0 ? X : X + TILE - 5, Y, 5, TILE);
+      c.fillStyle = CT.sand2;
+      if (horiz) c.fillRect(X, dy < 0 ? Y + 4 : Y + TILE - 6, TILE, 2);
+      else c.fillRect(dx < 0 ? X + 4 : X + TILE - 6, Y, 2, TILE);
+    };
+    if (!ctWater(ctAt(x, y - 1))) bank(0, -1, true);
+    if (!ctWater(ctAt(x, y + 1))) bank(0, 1, true);
+    if (!ctWater(ctAt(x - 1, y))) bank(-1, 0, false);
+    if (!ctWater(ctAt(x + 1, y))) bank(1, 0, false);
+  }
+
+  /* 여울 — 얕은 물 + 자갈 */
+  function ctShallow(c, X, Y, x, y) {
+    c.fillStyle = '#4c8ba4';
+    c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = 'rgba(140,196,212,0.30)';
+    c.beginPath();
+    c.ellipse(X + TILE * 0.5, Y + TILE * 0.5, TILE * 0.4, TILE * 0.34, 0, 0, Math.PI * 2);
+    c.fill();
+    for (let i = 0; i < 5; i++) {
+      const hx = ctHash(x, y, 100 + i), hy = ctHash(x, y, 110 + i);
+      c.fillStyle = i % 2 ? 'rgba(206,198,168,0.75)' : 'rgba(160,172,158,0.7)';
+      c.beginPath(); c.ellipse(X + 8 + hx * (TILE - 16), Y + 10 + hy * (TILE - 20), 2.6 + hx * 2.4, 2 + hy * 1.8, hx * 3, 0, Math.PI * 2); c.fill();
+    }
+    c.strokeStyle = 'rgba(224,240,246,0.42)';
+    c.lineWidth = 1.5;
+    const yy = Y + 18 + ctHash(x, y, 120) * 20;
+    c.beginPath(); c.moveTo(X + 10, yy); c.quadraticCurveTo(X + TILE * 0.5, yy - 3, X + TILE - 10, yy); c.stroke();
+  }
+
+  /* 다리 — 강이 좌우로 흐르면 위아래로, 위아래로 흐르면 좌우로 건넌다.
+     (건너는 방향은 강물 바로 옆에만 맞춘다 — 다리 칸끼리는 세지 않는다) */
+  function ctBridge(c, X, Y, x, y) {
+    const isW = (ch) => ch === 'W' || ch === 'S';
+    const wLR = isW(ctAt(x - 1, y)) || isW(ctAt(x + 1, y));
+    const wUD = isW(ctAt(x, y - 1)) || isW(ctAt(x, y + 1));
+    if (wLR || wUD) { c.fillStyle = CT.water; c.fillRect(X, Y, TILE, TILE); }
+    const horiz = wUD && !wLR ? true : (wLR && !wUD ? false : true);
+    const rail = CT.wood2, deck = CT.wood, edge = CT.wood3;
+    c.save();
+    if (horiz) {
+      const dy = Y + 9, dh = TILE - 18;
+      c.fillStyle = 'rgba(16,28,36,0.30)';
+      c.fillRect(X, dy + dh, TILE, 3);
+      c.fillStyle = deck;
+      c.fillRect(X, dy, TILE, dh);
+      c.strokeStyle = rail; c.lineWidth = 1.6;
+      for (let i = 1; i < 5; i++) {
+        const px = X + (i * TILE) / 5;
+        c.beginPath(); c.moveTo(px, dy + 4); c.lineTo(px, dy + dh - 4); c.stroke();
+      }
+      c.fillStyle = rail;
+      c.fillRect(X, dy, TILE, 4);
+      c.fillRect(X, dy + dh - 4, TILE, 4);
+      c.fillStyle = edge;
+      c.fillRect(X, dy + 4, TILE, 2);
+      c.fillRect(X, dy + dh - 6, TILE, 2);
+    } else {
+      const dx = X + 9, dw = TILE - 18;
+      c.fillStyle = 'rgba(16,28,36,0.30)';
+      c.fillRect(dx + dw, Y, 3, TILE);
+      c.fillStyle = deck;
+      c.fillRect(dx, Y, dw, TILE);
+      c.strokeStyle = rail; c.lineWidth = 1.6;
+      for (let i = 1; i < 5; i++) {
+        const py = Y + (i * TILE) / 5;
+        c.beginPath(); c.moveTo(dx + 4, py); c.lineTo(dx + dw - 4, py); c.stroke();
+      }
+      c.fillStyle = rail;
+      c.fillRect(dx, Y, 4, TILE);
+      c.fillRect(dx + dw - 4, Y, 4, TILE);
+      c.fillStyle = edge;
+      c.fillRect(dx + 4, Y, 2, TILE);
+      c.fillRect(dx + dw - 6, Y, 2, TILE);
+    }
+    c.restore();
+  }
+
+  /* 숲 — 나무 세 그루 */
+  function ctForest(c, X, Y, x, y) {
+    const spots = [[0.28, 0.40], [0.70, 0.34], [0.50, 0.72]];
+    for (let i = 0; i < spots.length; i++) {
+      const hx = ctHash(x, y, 90 + i * 4), hy = ctHash(x, y, 91 + i * 4);
+      const px = X + TILE * (spots[i][0] + (hx - 0.5) * 0.14);
+      const py = Y + TILE * (spots[i][1] + (hy - 0.5) * 0.14);
+      const r = TILE * (0.19 + hx * 0.05);
+      c.fillStyle = 'rgba(38,52,26,0.30)';
+      c.beginPath(); c.ellipse(px + 1.5, py + r * 0.86, r * 0.92, r * 0.36, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = CT.trunk;
+      c.fillRect(px - 1.7, py + r * 0.24, 3.4, r * 0.72);
+      c.fillStyle = CT.leaf;
+      c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fill();
+      c.fillStyle = CT.leaf2;
+      c.beginPath(); c.arc(px - r * 0.2, py - r * 0.2, r * 0.74, 0, Math.PI * 2); c.fill();
+      c.fillStyle = CT.leaf3;
+      c.beginPath(); c.arc(px - r * 0.34, py - r * 0.34, r * 0.36, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = 'rgba(26,46,24,0.55)';
+      c.lineWidth = 1.4;
+      c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.stroke();
+    }
+  }
+
+  /* 산지 — 바닥을 바위로 깔고 봉우리 두 개 (칸마다 회색이 이어져 산줄기로 보인다) */
+  function ctMountain(c, X, Y, x, y) {
+    c.fillStyle = CT.rock;
+    c.beginPath();
+    c.moveTo(X - 1, Y + TILE + 1);
+    c.lineTo(X - 1, Y + TILE * 0.52);
+    for (let i = 1; i <= 4; i++) {
+      const px = X + (i / 4) * TILE;
+      const py = Y + TILE * (0.38 + ctHash(x, y, 135 + i) * 0.18);
+      c.quadraticCurveTo(px - TILE / 8, py - 6, px, py);
+    }
+    c.lineTo(X + TILE + 1, Y + TILE + 1);
+    c.closePath();
+    c.fill();
+    const peak = (px, py, w, h) => {
+      c.beginPath(); c.moveTo(px - w, py); c.lineTo(px, py - h); c.lineTo(px + w, py); c.closePath();
+      c.fillStyle = CT.rock2; c.fill();
+      c.beginPath(); c.moveTo(px - w, py); c.lineTo(px, py - h); c.lineTo(px + w * 0.1, py); c.closePath();
+      c.fillStyle = CT.rock3; c.fill();
+      c.beginPath(); c.moveTo(px - w, py); c.lineTo(px, py - h); c.lineTo(px + w, py); c.closePath();
+      c.strokeStyle = 'rgba(54,46,36,0.55)'; c.lineWidth = 1.6; c.stroke();
+    };
+    peak(X + TILE * 0.28, Y + TILE * 0.86, TILE * 0.36, TILE * 0.60);
+    peak(X + TILE * 0.66, Y + TILE * 1.0, TILE * 0.40, TILE * 0.74);
+    c.fillStyle = 'rgba(70,60,48,0.42)';
+    for (let i = 0; i < 3; i++) {
+      const hx = ctHash(x, y, 130 + i), hy = ctHash(x, y, 140 + i);
+      c.beginPath(); c.arc(X + 10 + hx * (TILE - 20), Y + TILE * 0.74 + hy * 14, 1.8 + hx * 2.2, 0, Math.PI * 2); c.fill();
+    }
+  }
+
+  /* 성벽 — 돌벽돌. 위·아래가 성벽이 아니면 윗면(밝은 띠)·아래 그림자를 넣어 두께가 보인다 */
+  function ctWall(c, X, Y, x, y) {
+    c.fillStyle = CT.stone;
+    c.fillRect(X, Y, TILE, TILE);
+    c.strokeStyle = CT.mortar;
+    c.lineWidth = 2;
+    for (let r = 0; r <= 4; r++) {
+      const yy = Y + r * 16;
+      c.beginPath(); c.moveTo(X, yy); c.lineTo(X + TILE, yy); c.stroke();
+      if (r === 4) break;
+      const off = (r % 2) ? 16 : 0;
+      for (let k = 0; k < 4; k++) {
+        const xx = X + ((off + k * 32) % TILE);
+        c.beginPath(); c.moveTo(xx, yy); c.lineTo(xx, yy + 16); c.stroke();
+      }
+    }
+    c.fillStyle = 'rgba(190,190,178,0.26)';
+    for (let r = 0; r < 4; r++) c.fillRect(X, Y + r * 16 + 2, TILE, 2);
+    if (!ctWallish(ctAt(x, y - 1))) {
+      c.fillStyle = CT.stone1;
+      c.fillRect(X, Y, TILE, 7);
+      c.fillStyle = 'rgba(60,58,50,0.55)';
+      c.fillRect(X, Y + 7, TILE, 2);
+    }
+    if (!ctWallish(ctAt(x, y + 1))) {
+      c.fillStyle = CT.stone3;
+      c.fillRect(X, Y + TILE - 6, TILE, 6);
+    }
+    if (!ctWallish(ctAt(x - 1, y))) {
+      c.fillStyle = 'rgba(52,50,44,0.35)';
+      c.fillRect(X, Y, 2, TILE);
+    }
+    if (!ctWallish(ctAt(x + 1, y))) {
+      c.fillStyle = 'rgba(52,50,44,0.35)';
+      c.fillRect(X + TILE - 2, Y, 2, TILE);
+    }
+  }
+
+  /* 성문 — 성벽 위에 나무 문 두 짝 */
+  function ctGate(c, X, Y, x, y) {
+    ctWall(c, X, Y, x, y);
+    const dw = TILE - 18, dh = TILE - 16;
+    const dx = X + 9, dy = Y + 9;
+    c.fillStyle = CT.stone3;
+    c.fillRect(dx - 3, dy - 3, dw + 6, dh + 6);
+    c.fillStyle = CT.wood2;
+    c.fillRect(dx, dy, dw, dh);
+    c.fillStyle = CT.wood;
+    c.fillRect(dx + 2, dy + 2, dw / 2 - 4, dh - 4);
+    c.fillRect(dx + dw / 2 + 2, dy + 2, dw / 2 - 4, dh - 4);
+    c.fillStyle = CT.stone3;
+    c.fillRect(dx + dw / 2 - 1, dy, 2, dh);
+    c.fillStyle = '#3b3933';
+    for (let r = 0; r < 2; r++) {
+      for (let k = 0; k < 2; k++) {
+        c.beginPath(); c.arc(dx + 7 + k * 9, dy + 12 + r * 19, 2.1, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(dx + dw - 7 - k * 9, dy + 12 + r * 19, 2.1, 0, Math.PI * 2); c.fill();
+      }
+    }
+    c.fillStyle = 'rgba(18,14,8,0.38)';
+    c.fillRect(dx, dy, dw, 4);
+    c.strokeStyle = 'rgba(30,24,14,0.6)';
+    c.lineWidth = 1.6;
+    c.strokeRect(dx - 3.5, dy - 3.5, dw + 7, dh + 7);
+  }
+
+  /* 관아·궁궐(H) — 기와지붕 건물 */
+  function ctHall(c, X, Y, x, y) {
+    c.fillStyle = CT.yard;
+    c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = 'rgba(60,52,36,0.22)';
+    c.fillRect(X + 10, Y + 30, TILE - 20, TILE - 32);
+    c.fillStyle = '#d8c9a6';
+    c.fillRect(X + 10, Y + 30, TILE - 20, TILE - 34);
+    c.fillStyle = '#8e5a3c';
+    c.fillRect(X + 10, Y + 30, 4, TILE - 34);
+    c.fillRect(X + TILE - 14, Y + 30, 4, TILE - 34);
+    c.fillStyle = '#7d6a4e';
+    c.fillRect(X + 22, Y + 38, 8, TILE - 44);
+    c.fillRect(X + TILE - 30, Y + 38, 8, TILE - 44);
+    c.beginPath();
+    c.moveTo(X + 2, Y + 33); c.lineTo(X + 11, Y + 11);
+    c.lineTo(X + TILE - 11, Y + 11); c.lineTo(X + TILE - 2, Y + 33);
+    c.closePath();
+    c.fillStyle = CT.roof; c.fill();
+    c.strokeStyle = 'rgba(24,30,44,0.7)'; c.lineWidth = 1.6; c.stroke();
+    c.fillStyle = CT.roof2;
+    c.fillRect(X + 11, Y + 11, TILE - 22, 5);
+    c.strokeStyle = 'rgba(26,32,48,0.5)';
+    c.lineWidth = 1.2;
+    for (let i = 1; i < 4; i++) {
+      const yy = Y + 16 + i * 4;
+      const half = (TILE / 2 - 9) * (1 - i * 0.22);
+      c.beginPath(); c.moveTo(X + TILE / 2 - half, yy); c.lineTo(X + TILE / 2 + half, yy); c.stroke();
+    }
+  }
+
+  /* 마당·본진·마을 바닥 */
+  function ctYard(c, X, Y, x, y, base) {
+    c.fillStyle = base || CT.yard;
+    c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = CT.yard2;
+    c.save();
+    c.globalAlpha = 0.30;
+    for (let i = 0; i < 5; i++) {
+      const hx = ctHash(x, y, 150 + i), hy = ctHash(x, y, 160 + i);
+      c.beginPath(); c.arc(X + 8 + hx * (TILE - 16), Y + 8 + hy * (TILE - 16), 1.8 + hx * 2.6, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+    c.strokeStyle = 'rgba(96,80,52,0.22)';
+    c.lineWidth = 1.4;
+    c.strokeRect(X + 0.7, Y + 0.7, TILE - 1.4, TILE - 1.4);
+  }
+
+  /* 커스텀 전장 바탕 한 장 — 칸마다 자기 지형을 그린다 */
+  function buildCustomTerrain() {
+    const cv = document.createElement('canvas');
+    cv.width = WORLD; cv.height = WORLD;
+    const c = cv.getContext('2d');
+    if (!c) return null;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) ctGrass(c, x * TILE, y * TILE, x, y);
+    }
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const ch = ctAt(x, y);
+        const X = x * TILE, Y = y * TILE;
+        if (ch === 'R') ctRoad(c, X, Y, x, y);
+        else if (ch === 'W') ctWaterTile(c, X, Y, x, y);
+        else if (ch === 'S') ctShallow(c, X, Y, x, y);
+        else if (ch === 'B') ctBridge(c, X, Y, x, y);
+        else if (ch === 'F') ctForest(c, X, Y, x, y);
+        else if (ch === 'M') ctMountain(c, X, Y, x, y);
+        else if (ch === 'C') ctWall(c, X, Y, x, y);
+        else if (ch === 'G') ctGate(c, X, Y, x, y);
+        else if (ch === 'H') ctHall(c, X, Y, x, y);
+        else if (ch === 'T' || ch === 'K') ctYard(c, X, Y, x, y, '#a49c8c');
+        else if (ch === 'D') ctYard(c, X, Y, x, y, CT.yard);
+        else if (ch === 'V') ctYard(c, X, Y, x, y, '#bda97e');
+        else if (ch === 'A' || ch === 'E') ctYard(c, X, Y, x, y, '#cbb98f');
+      }
+    }
+    return cv;
+  }
+  function drawCustomTerrain() {
+    if (!B || !B.tiles) return;
+    if (!B._terrain || B._terrain.width !== WORLD) B._terrain = buildCustomTerrain();
+    if (B._terrain) ctx.drawImage(B._terrain, 0, 0, WORLD, WORLD);
+    else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+  }
+
   function drawGrid() {
     ctx.save();
     ctx.strokeStyle = 'rgba(46,38,22,0.20)';
@@ -1808,7 +2248,9 @@
 
   /* v5.31 — 수전 물결: 물 칸 위에 천천히 흐르는 잔물결 두 줄 (수전·도하에서만, 화면 안 칸만) */
   function drawWaterWaves() {
-    if (!B || !B.boatable || !ctx) return;
+    /* v5.86b — 커스텀 전장은 칠한 강물 위에서도 물결이 흐르게 한다 */
+    if (!B || !ctx) return;
+    if (!B.boatable && !B.customTilesRender) return;
     const tnow = performance.now();
     const cw = canvas.width / dpr, chh = canvas.height / dpr;
     const x0 = Math.max(0, Math.floor((-cam.x / cam.s) / TILE) - 1);
