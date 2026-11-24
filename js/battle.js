@@ -602,7 +602,9 @@
     const atkMulBase = techAtk * pMul * loyMul * (1 + offB.atk) * (1 + (setB.atk || 0));
     const defMulBase = techDef * pMul * loyMul * (1 + offB.def) * (1 + (setB.def || 0));
     return {
-      id: 'a' + i, side: 'ally', uid: h.uid, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
+      id: 'a' + i, side: 'ally', uid: h.uid, genId: h.genId, name: h.name, hanja: h.hanja, cls: h.cls, lv: h.lv,
+      /* v5.86 — 운(매력)은 상태저항·치명에 쓰인다 */
+      cha: Number(h.cha == null ? 60 : h.cha) || 60,
       hp: troops, maxHp: troops, mp: h.mp, maxMp: SK.maxMpOf(h.cls, h.lv),
       atk: atkFlat * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * atkMulBase,
       def: defFlat * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * defMulBase,
@@ -634,7 +636,7 @@
       hp: spec.troops, maxHp: spec.troops, mp: maxMpBase(C.mp, spec.cls), maxMp: maxMpBase(C.mp, spec.cls),
       /* v5.3 — 일반 부대는 Lv.1 C급 장수보다 약하게 (장수 부대가 확실히 우위) */
       atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
-      wu: 52, ji: 50 + (C.ji || 0), tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
+      wu: 52, ji: 50 + (C.ji || 0), tong: 52, cha: 55, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
       /* v5.62 — 일반 부대도 자기 레벨 미만의 책략은 펼치지 못한다 */
       skills: SK.skillsFor(spec.cls, lv), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
       stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
@@ -650,7 +652,7 @@
       id: 'boss', side: 'enemy', name: info.name, hanja: info.hanja, cls: info.cls, lv,
       hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2, info.cls), maxMp: maxMpBase(C.mp + lv * 2, info.cls),
       atk: C.atk + lv * 1.15, def: C.def + lv * 0.8,
-      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv + (C.ji || 0), tong: 80, boss: true,
+      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv + (C.ji || 0), tong: 80, cha: 70, boss: true,
       portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: SK.skillsFor(info.cls, lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: 82,
@@ -674,6 +676,7 @@
       atk: (C.atk + (g.war - 60) * 0.14) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.025) * lvMul,
       def: (C.def + (g.leadership - 60) * 0.08) * (1 + 0.04 * ((SK.TIER_LV[g.tier] || 3) - 1)) * lvMul,
       mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel + (C.ji || 0), tong: g.leadership,
+      cha: Number(g.charm == null ? 60 : g.charm) || 60,
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
       passive: (SK.PASSIVES && SK.PASSIVES[g.name]) || null, pUsed: {},
@@ -698,7 +701,7 @@
       hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv, cls), maxMp: maxMpBase(C.mp + lv, cls),
       /* v5.3 — 무명 일반 수비병도 아군 일반 부대와 같은 낮은 기준 (명장 부대가 확실히 강하다) */
       atk: C.atk - 1.5, def: C.def - 1.5,
-      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48 + (C.ji || 0), tong: 50,
+      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48 + (C.ji || 0), tong: 50, cha: 55,
       portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: SK.skillsFor(cls, lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: 45,
@@ -4768,7 +4771,7 @@
       addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '면역', '#ffe6a8');
       return false;
     }
-    const res = Math.max(0, Math.min(0.75, fxPct(t, 'statusRes') + vpv(t, 'resist')));
+    const res = statusResistOf(t);
     if (res > 0 && Math.random() < res) {
       addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '저항!', '#ffd9a0');
       return false;
@@ -5079,7 +5082,9 @@
   function magicDefMul(u) { return (u && MAGIC_DEF_MUL[u.cls] != null) ? MAGIC_DEF_MUL[u.cls] : MAGIC_DEF_BASE; }
   function magicAtk(u) {
     const tp = troopPower(u);
-    return (u.ji * 1.05 + u.lv * 3 + Math.min(400, u.hp * 0.02) * 0.25) * tp * (1 + buffVal(u, 'atk') * 0.6) * magicAtkMul(u);
+    /* v5.86 — 병과 숨은 스탯: 책략 위력(%, 기본 100 = 예전과 같다) */
+    const tacticMul = Math.max(0.5, Math.min(2, classHiddenOf(u).tacticPct / 100));
+    return (u.ji * 1.05 + u.lv * 3 + Math.min(400, u.hp * 0.02) * 0.25) * tp * (1 + buffVal(u, 'atk') * 0.6) * magicAtkMul(u) * tacticMul;
   }
   function magicDef(u) {
     const ch = B.tiles[u.y][u.x];
@@ -5199,14 +5204,17 @@
     /* v5.82 — 고유 특기 40종: 공격자 배율·방어자 배율 (계산 맨 끝에서 한 번에) */
     base *= vpAtkMul(a, d, opts);
     base *= vpTakenMul(d);
+    /* v5.86 — 병과 숨은 스탯: 방어자의 '받는 피해 감소'(%) — 기본 0이라 예전과 같다 */
+    const drv = classHiddenOf(d).dmgRedPct;
+    if (drv) base *= Math.max(0.4, 1 - drv / 100);
     let crit = false;
     /* v5.81 — 기술 자체의 치명 보너스(조준사격 +10 · 연환권 +15 등) */
     const cc = critChanceOf(a) + (opts && opts.critBonus ? Number(opts.critBonus) / 100 : 0);
     if (!opts || !opts.noCrit) {
       if (Math.random() < cc + vpCritAdd(a, d, kind === 'melee')) {
         crit = true;
-        /* v5.29 — 보물 치명타 피해(+), 방어자의 치명타 저항(−) */
-        base *= Math.max(1.15, 1.55 + fxPct(a, 'critDmg') - fxPct(d, 'critRes'));
+        /* v5.29 — 보물 치명타 피해(+), 방어자의 치명타 저항(−) · v5.86 병과 치명피해 */
+        base *= Math.max(1.15, 1.55 + fxPct(a, 'critDmg') - fxPct(d, 'critRes') + classHiddenOf(a).critDmgPct / 100);
       }
     }
     const bond = SK.bondBetween ? SK.bondBetween(a.name, d.name) : null;
@@ -5318,7 +5326,9 @@
     /* v5.81 — 피의 갈증(고유 특기): 준 피해의 N%를 자기 병력으로 회복
        v5.82 — 혈전(고유 특기)도 같은 흡혈을 쓴다 */
     if (a && a.alive && dmg > 0) {
-      const ls = pasFx(a, 'lifesteal') || (vpid(a) === 'bloodlust' ? vpv(a, 'leech') : 0);
+      const ls = pasFx(a, 'lifesteal') || (vpid(a) === 'bloodlust' ? vpv(a, 'leech') : 0)
+        /* v5.86 — 장수 숨은 스탯: 흡혈(%) */
+        || (((genHiddenOf(a) && genHiddenOf(a).lifestealPct) || 0) / 100);
       if (ls) {
         const hl = Math.max(1, Math.round(dmg * ls));
         const before = a.hp;
@@ -5410,8 +5420,11 @@
   /* melee: 돌진 후 베기 / 원거리: 화살·노·석탄 비행 후 폭발 */
   function attackUnit(a, d, opts, onDone) {
     if (!a || !d) { if (onDone) onDone(); return; }
-    /* v5.29 — 보물 회피: 방어자가 회피하면 피해 없이 '회피!' (최대 40%) */
-    const dodged = !(opts && opts.noDodge) && fxPct(d, 'evade') > 0 && Math.random() < Math.min(0.4, fxPct(d, 'evade'));
+    /* v5.86 — 민첩 명중/회피: 일반 물리 공격만 굴린다 (책략·필살기는 이 함수를 쓰지 않는다).
+       회피율은 병과·장수·민첩·보물을 모두 더한 값이고 상한은 40%(0.40)다.
+       …예전 v5.29의 '보물 회피'도 이 한 번의 판정에 합쳤다(주사위를 두 번 굴리지 않는다). */
+    const hitP = hitRateOf(a, d);
+    const dodged = !(opts && opts.noDodge) && Math.random() > hitP;
     /* v5.29 — 선제 타격: 그 전투에서 이 부대의 첫 공격에만 붙는다 */
     if (!(opts && opts.noStrike) && !a.struckOnce) {
       opts = Object.assign({}, opts, { firstStrike: true });
@@ -5425,6 +5438,12 @@
       if (dodged) {
         addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.4) * TILE, '회피!', '#9fd8ff');
         SK.sfx.play('deny');
+        /* v5.86 — 검증용: 회피도 lastHits에 남긴다 (누가 누구를 몇 % 명중으로 빗나갔는지) */
+        if (B) {
+          B.lastHits = B.lastHits || [];
+          B.lastHits.push({ a: a.name, d: d.name, dmg: 0, crit: false, evaded: true, hitPct: Math.round(hitP * 1000) / 10 });
+          if (B.lastHits.length > 14) B.lastHits.shift();
+        }
         if (onDone) onDone();
         return;
       }
@@ -5464,7 +5483,12 @@
      반격 피해는 일반 병과 75%, 검병은 방패 맞다이 특화로 90%. */
   const COUNTER_MUL = 0.75, COUNTER_MUL_SHIELD = 0.90;
   /* v5.29 — 보물 반격 피해 보정 (검병 90% · 일반 75% + 보물 %) */
-  function counterMulOf(u) { return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter') + pasFx(u, 'counter') + (vpid(u) === 'ironwall' ? vpv(u, 'counter') : 0); }
+  function counterMulOf(u) {
+    return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter') + pasFx(u, 'counter')
+      + (vpid(u) === 'ironwall' ? vpv(u, 'counter') : 0)
+      /* v5.86 — 병과·장수 숨은 스탯: 반격 피해(%) */
+      + (classHiddenOf(u).cntPct + ((genHiddenOf(u) && genHiddenOf(u).cntPct) || 0)) / 100;
+  }
   function canCounterAt(a, d) {
     if (!a || !d || !a.alive || !d.alive) return false;
     /* v5.82 — 창벽: 기병에게 맞으면 최소 사거리와 상관없이 반격한다 */
@@ -5674,12 +5698,69 @@
   }
   SK.battleUndoMove = undoMove;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.86 — 민첩(agi) · 운(매력) · 숨은 스탯 (사용자 확정 규칙)
+     · 민첩 = 병과 기본 agi(data.js SK.CLASSES[key].agi) + Math.round((무력−60)×0.1).
+       이동력(mov)은 절대 넣지 않는다.
+     · 명중·회피는 일반 물리 공격에만. book(책략)·필살기는 attackUnit 을 쓰지 않으므로
+       이 함수들을 거치지 않는다 = 언제나 100% 명중.
+       기본 명중 93% + (공격자 agi − 방어자 agi) × 0.25% (60%~99%)
+       총 회피율 상한 40%(0.40) 고정 — 병과 회피 + 장수 회피 + 민첩 회피 + 보물 회피의 합.
+     · 운 = 매력. 상태이상 저항 max(0,(매력−60)×0.5)% (최대 20%),
+       치명타 +max(0,(매력−60)×0.08)%p (최대 3.2%p).
+     · 병과·장수의 숨은 스탯은 SK.classHiddenOf / SK.genHiddenOf 한 곳에서만 읽는다
+       (관리자 모드 ?admin=1 이 고친 값, 일반 주소에서는 기본값).
+     ══════════════════════════════════════════════════════════════ */
+  const HIT_BASE = 0.93, HIT_AGI_W = 0.0025, EVADE_AGI_W = 0.0018, EVADE_CAP = 0.40;
+  function classHiddenOf(u) { return (SK.classHiddenOf ? SK.classHiddenOf(u && u.cls) : { agi: 60 }); }
+  function genHiddenOf(u) { return (SK.genHiddenOf ? SK.genHiddenOf(u && u.genId) : null); }
+  function agiOf(u) {
+    if (!u) return 60;
+    const war = Number(u.wu == null ? 60 : u.wu) || 60;
+    return clamp(Math.round(classHiddenOf(u).agi + (war - 60) * 0.1), 10, 100);
+  }
+  function charmOf(u) {
+    const c = Number(u && u.cha == null ? 60 : (u && u.cha));
+    return clamp(isFinite(c) ? c : 60, 0, 120);
+  }
+  /* 상태이상 저항 = 보물·특기 저항 + 매력(최대 +20%) + 병과 상태저항 */
+  function statusResistOf(t) {
+    const C = classHiddenOf(t);
+    const charm = Math.min(0.20, Math.max(0, (charmOf(t) - 60) * 0.005));
+    return clamp(fxPct(t, 'statusRes') + vpv(t, 'resist') + charm + C.statusResPct / 100, 0, 0.75);
+  }
+  /* 치명타 보정 — 매력(최대 +3.2%p) + 병과·장수 숨은 치명 */
+  function charmCritOf(u) { return Math.min(3.2, Math.max(0, (charmOf(u) - 60) * 0.08)) / 100; }
+  function extraCritOf(u) {
+    const G = genHiddenOf(u);
+    return (classHiddenOf(u).critPct + ((G && G.critPct) || 0)) / 100;
+  }
+  /* 총 회피율 (상한 40% 고정) */
+  function evadeRateOf(d) {
+    if (!d) return 0;
+    const G = genHiddenOf(d);
+    const raw = (agiOf(d) - 60) * EVADE_AGI_W
+      + classHiddenOf(d).evaPct / 100 + ((G && G.evaPct) || 0) / 100 + fxPct(d, 'evade');
+    return clamp(raw, 0, EVADE_CAP);
+  }
+  /* 최종 명중률 (회피까지 곱한 값, 60%~99%) */
+  function hitRateOf(a, d) {
+    if (!a || !d) return 1;
+    const base = HIT_BASE + (agiOf(a) - agiOf(d)) * HIT_AGI_W;
+    return clamp(clamp(base, 0.60, 0.99) * (1 - evadeRateOf(d)), 0.60, 0.99);
+  }
+  SK.agiOf = agiOf;
+  SK.hitRateOf = hitRateOf;
+  SK.evadeRateOf = evadeRateOf;
+
   /* v5.29 — 치명타 확률은 한 곳에서만 계산한다 (예고·실제 전투가 같은 값을 쓰도록) */
   function critChanceOf(u) {
     /* v5.82 — 복병(숲·산지 치명 +N%p)은 예상 창에도 그대로 보인다 */
     const amb = (vpid(u) === 'ambush' && (vpCh(u) === 'F' || vpCh(u) === 'M')) ? vpv(u, 'crit') : 0;
     return 0.05 + (u.wu - 60) * 0.0011 + (u.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(u, 'crit'))
-      + fxPct(u, 'crit') + trainCritBonus(u) + classCrit(u) + pasFx(u, 'crit') + amb;
+      + fxPct(u, 'crit') + trainCritBonus(u) + classCrit(u) + pasFx(u, 'crit') + amb
+      /* v5.86 — 운(매력) + 병과·장수 숨은 치명 */
+      + charmCritOf(u) + extraCritOf(u);
   }
   /* 조조전식 전투 예고 — 피해·반격·지형·인연 배지를 먼저 보여준다 */
   function openAttackPreview(a, d) {
@@ -5693,7 +5774,11 @@
     const tri = SK.triangleMul ? SK.triangleMul(a.cls, d.cls) : { mul: 1, label: '' };
     const triBack = SK.triangleMul ? SK.triangleMul(d.cls, a.cls) : { mul: 1, label: '' };
     const tr = SK.TERRAIN[B.tiles[d.y][d.x]] || SK.TERRAIN.P;
-    const critChance = Math.round(critChanceOf(a) * 100);
+    /* v5.86 — 민첩 명중·회피·치명을 예고 창에도 그대로 (실제 판정과 같은 함수) */
+    const critChance = Math.round(critChanceOf(a) * 1000) / 10;
+    const hitPct = Math.round(hitRateOf(a, d) * 1000) / 10;
+    const evadePct = Math.round(evadeRateOf(d) * 1000) / 10;
+    const agiA = agiOf(a), agiD = agiOf(d);
     const bondHtml = bond
       ? `<div class="ap-bond ${bond.relation === '숙적' ? 'rival' : 'friend'}">${bond.relation} · ${bond.title}<em>${bond.relation === '숙적' ? '피해 +20%' : '공격 +15%'}</em></div>`
       : '';
@@ -5728,6 +5813,7 @@
       title: `${a.name} → ${d.name}`,
       body: `<div class="atk-preview">
         <div class="ap-row"><span>예상 피해</span><b>${atk.dmg}</b><em>치명타 ${critChance}%</em></div>
+        <div class="ap-row"><span>명중</span><b>${hitPct}%</b><em>민첩 ${agiA} vs ${agiD} · 상대 회피 ${evadePct}%</em></div>
         ${triHtml}
         ${canCounter
           ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격 ${Math.round(cntMul * 100)}%${triBack.mul > 1 ? ` · ${triBack.label}` : ''}</em></div>`
@@ -11551,6 +11637,35 @@
         vpOnHit(a, d, !!crit, {});
         Math.random = o;
         return { ail: Object.keys(d.ail || {}), dot: d.ailDot || null, morale: Math.round(d.morale || 0) };
+      },
+      /* v5.86 — 민첩·운·숨은 스탯 검증용: 부대별 계산값을 그대로 돌려준다 */
+      hidden(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return {
+          name: u.name, cls: u.cls, clsName: (SK.CLASSES[u.cls] || {}).name, side: u.side,
+          wu: u.wu, cha: u.cha == null ? 60 : u.cha, agi: agiOf(u),
+          evadePct: Math.round(evadeRateOf(u) * 1000) / 10,
+          critPct: Math.round(critChanceOf(u) * 1000) / 10,
+          statusResistPct: Math.round(statusResistOf(u) * 1000) / 10,
+          counterMulPct: Math.round(counterMulOf(u) * 1000) / 10,
+          classHidden: SK.classHiddenOf(u.cls), genHidden: (SK.genHiddenOf(u.genId) || null),
+        };
+      },
+      hitOf(aName, dName) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        return { a: a.name, d: d.name, agiA: agiOf(a), agiD: agiOf(d),
+          hitPct: Math.round(hitRateOf(a, d) * 1000) / 10, evadePct: Math.round(evadeRateOf(d) * 1000) / 10 };
+      },
+      /* 같은 명중률로 n번 굴려 본다 (실제 주사위 분포 확인 — 피해·연출 없음) */
+      rollHit(aName, dName, n) {
+        const a = B && B.units.find((o) => o.name === aName), d = B && B.units.find((o) => o.name === dName);
+        if (!a || !d) return null;
+        const p = hitRateOf(a, d), k = clamp(Math.round(n || 1000), 1, 20000);
+        let miss = 0;
+        for (let i = 0; i < k; i++) if (Math.random() > p) miss++;
+        return { hitPct: Math.round(p * 1000) / 10, missPct: Math.round(miss / k * 1000) / 10, evaded: miss, n: k };
       },
       hits() { return B && B.lastHits ? B.lastHits.slice() : []; },
       findPath(x, y) { const u = B.sel; return u ? findPath(u, x, y) : []; },

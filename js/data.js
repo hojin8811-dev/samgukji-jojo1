@@ -28,44 +28,77 @@ SK.TERRAIN = {
 
 /* ───────────── 병과 (16종) ───────────── */
 SK.CLASSES = {
-  gunwoong: { name: '군주', hanja: '君主', role: '지휘·균형', atk: 31, def: 21, mov: 4, rng: 1, mp: 46,
+  gunwoong: { name: '군주', hanja: '君主', role: '지휘·균형', atk: 31, def: 21, mov: 4, rng: 1, agi: 60, mp: 46,
     skills: ['jihwi'], weapon: 'sword', desc: '군 전체를 이끄는 군주. 지휘로 아군을 강화한다.' },
-  gibi: { name: '기병', hanja: '騎兵', role: '돌격·기동', atk: 34, def: 17, mov: 6, rng: 1, mp: 20,
+  gibi: { name: '기병', hanja: '騎兵', role: '돌격·기동', atk: 34, def: 17, mov: 6, rng: 1, agi: 66, mp: 20,
     skills: ['dolpa'], weapon: 'spear', mount: true, desc: '이동 6의 돌격 병과. 평지·도로에서 공격 +15%, 보병에게 +18%, 산지 통행 불가.' },
-  gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 3, mp: 26,
+  gunggi: { name: '궁기', hanja: '弓騎', role: '원거리·기동', atk: 29, def: 14, mov: 5, rng: 3, agi: 74, mp: 26,
     skills: ['jipsajung'], weapon: 'bow', mount: true, desc: '이동 5의 말탄 궁수. 3칸(◇ 마름모) 사격, 산이나 성 위에서 사거리 +1.' },
-  changbyung: { name: '창병', hanja: '槍兵', role: '대기병·성문', atk: 28, def: 21, mov: 4, rng: 2, mp: 18,
+  changbyung: { name: '창병', hanja: '槍兵', role: '대기병·성문', atk: 28, def: 21, mov: 4, rng: 2, agi: 62, mp: 18,
     skills: ['gwantung'], weapon: 'spear', desc: '긴 창으로 2칸(◇ 마름모, 대각선 포함)을 찌른다. 기병·야수에게 +35%, 성문에서 방어 +20%.' },
-  geombyung: { name: '검병', hanja: '劍兵', role: '방어·근접', atk: 30, def: 24, mov: 4, rng: 1, mp: 16,
+  geombyung: { name: '검병', hanja: '劍兵', role: '방어·근접', atk: 30, def: 24, mov: 4, rng: 1, agi: 64, mp: 16,
     skills: ['bangpae'], weapon: 'sword', desc: '튼튼한 방패 검병. 궁병에게 +20%, 성문·마당에서 방어 +20%. 반격 피해 90%로 방패 맞다이에 강하다.' },
-  sanjeok: { name: '산적', hanja: '山賊', role: '산지·숲 특화', atk: 34, def: 14, mov: 5, rng: 1, mp: 16,
+  sanjeok: { name: '산적', hanja: '山賊', role: '산지·숲 특화', atk: 34, def: 14, mov: 5, rng: 1, agi: 88, mp: 16,
     skills: ['sangang'], weapon: 'axe', desc: '산지·숲에서 공격 +30%. 산전의 주인공.' },
-  sujeok: { name: '수적', hanja: '水賊', role: '수전 특화', atk: 31, def: 17, mov: 5, rng: 1, mp: 20,
+  sujeok: { name: '수적', hanja: '水賊', role: '수전 특화', atk: 31, def: 17, mov: 5, rng: 1, agi: 68, mp: 20,
     skills: ['suryu'], weapon: 'trident', desc: '물 위를 걸어 다닌다. 물에서 공격 +25%, 방어 +15%.' },
-  chaeksa: { name: '책사', hanja: '策士', role: '책략', atk: 16, def: 11, mov: 4, rng: 3, mp: 60,
+  chaeksa: { name: '책사', hanja: '策士', role: '책략', atk: 16, def: 11, mov: 4, rng: 3, agi: 57, mp: 60,
     skills: ['hwagye', 'pungsu'], weapon: 'fan', desc: '화계로 방어를 무시하는 피해, 풍수로 적 방어를 깎는다.' },
-  pungsusa: { name: '풍수사', hanja: '風水師', role: '회복·보조', atk: 15, def: 12, mov: 4, rng: 3, mp: 70,
+  pungsusa: { name: '풍수사', hanja: '風水師', role: '회복·보조', atk: 15, def: 12, mov: 4, rng: 3, agi: 58, mp: 70,
     skills: ['sobogeup', 'daebogeup', 'gomu', 'pungsu'], weapon: 'staff', desc: '보급으로 아군을 살리고 고무로 공격을 올린다.' },
-  dosa: { name: '도사', hanja: '道士', role: '저주·회복', atk: 18, def: 12, mov: 4, rng: 3, mp: 64,
+  dosa: { name: '도사', hanja: '道士', role: '저주·회복', atk: 18, def: 12, mov: 4, rng: 3, agi: 58, mp: 64,
     skills: ['yosul', 'sobogeup'], weapon: 'staff', desc: '요술로 적의 공격을 약화시키고 부상병을 회복한다.' },
-  gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 3, minRng: 2, mp: 16,
+  gungsu: { name: '궁수', hanja: '弓手', role: '원거리', atk: 25, def: 13, mov: 4, rng: 3, agi: 74, minRng: 2, mp: 16,
     skills: ['jipsajung'], weapon: 'bow', desc: '2칸 밖에서 3칸(◇ 마름모)까지 일방적으로 사격. 기병·책략계에 +18%, 창병에 +20%. 산·성 위에서 사거리 +1.' },
-  mudoga: { name: '무도가', hanja: '武道家', role: '연격·기동', atk: 33, def: 15, mov: 5, rng: 1, mp: 20,
+  mudoga: { name: '무도가', hanja: '武道家', role: '연격·기동', atk: 33, def: 15, mov: 5, rng: 1, agi: 90, mp: 20,
     skills: ['yeongyeok'], weapon: 'fist', desc: '맨몸의 연격으로 두 번 때린다. 평지에서 공격 +10%, 궁병에게 +20%로 파고든다.' },
-  yasubyung: { name: '야수병', hanja: '野獸兵', role: '숲·산 추격', atk: 36, def: 16, mov: 5, rng: 1, mp: 18,
+  yasubyung: { name: '야수병', hanja: '野獸兵', role: '숲·산 추격', atk: 36, def: 16, mov: 5, rng: 1, agi: 85, mp: 18,
     skills: ['yaseup'], weapon: 'claw', desc: '호랑이 부대. 보병에게 +18%, 숲·산지에서 공격 +20%, 숲·산에서는 이동력 +1(6급)에 진입 비용 1.' },
-  muhui: { name: '무희', hanja: '舞姬', role: '유혹·교란', atk: 20, def: 10, mov: 5, rng: 2, mp: 48,
+  muhui: { name: '무희', hanja: '舞姬', role: '유혹·교란', atk: 20, def: 10, mov: 5, rng: 2, agi: 62, mp: 48,
     skills: ['yuhok'], weapon: 'ribbon', desc: '춤으로 적의 공격을 크게 떨어뜨린다. 사거리 2(◇ 마름모).' },
-  yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 4, minRng: 2, mp: 18,
+  yeonnobyung: { name: '연노병', hanja: '連弩兵', role: '연사·원거리', atk: 27, def: 15, mov: 3, rng: 4, agi: 72, minRng: 2, mp: 18,
     skills: ['yeonno'], weapon: 'crossbow', desc: '연발 쇠뇌로 2~4칸(◇ 마름모)을 두 번 쏜다. 기병·책략계에 +18%, 창병에 +20%. 느리지만 화력이 뛰어나다.' },
-  deunggabyung: { name: '등갑병', hanja: '藤甲兵', role: '철벽 방어', atk: 28, def: 31, mov: 3, rng: 1, mp: 12,
+  deunggabyung: { name: '등갑병', hanja: '藤甲兵', role: '철벽 방어', atk: 28, def: 31, mov: 3, rng: 1, agi: 40, mp: 12,
     skills: ['bangpae'], weapon: 'sword', desc: '등나무 갑옷의 중장 보병. 궁병에게 +20%, 느리지만 좀처럼 뚫리지 않는다.' },
-  gunakdae: { name: '군악대', hanja: '軍樂隊', role: '사기·지원', atk: 12, def: 12, mov: 4, rng: 2, mp: 60,
+  gunakdae: { name: '군악대', hanja: '軍樂隊', role: '사기·지원', atk: 12, def: 12, mov: 4, rng: 2, agi: 58, mp: 60,
     skills: ['gomu', 'jihwi'], weapon: 'drum', desc: '북과 나팔로 아군의 사기를 올린다. 직접 싸움은 약하다.' },
-  pocha: { name: '포차', hanja: '砲車', role: '공성 병기', atk: 46, def: 26, mov: 2, rng: 5, minRng: 2, mp: 10,
+  pocha: { name: '포차', hanja: '砲車', role: '공성 병기', atk: 46, def: 26, mov: 2, rng: 5, agi: 38, minRng: 2, mp: 10,
     skills: ['pogyeok'], weapon: 'ram', siege: true, desc: '2~5칸(◇ 마름모) 사거리. 성문·성벽에 2배 피해. 붙으면 못 쏘고 이동이 느리다.' },
-  balseokcha: { name: '발석차', hanja: '發石車', role: '투석 병기', atk: 56, def: 18, mov: 1, rng: 7, minRng: 3, mp: 10,
+  balseokcha: { name: '발석차', hanja: '發石車', role: '투석 병기', atk: 56, def: 18, mov: 1, rng: 7, agi: 36, minRng: 3, mp: 10,
     skills: ['tuseok'], weapon: 'catapult', siege: true, desc: '3~7칸(◇ 마름모) 먼 곳을 범위로 때리는 투석기. 성문 공략의 결정타.' },
+};
+
+/* ───────────── v5.86 — 민첩(agi)·운(매력) 숨은 스탯 ─────────────
+   사용자 확정 규칙 (battle.js 의 v5.86 블록이 이 값을 읽는다)
+   · 민첩(agi) = 병과 기본값(위 표의 agi) + 약한 무력 보정 Math.round(((무력||60) − 60) × 0.1).
+     **이동력(mov)과는 아무 관계가 없다** — agi 를 mov 에 더하거나 빼지 말 것.
+   · 민첩은 일반 물리 공격의 명중·회피에만 쓰인다. 책략·필살기는 언제나 100% 명중.
+     기본 명중 93% + (공격자 agi − 방어자 agi) × 0.25% (60%~99%)
+     총 회피율 상한은 40%(0.40) 고정 — 병과·장수·보물 회피를 모두 더한 값에 건다.
+   · 운 = 매력(charm). 상태이상 저항 max(0,(매력−60)×0.5)% (최대 +20%),
+     치명타 +max(0,(매력−60)×0.08)%p (최대 +3.2%p).
+   · 병과 숨은 스탯(회피·치명·치명피해·반격·받는피해·책략·상태저항)의 기본값은 아래 표 하나다.
+     관리자 모드(?admin=1)에서만 병과·장수 값이 바뀌고, 일반 주소에서는 이 기본값 그대로다. */
+SK.CLASS_HIDDEN_DEFAULT = {
+  /* % 단위(bonus). critDmgPct 는 기본 치명 배율 1.55 에 더하는 %p, tacticPct 는 100%가 기준 */
+  evaPct: 0, critPct: 0, critDmgPct: 0, cntPct: 0, dmgRedPct: 0, tacticPct: 100, statusResPct: 0,
+};
+/* 관리자 모드가 고친 장수 숨은 스탯 — 일반 주소(?v=106)에서는 언제나 빈 객체다 */
+SK.HIDDEN_GEN = SK.HIDDEN_GEN || {};
+SK.classHiddenOf = function (cls) {
+  const C = (cls && SK.CLASSES[cls]) || {};
+  const D = SK.CLASS_HIDDEN_DEFAULT;
+  const n = function (v, d) { return (typeof v === 'number' && isFinite(v)) ? v : d; };
+  return {
+    agi: n(C.agi, 60), evaPct: n(C.evaPct, D.evaPct), critPct: n(C.critPct, D.critPct),
+    critDmgPct: n(C.critDmgPct, D.critDmgPct), cntPct: n(C.cntPct, D.cntPct),
+    dmgRedPct: n(C.dmgRedPct, D.dmgRedPct), tacticPct: n(C.tacticPct, D.tacticPct),
+    statusResPct: n(C.statusResPct, D.statusResPct),
+  };
+};
+SK.genHiddenOf = function (genId) {
+  if (genId == null || !SK.HIDDEN_GEN) return null;
+  return SK.HIDDEN_GEN[genId] || SK.HIDDEN_GEN[String(genId)] || null;
 };
 
 /* ───────────── v5.59 — 최대 MP 배율 ─────────────

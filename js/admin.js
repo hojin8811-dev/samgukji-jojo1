@@ -1,4 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════════
+   v5.86 — 관리자 모드 (?admin=1)
+   · 숨은 스탯 확장: 장수(통솔·회피%·치명%·반격피해%·흡혈%·필살기 교체)와
+     병과(기본 agi·회피%·치명%·치명피해%·반격피해%·최소사거리·받는피해감소%·책략위력%·상태저항%).
+     장수 쪽은 SK.HIDDEN_GEN[genId], 병과 쪽은 SK.CLASSES[key] 에 얹고,
+     실제 전투 계산은 battle.js v5.86 블록(agiOf·hitRateOf·critChanceOf…)이 그 값을 읽는다.
+   · 일반 주소(?v=106)에서는 이 파일이 SK.adminMode=false 만 남기고 즉시 끝나므로
+     SK.HIDDEN_GEN 도 빈 객체 그대로다 (평소 전투는 표의 기본값으로만 돌아간다).
+
    v5.83 — 관리자 모드 (?admin=1)
    · 주소에 admin=1 이 있을 때만 이 파일이 화면에 무엇이든 만든다.
      일반 주소(?v=102)에서는 감시용 전역 변수 하나(SK.adminMode=false) 말고는
@@ -30,11 +38,46 @@
   var STORE_KEY = 'samgukji-jojo-admin-v1';
   var TIERS = ['S', 'A', 'B', 'C'];
   var SPEEDS = [1, 2, 5, 10];
+  /* v5.86 — 숨은 스탯. 장수는 SK.HIDDEN_GEN[genId] 로, 병과는 SK.CLASSES[key] 로 넘긴다.
+     battle.js 는 SK.genHiddenOf / SK.classHiddenOf 한 곳으로만 읽으므로 여기만 맞추면 된다. */
+  var GEN_HIDDEN = ['evaPct', 'critPct', 'cntPct', 'lifestealPct'];
+  var CLS_HIDDEN = ['agi', 'evaPct', 'critPct', 'critDmgPct', 'cntPct', 'minRng', 'dmgRedPct', 'tacticPct', 'statusResPct'];
+  var CLS_RANGE = {
+    atk: [1, 80], def: [1, 80], ji: [-30, 60], mov: [1, 9], rng: [1, 7], mp: [0, 120],
+    agi: [10, 100], evaPct: [0, 40], critPct: [0, 60], critDmgPct: [0, 100], cntPct: [-50, 100],
+    minRng: [1, 3], dmgRedPct: [0, 50], tacticPct: [50, 200], statusResPct: [0, 60]
+  };
+  var GEN_HIDDEN_RANGE = { leadership: 'int', evaPct: [0, 40], critPct: [0, 60], cntPct: [-50, 100], lifestealPct: [0, 35] };
+  /* 장수 숨은 스탯을 전투 쪽에 얹는다 (값이 없으면 아예 만들지 않는다 → 평소와 동일) */
+  function syncGenHidden(id) {
+    id = gid(id);
+    var o = ST.gens[id];
+    SK.HIDDEN_GEN = SK.HIDDEN_GEN || {};
+    var out = null;
+    if (o) {
+      out = {};
+      GEN_HIDDEN.forEach(function (k) { if (o[k] != null) out[k] = num(o[k], 0); });
+      if (!Object.keys(out).length) out = null;
+    }
+    if (out) SK.HIDDEN_GEN[id] = out;
+    else delete SK.HIDDEN_GEN[id];
+  }
+  /* 필살기 교체 — SK.ULTIMATES 는 '장수 이름'으로 잠겨 있으므로 고른 필살기를 그 이름에 복사한다 */
+  function applyGenUlt(g, key) {
+    if (!g || !key || !SK.ULTIMATES) return;
+    var src = SK.ULTIMATES[key];
+    if (!src) return;
+    var copy = JSON.parse(JSON.stringify(src));
+    copy.srcName = key;
+    SK.ULTIMATES[g.name] = copy;
+  }
 
   /* ── 저장소 ──────────────────────────────────────────────────────────────
-     ST.gens[id]  = { war,intel,politics,charm,tier,cls,lv,loyal,cityId,passiveId }
+     ST.gens[id]  = { war,intel,politics,charm,tier,cls,lv,loyal,cityId,passiveId,
+                      leadership,evaPct,critPct,cntPct,lifestealPct,ult }
      ST.trees[id] = { grade,effect,statBonus:{war,leadership,intel,politics,charm,move,rng} }
-     ST.cls[key]  = { atk,def,ji,mov,rng,mp, skills:[{p,cd,mp}] }
+     ST.cls[key]  = { atk,def,ji,mov,rng,mp, skills:[{p,cd,mp}],
+                      agi,evaPct,critPct,critDmgPct,cntPct,minRng,dmgRedPct,tacticPct,statusResPct }
      ST.orig*     = 같은 모양의 '처음 값' (diff·초기화용)                        */
   var ST = { v: 1, gens: {}, trees: {}, cls: {}, origGen: {}, origTree: {}, origCls: {} };
 
@@ -124,11 +167,15 @@
     if (o.tier && TIERS.indexOf(o.tier) >= 0) g.tier = o.tier;
     if (o.cls) { var job = jobOfClass(o.cls); if (job) g.job = job; }
     if (o.passiveId) applyPassive(g, o.passiveId);
+    /* v5.86 — 숨은 스탯: 통솔·필살기 교체 (나머지 %값은 SK.HIDDEN_GEN 으로) */
+    if (o.leadership != null) g.leadership = clamp(Math.round(num(o.leadership, g.leadership)), 1, 100);
+    if (o.ult) applyGenUlt(g, o.ult);
+    syncGenHidden(id);
 
     var s = state(); if (!s) return;
     var h = heroOf(id);
     if (h) {
-      h.wu = g.war; h.ji = g.intel; h.pol = g.politics; h.cha = g.charm;
+      h.wu = g.war; h.ji = g.intel; h.pol = g.politics; h.cha = g.charm; h.tong = g.leadership;
       h.tier = g.tier;
       h.cls = SK.genClass(g);
       h.unit = SK.genUnit(g);
@@ -190,8 +237,8 @@
   function applyClass(key) {
     var o = ST.cls[key]; if (!o) return;
     var C = SK.CLASSES[key]; if (!C) return;
-    ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].forEach(function (k) {
-      if (o[k] != null) C[k] = num(o[k], C[k] || 0);
+    ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].concat(CLS_HIDDEN).forEach(function (k) {
+      if (o[k] != null) C[k] = num(o[k], C[k] == null ? 0 : C[k]);
     });
     (o.skills || []).forEach(function (sk, i) {
       var live = classSkill(key, i);
@@ -294,6 +341,9 @@
       loyal: h ? h.loyal : (state() && state().genLoyal ? state().genLoyal[id] : null),
       cityId: home || null,
       passive: SK.PASSIVES && SK.PASSIVES[g.name] ? JSON.parse(JSON.stringify(SK.PASSIVES[g.name])) : null,
+      /* v5.86 — 숨은 스탯의 '처음 값' */
+      leadership: g.leadership,
+      ult: SK.ULTIMATES && SK.ULTIMATES[g.name] ? JSON.parse(JSON.stringify(SK.ULTIMATES[g.name])) : null,
     };
     ST.origGen[id] = o;
     return o;
@@ -317,6 +367,10 @@
     if (ST.origCls[key]) return ST.origCls[key];
     var C = SK.CLASSES[key]; if (!C) return null;
     var o = { atk: C.atk, def: C.def, ji: C.ji || 0, mov: C.mov, rng: C.rng, mp: C.mp, skills: [] };
+    /* v5.86 — 숨은 스탯의 '처음 값' */
+    var D = SK.CLASS_HIDDEN_DEFAULT || {};
+    o.agi = C.agi; o.minRng = C.minRng == null ? 1 : C.minRng;
+    CLS_HIDDEN.forEach(function (k) { if (o[k] == null) o[k] = C[k] == null ? (D[k] == null ? 0 : D[k]) : C[k]; });
     for (var i = 0; i < 4; i++) {
       var sk = classSkill(key, i);
       if (!sk) { o.skills.push(null); continue; }
@@ -342,7 +396,7 @@
     el.innerHTML =
       '<div class="adm-box">' +
         '<header class="adm-h">' +
-          '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.85</small></div>' +
+          '<div class="adm-h-l"><b>🛠️ 관리자 모드</b><small>?admin=1 · v5.86</small></div>' +
           '<div class="adm-h-r">' +
             '<button type="button" class="adm-mini" id="adm-copy-top">📋 복사</button>' +
             '<button type="button" class="adm-mini ghost" id="adm-reset-top" aria-label="기본값 초기화">♻️</button>' +
@@ -622,6 +676,16 @@
       return '<label class="adm-num"><span>' + label + '</span>' +
         '<input type="number" inputmode="numeric" data-k="' + k + '" value="' + v + '" min="' + min + '" max="' + max + '"></label>';
     };
+    /* v5.86 — 숨은 스탯(소수 허용) */
+    var hid = SK.HIDDEN_GEN && SK.HIDDEN_GEN[id] ? SK.HIDDEN_GEN[id] : {};
+    var hf = function (label, k, lo, hi) {
+      var v = hid[k] == null ? 0 : num(hid[k], 0);
+      return '<label class="adm-num"><span>' + label + '</span>' +
+        '<input type="number" inputmode="decimal" step="0.5" data-k="' + k + '" value="' + v + '" min="' + lo + '" max="' + hi + '"></label>';
+    };
+    var ultKeys = SK.ULTIMATES ? Object.keys(SK.ULTIMATES) : [];
+    var curUlt = (ST.gens[id] && ST.gens[id].ult) || '';
+    var ultP = SK.ULTIMATES && SK.ULTIMATES[g.name];
     return '' +
       '<button type="button" class="adm-back" id="adm-gen-back">‹ 장수 목록</button>' +
       '<div class="adm-dhead">' +
@@ -645,6 +709,23 @@
             return '<option value="' + k + '"' + (SK.genClass(g) === k ? ' selected' : '') + '>' + esc(SK.CLASSES[k].name) + '</option>';
           }).join('') + '</select></label>' +
         '</div>' +
+      '</div>' +
+      '<div class="adm-card">' +
+        '<p class="adm-sec">숨은 스탯 (v5.86)</p>' +
+        '<div class="adm-nums">' +
+          stat('통솔', 'leadership', g.leadership, 1, 100) +
+          hf('회피 %', 'evaPct', 0, 40) + hf('치명 %', 'critPct', 0, 60) +
+          hf('반격피해 %', 'cntPct', -50, 100) + hf('흡혈 %', 'lifestealPct', 0, 35) +
+        '</div>' +
+        '<label class="adm-num wide"><span>필살기 교체</span><select data-k="ult">' +
+          '<option value="">— 원래 필살기 그대로 —</option>' +
+          ultKeys.map(function (k) {
+            return '<option value="' + esc(k) + '"' + (curUlt === k ? ' selected' : '') + '>' + esc(k) + '</option>';
+          }).join('') +
+        '</select></label>' +
+        '<p class="adm-hint">지금 필살기: <b>' + esc(ultP ? ((ultP.srcName ? ultP.srcName + ' → ' : '') + (ultP.name || ultP.title || g.name)) : '없음') + '</b>' +
+          ' · 숨은 스탯은 이 폰(관리자 모드)에서만 적용됩니다.' +
+          ' 민첩 = 병과 기본 agi + (무력−60)×0.1, 운(매력)은 상태저항·치명에 이미 들어갑니다.</p>' +
       '</div>' +
       '<div class="adm-card">' +
         '<p class="adm-sec">고유 특기</p>' +
@@ -752,6 +833,12 @@
     }
     if (k === 'tier') { o.tier = el.value; }
     else if (k === 'cls') { o.cls = el.value; }
+    else if (k === 'ult') { o.ult = el.value; }
+    else if (k === 'leadership' || k === 'evaPct' || k === 'critPct' || k === 'cntPct' || k === 'lifestealPct') {
+      var rg = GEN_HIDDEN_RANGE[k];
+      if (k === 'leadership') o.leadership = clamp(Math.round(num(el.value, g.leadership)), 1, 100);
+      else o[k] = clamp(Math.round(num(el.value, 0) * 10) / 10, rg[0], rg[1]);
+    }
     else if (k === 'passiveId') {
       if (!el.value) { o.passiveId = ''; }
       else o.passiveId = el.value;
@@ -768,6 +855,11 @@
     } else {
       o[k] = clamp(Math.round(num(el.value, 0)), 1, 100);
     }
+    if (k === 'ult' && !el.value && SK.ULTIMATES) {
+      var og = ST.origGen[id];
+      if (og && og.ult) SK.ULTIMATES[g.name] = JSON.parse(JSON.stringify(og.ult));
+      delete ST.gens[id].ult;
+    }
     applyGen(id);
     SK.save(); refreshWorld();
     saveStore();
@@ -779,13 +871,19 @@
     var g = SK.GEN_BY_ID[id];
     if (g && o) {
       g.war = o.war; g.intel = o.intel; g.politics = o.politics; g.charm = o.charm; g.tier = o.tier; g.job = o.job;
+      /* v5.86 — 숨은 스탯·필살기 교체도 처음 값으로 */
+      if (o.leadership != null) g.leadership = o.leadership;
+      if (SK.ULTIMATES) {
+        if (o.ult) SK.ULTIMATES[g.name] = JSON.parse(JSON.stringify(o.ult));
+        else delete SK.ULTIMATES[g.name];
+      }
       if (SK.PASSIVES) {
         if (o.passive) SK.PASSIVES[g.name] = JSON.parse(JSON.stringify(o.passive));
         else if (SK.PASSIVES[g.name]) delete SK.PASSIVES[g.name];
       }
       var h = heroOf(id);
       if (h) {
-        h.wu = g.war; h.ji = g.intel; h.pol = g.politics; h.cha = g.charm; h.tier = g.tier;
+        h.wu = g.war; h.ji = g.intel; h.pol = g.politics; h.cha = g.charm; h.tong = g.leadership; h.tier = g.tier;
         h.cls = SK.genClass(g); h.unit = SK.genUnit(g); h.portrait = SK.genPortrait(g);
         if (o.lv != null) h.lv = o.lv;
         if (o.loyal != null) h.loyal = o.loyal;
@@ -797,6 +895,7 @@
       }
     }
     delete ST.gens[id]; delete ST.origGen[id];
+    syncGenHidden(id);
     saveStore(); SK.save(); refreshWorld();
     toast('이 장수를 처음 값으로 되돌렸습니다.');
   }
@@ -1038,6 +1137,16 @@
           f('사거리', 'rng', C.rng, 1, 7) + f('기본 MP', 'mp', C.mp, 0, 120) +
         '</div>' +
         '<p class="adm-hint">공격·방어는 병과 기본값입니다. 장수 부대는 여기에 무력·통솔 보정이 더해집니다. 지력은 부대 지력에 더해지는 값(책략 위력)이고 0이면 예전과 같습니다.</p>' +
+        '<p class="adm-sec">숨은 스탯 (v5.86)</p>' +
+        '<div class="adm-nums">' +
+          f('기본 민첩', 'agi', C.agi == null ? 60 : C.agi, 10, 100) +
+          f('최소사거리', 'minRng', C.minRng == null ? 1 : C.minRng, 1, 3) +
+          f('회피 %', 'evaPct', C.evaPct, 0, 40) + f('치명 %', 'critPct', C.critPct, 0, 60) +
+          f('치명피해 %', 'critDmgPct', C.critDmgPct, 0, 100) + f('반격피해 %', 'cntPct', C.cntPct, -50, 100) +
+          f('받는피해감소 %', 'dmgRedPct', C.dmgRedPct, 0, 50) + f('책략위력 %', 'tacticPct', C.tacticPct == null ? 100 : C.tacticPct, 50, 200) +
+          f('상태저항 %', 'statusResPct', C.statusResPct, 0, 60) +
+        '</div>' +
+        '<p class="adm-hint">민첩은 이동력과 무관합니다(민첩·회피·명중 전용). 명중 93% + (공격자 민첩−방어자 민첩)×0.25%, 총 회피 상한 40%. 최소사거리는 2칸·3칸 병과의 사각을 정합니다.</p>' +
       '</div>' +
       '<div class="adm-card"><p class="adm-sec">병과 책략 4종</p>' + sk +
         '<p class="adm-hint">쿨타임 0 = 없음(지금까지와 같음). 2로 두면 한 턴 쉬고 다시 씁니다.</p>' +
@@ -1071,10 +1180,9 @@
     if (!C) return;
     ensureOrigCls(key);
     var o = ST.cls[key] = ST.cls[key] || {};
-    var v = Math.round(num(el.value, C[k]));
-    var lo = k === 'ji' ? -30 : (k === 'mp' ? 0 : 1);
-    var hi = k === 'atk' || k === 'def' ? 80 : (k === 'mov' ? 9 : (k === 'rng' ? 7 : (k === 'mp' ? 120 : 60)));
-    o[k] = clamp(v, lo, hi);
+    /* v5.86 — 숨은 스탯까지 같은 범위표로 자른다 */
+    var rg = CLS_RANGE[k] || [1, 100];
+    o[k] = clamp(Math.round(num(el.value, C[k] == null ? 0 : C[k]) * 10) / 10, rg[0], rg[1]);
     applyClass(key);
     saveStore();
   }
@@ -1098,7 +1206,7 @@
     var C = SK.CLASSES[key];
     var o = ST.origCls[key];
     if (C && o) {
-      ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].forEach(function (k) { if (o[k] != null) C[k] = o[k]; });
+      ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].concat(CLS_HIDDEN).forEach(function (k) { if (o[k] != null) C[k] = o[k]; });
       (o.skills || []).forEach(function (s, i) {
         var live = classSkill(key, i);
         if (!live || !s) return;
@@ -1138,7 +1246,7 @@
   }
 
   function buildDiff() {
-    var out = { v: 1, game: 'v5.83', at: new Date().toISOString(), generals: [], treasures: [], classes: [] };
+    var out = { v: 1, game: 'v5.86', at: new Date().toISOString(), generals: [], treasures: [], classes: [] };
     Object.keys(ST.gens).forEach(function (id) {
       var g = SK.GEN_BY_ID[id], o = ST.origGen[id], cur = ST.gens[id];
       if (!g || !cur) return;
@@ -1153,6 +1261,13 @@
       if (o && o.lv != null && cur.lv != null && num(o.lv) !== num(cur.lv)) { d.lv = num(cur.lv); changed = true; }
       if (o && o.loyal != null && cur.loyal != null && num(o.loyal) !== num(cur.loyal)) { d.loyal = num(cur.loyal); changed = true; }
       if (o && cur.cityId && o.cityId !== cur.cityId) { d.city = cityName(cur.cityId); changed = true; }
+      /* v5.86 — 숨은 스탯·필살기 교체 */
+      if (o && o.leadership != null && num(o.leadership) !== num(g.leadership)) { d.leadership = num(g.leadership); changed = true; }
+      if (cur.ult) { d.ult = cur.ult; changed = true; }
+      GEN_HIDDEN.forEach(function (k) {
+        var v = num((SK.HIDDEN_GEN && SK.HIDDEN_GEN[id] ? SK.HIDDEN_GEN[id][k] : 0), 0);
+        if (v) { d.hidden = d.hidden || {}; d.hidden[k] = v; changed = true; }
+      });
       if (changed) out.generals.push(d);
     });
     Object.keys(ST.trees).forEach(function (id) {
@@ -1172,7 +1287,7 @@
       var C = SK.CLASSES[key], o = ST.origCls[key];
       if (!C || !o) return;
       var d = { job: C.name }, changed = false;
-      ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].forEach(function (k) {
+      ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].concat(CLS_HIDDEN).forEach(function (k) {
         if (num(o[k], null) !== num(C[k], null)) { d[k] = num(C[k]); changed = true; }
       });
       var skOut = [];
@@ -1245,6 +1360,7 @@
     Object.keys(ST.origTree).forEach(function (id) { resetTreeQuiet(id); });
     Object.keys(ST.origCls).forEach(function (key) { resetClsQuiet(key); });
     ST = { v: 1, gens: {}, trees: {}, cls: {}, origGen: {}, origTree: {}, origCls: {} };
+    SK.HIDDEN_GEN = {};
     try { localStorage.removeItem(STORE_KEY); } catch (e) { /* ignore */ }
     SK.save(); refreshWorld();
     toast('모든 수정을 기본값으로 되돌렸습니다.');
@@ -1275,7 +1391,7 @@
   function resetClsQuiet(key) {
     var C = SK.CLASSES[key], o = ST.origCls[key];
     if (!C || !o) return;
-    ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].forEach(function (k) { if (o[k] != null) C[k] = o[k]; });
+    ['atk', 'def', 'ji', 'mov', 'rng', 'mp'].concat(CLS_HIDDEN).forEach(function (k) { if (o[k] != null) C[k] = o[k]; });
     (o.skills || []).forEach(function (s, i) {
       var live = classSkill(key, i);
       if (!live || !s) return;
@@ -1288,7 +1404,7 @@
     (s.heroes || []).forEach(function (h) {
       var g = SK.GEN_BY_ID[h.genId];
       if (!g) return;
-      h.wu = g.war; h.ji = g.intel; h.pol = g.politics; h.cha = g.charm; h.tier = g.tier;
+      h.wu = g.war; h.ji = g.intel; h.pol = g.politics; h.cha = g.charm; h.tong = g.leadership; h.tier = g.tier;
     });
     Object.keys(s.cities || {}).forEach(function (cid) {
       var cs = s.cities[cid];
