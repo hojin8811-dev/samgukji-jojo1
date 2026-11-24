@@ -227,9 +227,25 @@
     var g = SK.GEN_BY_ID[genId]; if (!g) return false;
     if (!s.cities[toCity]) return false;
     var h = heroOf(genId);
+    var toOwner = s.cities[toCity].owner;
     if (h) {
-      if (!quiet) { h.city = toCity; h.marchId = null; h.rfgTo = null; }
-      else h.city = toCity;
+      /* v5.83 — 남의 성으로 옮기면 우리 장수 명부에서 빠지고 그 성 소속이 된다 */
+      if (toOwner !== s.playerFaction) {
+        Object.keys(h.equip || {}).forEach(function (sl) {
+          if (h.equip[sl] != null) { s.treasures = s.treasures || []; s.treasures.push(h.equip[sl]); delete h.equip[sl]; }
+        });
+        var idx = s.heroes.indexOf(h);
+        if (idx >= 0) s.heroes.splice(idx, 1);
+        s.cities[toCity].genIds = s.cities[toCity].genIds || [];
+        if (s.cities[toCity].genIds.indexOf(genId) < 0) s.cities[toCity].genIds.push(genId);
+        s.cities[toCity].genLv = s.cities[toCity].genLv || {};
+        s.cities[toCity].genLv[genId] = clamp(num(h.lv, 1), 1, 30);
+        s.genLoyal = s.genLoyal || {};
+        s.genLoyal[genId] = clamp(num(h.loyal, 70), 0, 100);
+        return true;
+      }
+      h.city = toCity;
+      h.marchId = null; h.rfgTo = null;
       return true;
     }
     /* 적·재야 장수 → 다른 성으로 옮긴다. 내 성이면 부하 장수로 들어온다 */
@@ -598,6 +614,10 @@
     var curP = SK.PASSIVES && SK.PASSIVES[g.name];
     var curPid = curP ? (curP.v582 || curP.id || '') : '';
     var myCities = ownedCityIds();
+    var otherCities = (SK.CITY_LIST || []).filter(function (c) {
+      var cs = s && s.cities[c.id];
+      return cs && cs.owner !== s.playerFaction && cs.owner !== 'neutral';
+    }).sort(function (a, b) { return String(cityName(a.id)).localeCompare(String(cityName(b.id))); });
     var stat = function (label, k, v, min, max) {
       return '<label class="adm-num"><span>' + label + '</span>' +
         '<input type="number" inputmode="numeric" data-k="' + k + '" value="' + v + '" min="' + min + '" max="' + max + '"></label>';
@@ -640,9 +660,14 @@
         '<p class="adm-sec">소속 · 병력</p>' +
         '<p class="adm-hint">지금: <b>' + esc(factionName(own.fid)) + (own.city ? ' · ' + esc(cityName(own.city)) : '') + '</b>' +
           (cs ? ' · 성 병력 ' + fmt(cs.troops) + ' · 금 ' + fmt(cs.gold) : '') + '</p>' +
-        (myCities.length ? '<label class="adm-num wide"><span>내 성으로 옮기기</span><select data-k="cityId">' +
+        (myCities.length || otherCities.length ? '<label class="adm-num wide"><span>소속 성 바꾸기</span><select data-k="cityId">' +
           '<option value="">— 그대로 —</option>' +
-          myCities.map(function (cid) { return '<option value="' + esc(cid) + '">' + esc(cityName(cid)) + '</option>'; }).join('') +
+          (myCities.length ? '<optgroup label="내 성">' + myCities.map(function (cid) {
+            return '<option value="' + esc(cid) + '"' + (own.city === cid ? ' selected' : '') + '>' + esc(cityName(cid)) + '</option>';
+          }).join('') + '</optgroup>' : '') +
+          (otherCities.length ? '<optgroup label="다른 세력 성">' + otherCities.map(function (c) {
+            return '<option value="' + esc(c.id) + '"' + (own.city === c.id ? ' selected' : '') + '>' + esc(factionName(s.cities[c.id].owner)) + ' · ' + esc(cityName(c.id)) + '</option>';
+          }).join('') + '</optgroup>' : '') +
           '</select></label>' : '') +
         (cs ? '<label class="adm-num wide"><span>소속 성 병력</span><input type="number" inputmode="numeric" data-k="cityTroops" value="' + num(cs.troops, 0) + '" min="0" max="999999"></label>' : '') +
         (own.fid !== (s && s.playerFaction) ? '<button type="button" class="adm-wide gold" id="adm-gen-hire">🤝 내 세력으로 데려오기</button>' : '') +
