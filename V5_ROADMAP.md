@@ -1,6 +1,24 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=111`
+기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=112`
+
+## 📋 다음 패치 대기
+
+- 2026-11-24에 킵해 둔 v5.89 후보 6종은 아래 ✅ v5.89에서 모두 반영했다. 다음 후보는 실플레이 제보를 받아 정한다.
+
+## ✅ v5.89 — 배속 출진 핫픽스 · 포상/데려오기 · 보물 합산 · 요격 80% · 총도독 관전 (2026-11-24 · `?v=112`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 배속 출진 | `applyDuty()`가 달마다 배속 장수에게 `actedThisMonth = true`를 찍어 둘째 달부터 출진·탐색·징병 명단에서 빠지던 버그를 고쳤다. 이제 배속은 행동이 아니고, 출진 확정 시 `consumeDispatch`가 배속만 풀면서 행동을 쓴다 | `js/app.js` `applyDuty` |
+| ② 포상 확대 | 관아 [포상]이 내 모든 성 장수를 보여 주고 `진류 · 이 성`/`소패` 성 배지를 단다. 이 성 먼저·충성 낮은 순. `SK.rewardTargets` | `js/app.js` `rewardTargets`·`openReward` |
+| ③ 데려오기 | 인사·탐색 메뉴 [장수 데려오기] — 다른 내 성 장수를 `SK.transitTurns`(1칸=1개월)만큼 `transitQueue`로 불러온다. 담당·태수·군사 자리는 떠날 때 해제 | `js/app.js` `summonCandidates`·`doSummon`·`openSummon`·`GROUPS.talent` |
+| ④ 보물 합산 | `statSum`/`statTag`/`statLineHTML`/`statCellRO` — 성 장수 카드(`무89+17`), 시설 담당·부장 카드(`무 100(+10)`), 장수 명부(총합 + `기본 72 + 보물 17` 툴팁)에 보물 보정을 합쳐 표시. 명부 정렬도 실제 값 | `js/app.js` `statSum`·`renderCityGens`·`openSlot`·`ROSTER_COLS` |
+| ⑤ 요격 80% | 공성: 행군 도착 때 길목 요격전 80%(50%→80%, `FIELD_CHANCE`), 이기면 수비병이 준 채 같은 달 공성전. 수성: `openInvasionIntercept`가 80%로 성 밖에서 먼저 맞고(성에 35%·최소 600 잔류), 승리는 침공 격퇴·패배는 줄어든 적과 수성전(기존 `invasionInterceptVictory`/`Defeat` 재사용) | `js/app.js` `FIELD_CHANCE`·`openInvasionIntercept`·`openPendingMarch` |
+| ⑤-b 긴급 회군 | 군사 메뉴·침공 창·메뉴에서 삭제. `SK.recallMarch`/`SK.openRecall`은 안내 토스트 스텁 | `js/app.js` `GROUPS.military`·`openPendingInvasion`·`openMenu` |
+| ⑥ 총도독 관전 | 군단 위임 성 침공 시 `[관전하기]/[건너뛰기 (자동 결산)]`. 관전은 인트로 뒤 아군 자동 강제 + 공격·책략·필살기·아이템·대기·턴종료·후퇴 차단, 자동토글/후퇴/배속 버튼 숨김(`#screen-battle.spectating`), `👁 관전 중` 배너. 건너뛰기는 인트로 생략·`paceBoost 10`·×4로 결과만 결산(같은 전투 엔진) | `js/battle.js` `startBattle`·`finishIntro`·`startSpectating`·`onTileTap`·`retreat`, `index.html` `#spectate-bar`, `css/game.css` |
+| 버전 | `?v=112` / `v5.89` — `index.html`·`manifest.webmanifest`·`sw.js`·`js/admin.js` | 버전 파일 |
+| 검수 | `tools/v589_check.py` 20항목(로컬·라이브), `tools/v589_play.py` 12항목(요격 확률 경계·긴급회군·왕조 UI), `tools/v589_spectate.py` 10항목(관전 26턴 자동 종료·수동 차단), `tools/v589_skip.py` 9항목(×10·22초 결산). 콘솔 0. 스샷 `preview/v589/` | `tools/v589_*.py`·`preview/v589/` |
 
 ## ✅ v5.88 — 실플레이 7종 개선 통합 (2026-11-24 · `?v=111`)
 

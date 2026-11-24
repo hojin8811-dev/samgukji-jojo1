@@ -7493,3 +7493,26 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #screen-city.corps-locked .city-pane .slot-card,
 #screen-city.corps-locked .city-pane .dev-card,
 #screen-city.corps-locked .city-pane .gen-card { cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════════
+   v5.89 — 보물 능력치 합산 표기 · 총도독 전쟁 관전 배너
+   ══════════════════════════════════════════════════════════════ */
+/* 성 장수 카드: 통72 +4 */
+.gc-nums em.gc-up { font-style: normal; font-size: 7px; font-weight: 900; color: #a8443a; margin-left: 1px; vertical-align: 1px; letter-spacing: -0.04em; }
+/* 시설 담당·부장 카드: 통 72(+4) */
+.sd-stats em.sd-up { font-style: normal; color: #a8443a; font-weight: 800; font-size: 10px; }
+/* 장수 명부: 보물 보정이 붙은 칸은 진한 색 */
+.rs-num.up { color: #7a2a12; font-weight: 900; }
+/* 포상 목록의 성 이름 배지 */
+.rw-where { font-style: normal; font-weight: 800; color: #7a5a12; background: rgba(212, 166, 74, 0.18); border: 1px solid rgba(156, 117, 56, 0.35); border-radius: 4px; padding: 0 4px; margin-right: 3px; font-size: 10px; }
+.rw-where.here { color: #257350; background: rgba(37, 115, 80, 0.14); border-color: rgba(37, 115, 80, 0.35); }
+/* 총도독 전쟁 관전·자동 결산 배너 (전장 위) */
+.spectate-bar { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); z-index: 9; max-width: 94%; padding: 5px 10px; border-radius: 999px; background: rgba(92, 26, 20, 0.92); color: #ffeec2; font-size: 11px; font-weight: 800; letter-spacing: -0.01em; text-align: center; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spectate-bar b { color: #ffd76a; margin-right: 4px; }
+
+/* v5.89 — 관전·자동결산 중에는 후퇴·자동토글·배속 버튼을 확실히 감춘다
+   (hidden 속성만으로는 .act/.icon-btn의 display 규칙에 져서 화면에 남는다) */
+#screen-battle.spectating #btn-retreat,
+#screen-battle.spectating #btn-speed,
+#screen-battle.spectating #battle-actions .act.auto { display: none !important; }
+#screen-battle.spectating #battle-actions .act:not(.speed) { opacity: .45; filter: grayscale(.45); }

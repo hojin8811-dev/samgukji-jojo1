@@ -44,6 +44,11 @@
   let autoOn = false;           // v5.2 — 아군 턴 자동 진행
   let autoTimer = null;
   let autoPending = null;
+  /* v5.89 — 총도독 전쟁 [관전하기]·[건너뛰기]
+     · spectateMode: 아군도 AI가 지휘하고 플레이어 명령을 전부 막는다(관전 전용).
+     · skipMode: 관전 없이 빠르게 자동 결산(같은 전투 엔진, 배속만 최대로). */
+  let spectateMode = false;
+  let skipMode = false;
   /* v5.10 — 전투 배속(처음엔 자동전투에만). ×1 = 기본 속도, ×2·×3·×4 = 그만큼 빠르게.
      v5.51 — 수동 전투에도 똑같이 건다(예전엔 ×1이 0.5배속·×2가 기본이었고, 수동에는 안 걸렸다).
      한 판에서 고른 배속은 세션 동안 다음 전투에도 이어진다. */
@@ -475,6 +480,12 @@
     autoStop();
     autoPending = null;
     autoSpeed = speedPref || 1;   // v5.26 — 지난 전투에서 고른 배속을 이어 쓴다 (처음엔 ×1)
+    /* v5.89 — 관전/자동결산 모드 플래그 (전장을 열 때마다 새로 잡는다) */
+    spectateMode = !!opts.spectate;
+    skipMode = !!opts.skip;
+    B.spectate = spectateMode || skipMode;
+    B.skip = skipMode;
+    if (spectateMode) { autoSpeed = skipMode ? 4 : Math.max(2, autoSpeed); }
     paintSpeedBtn();
     SK.show('screen-battle');
     if (window.JojoBGM) {
@@ -503,7 +514,8 @@
     const feedEl = document.querySelector('#battle-feed');
     if (feedEl) feedEl.innerHTML = '';
     SKBattle.refreshUI();
-    showIntro();
+    /* v5.89 — [건너뛰기]는 인트로를 건너뛰고 바로 자동 결산으로 들어간다 */
+    if (skipMode) finishIntro(); else showIntro();
     if (supportNames.length) {
       wait(() => SK.toast(`적 지원군 합류 — ${supportNames.join(' · ')}`), 260);
     }
@@ -5969,6 +5981,12 @@
   function onTileTap(x, y) {
     if (!B || B.over || busy || !B.introDone) return;
     if (x < 0 || y < 0 || x >= N || y >= N) return;
+    /* v5.89 — 관전 중에는 명령을 받지 않는다. 부대 정보만 열어 준다 */
+    if (spectateMode || skipMode) {
+      const t0 = B.units.find((o) => o.alive && o.x === x && o.y === y);
+      if (t0) inspectUnit(t0, { open: true });
+      return;
+    }
     const u = B.sel;
     const t = B.units.find((o) => o.alive && o.x === x && o.y === y);
     /* v5.53 — 적군 페이즈에도 부대를 눌러 《장수 정보》를 볼 수 있다.
@@ -11228,6 +11246,11 @@
 
   function retreat() {
     if (!B) return;
+    /* v5.89 — 관전·자동결산 중에는 후퇴도 받지 않는다 (AI가 끝까지 지휘한다) */
+    if (spectateMode || skipMode) {
+      SK.toast('관전 중에는 후퇴할 수 없습니다 — AI가 지휘합니다.');
+      return;
+    }
     /* v5.7 — 수성전에서 물러나면 성을 내주는 것과 같다 */
     if (B.defense) { defenseDefeat(); return; }
     let headOnBack = false;
@@ -11269,6 +11292,18 @@
   }
   function closeBattle() {
     clearBattleProgress();
+    /* v5.89 — 관전·자동결산 상태와 배속을 다음 전장으로 넘기지 않는다 */
+    spectateMode = false;
+    skipMode = false;
+    paceBoost = 1;
+    const sbar = document.querySelector('#spectate-bar');
+    if (sbar) sbar.hidden = true;
+    const scr = document.getElementById('screen-battle');
+    if (scr) scr.classList.remove('spectating');
+    ['#battle-actions .act.auto', '#btn-retreat', '#btn-speed'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (el) el.hidden = false;
+    });
     /* v5.84 — 필살기 타격 연출(암전·팝업·파티클)이 지도나 결과 창 위에 남지 않게 걷어낸다 */
     try { if (window.V584_ULT_FX && window.V584_ULT_FX.stop) window.V584_ULT_FX.stop(); } catch (e) { /* ignore */ }
     /* v5.52 — 일기토 창이 떠 있는 채로 전장을 닫지 않는다 */
@@ -11294,6 +11329,56 @@
     wait(() => { el.className = 'turn-banner ' + side; }, 1200);
   }
 
+  /* v5.89 — 인트로 종료 처리를 한 함수로 모은다 (관전·자동결산은 인트로 없이 바로 시작) */
+  function finishIntro() {
+    const ov = $('#battle-overlay');
+    if (ov) { ov.innerHTML = ''; ov.hidden = true; ov.onclick = null; }
+    if (!B) return;
+    B.introDone = true;
+    classAuraPhase('ally');
+    /* v5.82 — 첫 아군 턴 시작 특기 */
+    B.units.forEach((u) => { if (u.side === 'ally' && u.alive) vpTurnStart(u); });
+    banner(spectateMode ? (skipMode ? '자동 결산' : '관전') : '아군 페이즈', 'ally');
+    if (spectateMode) {
+      const first = B.units.find((u) => u.side === 'ally');
+      if (first) selectUnit(first);
+    }
+    if (spectateMode || skipMode) startSpectating();
+  }
+
+  /* v5.89 — 관전/자동결산: 아군 [자동]을 강제로 켜고, 플레이어 명령·후퇴·배속 버튼을 잠근다.
+     (건너뛰기는 같은 엔진을 배속 10으로 돌려 결과만 빠르게 받는다) */
+  function startSpectating() {
+    if (!B) return;
+    const bar = document.querySelector('#spectate-bar');
+    if (bar) {
+      bar.hidden = false;
+      bar.innerHTML = skipMode
+        ? '<b>👁 자동 결산</b> 총도독이 지휘합니다 — 결과까지 AI가 진행합니다'
+        : '<b>👁 관전 중</b> AI가 지휘합니다 — 직접 조작할 수 없습니다';
+    }
+    const autoBtn = document.querySelector('#battle-actions .act.auto');
+    if (autoBtn) autoBtn.hidden = true;
+    const retreat = document.querySelector('#btn-retreat');
+    if (retreat) retreat.hidden = true;
+    const spd = document.querySelector('#btn-speed');
+    if (spd) spd.hidden = true;
+    /* hidden 속성은 display 규칙에 져서 화면에 남는다(.act·.icon-btn) → 전용 클래스로 확실히 숨긴다 */
+    const scr = document.getElementById('screen-battle');
+    if (scr) scr.classList.add('spectating');
+    if (skipMode) {
+      autoSpeed = 4;
+      paceBoost = 10;   // 같은 엔진을 최대 배속으로 돌려 결과만 빨리 받는다
+    }
+    paintSpeedBtn();
+    autoStop();
+    autoOn = true;
+    autoPending = null;
+    autoClear();
+    autoTimer = wait(autoStep, 160);
+    SK.toast(skipMode ? '총도독 전투 — 결과까지 자동으로 결산합니다.' : '관전 — 아군도 AI가 지휘합니다. 직접 명령은 잠겼습니다.');
+  }
+
   function showIntro() {
     let i = 0;
     const ov = $('#battle-overlay');
@@ -11302,7 +11387,7 @@
     const skipBtn = '<button type="button" class="intro-skip" aria-label="인트로 건너뛰기">건너뛰기 ⏭</button>';
     const render = () => {
       if (!B) return;
-      if (i >= B.introLines.length) { ov.innerHTML = ''; ov.hidden = true; ov.onclick = null; B.introDone = true; classAuraPhase('ally'); /* v5.82 — 첫 아군 턴 시작 특기 */ B.units.forEach((u) => { if (u.side === 'ally' && u.alive) vpTurnStart(u); }); banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
+      if (i >= B.introLines.length) { finishIntro(); return; }
       const L = B.introLines[i];
       if (L.event) {
         const ev = L.event;
@@ -12229,6 +12314,11 @@
       const b = e.target.closest('.act');
       if (!b || !B) return;
       const act = b.dataset.act;
+      /* v5.89 — 관전·자동결산 중에는 플레이어 명령(공격·책략·필살기·아이템·대기·턴 종료)을 막는다 */
+      if ((spectateMode || skipMode) && act !== 'speed') {
+        SK.toast('관전 중에는 직접 명령할 수 없습니다 — AI가 지휘합니다.');
+        return;
+      }
       if (act === 'endturn') { endTurn(); return; }
       if (act === 'auto') { toggleAuto(); return; }   // v5.2 — 아군 턴 자동 토글
       if (act === 'speed') { toggleSpeed(); return; }  // v5.10 — 전투 배속 ×1 / ×2
