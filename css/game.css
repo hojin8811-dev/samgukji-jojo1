@@ -6614,3 +6614,260 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .cdx-origin b { color: #8a3a2a; }
 .cdx-origin-tag { font-style: normal; font-size: 9px; padding: 1px 5px; border-radius: 999px;
   background: rgba(168, 68, 58, 0.1); border: 1px solid rgba(168, 68, 58, 0.35); color: #8a3a2a; margin-left: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v5.83 — 관리자 모드 (?admin=1)  🛠️
+   일반 주소에서는 DOM 자체가 없다. 어두운 먹빛 바탕 + 금빛 테두리로
+   게임 화면 위에 얹히는 '도구 서랍'처럼 보이게 한다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.adm-fab {
+  position: fixed; z-index: 40;   /* 모달(#modal-root z=50) 아래 — 창을 가리지 않는다 */
+  top: calc(env(safe-area-inset-top, 0px) + 92px); right: 7px;
+  min-width: 38px; height: 30px; padding: 0 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 900; letter-spacing: -0.03em; line-height: 1;
+  color: #ffe9b8; background: linear-gradient(180deg, rgba(60, 48, 22, 0.96), rgba(32, 25, 11, 0.96));
+  border: 1px solid #e3bd63; border-radius: 9px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 235, 180, 0.25);
+}
+.adm-fab:active { transform: translateY(1px); }
+
+.adm {
+  position: fixed; inset: 0; z-index: 1200;
+  display: flex; align-items: stretch; justify-content: center;
+  background: rgba(10, 8, 4, 0.55);
+  font-family: var(--sans); color: #f0e3c4;
+  animation: admIn 0.18s ease-out;
+}
+@keyframes admIn { from { opacity: 0; } to { opacity: 1; } }
+.adm-box {
+  width: 100%; max-width: 520px; height: 100%;
+  display: flex; flex-direction: column;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(227, 189, 99, 0.10), transparent 55%),
+    linear-gradient(180deg, #241d10 0%, #1a150b 55%, #120e07 100%);
+  border-left: 1px solid #6b5a2c; border-right: 1px solid #6b5a2c;
+  box-shadow: 0 0 32px rgba(0, 0, 0, 0.6);
+}
+.adm-h {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 9px) 10px 9px;
+  border-bottom: 1px solid #5a4a22;
+  background: linear-gradient(180deg, #322816, #241d10);
+}
+.adm-h-l { display: flex; flex-direction: column; min-width: 0; }
+.adm-h-l b { font-family: var(--serif); font-size: 14.5px; color: #ffe6ac; letter-spacing: -0.02em; }
+.adm-h-l small { font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em; color: #a89258; }
+.adm-h-r { margin-left: auto; display: flex; align-items: center; gap: 5px; }
+.adm-mini {
+  border: 1px solid #e3bd63; border-radius: 7px; padding: 6px 8px;
+  font-size: 10.5px; font-weight: 900; color: #2c2310;
+  background: linear-gradient(180deg, #f0d79b, #d7ae58);
+}
+.adm-x {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid #6b5a2c; background: #241d10; color: #e8d9b4;
+  font-size: 15px; font-weight: 900; line-height: 1;
+}
+.adm-tabs {
+  flex: 0 0 auto; display: flex; gap: 3px; padding: 5px 6px;
+  border-bottom: 1px solid #4a3c1c; background: #1e1810;
+}
+.adm-tabs button {
+  flex: 1 1 auto; padding: 7px 2px; border-radius: 8px;
+  border: 1px solid transparent; background: none;
+  font-size: 10.5px; font-weight: 900; letter-spacing: -0.04em; color: #b6a176;
+  white-space: nowrap;
+}
+.adm-tabs button.on {
+  color: #2c2310; border-color: #e3bd63;
+  background: linear-gradient(180deg, #f0d79b, #d7ae58);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.adm-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 9px 9px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.adm-foot {
+  flex: 0 0 auto; padding: 6px 10px calc(env(safe-area-inset-bottom, 0px) + 7px);
+  border-top: 1px solid #4a3c1c; background: #1a150c;
+  font-size: 10px; font-weight: 800; color: #9c8757; text-align: center;
+}
+.adm-card {
+  padding: 9px; border-radius: 10px;
+  border: 1px solid #4f4020; background: rgba(52, 42, 21, 0.55);
+}
+.adm-lead { margin: 0 0 8px; font-size: 11px; line-height: 1.5; color: #d9c79c; }
+.adm-lead b { color: #ffe6ac; }
+.adm-sec { margin: 0 0 6px; font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em; color: #c9ad6a; }
+.adm-hint { margin: 6px 0 0; font-size: 10px; line-height: 1.45; color: #a9925f; }
+.adm-hint.center { text-align: center; }
+.adm-dim { font-size: 10.5px; color: #8d7a4f; }
+.adm-empty { padding: 22px 6px; text-align: center; font-size: 11.5px; color: #b6a176; }
+
+.adm-big {
+  display: block; width: 100%; padding: 13px 10px; border-radius: 10px;
+  border: 1px solid #e3bd63; font-size: 14px; font-weight: 900; letter-spacing: -0.02em;
+  color: #2c2310; background: linear-gradient(180deg, #f0d79b, #d7ae58);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.adm-big.on { color: #ffe2c8; border-color: #e08a6a; background: linear-gradient(180deg, #7a2f24, #4d1a13); }
+.adm-big.off { color: #d9c79c; border-color: #6b5a2c; background: linear-gradient(180deg, #3a2f18, #241d10); }
+.adm-big.gold { margin-top: 2px; }
+.adm-big:active { transform: translateY(1px); }
+
+.adm-speeds { display: flex; gap: 4px; margin-top: 7px; }
+.adm-speeds button {
+  flex: 1 1 0; padding: 8px 2px; border-radius: 8px;
+  border: 1px solid #6b5a2c; background: #241d10;
+  font-size: 11px; font-weight: 900; color: #d8c496;
+}
+.adm-speeds button.on { color: #2c2310; border-color: #e3bd63; background: linear-gradient(180deg, #f0d79b, #d7ae58); }
+
+.adm-wide {
+  display: block; width: 100%; padding: 10px; border-radius: 9px;
+  border: 1px solid #6b5a2c; background: linear-gradient(180deg, #3a2f18, #241d10);
+  font-size: 12px; font-weight: 900; color: #f0e3c4;
+}
+.adm-wide.gold { margin-top: 8px; border-color: #e3bd63; color: #2c2310; background: linear-gradient(180deg, #f0d79b, #d7ae58); }
+.adm-wide.danger { border-color: #8a3f32; color: #ffd7c8; background: linear-gradient(180deg, #6d2b21, #3d1610); }
+.adm-wide:active { transform: translateY(1px); }
+
+.adm-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.adm-stats > div {
+  display: flex; flex-direction: column; gap: 1px; padding: 6px 8px;
+  border-radius: 7px; border: 1px solid #4f4020; background: rgba(30, 24, 12, 0.7);
+}
+.adm-stats span { font-size: 9.5px; font-weight: 800; color: #a9925f; }
+.adm-stats b { font-size: 13px; color: #ffe6ac; letter-spacing: -0.02em; }
+.adm-stats b em { font-style: normal; font-size: 10px; color: #c9ad6a; }
+.adm-stats b.on { color: #a8f0b8; }
+
+.adm-log {
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 132px; overflow-y: auto;
+  font-size: 10.5px; line-height: 1.4; color: #c8b483;
+}
+.adm-log > div { padding: 3px 6px; border-radius: 5px; background: rgba(30, 24, 12, 0.6); }
+
+.adm-filter { display: flex; flex-direction: column; gap: 5px; }
+.adm-search {
+  width: 100%; padding: 9px 10px; border-radius: 8px;
+  border: 1px solid #6b5a2c; background: #120e07; color: #f0e3c4;
+  font-family: inherit; font-size: 12.5px;
+}
+.adm-search::placeholder { color: #7d6b43; }
+.adm-chips { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.adm-chips::-webkit-scrollbar { display: none; }
+.adm-chips button {
+  flex: 0 0 auto; padding: 5px 9px; border-radius: 999px;
+  border: 1px solid #5a4a22; background: #241d10;
+  font-size: 10.5px; font-weight: 900; color: #b6a176; white-space: nowrap;
+}
+.adm-chips button.on { color: #2c2310; border-color: #e3bd63; background: linear-gradient(180deg, #f0d79b, #d7ae58); }
+.adm-chips.tiers button { min-width: 44px; text-align: center; }
+.adm-count { margin: 2px 0 0; font-size: 10px; font-weight: 800; color: #a9925f; }
+
+.adm-list { display: flex; flex-direction: column; gap: 5px; }
+.adm-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px;
+  border-radius: 9px; border: 1px solid #4f4020;
+  background: rgba(44, 35, 18, 0.7); text-align: left; color: inherit;
+}
+.adm-row:active { background: rgba(62, 50, 24, 0.9); }
+.adm-pt {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #17120a; border: 2px solid #6b5a2c;
+}
+.adm-pt img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.adm-pt.big { width: 54px; height: 54px; border-width: 2.5px; }
+.adm-rowmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.adm-rowmain b { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #f4e8cc; letter-spacing: -0.02em; }
+.adm-rowmain small { font-size: 10px; color: #a9925f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-arrow { flex: 0 0 auto; font-size: 15px; color: #8d7a4f; }
+.adm-tier {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 15px; padding: 0 3px; border-radius: 4px;
+  font-size: 9.5px; font-weight: 900; font-style: normal; color: #fff;
+}
+.adm-tier.tier-S { background: #a8443a; }
+.adm-tier.tier-A { background: #7a5aa8; }
+.adm-tier.tier-B { background: #3f6fb5; }
+.adm-tier.tier-C { background: #3f7a5a; }
+.adm-badge {
+  flex: 0 0 auto; padding: 2px 6px; border-radius: 999px;
+  border: 1px solid #47673c; background: #2c3f24; color: #bfe0a8;
+  font-size: 9px; font-weight: 900;
+}
+.adm-gem {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; border: 1px solid #4f4020; background: #17120a;
+}
+.adm-gem.big { width: 54px; height: 54px; font-size: 24px; }
+.adm-gem.on { border-color: #e3bd63; background: rgba(227, 189, 99, 0.14); }
+.adm-grade { font-size: 9.5px; font-weight: 900; font-style: normal; }
+.adm-grade.g-전설 { color: #ff9a8a; }
+.adm-grade.g-영웅 { color: #c9a8ff; }
+.adm-grade.g-희귀 { color: #8fd8b0; }
+.adm-grade.g-일반 { color: #b9a985; }
+
+.adm-back {
+  align-self: flex-start; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid #6b5a2c; background: #241d10;
+  font-size: 11px; font-weight: 900; color: #d9c79c;
+}
+.adm-dhead { display: flex; align-items: center; gap: 9px; padding: 2px 1px; }
+.adm-dhead > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.adm-dhead b { font-family: var(--serif); font-size: 17px; color: #ffe6ac; letter-spacing: -0.02em; }
+.adm-dhead small { font-size: 10.5px; color: #b6a176; }
+.adm-dhead .adm-tier { align-self: flex-start; }
+.adm-dhead .adm-hint { margin: 0; font-size: 10px; color: #c9ad6a; }
+
+.adm-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.adm-nums.three { grid-template-columns: 1fr 1fr 1fr; }
+.adm-num { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.adm-num.wide { grid-column: 1 / -1; }
+.adm-num > span, .adm-field > span { font-size: 9.5px; font-weight: 900; letter-spacing: 0.03em; color: #a9925f; }
+.adm-num input, .adm-num select, .adm-field textarea {
+  width: 100%; padding: 7px 8px; border-radius: 7px;
+  border: 1px solid #5a4a22; background: #120e07; color: #ffe6ac;
+  font-family: inherit; font-size: 13px; font-weight: 800;
+  -webkit-appearance: none; appearance: none;
+}
+.adm-num select {
+  background-image: linear-gradient(45deg, transparent 50%, #c9ad6a 50%), linear-gradient(135deg, #c9ad6a 50%, transparent 50%);
+  background-position: calc(100% - 13px) 13px, calc(100% - 8px) 13px;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  padding-right: 24px;
+}
+.adm-field { display: flex; flex-direction: column; gap: 3px; }
+.adm-field textarea { resize: vertical; line-height: 1.4; font-weight: 600; font-size: 12px; }
+.adm-skill {
+  margin-top: 7px; padding: 7px; border-radius: 8px;
+  border: 1px dashed #5a4a22; background: rgba(30, 24, 12, 0.55);
+  display: flex; flex-direction: column; gap: 5px;
+}
+.adm-skill > b { font-size: 11.5px; color: #f4e8cc; letter-spacing: -0.02em; }
+.adm-skill > b em { font-style: normal; font-size: 9.5px; color: #a9925f; }
+.adm-skill .adm-hint { margin: 0; font-size: 9.5px; }
+
+.adm-sheet {
+  position: fixed; inset: 0; z-index: 1300;
+  display: flex; align-items: center; justify-content: center; padding: 14px;
+  background: rgba(8, 6, 2, 0.72);
+}
+.adm-sheet-in {
+  width: 100%; max-width: 460px; padding: 12px; border-radius: 12px;
+  border: 1px solid #e3bd63; background: #241d10;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.adm-sheet-in b { font-size: 13px; color: #ffe6ac; }
+.adm-sheet-in textarea {
+  width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #5a4a22;
+  background: #120e07; color: #e8d9b4; font-family: ui-monospace, monospace; font-size: 10.5px; line-height: 1.45;
+}
+
+/* v5.83 — hidden 속성이 display:flex 에 먹히지 않게 (패널·버튼이 처음부터 떠 있던 문제) */
+.adm[hidden], .adm-fab[hidden] { display: none !important; }

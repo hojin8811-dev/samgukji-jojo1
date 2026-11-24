@@ -70,12 +70,16 @@
      autoOn일 때도 `2 / 배속`이라 ×1이 0.5배속·×2가 1.0배속이었다.
      이제 ×1=그대로 · ×2=÷2 · ×3=÷3 · ×4=÷4.
      너무 짧아져 연출이 사라지거나 턴 처리가 겹치지 않게 하한만 둔다(×2 16ms · ×3 12ms · ×4 8ms). */
+  /* v5.83 — 관리자 관전 전용 추가 배속(paceBoost). 1이면 지금까지와 똑같다. */
+  let paceBoost = 1;
   function paceMs(ms) {
     const n = Math.round(Number(ms) || 0);
     const sp = autoSpeed || 1;
-    if (sp <= 1 || n <= 0) return n;
+    if (n <= 0) return n;
+    if (sp <= 1 && paceBoost <= 1) return n;
+    const eff = Math.max(1, sp) * Math.max(1, paceBoost);
     const floor = sp >= 4 ? 8 : (sp === 3 ? 12 : 16);
-    return Math.max(floor, Math.round(n / sp));
+    return Math.max(floor, Math.round(n / eff));
   }
   function wait(fn, ms) { return setTimeout(fn, paceMs(ms)); }
   SK.battlePace = paceMs;
@@ -604,7 +608,8 @@
       def: defFlat * (1 + 0.06 * SK.tierForLv(h.lv)) * lvMul * defMulBase,
       grow: { atkFlat, defFlat, atkMulBase, defMulBase, lv0: h.lv, wu0: h.wu, tong0: h.tong },
       mov: Math.min(9, C.mov + eq.move), rng: C.rng + (C.rng > 1 ? (eq.rng || 0) : 0), minRng: C.minRng || 1,
-      wu: h.wu + eq.war, ji: h.ji + eq.intel, tong: h.tong + eq.leadership,
+      /* v5.83 — 관리자 병과 편집의 지력(ji) 보정을 부대 지력에 더한다 (0이면 예전과 같다) */
+      wu: h.wu + eq.war, ji: h.ji + eq.intel + (C.ji || 0), tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
       passive, pUsed: {}, x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
       tfx,
@@ -629,7 +634,7 @@
       hp: spec.troops, maxHp: spec.troops, mp: maxMpBase(C.mp, spec.cls), maxMp: maxMpBase(C.mp, spec.cls),
       /* v5.3 — 일반 부대는 Lv.1 C급 장수보다 약하게 (장수 부대가 확실히 우위) */
       atk: C.atk - 1.5, def: C.def - 1.5, mov: C.mov, rng: C.rng, minRng: C.minRng || 1,
-      wu: 52, ji: 50, tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
+      wu: 52, ji: 50 + (C.ji || 0), tong: 52, portrait: CLASS_PORTRAIT[spec.cls], unit: CLASS_UNIT[spec.cls],
       /* v5.62 — 일반 부대도 자기 레벨 미만의 책략은 펼치지 못한다 */
       skills: SK.skillsFor(spec.cls, lv), x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: 1,
       stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
@@ -645,7 +650,7 @@
       id: 'boss', side: 'enemy', name: info.name, hanja: info.hanja, cls: info.cls, lv,
       hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv * 2, info.cls), maxMp: maxMpBase(C.mp + lv * 2, info.cls),
       atk: C.atk + lv * 1.15, def: C.def + lv * 0.8,
-      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv, tong: 80, boss: true,
+      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 82 + lv, ji: 60 + lv + (C.ji || 0), tong: 80, boss: true,
       portrait: info.pt, unit: CLASS_UNIT[info.cls], skills: SK.skillsFor(info.cls, lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: 82,
@@ -668,7 +673,7 @@
          아군이 4배 이상 손해를 보던 원인. */
       atk: (C.atk + (g.war - 60) * 0.14) * (1 + (SK.TIER_LV[g.tier] || 3) * 0.025) * lvMul,
       def: (C.def + (g.leadership - 60) * 0.08) * (1 + 0.04 * ((SK.TIER_LV[g.tier] || 3) - 1)) * lvMul,
-      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel, tong: g.leadership,
+      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: g.war, ji: g.intel + (C.ji || 0), tong: g.leadership,
       boss: boss && g.tier === 'S', portrait: SK.genPortrait(g), unit: SK.genUnit(g),
       skills: SK.skillsFor(cls, lv), skillName: g.skill, tier: g.tier,
       passive: (SK.PASSIVES && SK.PASSIVES[g.name]) || null, pUsed: {},
@@ -693,7 +698,7 @@
       hp: troops, maxHp: troops, mp: maxMpBase(C.mp + lv, cls), maxMp: maxMpBase(C.mp + lv, cls),
       /* v5.3 — 무명 일반 수비병도 아군 일반 부대와 같은 낮은 기준 (명장 부대가 확실히 강하다) */
       atk: C.atk - 1.5, def: C.def - 1.5,
-      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48, tong: 50,
+      mov: C.mov, rng: C.rng, minRng: C.minRng || 1, wu: 50, ji: 48 + (C.ji || 0), tong: 50,
       portrait: CLASS_PORTRAIT[cls], unit: CLASS_UNIT[cls], skills: SK.skillsFor(cls, lv),
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: 45,
@@ -4928,6 +4933,29 @@
     const cut = Math.min(0.6, Math.max(0, fxPct(u, 'mpCost')));
     return Math.max(1, Math.round(base * (1 - cut)));
   }
+  /* ══ v5.83 — 책략 쿨타임 (관리자 병과 편집용) ══
+     sk.cd 가 0이면 지금까지와 똑같이 매 턴 쓸 수 있다.
+     cd 값은 '대기 턴 수'다 — 2로 두면 한 턴을 쉬고 그다음 턴에 다시 펼친다. */
+  function skillKeyOf(sk) {
+    if (!sk) return '';
+    if (sk.key) return sk.key;
+    const ks = Object.keys(SK.SKILLS || {});
+    for (let i = 0; i < ks.length; i++) if (SK.SKILLS[ks[i]] === sk) return ks[i];
+    return '';
+  }
+  function skCdLeft(u, sk) {
+    if (!u || !sk) return 0;
+    const k = skillKeyOf(sk);
+    if (!k || !u.scd) return 0;
+    return Math.max(0, Number(u.scd[k]) || 0);
+  }
+  function spendSkill(u, sk) {
+    u.mp -= mpCostOf(u, sk);
+    const cd = Math.max(0, Number(sk && sk.cd) || 0);
+    const k = skillKeyOf(sk);
+    if (cd > 0 && k) { u.scd = u.scd || {}; u.scd[k] = cd; }
+  }
+  SK.skCdLeft = skCdLeft;
   function effAtk(u) {
     const ch = B.tiles[u.y][u.x];
     const aff = SK.affinity(u.cls, ch);
@@ -6210,10 +6238,13 @@
       const sk = SK.SKILLS[k];
       const need = SK.skillLockLv(k, lv);
       const poor = u.mp < sk.mp;
-      const dis = need > 0 || poor;
+      /* v5.83 — 쿨타임 중인 책략은 목록에서 흐리게 + 남은 턴을 적는다 */
+      const cool = skCdLeft(u, sk);
+      const dis = need > 0 || poor || cool > 0;
       if (need > 0) { lockedN += 1; if (!nextNeed || need < nextNeed) nextNeed = need; }
-      const state = need > 0 ? 'lock' : (poor ? 'off' : '');
-      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>` : '';
+      const state = need > 0 ? 'lock' : (poor || cool > 0 ? 'off' : '');
+      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>`
+        : (cool > 0 ? `<em class="sk-lock">⏳ ${cool}턴 대기</em>` : '');
       return `<button class="skill-row ${state}" data-k="${k}" ${dis ? 'disabled' : ''}>
         <span class="sk-mp">${sk.mp}</span>
         <div><b>${sk.name}${badge}<em class="sk-rng">사거리 ${skRange(u, sk)}</em></b><span>${sk.desc}</span></div>
@@ -6237,6 +6268,9 @@
     const sk = SK.SKILLS[key];
     if (!sk) return;
     if (SK.skillLockLv(key, u.lv)) { SK.toast(`Lv.${SK.SKILLS[key].unlockLv}에 해금되는 책략입니다.`); return; }
+    /* v5.83 — 관리자 병과 편집의 쿨타임: 남은 턴이 있으면 펼치지 못한다 */
+    const cdLeft = skCdLeft(u, sk);
+    if (cdLeft > 0) { SK.toast(`『${sk.name}』은(는) ${cdLeft}턴 뒤에 다시 펼칠 수 있습니다.`); return; }
     if (u.mp < sk.mp) return;
     pendingSkill = Object.assign({ key }, sk);
     mode = 'skillTarget';
@@ -6250,7 +6284,7 @@
 
   function castInstant(u, sk) {
     busy = true;
-    u.mp -= mpCostOf(u, sk);
+    spendSkill(u, sk);
     const auraCol = sk.kind === 'buffSelf' ? '150,210,255'
       : sk.kind === 'buffAllAllies' ? '255,226,140' : '255,215,120';
     castCircle(u, auraCol);
@@ -6382,7 +6416,7 @@
     if (sk.kind === 'heal' || sk.kind === 'buffAlly') {
       if (!target || target.side !== u.side) { SK.toast('아군을 선택하세요.'); return; }
       busy = true;
-      u.mp -= mpCostOf(u, sk);
+      spendSkill(u, sk);
       castCircle(u, sk.kind === 'heal' ? '150,240,180' : '255,215,120');
       SK.sfx.play(sk.kind === 'heal' ? 'heal' : 'spell');
       skillFxAt(u, sk, x, y);
@@ -6407,7 +6441,7 @@
 
     if (sk.kind === 'debuffDef' || sk.kind === 'debuffAtk') {
       busy = true;
-      u.mp -= mpCostOf(u, sk);
+      spendSkill(u, sk);
       castCircle(u, sk.kind === 'debuffDef' ? '190,160,255' : '255,170,215');
       SK.sfx.play('spell');
       skillFxAt(u, sk, x, y);
@@ -6442,7 +6476,7 @@
        ══════════════════════════════════════════════════════════════ */
     if (sk.kind === 'power' && sk.pattern) {
       busy = true;
-      u.mp -= mpCostOf(u, sk);
+      spendSkill(u, sk);
       castCircle(u, sk.pattern === 'range2' ? '255,170,215' : '255,236,160');
       SK.sfx.play(sk.pattern === 'range2' ? 'spell' : 'sword');
       skillFxAt(u, sk, x, y, { radius: sk.pattern === 'range2' ? 2 : 1 });
@@ -6517,7 +6551,7 @@
     /* v5.81 — 궁수 '화시': 책략이 아닌 물리 공격력 기반 지점 범위 피해 */
     if (sk.kind === 'powerArea') {
       busy = true;
-      u.mp -= mpCostOf(u, sk);
+      spendSkill(u, sk);
       castCircle(u, '255,225,170');
       SK.sfx.play('bow');
       const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
@@ -6544,7 +6578,7 @@
 
     if (sk.kind === 'magicArea') {
       busy = true;
-      u.mp -= mpCostOf(u, sk);
+      spendSkill(u, sk);
       castCircle(u, u.cls === 'balseokcha' ? '230,200,150' : '255,170,120');
       SK.sfx.play(u.cls === 'balseokcha' ? 'rock' : 'spell');
       const rad = (sk.radius || 1) + Math.max(0, Math.round((u.tfx && u.tfx.radius) || 0));
@@ -6599,7 +6633,7 @@
 
     if (!target || target.side === u.side) { SK.toast('적을 선택하세요.'); return; }
     busy = true;
-    u.mp -= mpCostOf(u, sk);
+    spendSkill(u, sk);
     if (sk.kind === 'magic') {
       castCircle(u, '255,170,120');
       SK.sfx.play('spell');
@@ -7649,8 +7683,10 @@
       const sk = SK.SKILLS[k];
       const need = SK.skillLockLv(k, lvU);
       const rng = sk.radius ? `반경 ${sk.radius}` : `사거리 ${skRange(u, sk)}`;
-      const state = need > 0 ? 'lock' : (u.mp < sk.mp ? 'off' : '');
-      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>` : '';
+      const cool = skCdLeft(u, sk);
+      const state = need > 0 ? 'lock' : ((u.mp < sk.mp || cool > 0) ? 'off' : '');
+      const badge = need > 0 ? `<em class="sk-lock">🔒 Lv.${need} 해금</em>`
+        : (cool > 0 ? `<em class="sk-lock">⏳ ${cool}턴 대기</em>` : '');
       return `<div class="skill-row gi-skill ${state}"><span class="sk-mp">${sk.mp}</span>
         <div><b>${sk.name}${badge}<em class="sk-rng">${rng}</em></b><span>${sk.desc || ''}</span></div></div>`;
     }).join('');
@@ -7882,7 +7918,7 @@
     return u.skills.map((k) => {
       const s = SK.SKILLS[k];
       return s ? Object.assign({ key: k }, s) : null;
-    }).filter((s) => s && (u.mp || 0) >= (s.mp || 0));
+    }).filter((s) => s && (u.mp || 0) >= (s.mp || 0) && skCdLeft(u, s) <= 0);
   }
 
   function moveTiles(u) {
@@ -8125,14 +8161,17 @@
   /* 책략을 실제로 펼친다 (UI 조작 없이). 성공하면 true */
   function aiCast(u, sk, x, y) {
     if (!u || !sk || u.acted || (u.mp || 0) < (sk.mp || 0)) return false;
+    if (skCdLeft(u, sk) > 0) return false;
     const tgt = B.units.find((o) => o.alive && o.x === x && o.y === y);
     if (sk.kind === 'heal' || sk.kind === 'buffAlly') { if (!tgt || tgt.side !== u.side) return false; }
     if (sk.kind === 'power' || sk.kind === 'magic') { if (!tgt || tgt.side === u.side) return false; }
     /* v5.81 — 화시(powerArea)는 적이 없는 지점도 노릴 수 있다 */
     if (sk.kind === 'powerArea') { if (tgt && tgt.side === u.side) return false; }
     const dist = manh(u.x, u.y, x, y);
-    if (sk.minRange && dist < sk.minRange) return false;
-    if (sk.kind !== 'buffSelf' && sk.kind !== 'buffAreaAllies' && sk.kind !== 'healArea' && sk.kind !== 'buffAllAllies' && sk.kind !== 'healAll' && dist > skRange(u, sk)) return false;
+    const selfCentered = sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies' || sk.kind === 'healAll';
+    /* v5.83 — 자기 중심 광역 기술은 최소 사거리 검사에서 제외한다 (플레이어 경로와 같은 규칙) */
+    if (sk.minRange && dist < sk.minRange && !(dist === 0 && selfCentered)) return false;
+    if (!selfCentered && dist > skRange(u, sk)) return false;
     B.sel = u;
     mode = 'skillTarget';
     pendingSkill = Object.assign({ key: sk.key }, sk);
@@ -8619,6 +8658,8 @@
           /* v5.30 — 한 턴 2회 공격(일월쌍도·쌍고검) 쿨타임과 돌격 이동 거리 초기화 */
           u.dblUsed = false;
           if (u.dblCd > 0) u.dblCd -= 1;
+          /* v5.83 — 책략 쿨타임 1턴 감소 */
+          if (u.scd) Object.keys(u.scd).forEach((k) => { u.scd[k] = (Number(u.scd[k]) || 0) - 1; if (u.scd[k] <= 0) delete u.scd[k]; });
           u.movedTiles = 0;
           u.movedThisTurn = false;
           u.turnStartX = u.x; u.turnStartY = u.y;
@@ -11251,6 +11292,8 @@
       moveTo(x, y) { const u = B.sel; if (u) moveUnit(u, x, y); },
       focus(x, y, s) { if (s) cam.s = clamp(s, 0.4, 2.2); centerCam(x, y); },
       setTimeScale(v) { timeScale = v > 0 ? v : 1; return timeScale; },
+      setPaceBoost(v) { paceBoost = Math.max(1, Math.min(12, Number(v) || 1)); return paceBoost; },
+      get paceBoost() { return paceBoost; },
       eff(name) {
         const u = B.units.find((o) => o.name === name);
         return u ? { atk: Math.round(effAtk(u)), def: Math.round(effDef(u)), matk: Math.round(magicAtk(u)),

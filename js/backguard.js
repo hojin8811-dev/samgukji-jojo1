@@ -247,6 +247,9 @@
   function onPop() {
     if (exiting) return;             // leave() 가 부른 history.back() 의 되울림은 무시
     if (navigatedAway) return;
+    /* v5.83 — 관리자 패널(?admin=1)이 열려 있으면 뒤로가기는 패널만 닫는다 */
+    const adm = document.getElementById('adm-panel');
+    if (adm && !adm.hidden && SK.adminClose) { SK.adminClose(); pushGuard(); return; }
 
     const act = backAction();
 

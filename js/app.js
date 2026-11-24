@@ -2442,8 +2442,11 @@
     if (!SK.PASSIVES || !Object.keys(SK.PASSIVES).length) await loadPassives();
     applyLordArt();
     if (!SK.TREASURES.length) await loadTreasures();
+    /* v5.83 — 관리자 모드에서 저장해 둔 오버라이드(장수·보물·병과)를 데이터 위에 얹는다 */
+    if (SK.adminApply) { try { SK.adminApply(); } catch (e) { /* 관리자 값이 깨져도 게임은 연다 */ } }
     if (fresh) { openScenarioPicker(); return; }
     if (!SK.state) { SK.state = newState(SK.HIST[SK.HIST.length - 1] || null, 'caocao'); SK.save(); }
+    if (SK.adminApply) { try { SK.adminApply(); } catch (e) { /* ignore */ } }
     SK.showMap();
     SK.refreshHud();
     if (window.SKMap) SKMap.resetCamera();
@@ -14939,8 +14942,15 @@
        [⏸ 정지] 전까지 멈추지 않고 이어진다.
      ══════════════════════════════════════════════════════════════ */
   const DEV_OBS_CODE = 'hojin';
+  /* v5.83 — ?admin=1 관리자 모드도 같은 관전 엔진을 쓴다 (관리자 패널은 js/admin.js) */
+  const ADMIN_MODE = (function () {
+    try { const v = new URLSearchParams(window.location.search).get('admin'); return v === '1' || v === 'true'; } catch (e) { return false; }
+  })();
   const DEV_OBS_ON = (function () {
-    try { return new URLSearchParams(window.location.search).get('dev') === DEV_OBS_CODE; } catch (e) { return false; }
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get('dev') === DEV_OBS_CODE || q.get('admin') === '1' || q.get('admin') === 'true';
+    } catch (e) { return false; }
   })();
   const OBS = {
     on: false, speed: 1, timer: null, settleUntil: 0, turnDone: null,
@@ -14948,11 +14958,18 @@
     seen: (typeof WeakMap === 'function' ? new WeakMap() : null),
     stats: { battles: 0, captures: 0, modals: 0 },
   };
-  /* 배속별 리듬 — tick: 판단 주기, hold: 창을 보여 주는 시간, click: 창을 넘긴 뒤 흐름 여유 */
+  /* 배속별 리듬 — tick: 판단 주기, hold: 창을 보여 주는 시간, click: 창을 넘긴 뒤 흐름 여유
+     v5.83 — ×1·×2·×5·×10 네 단계. 한 달에 쓰는 시간을 1500 / 배속 으로 잡는다
+     (×1 1.5초 · ×2 0.75초 · ×5 0.3초 · ×10 0.15초 — 계획서의 호흡). */
   function obsCfg() {
-    if (OBS.speed >= 10) return { tick: 160, hold: 520, click: 540 };
-    if (OBS.speed >= 3) return { tick: 380, hold: 800, click: 720 };
-    return { tick: 900, hold: 1600, click: 1000 };
+    const sp = Math.max(1, Number(OBS.speed) || 1);
+    const month = 1500 / sp;
+    return {
+      month: Math.max(130, Math.round(month)),
+      tick: Math.max(90, Math.round(month * 0.35)),
+      hold: Math.max(110, Math.min(1600, Math.round(month * 0.45))),
+      click: Math.max(100, Math.round(month * 0.4)),
+    };
   }
   function obsLog(text) {
     if (!text) return;
@@ -14975,18 +14992,20 @@
     bar.id = 'dev-observer-bar';
     bar.className = 'dev-obs';
     bar.innerHTML = `<div class="do-row">
-        <button id="obs-toggle" class="do-btn do-play" type="button">▶ AI 관전</button>
+        <button id="obs-toggle" class="do-btn do-play" type="button">▶ 전 세력 AI 관전</button>
         <div class="do-speeds">
           <button class="do-sp on" data-sp="1" type="button">×1</button>
-          <button class="do-sp" data-sp="3" type="button">×3</button>
+          <button class="do-sp" data-sp="2" type="button">×2</button>
+          <button class="do-sp" data-sp="5" type="button">×5</button>
           <button class="do-sp" data-sp="10" type="button">×10</button>
         </div>
-        <span class="do-tag">DEV</span>
+        <span class="do-tag">${ADMIN_MODE ? 'ADMIN' : 'DEV'}</span>
       </div>
       <div class="do-info">
         <span id="obs-month" class="do-date">—</span><i></i>
         <span id="obs-factions">세력 —</span><i></i>
-        <span id="obs-top">1위 —</span>
+        <span id="obs-top">1위 —</span><i></i>
+        <span id="obs-troops">병력 —</span>
       </div>
       <div id="obs-log" class="do-log">▶ 를 누르면 AI가 대신 플레이합니다</div>`;
     const foot = host.querySelector('.map-bottom');
@@ -15016,13 +15035,14 @@
     const facEl = bar.querySelector('#obs-factions');
     const topEl = bar.querySelector('#obs-top');
     const logEl = bar.querySelector('#obs-log');
+    const troopsEl = bar.querySelector('#obs-troops');
     const btn = bar.querySelector('#obs-toggle');
     if (btn) {
-      btn.textContent = OBS.on ? '⏸ 정지' : '▶ AI 관전';
+      btn.textContent = OBS.on ? '⏸ 일시정지' : '▶ 전 세력 AI 관전';
       btn.classList.toggle('on', OBS.on);
     }
     Array.prototype.forEach.call(bar.querySelectorAll('.do-sp'), (b) => {
-      b.classList.toggle('on', Number(b.dataset.sp) === OBS.speed);
+      b.classList.toggle('on', OBS.on && Number(b.dataset.sp) === OBS.speed);
     });
     if (!s) {
       if (monthEl) monthEl.textContent = '판 없음';
@@ -15044,6 +15064,14 @@
     fids.forEach((f) => { if (!top || tally[f] > tally[top]) top = f; });
     if (facEl) facEl.textContent = '세력 ' + fids.length;
     if (topEl) topEl.textContent = '1위 ' + (top ? SK.factionName(top) : '—') + ' ' + (top ? tally[top] : 0) + '/' + SK.CITY_LIST.length;
+    if (troopsEl) {
+      let troops = 0;
+      SK.CITY_LIST.forEach((c) => {
+        const cs = s.cities[c.id];
+        if (cs && cs.owner && cs.owner !== 'neutral') troops += Number(cs.troops) || 0;
+      });
+      troopsEl.textContent = '병력 ' + fmt(troops);
+    }
     if (logEl) logEl.textContent = OBS.log[OBS.log.length - 1] || (OBS.on ? '관전 중…' : '▶ 를 누르면 AI가 대신 플레이합니다');
     bar.dataset.on = OBS.on ? '1' : '0';
     bar.dataset.date = date;
@@ -15131,7 +15159,7 @@
   }
 
   function devObsAdvance(s) {
-    OBS.settleUntil = Date.now() + 1400;   /* 월정산 창이 뜨는 900ms 를 덮는다 */
+    OBS.settleUntil = Date.now() + Math.max(420, obsCfg().month);   /* 월정산 창이 뜨는 900ms 를 덮는다 */
     OBS.turnDone = s.turn;
     SK.advanceMonth();
     OBS.months += 1;
@@ -15317,10 +15345,21 @@
       OBS.curB = B;
       OBS.stats.battles += 1;
       obsLog('⚔ ' + (B.name || '전투') + ' — ' + (B.def ? B.def.name : '전투') + ' 시작');
+      /* v5.83 — 관리자 관전은 전투도 '결산'처럼 빠르게 지나가야 ×10 관전이 서지 않는다.
+         전장이 열릴 때 양쪽 공격력을 한 번만 ×4 해서 턴 수를 줄인다(병력·판정 규칙은 그대로). */
+      if (ADMIN_MODE) {
+        try {
+          B.units.forEach((u) => { if (u && u.atk) u.atk *= 4; });
+          obsLog('⚡ 관전 가속 — 이 전투 공격력 ×4');
+        } catch (e) { /* ignore */ }
+      }
     }
     if (!dbg.auto) dbg.toggleAuto(true);
     if (dbg.speed < 4) dbg.toggleSpeed();
-    try { dbg.setTimeScale(4); } catch (e) { /* ignore */ }
+    /* v5.83 — 관리자 관전은 전투 연출까지 2배 더 빨리 돌려 ×10 관전이 전투에서 멈춰 보이지 않게 한다 */
+    try { dbg.setTimeScale(ADMIN_MODE ? 8 : 4); } catch (e) { /* ignore */ }
+    /* v5.83 — 관리자 관전은 전장 행동 간격도 6배 좁혀 전투 한 판을 몇 초로 단다 */
+    if (ADMIN_MODE) { try { dbg.setPaceBoost(6); } catch (e) { /* ignore */ } }
     devObsStallWatch(B, dbg);
   }
 
