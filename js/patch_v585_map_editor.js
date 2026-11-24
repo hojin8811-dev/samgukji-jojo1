@@ -875,6 +875,9 @@
     SK.save = function () {};
     var origModal = SK.modal;
     pendingBattle = true;
+    /* 전장 화면 위에 관리자 단추가 겹치지 않게 잠시 거둔다 */
+    var fabEl = document.getElementById('adm-fab');
+    if (fabEl) fabEl.hidden = true;
     if (reopen) closeEditor();
     if (typeof SK.adminClose === 'function') SK.adminClose();
 
@@ -919,6 +922,7 @@
       };
       setTimeout(function () { if (SK.modal !== origModal) SK.modal = origModal; }, 2700);
       setTimeout(function () {
+        if (fabEl) fabEl.hidden = false;
         setStatus('테스트 전투를 마쳤습니다 — 판은 그대로입니다 (병력·성·장수 변화 없음).');
         if (reopen) openEditor('battle');
         try { SK.toast('테스트 전투 종료 — 판은 그대로 돌아왔습니다.'); } catch (e2) { /* ignore */ }
@@ -933,6 +937,7 @@
       SK.save = origSave;
       SK.showMap = origShowMap;
       SK.modal = origModal;
+      if (fabEl) fabEl.hidden = false;
       if (origPlainMap) SK.BATTLE_TYPES.plain.map = origPlainMap;
       SK.siegeMapKey = origSiegeKey;
       if (!hadMap) delete SK.MAPS[CUSTOM_KEY];
