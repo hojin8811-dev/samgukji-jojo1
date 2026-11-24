@@ -3979,7 +3979,6 @@
         <div class="hi-portrait tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
         <div class="hi-body">
           <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}</p>
-          ${g.skillName ? `<p class="hi-skill">특기 — ${g.skillName}</p>` : ''}
           ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${(g.tier || SK.PASSIVES[g.name].tier || 'C')}">${g.tier || SK.PASSIVES[g.name].tier || 'C'}급</i></span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p>${SK.PASSIVES[g.name].applied ? `<p class="hi-passive-applied">${SK.PASSIVES[g.name].applied}</p>` : ''}</div>` : ''}
           ${ultBoxHTML(g.name, g.tier)}
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
@@ -6922,7 +6921,6 @@
         <div class="hi-portrait tf ${SK.tcls(g)}"><img src="${SK.ptSrc(SK.genPortrait(g))}" alt=""></div>
         <div class="hi-body">
           <p class="hi-cls">${SK.classTitle(cls, lv)} · ${C.role || '장수'} · Lv.${lv}</p>
-          ${g.skill ? `<p class="hi-skill">특기 — ${g.skill}</p>` : ''}
           <div class="hi-attrs five">${attrs}</div>
           <p class="hi-merit">충성 <b>${loy}</b>${g.birthYear ? ` · ${SK.ageOf(g)}세` : ''}${cityName ? ` · ${cityName} 주둔` : ''}</p>
           ${ps ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${g.tier || ps.tier || 'C'}">${g.tier || ps.tier || 'C'}급</i></span><b>${ps.title}</b><p>${ps.effect}</p>${ps.applied ? `<p class="hi-passive-applied">${ps.applied}</p>` : ''}</div>` : ''}
@@ -14732,7 +14730,7 @@
       <div class="bg-rule"><b>사기가 내려가는 때 · 올리는 때</b><p>한 번에 최대 병력의 15% 이상을 잃으면 사기 −4, <b>전우가 쓰러지면 3칸 안 아군 −8 · 전장의 다른 아군 −4</b>(쓰러뜨린 쪽 +6)입니다. 올리려면 <b>군악대(북)</b>·<b>무희(춤)</b>를 곁에 두고(주변 아군 사기 +), <b>지휘·고무</b> 책략을 쓰세요. 사기가 55 밑으로 기운 아군이 있으면 군악대·무희가 먼저 사기를 올려 줍니다.</p></div>
       <div class="bg-card green"><span class="bg-ico">🎯</span><div class="bg-body"><div class="bg-head"><b>훈련도</b><em>50이 기준</em><span class="bg-tag">100 → 공·방 +12%</span></div>
         <p>성의 훈련도가 출진 부대에 그대로 넘어갑니다. <b>50이 기준(100%)</b>이고 <b>100이면 공·방 +12% · 치명 +4%p</b>, 25면 −5%입니다. 올리려면 <b>[병영 → 훈련]</b>·연병장. <b>징병하면 신병(훈련도 25)이 섮여 훈련도가 내려가니</b>, 뽑은 뒤에는 꼭 훈련으로 되돌리세요.</p></div></div>
-      <div class="bg-rule"><b>장수 고유 특기</b><p>모든 이름 있는 장수는 <b>등급(S&gt;A&gt;B&gt;C)에 따른 고유 특기</b>를 가집니다 — 전투형은 공격·방어·사기·회복에, 내정형은 그 성의 <b>금 수입·군량 수확·훈련도·징병량</b>에 붙습니다. 《장수 정보》의 「특기」에 실제 수치가 적혀 있습니다.</p></div>`;
+      <div class="bg-rule"><b>장수 고유 특기</b><p>모든 이름 있는 장수는 <b>등급(S&gt;A&gt;B&gt;C)에 따른 고유 특기</b>를 가집니다 — 전투형은 공격·방어·사기·회복에, 내정형은 그 성의 <b>금 수입·군량 수확·훈련도·징병량</b>에 붙습니다. 《장수 정보》의 「고유 특기」에 실제 수치가 적혀 있습니다.</p></div>`;
     return `<div class="bg-wrap">
       <div class="bg-tabs">
         <button type="button" data-bg="1" class="on">① 자원·민심</button>

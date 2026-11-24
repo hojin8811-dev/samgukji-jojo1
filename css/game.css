@@ -1108,7 +1108,6 @@ b { font-weight: 700; }
 /* v5.65 — 주점 등용 카드: 합류 레벨 안내 */
 .gp-main .gp-join { display: inline-block; margin-top: 2px; font-style: normal; font-size: 8.5px; font-weight: 800; color: #6a4a12; background: #f6e6bf; border: 1px solid #dcc28a; border-radius: 999px; padding: 0 6px; }
 .gp-cost { font-size: 9.5px; font-weight: 800; color: #8a5f2a; white-space: nowrap; }
-.hi-skill { margin: 0 0 4px; font-size: 9.5px; color: #8a2f22; font-weight: 700; }
 .bi-skill { margin: 0 0 3px; font-size: 9px; color: #8a2f22; font-weight: 700; }
 .hire-card { display: flex; gap: 10px; align-items: center; }
 .hire-card img { width: 72px; height: 86px; border-radius: 8px; object-fit: cover; object-position: 50% 18%; border: 1px solid #b8862f; }
