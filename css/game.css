@@ -4955,7 +4955,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .uc-portrait.tf > span { left: 2.5px !important; right: 2.5px !important; bottom: 2.5px !important; border-radius: 0 0 4px 4px; }
 .gc-pt { --tf-pad: 2px; }
 .gc-pt.tf > img { border-radius: 6px !important; }
-.gc-pt.tf .gc-lv { left: 2px; bottom: 2px; }
+.gc-pt.tf .gc-lv { left: 2px; bottom: 2px; }  /* v5.87a — 뱃지가 이름 옆으로 옮겨 이 규칙은 이제 걸리지 않는다 */
 .mg-frame { --tf-pad: 2px; }
 .mg-frame.tf > img { border-radius: 6.5px !important; }
 .ult-face { --tf-pad: 2px; }
@@ -6904,3 +6904,401 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .v584-bub.mvp p { font-size: 11.5px; color: #5a3f12; }
 @keyframes v584BubIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .v584-bub { animation: none; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v5.87a — 왕조 목판 & 비단 UI (AI Studio 시안 2번 → 실제 화면에 맞춰 보정)
+   · 위쪽 성 헤더·아래 명령줄 = 주홍 목판 + 금박, 본문 카드 = 비단 + 금갈색 테두리
+   · 실제 클래스에 맞춰 고침: 탭은 `.ct-tab`(시안의 `.city-tab` 아님), 창 머리말은
+     `.modal h3`(`.modal-head` 없음), 명령줄 글자는 `.city-groups .cmd b`가 더 세므로
+     그 선택자로 대비를 다시 잡았다. `.city-res .res`·`.hi-bars span`도 대비 보정.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. 상단 거점 헤더 (주홍 목판 + 금박) */
+.city-top {
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border-bottom: 2.5px solid #d4a64a;
+  color: #fff3cc;
+  box-shadow: 0 3px 10px rgba(34, 10, 6, 0.35), inset 0 1px 0 rgba(255, 243, 204, 0.2);
+}
+
+.city-top .icon-btn,
+.city-top .js-sound {
+  background: linear-gradient(180deg, #74241c, #4b140f);
+  border: 1.5px solid #d4a64a;
+  border-radius: 8px;
+  color: #fff3cc;
+  box-shadow: 0 2px 0 #260906, inset 0 1px 0 rgba(255, 243, 204, 0.22);
+}
+
+.city-top .icon-btn:active,
+.city-top .js-sound:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #260906;
+}
+
+.city-lord {
+  border-color: #d4a64a;
+  box-shadow: 0 2px 0 #260906, 0 0 0 1px rgba(255, 243, 204, 0.25);
+}
+
+.city-top .city-lord { color: #f4d68c; font-weight: 700; }
+
+#city-name { color: #fff3cc; font-weight: 800; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
+#city-name:active { color: #f4d68c; }
+
+/* 성 이름 앞뒤 ◀ ▶ — 어두운 목판 위에서도 보이게 */
+.city-top .city-step {
+  background: linear-gradient(180deg, #74241c, #4b140f);
+  border-color: #d4a64a; color: #f4d68c;
+  box-shadow: 0 1px 0 #260906, inset 0 1px 0 rgba(255, 243, 204, 0.2);
+}
+.city-top .city-step:active { background: linear-gradient(180deg, #63201a, #3d100b); }
+.city-top .city-step:disabled { opacity: 0.35; }
+
+.city-top .faction-tag { color: #fff3cc; }
+.city-top #city-hanja,
+.city-top .city-date,
+.city-top .city-stepno { color: #f0dcb0; background: none; border-color: transparent; }
+.city-top #city-hanja {
+  background: rgba(255, 243, 204, 0.1); border: 1px solid rgba(212, 166, 74, 0.55);
+  border-radius: 7px; padding: 0 5px;
+}
+
+.city-res {
+  background: rgba(34, 8, 5, 0.45);
+  border: 1px solid rgba(212, 166, 74, 0.6);
+  border-radius: 8px;
+  color: #fff3cc;
+  padding: 2px 6px 2px 5px;
+}
+/* 보정 — `.city-res .res`가 더 세서 어두운 글자가 남는다. 목판 위 밝은 금빛으로 */
+.city-res .res { color: #fff3cc; }
+.city-res .res b { color: #fff6dd; }
+.city-res .res small { color: #f0dcb0; opacity: 0.9; }
+
+.faction-tag {
+  background: linear-gradient(180deg, #8a2c22, #5e1912);
+  border: 1px solid #d4a64a;
+  border-radius: 6px;
+  color: #fff3cc;
+  font-weight: 700;
+}
+
+.city-level {
+  background: linear-gradient(180deg, #257350, #164731);
+  border: 1px solid #d4a64a;
+  border-radius: 6px;
+  color: #fff3cc;
+  font-weight: 700;
+}
+
+.rank-chip {
+  background: linear-gradient(180deg, #f0cb6e, #c18d2f);
+  border: 1px solid #fff3cc;
+  border-radius: 999px;
+  color: #3a170b;
+  font-weight: 800;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* 2. 성 화면 탭 (`.city-tab` → 실제 `ct-tab`) */
+.city-tabs {
+  background: linear-gradient(180deg, #e9d7b3, #f3e5c5);
+  border-bottom: 1.5px solid #9c7538;
+  gap: 5px;
+}
+
+.ct-tab {
+  background: linear-gradient(180deg, #fff8e8, #eedcb8);
+  border: 1.5px solid #9c7538;
+  border-left-width: 1.5px;
+  border-radius: 9px;
+  color: #5a3c1d;
+  font-weight: 800;
+  box-shadow: 0 2px 0 #d4be94;
+}
+.ct-tab:first-child, .ct-tab:last-child { border-left-width: 1.5px; border-radius: 9px; }
+
+.ct-tab.on {
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border-color: #d4a64a;
+  color: #fff3cc;
+  box-shadow: 0 2px 0 #260906, inset 0 1px 0 rgba(255, 243, 204, 0.2);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+}
+.ct-tab.on em { color: #3a170b; background: linear-gradient(180deg, #f0cb6e, #d9ae55); border: 1px solid #a97c28; }
+.ct-tab:not(.on) em { color: #7a5f24; background: rgba(255, 255, 255, 0.6); }
+
+/* 3. 본문 · 내정 · 성 요약 (비단 배경 + 입체 금갈색 테두리) */
+.city-pane { color: #3b2614; }
+
+.city-dev {
+  background:
+    repeating-linear-gradient(0deg, rgba(126, 94, 48, 0.03) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #fff8e8, #f8eed8);
+  border-top: 0;
+  color: #3b2614;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.dev-head { border-bottom: 1px dashed #c8aa74; padding-bottom: 3px; color: #4a2d13; }
+.city-dev .dev-lv {
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border: 1px solid #d4a64a;
+  border-radius: 6px;
+  color: #fff3cc;
+  font-weight: 800;
+  box-shadow: 0 1px 0 #260906;
+}
+.dev-lv em { color: #f0cf8c; }
+.dev-name { color: #3b2614; font-weight: 800; }
+.city-dev .dev-name { color: #3b2614; }
+.dev-bars { background: transparent; }
+.dev-label { color: #7a6234; }
+.dev-val { color: #3b2614; }
+.dev-cell { color: #4a2d13; }
+.city-dev .dev-bar {
+  background: #e4d1ab; border: 1px solid #b58d4c; border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(90, 70, 30, 0.22);
+}
+.dev-bar em { background: linear-gradient(90deg, #c98a2c, #e5b856); border-radius: 999px; }
+
+.city-info {
+  background: linear-gradient(180deg, #fff8e8, #f4e6c9);
+  border-top: 1px solid rgba(156, 117, 56, 0.35);
+  color: #3b2614;
+}
+.ci-item { color: #7a6234; }
+.ci-item b { color: #3b2614; }
+
+/* 4. 장수 스트립 — 판(board)은 투명하게 두고 장수 카드만 비단결로 */
+.city-general-strip { background: none; border: 0; box-shadow: none; }
+.gl-head b { color: #4a2d13; }
+.gl-all {
+  background: linear-gradient(180deg, #fff8e8, #eedcb8);
+  border: 1.5px solid #9c7538; color: #5a3c1d;
+  box-shadow: 0 1px 0 #d4be94;
+}
+
+.gen-card {
+  background: linear-gradient(180deg, #fff8e8, #f4e5c3);
+  border: 1.5px solid #c9a76a;
+  border-radius: 10px;
+  box-shadow: 0 2px 0 #d4be94, inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+.gen-card.duty { border-color: #b8862f; }
+.gen-card.sel { border-color: #3f6fb5; box-shadow: 0 0 0 2px rgba(63, 111, 181, 0.18), 0 2px 0 #c3b596; }
+.gen-card.done { opacity: 0.66; }
+.gc-pt { border-color: #b8862f; }
+.gc-name { color: #3b2614; }
+.gc-line2 { color: #7d6739; }
+.gc-flag.ready { color: #6b4a12; background: #fbeecd; border-color: #dcc79b; }
+
+/* 장수 Lv 뱃지 — 초상화 위(left/bottom)에서 이름 옆으로 (v5.87a 사용자 요청) */
+.gc-lv {
+  position: static; display: inline-block; flex: 0 0 auto;
+  padding: 0 5px; border-radius: 6px;
+  font-size: 8px; font-weight: 900; letter-spacing: -0.01em;
+  color: #fff3cc; line-height: 13px;
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border: 1px solid #d4a64a;
+  box-shadow: 0 1px 0 rgba(38, 9, 6, 0.4);
+}
+
+/* 장수 상태판 — 비단 판 위 조용한 띠 */
+.city-ap { background: linear-gradient(180deg, #fbf3e0, #f3e4c5); border-top: 1px solid rgba(156, 117, 56, 0.35); }
+.ap-title { color: #4a2d13; }
+.ap-actor { color: #6b5427; }
+.ap-delegate {
+  background: linear-gradient(180deg, #fff8e8, #eedcb8);
+  border: 1px solid #9c7538; color: #5a3c1d;
+}
+
+/* 5. 하단 6버튼 액션 바 (주홍 목판) */
+.city-commands {
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border-top: 2.5px solid #d4a64a;
+  color: #fff3cc;
+  padding-top: 5px;
+  box-shadow: 0 -3px 12px rgba(34, 10, 6, 0.35), inset 0 1px 0 rgba(255, 243, 204, 0.2);
+}
+
+.city-commands .cmd {
+  margin: 0 1px;
+  background: linear-gradient(180deg, #74241c, #49130e);
+  border: 1.5px solid #d4a64a;
+  border-radius: 10px;
+  color: #fff3cc;
+  font-weight: 700;
+  box-shadow: 0 2px 0 #260906, inset 0 1px 0 rgba(255, 243, 204, 0.22);
+}
+
+.city-commands .cmd:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #260906;
+}
+
+.city-commands .cmd:disabled,
+.city-commands .cmd.disabled {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+
+/* 보정 — `.city-groups .cmd b/small/ic`가 더 세서 어두운 글자가 남는다 */
+.city-commands .cmd b, .city-groups .cmd b { color: #ffe9c6; }
+.city-commands .cmd small, .city-groups .cmd small { color: #e0bd84; }
+.city-commands .cmd .cmd-ic, .city-groups .cmd-ic {
+  background: none; border: 0; box-shadow: none;
+  color: #ffd98a; font-size: 16px;
+}
+.city-commands .cmd.sortie b { color: #ffd0a0; }
+
+#btn-next-month {
+  background: linear-gradient(180deg, #257350, #164731);
+  border: 2px solid #d4a64a;
+  border-radius: 10px;
+  color: #fff3cc;
+  font-weight: 800;
+  box-shadow: 0 2px 0 #0c2b1d, inset 0 1px 0 rgba(255, 243, 204, 0.28);
+}
+#btn-next-month b, .city-groups .cmd.next b, .city-commands #btn-next-month b { color: #f2ffe9; }
+#btn-next-month small { color: #bfe6cc; }
+#btn-next-month .cmd-ic, .city-groups .cmd.next .cmd-ic {
+  background: none; border: 0; color: #eafff1; box-shadow: none;
+}
+#btn-next-month:active {
+  background: linear-gradient(180deg, #1f6143, #123b28);
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #0c2b1d;
+}
+
+/* 다음 달 — 성 화면 버튼은 id가 `btn-city-next`라 위 규칙이 닿지 않는다.
+   `.city-groups .cmd.next`(0,3,0)가 남색 계열로 덮어써서 옥색이 묻히므로 같이 잡아 준다. */
+.city-commands .cmd.next,
+.city-groups .cmd.next,
+#btn-city-next {
+  background: linear-gradient(180deg, #257350, #164731);
+  border: 2px solid #d4a64a;
+  box-shadow: 0 2px 0 #0c2b1d, inset 0 1px 0 rgba(255, 243, 204, 0.28);
+}
+.city-commands .cmd.next:active,
+.city-groups .cmd.next:active,
+#btn-city-next:active {
+  background: linear-gradient(180deg, #1f6143, #123b28);
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #0c2b1d;
+}
+.city-commands .cmd.next b, .city-groups .cmd.next b, #btn-city-next b { color: #f2ffe9; }
+.city-commands .cmd.next small, .city-groups .cmd.next small, #btn-city-next small { color: #bfe6cc; }
+.city-commands .cmd.next .cmd-ic, .city-groups .cmd.next .cmd-ic, #btn-city-next .cmd-ic {
+  background: none; border: 0; box-shadow: none; color: #eafff1;
+}
+
+/* 6. 모달 & 장수 상세 (비단 + 금테, 머리말은 작은 목판 명패) */
+#modal-root .modal {
+  background: linear-gradient(180deg, #fff8e8, #f8eed8);
+  border: 2.5px solid #d4a64a;
+  border-radius: 14px;
+  color: #3b2614;
+  box-shadow: 0 12px 28px rgba(26, 8, 4, 0.55), 0 0 0 1px #5c1a14;
+}
+
+#modal-root .modal-kicker { color: #8a5a24; }
+
+/* 이름 명패 — 이름 + Lv 뱃지가 나란히 */
+#modal-root .modal h3 {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0 0 8px; padding: 3px 10px 4px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border: 1.5px solid #d4a64a;
+  color: #fff3cc; font-size: 17px;
+  box-shadow: 0 2px 0 #260906, inset 0 1px 0 rgba(255, 243, 204, 0.22);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+#modal-root .modal h3 .hanja { color: #f0dcb0; }
+
+/* 장수 상세 — 이름 옆 Lv 뱃지 */
+.hi-lv {
+  display: inline-block; font-style: normal; font-family: var(--sans);
+  padding: 0 6px; border-radius: 6px;
+  font-size: 10.5px; font-weight: 900; letter-spacing: -0.01em;
+  color: #3a170b; background: linear-gradient(180deg, #f0cb6e, #c18d2f);
+  border: 1px solid #fff3cc;
+  text-shadow: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+#modal-root .modal h3 .fh-tier {
+  font-style: normal; font-size: 10px; font-weight: 900; line-height: 15px;
+  margin-left: 0; padding: 0 6px; border-radius: 6px; color: #fff6e0; text-shadow: none;
+}
+
+/* 창 안 버튼 — 바탕의 목록 버튼은 건드리지 않고 아래 [확인] 줄만 */
+#modal-root .modal .modal-actions .btn {
+  background: linear-gradient(180deg, #6d2119, #47120d);
+  border: 1.5px solid #d4a64a;
+  border-radius: 8px;
+  color: #fff3cc;
+  font-weight: 700;
+  box-shadow: 0 2px 0 #260906, inset 0 1px 0 rgba(255, 243, 204, 0.2);
+}
+#modal-root .modal .modal-actions .btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #260906;
+}
+#modal-root .modal .modal-actions .btn.btn-primary {
+  background: linear-gradient(180deg, #2d7d58, #174b32);
+  border-color: #d4a64a;
+  color: #f4ffe9;
+  box-shadow: 0 2px 0 #0c2b1d, inset 0 1px 0 rgba(255, 243, 204, 0.26);
+}
+#modal-root .modal .modal-actions .btn:disabled { opacity: 0.5; filter: saturate(0.7); }
+#modal-root .modal .modal-actions { border-top-color: rgba(156, 117, 56, 0.4); }
+
+.hi-portrait {
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+  border: 2px solid #d4a64a;
+  border-radius: 12px;
+  box-shadow: 0 2px 0 #d4be94, inset 0 0 0 1px rgba(255, 243, 204, 0.2);
+  overflow: hidden;
+}
+
+.hi-body { background: transparent; color: #3b2614; }
+.hi-cls { color: #7a6234; }
+.hi-desc { color: #55422a; }
+
+.hi-attrs div {
+  background: linear-gradient(180deg, #fff8e8, #f3e4c2);
+  border: 1.5px solid #d4a64a;
+  border-radius: 10px;
+  color: #3b2614;
+  box-shadow: 0 2px 0 #d4be94;
+}
+.hi-attrs span { color: #8a6a38; }
+.hi-attrs b { color: #3b2614; }
+
+.hi-passive,
+.hi-ultimate {
+  background: linear-gradient(180deg, #fff8e8, #f8eed8);
+  border: 1.5px solid #d4a64a;
+  border-left: 4px solid #8a2c22;
+  border-radius: 10px;
+  color: #3b2614;
+  box-shadow: 0 2px 0 #d4be94;
+}
+.hi-ultimate { border-left-color: #257350; }
+
+/* 보정 — 알약 글자가 어두워 금빛 위에서 묻힌다 */
+.hi-bars { color: #4a2d13; }
+.hi-bars span {
+  background: linear-gradient(90deg, #b87e28, #e5b856);
+  border: 1px solid #8a5f1d;
+  border-radius: 999px;
+  color: #3a2607;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.hi-exp { background: #e4d1ab; border: 1px solid #b58d4c; }
+.hi-exp i { background: linear-gradient(90deg, #c98a2c, #e5b856); }
+.hi-next { color: #7a6234; }
+.hi-merit { color: #6b5427; }

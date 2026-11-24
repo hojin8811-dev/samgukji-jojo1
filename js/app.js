@@ -3971,14 +3971,14 @@
         <div><b>${sk.name}${badge}<em class="sk-rng">${rng}</em></b><span>${sk.desc || ''}</span></div></div>`;
     }).join('');
     SK.modal({
-      title: `${g.name}`,          body: `<div class="hi-gag">
+      title: `${g.name}<em class="hi-lv">Lv.${g.lv}</em>`,          body: `<div class="hi-gag">
         <span class="gg-tag">꼬마영웅 개그 한마디</span>
         <p class="gg-line">“${gag}”</p>
       </div>
       <div class="hero-info">
         <div class="hi-portrait tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></div>
         <div class="hi-body">
-          <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}</p>
+          <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role}${g.tier ? ` · ${g.tier}급` : ''}</p>
           ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${(g.tier || SK.PASSIVES[g.name].tier || 'C')}">${g.tier || SK.PASSIVES[g.name].tier || 'C'}급</i></span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p>${SK.PASSIVES[g.name].applied ? `<p class="hi-passive-applied">${SK.PASSIVES[g.name].applied}</p>` : ''}</div>` : ''}
           ${ultBoxHTML(g.name, g.tier)}
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
@@ -6916,11 +6916,11 @@
     ].map((a) => `<div><span>${a.k}</span><b>${Number(a.v) || 0}</b></div>`).join('');
     const mm = SK.modal({
       kicker: `${f.name}${cityName ? ' · ' + cityName + ' 주둔' : ''}`,
-      title: `${g.name} <em class="fh-tier t${g.tier || 'C'}">${g.tier || 'C'}급</em>`,
+      title: `${g.name}<em class="hi-lv">Lv.${lv}</em><em class="fh-tier t${g.tier || 'C'}">${g.tier || 'C'}급</em>`,
       body: `<div class="hero-info">
         <div class="hi-portrait tf ${SK.tcls(g)}"><img src="${SK.ptSrc(SK.genPortrait(g))}" alt=""></div>
         <div class="hi-body">
-          <p class="hi-cls">${SK.classTitle(cls, lv)} · ${C.role || '장수'} · Lv.${lv}</p>
+          <p class="hi-cls">${SK.classTitle(cls, lv)} · ${C.role || '장수'}</p>
           <div class="hi-attrs five">${attrs}</div>
           <p class="hi-merit">충성 <b>${loy}</b>${g.birthYear ? ` · ${SK.ageOf(g)}세` : ''}${cityName ? ` · ${cityName} 주둔` : ''}</p>
           ${ps ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${g.tier || ps.tier || 'C'}">${g.tier || ps.tier || 'C'}급</i></span><b>${ps.title}</b><p>${ps.effect}</p>${ps.applied ? `<p class="hi-passive-applied">${ps.applied}</p>` : ''}</div>` : ''}
@@ -8145,10 +8145,11 @@
       const dutyTone = done ? 'done' : dutyText === '대기' ? 'ready' : dutyText === '수련' ? 'train' : 'duty';
       const cls = `${done ? 'done' : ''} ${isDuty ? 'duty' : ''} ${sel ? 'sel' : ''}`.trim();
       return `<div class="gen-card ${cls}" data-uid="${g.uid}" role="button" tabindex="0">
-        <span class="gc-pt tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""><em class="gc-lv">Lv.${g.lv}</em></span>
+        <span class="gc-pt tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></span>
         <span class="gc-body">
           <span class="gc-line1">
             <b class="gc-name">${g.name}</b>
+            <em class="gc-lv" title="Lv.${g.lv} — 다음 승급까지 EXP ${g.exp || 0}/${SK.expNeed(g.lv)}">Lv.${g.lv}</em>
             ${off && off.key !== 'none' ? `<i class="gc-off">${off.name}</i>` : ''}
             ${(g.merit || 0) > 0 ? `<i class="gc-merit">공훈 ${fmt(g.merit || 0)}</i>` : ''}
             <em class="gc-flag ${dutyTone}">${dutyText}</em>
