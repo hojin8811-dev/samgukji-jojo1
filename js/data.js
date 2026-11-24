@@ -1371,10 +1371,17 @@ SK.addTopArt = function (manifest) {
   });
 };
 SK.artFor = function (name) { return SK.ART[name] || null; };
+SK.ASSET_V = '114';   /* 초상 파일을 덮어써도 폰이 옛 그림을 들고 있지 않게 — 파일 경로에도 붙인다 */
 SK.ptSrc = function (p) {
-  if (!p) return 'assets/portraits/v2/gen_bobyung.webp?v=113';
-  /* v5.89a — 병과 초상(투명 틈·헤일로 정리)을 바꿨으므로 ?v=113 으로 캐시를 새로 받게 한다 */
-  return String(p).indexOf('/') >= 0 ? p : `assets/portraits/v2/${p}.webp?v=113`;
+  if (!p) return 'assets/portraits/v2/gen_bobyung.webp?v=' + SK.ASSET_V;
+  /* v5.89b — 전용 초상(v579·a_rank 등)도 같은 파일명으로 덮어썼으므로 경로 끝에 ?v= 를 붙여
+     폰 캐시를 새로 받게 한다 (v5.89a까지는 병과 초상에만 붙었다) */
+  const s = String(p);
+  if (s.indexOf('/') >= 0) {
+    if (/([?&])v=/.test(s)) return s;            /* 두 번 감싸도 ?v=가 겹치지 않게 */
+    return s + (s.indexOf('?') >= 0 ? '&' : '?') + 'v=' + SK.ASSET_V;
+  }
+  return `assets/portraits/v2/${s}.webp?v=${SK.ASSET_V}`;
 };
 SK.unitSrc = function (u) {
   const key = String(u || 'sword');

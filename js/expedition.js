@@ -282,7 +282,7 @@
       const g = genOf(d);
       if (g && SK.genPortrait && SK.ptSrc) return SK.ptSrc(SK.genPortrait(g));
     } catch (e) { /* ignore */ }
-    return 'assets/portraits/v2/gen_bobyung.webp?v=113';
+    return 'assets/portraits/v2/gen_bobyung.webp?v=114';
   }
   function chibiSrc(d) {
     try {
