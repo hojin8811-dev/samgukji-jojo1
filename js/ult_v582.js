@@ -64,17 +64,25 @@
     '김구': { e: {"k":"heal","r":2,"p":0.16,"clear":true,"atk":0.08,"turns":3}, desc: "아군 치유", skill: "백범결심" },
     '홍범도': { e: {"k":"combo","n":2,"m":1.32,"rng":3,"stun":{"chance":0.25,"turns":1}}, desc: "단일 2연타(합계 132%) + 사거리 3 + 기절 25%", skill: "봉오동매복" },
   };
-  var n = 0;
-  Object.keys(T).forEach(function (k) {
-    var spec = SK.ULTIMATES && SK.ULTIMATES[k];
-    if (!spec) return;
-    var patched = Object.assign({}, spec, { e: T[k].e, desc: T[k].desc, v582: true, v582Skill: T[k].skill });
-    /* A급으로 재산정된 장수(하후돈 등)는 A급 상한을 지킨다 */
-    var g = SK.GEN_BY_NAME && SK.GEN_BY_NAME[k];
-    if (g && g.tier === 'A' && SK.tuneUltToA) patched = SK.tuneUltToA(patched);
-    else if (!patched.tier) patched.tier = 'S';
-    SK.ULTIMATES[k] = patched;
-    n += 1;
-  });
-  SK.ULT582_COUNT = n;
+  /* 장수 명부(setGenerals)가 들어온 뒤에 적용한다 — 그래야 그 장수의 실제 등급을 안다.
+     S급은 손 설계 문구 그대로, 등급 재산정으로 A가 된 장수(하후돈·황충 등)는
+     A급 상한(tuneUltToA)을 태우고 한 줄 설명도 조정된 수치로 다시 만든다. */
+  SK.applyUlt582 = function () {
+    var n = 0;
+    Object.keys(T).forEach(function (k) {
+      var spec = SK.ULTIMATES && SK.ULTIMATES[k];
+      if (!spec) return;
+      var g = SK.GEN_BY_NAME && SK.GEN_BY_NAME[k];
+      var patched = Object.assign({}, spec, { e: T[k].e, desc: T[k].desc, v582: true, v582Skill: T[k].skill });
+      if (g && g.tier === 'A' && SK.tuneUltToA) {
+        /* 옛 A급 spec은 이미 tier:'A'라 tuneUltToA가 그냥 돌려보낸다 — 등급을 비워 다시 태운다 */
+        patched = SK.tuneUltToA(Object.assign({}, patched, { tier: null, cutinTier: null }));
+        patched.desc = '';       // 화면은 e에서 만든 설명을 쓴다 (A급 상한 수치와 일치)
+      } else if (!patched.tier) patched.tier = 'S';
+      SK.ULTIMATES[k] = patched;
+      n += 1;
+    });
+    SK.ULT582_COUNT = n;
+    return n;
+  };
 })();

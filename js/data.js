@@ -1427,6 +1427,8 @@ SK.setGenerals = function (list) {
   SK.rebalanceTiers();
   /* v5.81 — A급 필살기: 등급이 정해진 뒤에 한 번 만든다 (244명 + 승격된 A 포함) */
   if (SK.ensureAUltimates) SK.A_ULT_COUNT = SK.ensureAUltimates();
+  /* v5.82 — S급 필살기 개성(e·desc)은 등급이 정해진 지금 덮어쓴다 (A로 재산정된 장수는 A급 상한 유지) */
+  if (SK.applyUlt582) SK.applyUlt582();
 };
 
 /* v4.1 — 등급을 능력치 피라미드로 다시 세운다 (S 5% · A 15% · B 35% · C 45%)
@@ -3175,6 +3177,10 @@ SK.tuneUltToA = function (spec) {
     if (e.atk != null) e.atk = cap(e.atk, 0, 0.1);
   }
   if (e.ail && e.ch) e.ch = Math.min(0.4, e.ch);
+  /* v5.82 — 새 개성(기절·흡혈·처치 재행동)도 A급 상한을 지킨다 */
+  if (e.stun && e.stun.chance) e.stun = Object.assign({}, e.stun, { chance: Math.min(0.4, e.stun.chance) });
+  if (e.lifesteal) e.lifesteal = Math.min(0.35, e.lifesteal);
+  if (e.execute) e.execute = Object.assign({}, e.execute, { bonusPct: Math.min(50, e.execute.bonusPct) });
   return Object.assign({}, spec, { e, tier: 'A', cutinTier: 'A' });
 };
 SK.ensureAUltimates = function () {
