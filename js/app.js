@@ -13930,7 +13930,7 @@
     SK.modal({
       kicker: '철수', title: `${SK.josa(c.name, 'eul')} 내주었습니다`,
       body: `<div class="result-modal lose"><div class="rm-seal">퇴</div>
-        <p class="rm-line">싸우지 않고 병력과 장수를 빼냈습니다.${res.refuge ? ` 병력 ${fmt(res.moved)}과 장수들이 <b>${CITY[res.refuge].name}</b>으로 물러났습니다.` : ''}</p>
+        <p class="rm-line">싸우지 않고 병력과 장수를 빼냈습니다.${res.refuge ? ` 병력 ${fmt(res.moved)}과 장수들이 <b>${josa(CITY[res.refuge].name, 'euro')}</b> 물러났습니다.` : ''}</p>
         <p class="rm-note">명성 −8 · 군량과 금은 그대로입니다.</p></div>`,
       actions: [{ label: '지도로', primary: true }],
     });

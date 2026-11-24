@@ -10347,7 +10347,7 @@
       title: '성을 지켜야 한다',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-reason">패배 사유: ${B.winReason || '아군 전멸'}</p>
-        <p class="rm-line">길목을 지키지 못했습니다. 살아남은 병력은 <b>${targetName}</b>으로 물러났고, 적은 줄어든 병력으로 성 앞에 다다릅니다.</p>
+        <p class="rm-line">길목을 지키지 못했습니다. 살아남은 병력은 <b>${SK.josa(targetName, 'euro')}</b> 물러났고, 적은 줄어든 병력으로 성 앞에 다다릅니다.</p>
         ${battleReportHTML()}
         <p class="rm-note">성으로 돌아온 병력 ${troopsLeft.toLocaleString('ko-KR')} · 적 남은 병력 ${inv.troops.toLocaleString('ko-KR')}</p>
       </div>`,
@@ -11237,7 +11237,7 @@
       kicker: '수성전 패배', title: `${c.name} 함락`,
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-reason">패배 사유: ${B.winReason || '성을 지키지 못함'}</p>
-        <p class="rm-line">${SK.josa(SK.factionName(inv.faction), 'i')} 성을 차지했습니다.${res.refuge ? ` 남은 병력 ${Math.round(res.moved).toLocaleString('ko-KR')}과 장수는 <b>${SK.CITY[res.refuge].name}</b>으로 물러났습니다.` : ' 물러날 성이 없습니다.'}</p>
+        <p class="rm-line">${SK.josa(SK.factionName(inv.faction), 'i')} 성을 차지했습니다.${res.refuge ? ` 남은 병력 ${Math.round(res.moved).toLocaleString('ko-KR')}과 장수는 <b>${SK.josa(SK.CITY[res.refuge].name, 'euro')}</b> 물러났습니다.` : ' 물러날 성이 없습니다.'}</p>
         <p class="rm-note">명성 −10 · 성벽·민심이 무너지고, 다음 달부터 이 성은 적의 것입니다.${rfgInfo && rfgInfo.home ? ` ${rfgInfo.home} 원군은 자기 성으로 돌아갔습니다.` : ''}</p></div>`,
       actions: [{ label: '지도로', primary: true, onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
@@ -11368,7 +11368,7 @@
     if (scr) scr.classList.add('spectating');
     if (skipMode) {
       autoSpeed = 4;
-      paceBoost = 10;   // 같은 엔진을 최대 배속으로 돌려 결과만 빨리 받는다
+      paceBoost = 12;   // 같은 엔진을 최대 배속으로 돌려 결과만 빨리 받는다
     }
     paintSpeedBtn();
     autoStop();
