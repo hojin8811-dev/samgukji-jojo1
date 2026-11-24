@@ -1742,7 +1742,7 @@ b { font-weight: 700; }
 
 .hi-passive { border: 1px solid #d9c08d; background: linear-gradient(180deg, #fffaf0, #f6ecd6); border-radius: 9px; padding: 6px 8px; margin: 5px 0; }
 .hi-passive span { font-size: 8px; letter-spacing: 0.08em; color: #9a7b34; font-weight: 800; }
-.hi-passive b { display: block; font-size: 12px; color: #7a3a12; font-family: var(--serif); }
+.hi-passive > b { display: block; font-size: 12px; color: #7a3a12; font-family: var(--serif); }
 .hi-passive p { margin: 2px 0 0; font-size: 10px; line-height: 1.45; color: #5b4a27; }
 .gp-passive { display: inline-block; font-style: normal; font-size: 8.5px; color: #8a5a12; background: #fbf0d6; border: 1px solid #e0c58c; border-radius: 8px; padding: 0 5px; margin-top: 2px; }
 /* v5.56 — 장수 상세 고유 특기: 등급 배지 + 실제 적용 수치 */
@@ -1755,7 +1755,7 @@ b { font-weight: 700; }
 /* v5.82 — 장수 세부창 필살기 설명란 (고유 특기 박스와 같은 결, 금빛 대신 붉은 금테) */
 .hi-ultimate { border: 1px solid #c9a06a; background: linear-gradient(180deg, #fff8ec, #f8e7cf); border-radius: 9px; padding: 6px 8px; margin: 5px 0; }
 .hi-ultimate > span { font-size: 8px; letter-spacing: 0.08em; color: #a05a22; font-weight: 800; }
-.hi-ultimate b { display: block; font-size: 12px; color: #8a2a12; font-family: var(--serif); }
+.hi-ultimate > b { display: block; font-size: 12px; color: #8a2a12; font-family: var(--serif); }
 .hi-ultimate p { margin: 2px 0 0; font-size: 10px; line-height: 1.45; color: #5b3a27; }
 .hi-ultimate .hu-line { margin-top: 3px; font-size: 9.5px; color: #8a5a3a; font-style: italic; }
 .hi-ultimate .hu-tier { font-style: normal; font-size: 8px; font-weight: 900; border-radius: 7px; padding: 0 5px; margin-left: 3px; color: #fff6e0; background: #8a6a34; }
@@ -1763,7 +1763,7 @@ b { font-weight: 700; }
 .hi-ultimate .hu-tier.tA { background: linear-gradient(180deg,#9b62c8,#7742a3); }
 .hi-ultimate .hu-once { font-style: normal; float: right; font-size: 8px; font-weight: 700; color: #9a7b34; }
 .hi-ultimate.tA { border-color: #b79cd6; background: linear-gradient(180deg, #faf6ff, #f0e8fa); }
-.hi-ultimate.tA b { color: #5a3a86; }
+.hi-ultimate.tA > b { color: #5a3a86; }
 .gc-age { font-style: normal; font-size: 8px; color: #8a7448; margin-left: 3px; font-weight: 700; }
 .rs-age { font-style: normal; font-size: 8px; color: #8a7448; margin-left: 2px; font-weight: 700; }
 .gen-chip.duty { border-color: #b98a2c; background: #fdf6e4; }
