@@ -372,6 +372,8 @@
   var open = false;
   var pendingBattle = false;   /* 테스트 전투 모래판이 돌고 있는지 */
   var worldInit = false;
+  /* 테스트 전투가 잠시 감싸는 SK.modal 의 '진짜' — 두 번 잇달아 감싸도 여기로 돌아온다 */
+  var baseModal = (typeof SK.modal === 'function') ? SK.modal : null;
 
   function setStatus(msg) {
     statusText = msg;
@@ -914,13 +916,14 @@
       } catch (e) { /* 위에서 이미 원래 함수로 되돌리지 못했으면 다음 판에서 정리된다 */ }
       /* 4) 승리 창 뒤에 이어지는 포로·멸망·속보 창은 모래판의 것이라 띄우지 않는다.
          (그 창의 버튼이 되돌린 판에 그대로 적용되면 장수를 잘못 얻거나 잃는다) */
+      var realModal = baseModal || origModal;
       var guardUntil = Date.now() + 2600;
       SK.modal = function () {
         if (Date.now() < guardUntil) return undefined;
-        SK.modal = origModal;
-        return origModal.apply(SK, arguments);
+        SK.modal = realModal;
+        return realModal.apply(SK, arguments);
       };
-      setTimeout(function () { if (SK.modal !== origModal) SK.modal = origModal; }, 2700);
+      setTimeout(function () { if (SK.modal !== realModal) SK.modal = realModal; }, 2700);
       setTimeout(function () {
         if (fabEl) fabEl.hidden = false;
         setStatus('테스트 전투를 마쳤습니다 — 판은 그대로입니다 (병력·성·장수 변화 없음).');
