@@ -3155,6 +3155,10 @@ SK.tuneUltToA = function (spec) {
     e.m = Math.round(cap((e.m || 1.3) * 0.88, 1.20, 1.28) * 100) / 100;
   } else if (e.k === 'aoe' || e.k === 'arrowAoe') {
     e.m = Math.round(cap((e.m || 1.0) * 0.86, 0.82, 0.90) * 100) / 100;
+  } else if (e.k === 'line') {
+    /* v5.82 — 직선 관통도 A급 상한(82~90%) */
+    if (e.m) e.m = Math.round(cap(e.m * 0.88, 0.82, 0.90) * 100) / 100;
+    if (e.p) e.p = Math.round(cap(e.p * 0.80, 0.80, 0.90) * 100) / 100;
   } else if (e.k === 'magic' || e.k === 'rock') {
     e.p = Math.round(cap((e.p || 1.2) * 0.80, 0.80, 0.90) * 100) / 100;
   } else if (e.k === 'buff') {

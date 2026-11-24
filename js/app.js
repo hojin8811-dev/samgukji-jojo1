@@ -350,8 +350,11 @@
     s.heroes.forEach((h) => {
       if (h.city !== cityId || h.captured) return;
       const p = SK.PASSIVES[h.name];
-      if (!p || !p.dom || !p.dom[key]) return;
-      v += Number(p.dom[key]) || 0;
+      if (!p) return;
+      /* v5.82 — 내정 수치는 adm에 모았다 (dom 은 옛 저장·호환용) */
+      const src = p.adm || p.dom;
+      if (!src || !src[key]) return;
+      v += Number(src[key]) || 0;
     });
     return Math.min(0.15, v / 100);
   }
@@ -388,7 +391,7 @@
   function cityPassiveLines(cityId) {
     const s = SK.state;
     if (!s || !s.heroes || !SK.PASSIVES) return [];
-    const label = { gold: '금 수입', food: '군량 수확', train: '훈련도', recruit: '등용 성공',
+    const label = { gold: '금 수입', food: '군량 수확', train: '훈련도', farm: '개간·농업', recruit: '등용 성공',
       build: '건설비 감소', diplo: '외교 성공', diploCost: '외교 비용 감소', spy: '첩보',
       supply: '보급 소모 감소', supplyLoss: '약탈 손실 방지', conscript: '징병량',
       healCost: '치료비 감소', healRate: '치료 회복' };
@@ -1134,14 +1137,14 @@
       let cityId = capital;
       if (i >= 3 && towns.length) cityId = towns[(i - 3) % towns.length];
       const h = makeHero(nm, cityId, 1);
-      if (h) st.heroes.push(h);
+      if (h) SK.addHero(st, h);
     });
     // 수도에 장수가 하나도 없으면 세력 장수 한 명을 불러온다 (같은 계열 인물만)
     if (!st.heroes.some((h) => h.city === capital)) {
       const grp = (f && f.pool) || poolGroupOf(st.playerFaction);
       const spare = SK.GENERALS.find((g) => !st.heroes.some((h) => h.genId === g.id)
         && genPoolGroup(g) === grp && SK.debutOk(g, eraYearOf(st)));
-      if (spare) { const h = makeHero(spare.name, capital, 1); if (h) st.heroes.push(h); }
+      if (spare) { const h = makeHero(spare.name, capital, 1); if (h) SK.addHero(st, h); }
     }
   }
 
@@ -1605,6 +1608,60 @@
 
   SK.state = null;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.82 — 장수 중복 영입 방지
+     · 주점 영입·포로 등용·탐색 이벤트·항복 합병·지원군까지 모든 영입은 SK.addHero를 거친다.
+       내 장수에 같은 genId(없으면 같은 이름)가 있으면 넣지 않는다.
+     · 저장을 열 때도 s.heroes·성 genIds의 중복을 1명만 남기고 정리한다.
+     ══════════════════════════════════════════════════════════════ */
+  function heroKeyOf(h) {
+    if (!h) return '';
+    return h.genId != null ? 'g' + h.genId : 'n' + h.name;
+  }
+  function hasHero(s, hero) {
+    if (!s || !hero) return false;
+    const key = heroKeyOf(hero);
+    return (s.heroes || []).some((h) => h && (heroKeyOf(h) === key || (hero.name && h.name === hero.name)));
+  }
+  function addHero(s, hero) {
+    s = s || SK.state;
+    if (!s || !hero) return null;
+    s.heroes = s.heroes || [];
+    if (hasHero(s, hero)) return null;
+    s.heroes.push(hero);
+    return hero;
+  }
+  function dedupeHeroes(s) {
+    if (!s) return 0;
+    let removed = 0;
+    s.heroes = (s.heroes || []).filter(Boolean);
+    const seen = {};
+    const keep = [];
+    s.heroes.forEach((h) => {
+      const k = heroKeyOf(h);
+      if (seen[k] || (h.name && seen['n' + h.name])) { removed += 1; return; }
+      seen[k] = 1;
+      if (h.name) seen['n' + h.name] = 1;
+      keep.push(h);
+    });
+    s.heroes = keep;
+    Object.keys(s.cities || {}).forEach((cid) => {
+      const cs = s.cities[cid];
+      if (!cs || !Array.isArray(cs.genIds)) return;
+      const seenG = {};
+      cs.genIds = cs.genIds.filter((id) => {
+        const k = String(id);
+        if (seenG[k]) { removed += 1; return false; }
+        seenG[k] = 1;
+        return true;
+      });
+    });
+    return removed;
+  }
+  SK.hasHero = hasHero;
+  SK.addHero = addHero;
+  SK.dedupeHeroes = dedupeHeroes;
+
   SK.save = function () {
     /* v5.33 — 군주가 옮겨 간 성을 본성으로 맞춘다 (점령·전출·월말 정산이 모두 저장을 거친다) */
     if (SK.state && syncPlayerCapital) { try { syncPlayerCapital(SK.state); } catch (e) { /* ignore */ } }
@@ -1764,6 +1821,8 @@
         s.battleInProgress = null;
       }
       SK.state = s;
+      /* v5.82 — 저장을 열어도 중복 장수(같은 genId·같은 이름)는 1명만 남긴다 */
+      try { const dup = dedupeHeroes(s); if (dup) console.info('[v5.82] 중복 장수', dup, '명 정리'); } catch (e) { /* ignore */ }
       /* v5.28 — 옛 저장에 남은 0성 유령 세력을 정리 */
       try { pruneLandlessFactions(s); } catch (e) { /* ignore */ }
       /* v5.28 — 저장을 열었을 때 도착 대기열만 남아 있으면 첫 사건을 올린다 */
@@ -3859,6 +3918,26 @@
   }
   SK.genAura = genAura;
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.82 — 장수 세부창의 필살기 설명란
+     이름 · 등급(S/A) · 한 줄 효과 · 대사 를 hi-passive 아래에 나란히 보여 준다.
+     ══════════════════════════════════════════════════════════════ */
+  function ultBoxHTML(name, tier) {
+    const spec = SK.ULTIMATES && SK.ULTIMATES[name];
+    if (!spec) return '';
+    const t = spec.tier || (tier === 'A' ? 'A' : 'S');
+    const desc = spec.desc || (SK.ultDescText ? SK.ultDescText(spec) : '고유 필살기');
+    const line = spec.q ? `<p class="hu-line">“${spec.q}”</p>` : '';
+    const once = t === 'A' ? '전투당 1회 · A급' : '전투당 1회';
+    return `<div class="hi-ultimate t${t}">
+      <span>필살기 <i class="hu-tier t${t}">${t}급</i><em class="hu-once">${once}</em></span>
+      <b>「${spec.n}」</b>
+      <p>${desc}</p>
+      ${line}
+    </div>`;
+  }
+  SK.ultBoxHTML = ultBoxHTML;
+
   function showHeroInfo(uid, opts) {
     const g = SK.state.heroes.find((h) => h.uid === uid);
     if (!g) return;
@@ -3898,7 +3977,8 @@
         <div class="hi-body">
           <p class="hi-cls">${SK.classTitle(g.cls, g.lv)} · ${C.role} · Lv.${g.lv}${g.tier ? ` · ${g.tier}급` : ''}</p>
           ${g.skillName ? `<p class="hi-skill">특기 — ${g.skillName}</p>` : ''}
-          ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${(SK.PASSIVES[g.name].tier || g.tier || 'C')}">${SK.PASSIVES[g.name].tier || g.tier || 'C'}급</i></span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p>${SK.PASSIVES[g.name].applied ? `<p class="hi-passive-applied">${SK.PASSIVES[g.name].applied}</p>` : ''}</div>` : ''}
+          ${(SK.PASSIVES && SK.PASSIVES[g.name]) ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${(g.tier || SK.PASSIVES[g.name].tier || 'C')}">${g.tier || SK.PASSIVES[g.name].tier || 'C'}급</i></span><b>${SK.PASSIVES[g.name].title}</b><p>${SK.PASSIVES[g.name].effect}</p>${SK.PASSIVES[g.name].applied ? `<p class="hi-passive-applied">${SK.PASSIVES[g.name].applied}</p>` : ''}</div>` : ''}
+          ${ultBoxHTML(g.name, g.tier)}
           <div class="hi-exp"><i style="width:${Math.min(100, Math.round((g.exp || 0) / SK.expNeed(g.lv) * 100))}%"></i><em>EXP ${g.exp || 0} / ${SK.expNeed(g.lv)}</em></div>
           <p class="hi-next">${SK.nextPromo(g.lv) ? `다음 승급 Lv.${SK.nextPromo(g.lv)} · ${SK.PROMO[g.cls] ? SK.PROMO[g.cls].names[Math.min(4, SK.PROMO[g.cls].names.length - 1)] : ''}` : '최고 승급 단계'}</p>
           <div class="hi-bars"><span class="hi-hp">출진 최소 ${fmt(SK.DEPLOY_MIN)} · 기본 ${fmt(SK.DEPLOY_BASE)} / 상한 ${SK.troopCapOf(g).toLocaleString('ko-KR')}</span><span class="hi-mp">MP ${g.mp}/${mpM}</span></div>
@@ -6290,7 +6370,7 @@
       const hero = makeHero(g.name, cityId, joinLevelOf(g));
       if (hero) {
         hero.loyal = 55;
-        s.heroes.push(hero);
+        SK.addHero(s, hero);
         s.fame = (s.fame || 0) + 6;
       }
       delete (s.genLoyal || {})[g.id];
@@ -6474,7 +6554,7 @@
         const g = SK.GEN_BY_ID[gid];
         if (!g) return;
         const hero = makeHero(g.name, tid, joinLevelOf(g));
-        if (hero) { hero.loyal = 60; s.heroes.push(hero); }
+        if (hero) { hero.loyal = 60; SK.addHero(s, hero); }
       });
       /* v5.77 — 등용되지 않은 옛 장수는 그 세력의 남은 성으로 퇴각한다 */
       const retreat = SK.retreatEnemyGens ? SK.retreatEnemyGens(s, fid, tid, prevGenIds, join) : null;
@@ -6842,7 +6922,8 @@
           ${g.skill ? `<p class="hi-skill">특기 — ${g.skill}</p>` : ''}
           <div class="hi-attrs five">${attrs}</div>
           <p class="hi-merit">충성 <b>${loy}</b>${g.birthYear ? ` · ${SK.ageOf(g)}세` : ''}${cityName ? ` · ${cityName} 주둔` : ''}</p>
-          ${ps ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${ps.tier || g.tier || 'C'}">${ps.tier || g.tier || 'C'}급</i></span><b>${ps.title}</b><p>${ps.effect}</p></div>` : ''}
+          ${ps ? `<div class="hi-passive"><span>고유 특기 <i class="gp-tier t${g.tier || ps.tier || 'C'}">${g.tier || ps.tier || 'C'}급</i></span><b>${ps.title}</b><p>${ps.effect}</p>${ps.applied ? `<p class="hi-passive-applied">${ps.applied}</p>` : ''}</div>` : ''}
+          ${ultBoxHTML(g.name, g.tier)}
           <p class="hi-desc">${C.desc || ''}</p>
           <p class="hi-quote">“${SK.quoteOf(g.name, 'deploy') || '필승을 기원한다.'}”</p>
         </div>
@@ -8308,7 +8389,9 @@
     farm: { name: '개간', run(cityId, actor) {
       const s = SK.state; const st = s.cities[cityId];
       if (s.gold < 100) return fail('금이 부족합니다. (필요 금 100)');
-      const m = polMul(cityId, actor);
+      /* v5.82 — 개간가(고유 특기): 이 성의 개간·농업 효과 +N% */
+      const farmDom = 1 + cityPassivePct(cityId, 'farm');
+      const m = polMul(cityId, actor) * farmDom;
       const agri = Math.max(2, Math.round(6 * m));
       const food = Math.round(300 * m);
       s.gold -= 100; s.food += food;
@@ -8721,7 +8804,7 @@
         const hero = makeHero(g.name, cityId, joinLevelOf(g));
         if (!hero) return;
         hero.actedThisMonth = true;          // 등용 직후 자동 턴 종료
-        s.heroes.push(hero);
+        SK.addHero(s, hero);
         removeLocalTalent(fromId, g.id);
         SK.claimWildGen(g);                  // v5.80 — 다른 성 주점에 남은 같은 인물도 지운다
         if (actor) { consumeDispatch(cityId, actor); SK.gainExp(actor, 18); }
@@ -8775,7 +8858,7 @@
           const hero = makeHero(p.g.name, c.id, joinLevelOf(p.g));
           if (!hero) return;
           hero.actedThisMonth = true;
-          st.heroes.push(hero);
+          SK.addHero(st, hero);
           const src = st.cities[p.cityId] || {};
           src.talents = (src.talents || []).filter((id) => id !== p.g.id);
           if (SK.claimWildGen) SK.claimWildGen(p.g);
@@ -9476,7 +9559,7 @@
         const p = clamp(0.35 + (cha - 60) * 0.006 - (rec.loyal || 70) * 0.003, 0.05, 0.8);
         if (Math.random() < p) {
           const hero = SK.makeHero(g.name, rec.city, joinLevelOf(g));
-          if (hero) { hero.loyal = 55; hero.actedThisMonth = true; s.heroes.push(hero); s.fame += 2; }
+          if (hero) { hero.loyal = 55; hero.actedThisMonth = true; if (SK.addHero(s, hero)) s.fame += 2; }
           s.prisoners = s.prisoners.filter((x) => x !== rec);
           if (SK.claimWildGen) SK.claimWildGen(g);   // v5.80 — 등용된 포로는 주점 재야 명부에서도 지운다
           SK.sfx.play('ui'); SK.toast(`${g.name} — 설득 성공! 충성 55로 합류했습니다.`);
@@ -11261,7 +11344,7 @@
       const hero = makeHero(x.g.name, x.cityId, joinLevelOf(x.g));
       if (!hero) return;
       hero.loyal = 60;
-      s.heroes.push(hero);
+      SK.addHero(s, hero);
       joined.push(hero.name);
     });
     /* 침공 예약 정리 — 성이 다 우리 것이 되었으니 적 침공은 없다 */
@@ -13520,7 +13603,7 @@
             const p = clamp(0.55 + Math.min(0.2, (s.fame || 0) * 0.00003), 0.2, 0.85);
             if (Math.random() < p) {
               const hero = makeHero(g.name, s.playerCapital, joinLevelOf(g));
-              if (hero) { hero.loyal = 70; s.heroes.push(hero); }
+              if (hero) { hero.loyal = 70; SK.addHero(s, hero); }
               s.fame += 5; SK.sfx.play('ui');
               return `${josa(g.name, 'i')} 예물을 받고 ${CITY[s.playerCapital] ? CITY[s.playerCapital].name : '본성'}으로 왔습니다. 명성 +5.`;
             }
@@ -14092,7 +14175,7 @@
               const g = SK.GEN_BY_ID[gid];
               if (!g || (s.heroes || []).some((h) => h.genId === gid)) return;
               const hero = makeHero(g.name, tid, joinLevelOf(g));
-              if (hero) { hero.loyal = 62; s.heroes.push(hero); }
+              if (hero) { hero.loyal = 62; SK.addHero(s, hero); }
             });
             /* v5.77 — 점령당한 성의 옛 장수는 자기 세력의 남은 성으로 퇴각한다 */
             const retreat = SK.retreatEnemyGens ? SK.retreatEnemyGens(s, prevOwner, tid, prevGenIds, join) : null;

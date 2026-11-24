@@ -583,7 +583,8 @@
     const loy = clamp(Number(h.loyal == null ? 100 : h.loyal) || 0, 0, 100);
     const loyMul = 0.86 + loy * 0.0014;
     // 고유 특기(상시형)는 공격·방어에 소폭 보탬이 된다 — 값의 절반만, 사기적이지 않게
-    const pMul = passive && passive.trigger === 'passive' ? 1 + (Number(passive.valuePct) || 0) / 200 : 1;
+    /* v5.82 — 40종 특기는 수치를 vp에 그대로 적고 계산 자리마다 따로 넣으므로, 이 총합 보너스는 쓰지 않는다 */
+    const pMul = (passive && passive.trigger === 'passive' && !passive.v582) ? 1 + (Number(passive.valuePct) || 0) / 200 : 1;
     /* v5.10 — 레벨 성장: 1레벨마다 공·방 +1.8%, 승급 구간은 +6% 추가 */
     const lvMul = 1 + LV_GROW * (Math.max(1, Number(h.lv) || 1) - 1);
     /* v5.11 — 관직 보정 (무관 공·방 / 문관 병력·내정) */
@@ -2090,6 +2091,8 @@
     if (u.slow) m -= 1;
     /* v5.81 — 유연신법 같은 '이동력 +1' 버프 */
     m += Math.max(0, Math.round(buffVal(u, 'move')));
+    /* v5.82 — 신속(이동력 +1) · 둔화 계열 필살기의 이동 −N */
+    m += Math.min(0, Math.round(buffVal(u, 'moveDown'))) + Math.max(0, Math.round(vpv(u, 'move')));
     if (u.cls === 'yasubyung') {
       const ch = B && B.tiles && B.tiles[u.y] ? B.tiles[u.y][u.x] : 'P';
       if (ch === 'F' || ch === 'M' || (B && BEAST_TERRAIN_TYPES[B.type])) m += 1;
@@ -4431,6 +4434,155 @@
     const p = u && u.passive;
     return (p && p.fx === fx) ? (Number(p.p) || 0) : 0;
   }
+  /* ══════════════════════════════════════════════════════════════
+     v5.82 — 고유 특기 40종 (전투 25 · 하이브리드 5)
+     data/unique_passives.json 의 각 장수 항목에 v582(특기 id)·vp(수치)가 실린다.
+     아래 헬퍼가 그 수치를 전투 계산 자리마다 읽는다.
+       선봉돌격·추격·궁수저격·일기토·복병·철벽수비·공성파괴·혈전·연격·기마돌파·
+       위압·지휘·책략간파·독공·화공·사기진작·창벽·쾌검·불굴·급습·신속·군의술·
+       책략극대·방진·야습 + 지장·문무겸전·군략가·의장·모사
+     ══════════════════════════════════════════════════════════════ */
+  function vpid(u) { const p = u && u.passive; return (p && p.v582) || ''; }
+  function vpv(u, k) { const p = u && u.passive; const v = p && p.vp; return (v && Number(v[k])) || 0; }
+  /* 병과 → 계열 (기마돌파·창벽 판정용) */
+  const VP_FAM = { gunwoong: 'lord', changbyung: 'spear', sujeok: 'spear', gibi: 'cav',
+    deunggabyung: 'shield', gungsu: 'archer', gunggi: 'archer', yeonnobyung: 'crossbow',
+    geombyung: 'sword', mudoga: 'martial', sanjeok: 'martial', yasubyung: 'beast',
+    muhui: 'support', gunakdae: 'support', chaeksa: 'mage', pungsusa: 'mage', dosa: 'mage', pocha: 'siege' };
+  function famU(u) { return VP_FAM[(u && u.cls) || ''] || 'sword'; }
+  function vpCh(u) { return (B && B.tiles && B.tiles[u.y]) ? B.tiles[u.y][u.x] : ''; }
+  function vpAdjFoes(u) {
+    let n = 0;
+    B.units.forEach((o) => { if (o.alive && o.side !== u.side && manh(o.x, o.y, u.x, u.y) <= 1) n += 1; });
+    return n;
+  }
+  function vpAdjAllies(u) {
+    let n = 0;
+    B.units.forEach((o) => { if (o !== u && o.alive && o.side === u.side && manh(o.x, o.y, u.x, u.y) <= 1) n += 1; });
+    return n;
+  }
+  /* 대상이 바라보는 앞쪽에 선 공격인가 (아니면 옆·뒤 → 급습) */
+  function vpFront(a, d) { return d && d.face > 0 ? a.x > d.x : a.x < d.x; }
+  /* 인접 아군의 지휘(공·방 +8%) · 군략가(공격 +5%) 오라 */
+  function vpAura(u, k) {
+    if (!B) return 0;
+    let v = 0;
+    B.units.forEach((o) => {
+      if (!o.alive || o === u || o.side !== u.side || manh(o.x, o.y, u.x, u.y) > 1) return;
+      const id = vpid(o);
+      if (id === 'command') v += vpv(o, k);
+      else if (id === 'h_cmd' && k === 'atk') v += vpv(o, 'atk');
+    });
+    return v;
+  }
+  function vpAtkMul(a, d, opts) {
+    if (!a || !d) return 1;
+    const id = vpid(a);
+    const melee = attackKind(a, opts) === 'melee';
+    const dist = (opts && opts.dist != null) ? opts.dist : manh(a.x, a.y, d.x, d.y);
+    let m = 1;
+    switch (id) {
+      case 'charge': if (B && B.turn <= 1) m *= 1 + vpv(a, 'atk'); break;
+      case 'snipe': if (!melee && dist >= 2) m *= 1 + vpv(a, 'ranged'); break;
+      case 'duel': if (melee && vpAdjFoes(a) <= 1) m *= 1 + vpv(a, 'duel'); break;
+      case 'bloodlust': if (a.maxHp && a.hp / a.maxHp <= vpv(a, 'hp') / 100) m *= 1 + vpv(a, 'atk'); break;
+      case 'breakthrough': if (famU(a) === 'cav' && (a.movedTiles || 0) >= vpv(a, 'minMove')) m *= 1 + vpv(a, 'dash'); break;
+      case 'flank': if (melee && !(opts && opts.counterHit) && !vpFront(a, d)) m *= 1 + vpv(a, 'flank'); break;
+      case 'spearwall': if (famU(d) === 'cav') m *= 1 + vpv(a, 'cav'); break;
+      case 'nightraid': if (d.acted === false) m *= 1 + vpv(a, 'raid'); break;
+      case 'h_both': m *= 1 + vpv(a, 'atk'); break;
+      case 'unyielding': if (a.vpRage) m *= 1 + vpv(a, 'atk'); break;
+    }
+    return m * (1 + vpAura(a, 'atk'));
+  }
+  function vpDefMul(d) {
+    const id = vpid(d);
+    if (id === 'phalanx' && vpAdjAllies(d) >= 1) return 1 + vpv(d, 'def');
+    if (id === 'h_both') return 1 + vpv(d, 'def');
+    return 1;
+  }
+  function vpTakenMul(d) {
+    if (!d) return 1;
+    return vpid(d) === 'ironwall' ? 1 - vpv(d, 'taken') : 1;
+  }
+  function vpCritAdd(a, d, melee) {
+    let v = 0;
+    /* 복병의 숲·산지 치명은 critChanceOf 에서 한 번만 더한다 (예상 창과 동일) */
+    if (vpid(a) === 'flank' && d && melee && !vpFront(a, d)) v += vpv(a, 'crit');
+    return v;
+  }
+  function vpEvade(u) {
+    if (vpid(u) !== 'ambush') return 0;
+    const ch = vpCh(u);
+    return (ch === 'F' || ch === 'M') ? vpv(u, 'evade') : 0;
+  }
+  function vpMagicMul(u, t) {
+    let m = 1;
+    const iu = vpid(u), it = vpid(t);
+    if (iu === 'sorcery' || iu === 'h_strat') m *= 1 + vpv(u, 'magic');
+    if (it === 'counterspell' || it === 'h_adv') m *= 1 - vpv(t, 'mtaken');
+    /* v5.82 — 세종 「집현전의 지혜」 같은 '계략방어 +N%' 필살기 버프 */
+    const md = buffVal(t, 'magicDef');
+    if (md > 0) m *= 1 - Math.min(0.6, md);
+    return m;
+  }
+  /* 적중 순간: 독공·화공·위압·쾌검 */
+  function vpOnHit(a, d, crit, opts) {
+    if (!a || !d || !d.alive || !B || B.over) return;
+    if (opts && opts.counterHit) return;
+    const id = vpid(a);
+    if (!id) return;
+    if (id === 'venom' && Math.random() < vpv(a, 'chance')) {
+      if (ailApply(d, 'poison', null, vpv(a, 'turns'))) {
+        d.ailDot = d.ailDot || {};
+        d.ailDot.poison = Math.max(vpv(a, 'dot'), d.ailDot.poison || 0);
+      }
+    }
+    if (id === 'pyro' && Math.random() < vpv(a, 'chance')) {
+      if (ailApply(d, 'burn', null, vpv(a, 'turns'))) {
+        d.ailDot = d.ailDot || {};
+        d.ailDot.burn = Math.max(vpv(a, 'dot'), d.ailDot.burn || 0);
+      }
+    }
+    if (id === 'awe' && d.alive) {
+      moraleShift(d, -vpv(a, 'morale') * (crit ? 2 : 1));
+      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.18) * TILE, '위압!', '#ffcf8a');
+    }
+    if (id === 'swiftblade') {
+      a.buffs.evade = { v: Math.max(vpv(a, 'evade'), (a.buffs.evade && a.buffs.evade.t > 0 && a.buffs.evade.v) || 0), t: 1 };
+    }
+  }
+  /* 턴 시작: 사기진작(MP·아군 사기) · 군의술·의장(치유) */
+  function vpTurnStart(u) {
+    if (!B || !u || !u.alive) return;
+    const id = vpid(u);
+    if (!id) return;
+    if (id === 'morale') {
+      u.mp = Math.min(u.maxMp, u.mp + vpv(u, 'mp'));
+      B.units.forEach((o) => {
+        if (o.alive && o.side === u.side && manh(o.x, o.y, u.x, u.y) <= 1) moraleShift(o, vpv(u, 'morale'));
+      });
+    }
+    if (id === 'medic' || id === 'h_sage') {
+      /* 한 전투 4회까지만 — 매 턴 무제한 회복으로 좀비 판이 되지 않게 */
+      u.vpHealN = u.vpHealN || 0;
+      if (u.vpHealN >= 4) return;
+      u.vpHealN += 1;
+      const selfP = vpv(u, 'self'), allyP = vpv(u, 'ally');
+      B.units.forEach((o) => {
+        if (!o.alive || o.side !== u.side) return;
+        if (o !== u && manh(o.x, o.y, u.x, u.y) > 1) return;
+        const p = o === u ? selfP : allyP;
+        if (!p || o.hp >= o.maxHp) return;
+        const hl = Math.max(1, Math.round(o.maxHp * p));
+        o.hp = Math.min(o.maxHp, o.hp + hl);
+        addHeal(o, hl, u);
+        addFloat((rxOf(o) + 0.5) * TILE, (ryOf(o) + 0.3) * TILE, '+' + hl, '#a8f0b8');
+        addFx({ kind: 'heal', x: (rxOf(o) + 0.5) * TILE, y: (ryOf(o) + 0.5) * TILE, life: 520 });
+      });
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.08) * TILE, `「${(u.passive && u.passive.title) || '군의술'}」`, '#9ef0b8', { back: true });
+    }
+  }
   function classCrit(u) {
     const c = classPas(u);
     if (!c) return 0;
@@ -4569,7 +4721,7 @@
       addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '면역', '#ffe6a8');
       return false;
     }
-    const res = Math.max(0, Math.min(0.75, fxPct(t, 'statusRes')));
+    const res = Math.max(0, Math.min(0.75, fxPct(t, 'statusRes') + vpv(t, 'resist')));
     if (res > 0 && Math.random() < res) {
       addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.28) * TILE, '저항!', '#ffd9a0');
       return false;
@@ -4675,7 +4827,9 @@
       u.ail = u.ail || {};
       [['poison', 0.03], ['burn', 0.04]].forEach(([k, p]) => {
         if (!u.ail[k] || !u.alive) return;
-        const d = Math.max(4, Math.round(u.maxHp * p));
+        /* v5.82 — 독공·화공(고유 특기)이 건 상태이상은 더 아프게 돈다 */
+        const pp = (u.ailDot && u.ailDot[k]) || p;
+        const d = Math.max(4, Math.round(u.maxHp * pp));
         u.hp = Math.max(0, u.hp - d);
         statOf(u).taken += d;
         addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.4) * TILE, `${AIL[k].n} -${d}`, `rgb(${AIL[k].c})`);
@@ -4801,7 +4955,9 @@
     const boat = (u.aboard && u.cls !== 'sujeok') ? 0.88 : 1;
     /* v5.56 — 사기·훈련도는 방어에도 그대로 붙는다 (낮은 사기는 공·방을 함께 깎는다) */
     return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef)
-      * mul * hold * sit * boat * moraleMul(u) * trainMul(u);
+      * mul * hold * sit * boat * moraleMul(u) * trainMul(u)
+      /* v5.82 — 방진(인접 아군 있으면 방어 +)·문무겸전·지휘 오라 */
+      * vpDefMul(u) * (1 + vpAura(u, 'def'));
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -4908,7 +5064,7 @@
     /* v5.58 — '방어력 N% 관통' 책략(천마돌파·파천격·집중노사) */
     if (opts && opts.defPierce) defNow *= Math.max(0, 1 - opts.defPierce);
     /* v5.81 — 갑옷 파쇄(고유 특기): 언제나 대상 방어력을 N% 무시한다 */
-    const pPen = pasFx(a, 'pierce');
+    const pPen = pasFx(a, 'pierce') + (vpid(a) === 'siege' ? vpv(a, 'pierce') : 0);
     if (pPen) defNow *= Math.max(0, 1 - pPen);
     const def = (opts && opts.pierce) ? 0 : defNow;
     /* v5.15 — 병과 삼각 상성 (보병↔궁병↔기병↔창병) */
@@ -4967,14 +5123,17 @@
     /* v5.2 — 투석차·발석차는 일반 부대에 약하고 성문·성벽에 강하다 */
     const kind = attackKind(a, opts);
     if (kind === 'rock') base *= 0.55;
-    /* v5.15 — 무희 오라의 회피(받는 피해 −8%) · v5.81 무도가 고유 회피 */
-    const ev = buffVal(d, 'evade') + classEva(d);
+    /* v5.15 — 무희 오라의 회피(받는 피해 −8%) · v5.81 무도가 고유 회피 · v5.82 복병(숲·산지 회피) */
+    const ev = buffVal(d, 'evade') + classEva(d) + vpEvade(d);
     if (ev > 0) base *= Math.max(0.6, 1 - ev);
+    /* v5.82 — 고유 특기 40종: 공격자 배율·방어자 배율 (계산 맨 끝에서 한 번에) */
+    base *= vpAtkMul(a, d, opts);
+    base *= vpTakenMul(d);
     let crit = false;
     /* v5.81 — 기술 자체의 치명 보너스(조준사격 +10 · 연환권 +15 등) */
     const cc = critChanceOf(a) + (opts && opts.critBonus ? Number(opts.critBonus) / 100 : 0);
     if (!opts || !opts.noCrit) {
-      if (Math.random() < cc) {
+      if (Math.random() < cc + vpCritAdd(a, d, kind === 'melee')) {
         crit = true;
         /* v5.29 — 보물 치명타 피해(+), 방어자의 치명타 저항(−) */
         base *= Math.max(1.15, 1.55 + fxPct(a, 'critDmg') - fxPct(d, 'critRes'));
@@ -5046,7 +5205,32 @@
 
   function applyDamage(a, d, dmg, crit, bond) {
     const wasAlive = d.hp > 0;
+    /* v5.82 — 전위 「악래의 방패」: 가리기(cover) 중인 장수가 인접 아군이 받는 피해의 40%를 대신 받는다 */
+    if (d && d.alive && dmg > 0 && B && B.units) {
+      const guard = B.units.find((o) => o !== d && o !== a && o.alive && o.side === d.side
+        && (o.vpCover || 0) > 0 && manh(o.x, o.y, d.x, d.y) <= 1);
+      if (guard) {
+        const share = Math.round(dmg * 0.4);
+        if (share > 0) {
+          dmg -= share;
+          guard.hp = Math.max(0, guard.hp - share);
+          statOf(guard).taken += share;
+          addFloat((rxOf(guard) + 0.5) * TILE, (ryOf(guard) + 0.3) * TILE, `가로막음 ${share}`, '#ffe08a');
+          if (guard.hp <= 0) downUnit(guard);
+        }
+      }
+    }
     d.hp = Math.max(0, d.hp - dmg);
+    /* v5.82 — 불굴: 전투당 1회, 치명상에서도 병력 1로 버틴다 (그 뒤 공격 +15%) */
+    if (wasAlive && d.hp <= 0 && vpid(d) === 'unyielding' && !d.vpBroken) {
+      d.vpBroken = true;
+      d.vpRage = true;
+      const hl = 1;
+      d.hp = hl;
+      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.24) * TILE, `「${(d.passive && d.passive.title) || '불굴'}」 버팀!`, '#ffe08a', { back: true });
+      feed(`${d.name}의 고유 특기 「${(d.passive && d.passive.title) || '불굴'}」 — 쓰러지지 않고 버텼다 (공격 상승)`, d.side === 'ally' ? 'good' : 'bad');
+      addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.5) * TILE, life: 520, color: '255,214,120' });
+    }
     /* v5.31 — 사기: 최대 병력의 15% 이상을 한 번에 잃으면 흔들린다 */
     if (d.maxHp && dmg >= d.maxHp * 0.15) moraleShift(d, -4);
     if (wasAlive && d.hp <= 0) {
@@ -5061,9 +5245,10 @@
     }
     if (a) statOf(a).dealt += dmg;
     statOf(d).taken += dmg;
-    /* v5.81 — 피의 갈증(고유 특기): 준 피해의 N%를 자기 병력으로 회복 */
+    /* v5.81 — 피의 갈증(고유 특기): 준 피해의 N%를 자기 병력으로 회복
+       v5.82 — 혈전(고유 특기)도 같은 흡혈을 쓴다 */
     if (a && a.alive && dmg > 0) {
-      const ls = pasFx(a, 'lifesteal');
+      const ls = pasFx(a, 'lifesteal') || (vpid(a) === 'bloodlust' ? vpv(a, 'leech') : 0);
       if (ls) {
         const hl = Math.max(1, Math.round(dmg * ls));
         const before = a.hp;
@@ -5095,6 +5280,33 @@
           feed(`${a.name}의 특기 「${(a.passive && a.passive.title) || '연격'}」 — ${other.name}을(를) 한 번 더 칩니다`, a.side === 'ally' ? 'good' : 'bad');
           attackUnit(a, other, { mult: 1, noStrike: true });
         }, 460);
+      }
+      /* v5.82 — 추격: 처치하면 30% 확률로 가장 가까운 적을 한 번 더 치고, 실패하면 인접 적에게 추가 피해 */
+      if (vpid(a) === 'pursue' && !a.vpPursued) {
+        a.vpPursued = true;
+        const others = B.units.filter((o) => o.alive && o.hp > 0 && o !== d && o.side !== a.side);
+        const near = others.filter((o) => manh(o.x, o.y, a.x, a.y) <= 1);
+        const reach = others.filter((o) => manh(a.x, a.y, o.x, o.y) <= effRng(a));
+        if (Math.random() < vpv(a, 'act') && reach.length) {
+          const other = reach.slice().sort((x, y) => manh(a.x, a.y, x.x, x.y) - manh(a.x, a.y, y.x, y.y))[0];
+          wait(() => {
+            if (!B || B.over || !a.alive || !other.alive) return;
+            feed(`${a.name}의 고유 특기 「${(a.passive && a.passive.title) || '추격'}」 — ${other.name}을(를) 한 번 더 칩니다`, a.side === 'ally' ? 'good' : 'bad');
+            addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.1) * TILE, '추격!', '#ffe08a', { back: true });
+            attackUnit(a, other, { mult: 1, noStrike: true, counterHit: true });
+          }, 420);
+        } else if (near.length) {
+          wait(() => {
+            if (!B || B.over || !a.alive) return;
+            near.forEach((o) => {
+              if (!o.alive) return;
+              const sd = Math.max(1, Math.round(dmg * vpv(a, 'splash')));
+              addFloat((rxOf(o) + 0.5) * TILE, (ryOf(o) + 0.34) * TILE, `추격 ${sd}`, '#ffc98a');
+              applyDamage(a, o, sd, false, null);
+            });
+            feed(`${a.name}의 고유 특기 「${(a.passive && a.passive.title) || '추격'}」 — 인접 적에게 추가 피해`, a.side === 'ally' ? 'good' : 'bad');
+          }, 360);
+        }
       }
       /* v5.58 — '적 처치 시' 고유 특기(여몽·관흥·여포): 이 부대 공격력이 오른다 */
       const pk = a.passive;
@@ -5149,6 +5361,8 @@
       applyDamage(a, d, res.dmg, res.crit, bond);
       /* v5.31 — 보물의 적중 시 상태이상·사기 저하 */
       if (d.alive) onHitAil(a, d, kind, opts);
+      /* v5.82 — 고유 특기 적중 효과 (독공·화공·위압·쾌검) */
+      if (d.alive) vpOnHit(a, d, res.crit, opts);
       impactAt(d, bond ? '255,140,110' : '255,214,120');
       if (kind !== 'melee') addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.55) * TILE, life: 350 });
       if (opts && opts.onDamage) opts.onDamage(res.dmg, res.crit);
@@ -5180,9 +5394,11 @@
      반격 피해는 일반 병과 75%, 검병은 방패 맞다이 특화로 90%. */
   const COUNTER_MUL = 0.75, COUNTER_MUL_SHIELD = 0.90;
   /* v5.29 — 보물 반격 피해 보정 (검병 90% · 일반 75% + 보물 %) */
-  function counterMulOf(u) { return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter') + pasFx(u, 'counter'); }
+  function counterMulOf(u) { return (u && u.cls === 'geombyung' ? COUNTER_MUL_SHIELD : COUNTER_MUL) + fxPct(u, 'counter') + pasFx(u, 'counter') + (vpid(u) === 'ironwall' ? vpv(u, 'counter') : 0); }
   function canCounterAt(a, d) {
     if (!a || !d || !a.alive || !d.alive) return false;
+    /* v5.82 — 창벽: 기병에게 맞으면 최소 사거리와 상관없이 반격한다 */
+    if (vpid(a) === 'spearwall' && famU(d) === 'cav' && manh(a.x, a.y, d.x, d.y) <= 1) return true;
     const dist = manh(a.x, a.y, d.x, d.y);
     const min = a.minRng || 1;
     return dist >= min && dist <= effRng(a);
@@ -5390,8 +5606,10 @@
 
   /* v5.29 — 치명타 확률은 한 곳에서만 계산한다 (예고·실제 전투가 같은 값을 쓰도록) */
   function critChanceOf(u) {
+    /* v5.82 — 복병(숲·산지 치명 +N%p)은 예상 창에도 그대로 보인다 */
+    const amb = (vpid(u) === 'ambush' && (vpCh(u) === 'F' || vpCh(u) === 'M')) ? vpv(u, 'crit') : 0;
     return 0.05 + (u.wu - 60) * 0.0011 + (u.cls === 'sanjeok' ? 0.06 : 0) + Math.max(0, buffVal(u, 'crit'))
-      + fxPct(u, 'crit') + trainCritBonus(u) + classCrit(u) + pasFx(u, 'crit');
+      + fxPct(u, 'crit') + trainCritBonus(u) + classCrit(u) + pasFx(u, 'crit') + amb;
   }
   /* 조조전식 전투 예고 — 피해·반격·지형·인연 배지를 먼저 보여준다 */
   function openAttackPreview(a, d) {
@@ -5474,6 +5692,8 @@
     /* v5.81 — 공성 공병대(고유 특기): 성문 피해 +N% */
     const gp = Math.max(0, Math.min(0.6, pasFx(a, 'gate')));
     if (gp) base *= 1 + gp;
+    /* v5.82 — 공성파괴(고유 특기): 성문 피해 +20% */
+    if (vpid(a) === 'siege') base *= 1 + vpv(a, 'siege');
     const cc = 0.05 + (a.wu - 60) * 0.0011;
     let crit = false;
     if (Math.random() < cc) { crit = true; base *= 1.4; }
@@ -5608,6 +5828,8 @@
     /* v5.81 — 개편된 전투 특기(fx: 이동비례·반격·흡혈·치명·관통·사기방어·MP·성문·처치재행동)는
        각자의 전투 계산 자리에서 이미 일한다. 여기서 옛 '주변 아군 공격력 +%'를 또 발동하지 않는다. */
     if (p.fx) return;
+    /* v5.82 — 40종 특기(vp)도 각자의 계산 자리에서 일한다 */
+    if (p.v582) return;
     if (when === 'turn_start' ? trig !== 'turn_start' : trig === 'turn_start') return;
     if (when !== 'turn_start' && u.pUsed && u.pUsed[trig]) {
       /* v5.31 — 사기병법서·육도비록: '전술 발동 확률 +N%'는 한 번 쓴 고유특기가 다시 터질 확률 */
@@ -5715,15 +5937,19 @@
 
   /* v5.30 — 연격·연속 사격: 한 번 더 친다 (연격 62% · 연속 사격 55% 피해) */
   function extraKindOf(a, kind) {
+    /* v5.82 — 연격(고유 특기): 확률로 추가타 (보물 연격과 별개로 한 번 더 굴린다) */
+    if (a && vpid(a) === 'combo' && Math.random() < vpv(a, 'chance')) return 'vpcombo';
     if (!a || !a.tfx) return null;
     if (kind === 'melee') return (fxPct(a, 'combo') > 0 && Math.random() < Math.min(0.5, fxPct(a, 'combo'))) ? 'combo' : null;
     return (fxPct(a, 'volley') > 0 && Math.random() < Math.min(0.5, fxPct(a, 'volley'))) ? 'volley' : null;
   }
   function extraStrike(a, d, kind, done) {
+    const vpCombo = kind === 'vpcombo';
     const pierce = kind === 'combo' && !!(a.tfx && a.tfx.pierce);
-    const mult = kind === 'combo' ? 0.62 : 0.55;
-    addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.1) * TILE, kind === 'combo' ? '연격!' : '연속 사격!', '#ffe6a8', { back: true });
-    feed(`${a.name} — ${kind === 'combo' ? '연격' : '연속 사격'}${pierce ? ' · 방어 무시' : ''}`, 'good');
+    const mult = vpCombo ? vpv(a, 'pct') : kind === 'combo' ? 0.62 : 0.55;
+    const label = vpCombo ? `「${(a.passive && a.passive.title) || '연격'}」` : kind === 'combo' ? '연격!' : '연속 사격!';
+    addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.1) * TILE, label, '#ffe6a8', { back: true });
+    feed(`${a.name} — ${vpCombo ? '연격 특기' : kind === 'combo' ? '연격' : '연속 사격'}${pierce ? ' · 방어 무시' : ''}`, 'good');
     wait(() => {
       if (!B || B.over || !a.alive || !d.alive) { done(); return; }
       attackUnit(a, d, { mult, pierce, noStrike: true, noDuel: true }, () => {
@@ -6349,7 +6575,7 @@
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
             const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 2.25 - magicDef(t) * 2.20) * sizeScale(t) * 0.8
-              * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken'))))));
+              * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken')))) * vpMagicMul(u, t)));
             t.hp = Math.max(0, t.hp - dmg);
             addMagicDamage(u, t, dmg);
             t.flash = 1; t.shake = 240;
@@ -6380,7 +6606,7 @@
       wait(() => {
         if (!B || B.over) { finish(0); return; }
         const dmg = Math.max(10, Math.round((sk.power * 0.60 + magicAtk(u) * 3.40 - magicDef(target) * 2.25) * sizeScale(target) * 0.8
-          * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(target, 'magicTaken'))))));
+          * (1 + fxPct(u, 'magic')) * (1 - Math.min(0.5, Math.max(-0.5, fxPct(target, 'magicTaken')))) * vpMagicMul(u, target)));
         target.hp = Math.max(0, target.hp - dmg);
         addMagicDamage(u, target, dmg);
         target.flash = 1; target.shake = 240;
@@ -6498,12 +6724,13 @@
     if (!spec.tier) spec.tier = (t === 'A' ? 'A' : 'S');
     return spec;
   }
-  const ULT_TARGET_KINDS = { hit: 1, combo: 1, aoe: 1, arrow: 1, arrowAoe: 1, magic: 1, rock: 1, debuff: 1 };
+  const ULT_TARGET_KINDS = { hit: 1, combo: 1, aoe: 1, arrow: 1, arrowAoe: 1, magic: 1, rock: 1, debuff: 1, line: 1 };
   function ultNeedsTarget(spec) { return !!(spec && spec.e && ULT_TARGET_KINDS[spec.e.k]); }
   function ultRange(u, spec) {
     if (!u || !spec || !spec.e) return 1;
     if (spec.e.rng) return spec.e.rng;
     const k = spec.e.k;
+    if (k === 'line') return (spec.e.len || 2) + 1;
     const bonus = (k === 'magic' || k === 'rock' || k === 'debuff' || k === 'aoe' || k === 'arrowAoe') ? 1 : 0;
     return Math.max(1, effRng(u) + bonus);
   }
@@ -6519,6 +6746,7 @@
       case 'arrow': return `${e.n || 2}발의 화살을 한 번에 (합계 ${pc(e.m)})${ail}`;
       case 'arrowAoe': return `지점 반경 ${e.r || 1}칸에 화살 세례 (부대당 ${pc(e.m)}·${e.n || 2}발)${ail}`;
       case 'magic': return `지점 반경 ${e.r || 1}칸에 책략 폭발 (화계의 ${pc(e.p || 1.2)} 위력)${ail}`;
+      case 'line': return `${e.len || 2}칸 직선 관통${e.stat === 'int' ? ' 계략' : ''} ${pc(e.m || e.p || 1)}${ail}`;
       case 'rock': return `지점 반경 ${e.r || 1}칸에 투석 폭격 (${pc(e.p || 1.2)})${ail}`;
       case 'buff': {
         const p = [];
@@ -6538,6 +6766,55 @@
       default: return '고유 필살기';
     }
   }
+  /* v5.82 — 필살기 한 줄 설명: 새로 붙은 개성(관통·치명·처치·광역·회복)을 문장에 더한다 */
+  function ultExtraText(spec) {
+    const e = spec && spec.e;
+    if (!e) return '';
+    const s = [];
+    if (e.pierce) s.push(`방어 ${Math.round(e.pierce * 100)}% 무시`);
+    if (e.crit) s.push(`치명 ${Math.round((e.crit.chance || 0) * 100)}% (×${e.crit.mul || 1.5})`);
+    if (e.execute) s.push(`HP ${e.execute.hpBelow}% 이하 +${e.execute.bonusPct}%`);
+    if (e.lowHpBonus) s.push(`잃은 병력 10%당 +${e.lowHpBonus.per10}%`);
+    if (e.moveBonus) s.push(`이동 후 +${e.moveBonus}%`);
+    if (e.stun) s.push(`기절 ${Math.round((e.stun.chance == null ? 1 : e.stun.chance) * 100)}%`);
+    if (e.burn && !/화상/.test(spec.desc || '')) s.push(`화상 ${e.burn.turns}턴`);
+    if (e.lifesteal) s.push(`흡혈 ${Math.round(e.lifesteal * 100)}%`);
+    if (e.mp && e.mp.gain) s.push(`MP +${e.mp.gain}`);
+    if (e.mp && e.mp.drain) s.push(`MP ${e.mp.drain} 흡수`);
+    if (e.heal) s.push(`HP ${Math.round(e.heal.pct * 100)}% 회복`);
+    if (e.buff) {
+      const b = [];
+      if (e.buff.atk) b.push(`공격 +${Math.round(e.buff.atk * 100)}%`);
+      if (e.buff.def) b.push(`방어 +${Math.round(e.buff.def * 100)}%`);
+      if (e.buff.evade) b.push(`회피 +${Math.round(e.buff.evade * 100)}%`);
+      if (e.buff.counter) b.push(`반격 +${Math.round(e.buff.counter * 100)}%`);
+      if (e.buff.magicDef) b.push(`계략방어 +${Math.round(e.buff.magicDef * 100)}%`);
+      if (b.length) s.push(`아군 ${b.join('·')}(${e.buff.turns || 2}턴)`);
+    }
+    if (e.debuff && e.debuff.move) s.push(`적 이동 ${e.debuff.move}`);
+    if (e.shred) s.push('방어 누적 감소');
+    if (e.selfCost) s.push(`자신 HP ${e.selfCost.hpPct}% 소모`);
+    if (e.cover) s.push('인접 아군 피해 40% 대신 받음(3턴)');
+    if (e.enemyAll) {
+      if (e.enemyAll.morale) s.push(`적 전체 사기 ${e.enemyAll.morale}`);
+      if (e.enemyAll.burn) s.push('적 전체 화상');
+    }
+    if (e.onKill) {
+      if (e.onKill.extraAction) s.push('처치 시 재행동');
+      if (e.onKill.heal) s.push(`처치 시 HP ${Math.round(e.onKill.heal * 100)}% 회복`);
+      if (e.onKill.allyMorale) s.push(`처치 시 아군 사기 +${e.onKill.allyMorale}`);
+    }
+    return s.join(' · ');
+  }
+  /* UI·세부창 공용 한 줄 설명 */
+  function ultTextOf(spec) {
+    if (!spec) return '';
+    if (spec.desc) return spec.desc;
+    const base = ultDesc(spec);
+    const ex = ultExtraText(spec);
+    return ex ? `${base} · ${ex}` : base;
+  }
+  SK.ultDescText = ultTextOf;
 
   /* ── 연출: 컷인 배너 + 말풍선 + 화면 물들임 ─────────────────────────── */
   function showUltCutin(u, spec) {
@@ -6601,6 +6878,50 @@
   }
 
   /* ── 효과 적용 ─────────────────────────────────────────────────────── */
+  /* v5.82 — 필살기 타격: 방어 관통·치명 확정·HP 비율 추가피해·잃은 병력 비례·
+     이동 후 보너스·방어 누적 감소·MP 흡수를 한 자리에서 처리한다. */
+  function ultStrike(u, t, mult, e, opts) {
+    if (!t || !t.alive) return 0;
+    e = e || {};
+    let m = mult;
+    if (e.moveBonus && (u.movedTiles || 0) >= 1) m *= 1 + e.moveBonus / 100;
+    if (e.lowHpBonus) {
+      const lost = Math.max(0, 1 - u.hp / Math.max(1, u.maxHp));
+      const steps = Math.floor(lost * 10);
+      m *= 1 + Math.min(e.lowHpBonus.max, steps * e.lowHpBonus.per10) / 100;
+    }
+    if (e.execute && t.maxHp && t.hp / t.maxHp <= e.execute.hpBelow / 100) m *= 1 + e.execute.bonusPct / 100;
+    const res = calcDamage(u, t, Object.assign({ mult: m, noCrit: true, firstStrike: false, defPierce: e.pierce || 0 }, opts || {}));
+    let dmg = res.dmg;
+    let crit = false;
+    if (e.crit && Math.random() < (e.crit.chance || 0)) {
+      crit = true;
+      dmg = Math.round(dmg * (e.crit.mul || 1.5));
+    }
+    applyDamage(u, t, dmg, crit, null);
+    addFx({ kind: 'spark', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.4) * TILE, life: 300, color: '255,230,170' });
+    if (e.lifesteal && u.alive) {
+      const hl = Math.max(1, Math.round(dmg * e.lifesteal));
+      const before = u.hp;
+      u.hp = Math.min(u.maxHp, u.hp + hl);
+      if (u.hp > before) {
+        addHeal(u, u.hp - before, u);
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.28) * TILE, '+' + (u.hp - before), '#a8f0b8');
+      }
+    }
+    if (t.alive && e.shred && e.shred.def) {
+      const cur = (t.buffs.def && t.buffs.def.v) || 0;
+      t.buffs.def = { v: Math.max(-0.5, cur + e.shred.def), t: 2 };
+      addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.22) * TILE, '방어↓', '#d8c08a');
+    }
+    if (t.alive && e.mp && e.mp.drain) {
+      const dr = Math.min(t.mp || 0, e.mp.drain);
+      t.mp -= dr;
+      u.mp = Math.min(u.maxMp, (u.mp || 0) + dr);
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, `MP +${dr}`, '#bfe8ff');
+    }
+    return dmg;
+  }
   function ultDmgHit(u, t, mult, opts) {
     if (!t || !t.alive) return 0;
     const res = calcDamage(u, t, Object.assign({ mult: mult, noCrit: true, firstStrike: false }, opts || {}));
@@ -6612,7 +6933,7 @@
     if (!t || !t.alive) return 0;
     const dmg = Math.max(10, Math.round((240 * (p || 1.2) * 0.70 + magicAtk(u) * 2.25 - magicDef(t) * 2.20)
       * sizeScale(t) * 0.8 * (1 + fxPct(u, 'magic'))
-      * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken'))))));
+      * (1 - Math.min(0.5, Math.max(-0.5, fxPct(t, 'magicTaken')))) * vpMagicMul(u, t)));
     t.hp = Math.max(0, t.hp - dmg);
     addMagicDamage(u, t, dmg);
     t.flash = 1; t.shake = 240;
@@ -6623,33 +6944,73 @@
   function ultFoesAt(x, y, r, side) {
     return B.units.filter((o) => o.alive && o.side !== side && manh(x, y, o.x, o.y) <= r);
   }
+  /* v5.82 — 3~4칸 직선 관통: 시전자에서 대상 방향으로 len칸까지 줄 위의 적 */
+  function ultLineFoes(u, tgt, len) {
+    let dx = 0, dy = 0;
+    if (tgt) {
+      dx = Math.sign(tgt.x - u.x);
+      dy = Math.sign(tgt.y - u.y);
+    }
+    if (!dx && !dy) { dx = (u.face > 0 ? 1 : -1); }
+    if (dx && dy) dy = 0;   // 대각선은 가로로 편다 (격자 직선)
+    const out = [];
+    for (let i = 1; i <= (len || 2); i++) {
+      const x = u.x + dx * i, y = u.y + dy * i;
+      B.units.forEach((o) => {
+        if (!o.alive || o.side === u.side) return;
+        if (o.x === x && o.y === y && out.indexOf(o) < 0) out.push(o);
+      });
+    }
+    return out;
+  }
   function applyUlt(u, spec, tgt) {
     if (!B || B.over || !u || !spec) return null;
     const e = spec.e || {};
     const foes = B.units.filter((o) => o.alive && o.side !== u.side);
     const allies = B.units.filter((o) => o.alive && o.side === u.side);
-    const out = { dmg: 0, hits: [] };
-    const ail = (t) => { if (t.alive && e.ail) ailApply(t, e.ail, e.ch == null ? 1 : e.ch, e.turns); };
+    const out = { dmg: 0, hits: [], kills: [] };
+    /* v5.82 — 자신의 병력을 태워 쓰는 필살기 (계백 황산벌 결사) */
+    if (e.selfCost && e.selfCost.hpPct) {
+      const cost = Math.min(u.hp - 1, Math.round(u.maxHp * e.selfCost.hpPct / 100));
+      if (cost > 0) {
+        u.hp -= cost;
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.28) * TILE, `-${cost}`, '#ff9a86');
+        statOf(u).taken += cost;
+      }
+    }
+    const ail = (t) => {
+      if (!t || !t.alive) return;
+      if (e.ail) ailApply(t, e.ail, e.ch == null ? 1 : e.ch, e.turns);
+      if (e.stun) ailApply(t, 'stun', e.stun.chance == null ? 1 : e.stun.chance, e.stun.turns || 1);
+      if (e.burn) {
+        if (ailApply(t, 'burn', 1, e.burn.turns || 2)) {
+          t.ailDot = t.ailDot || {};
+          t.ailDot.burn = Math.max(e.burn.dot || 0.04, t.ailDot.burn || 0);
+        }
+      }
+    };
+    const track = (t) => { if (t && !t.alive && out.kills.indexOf(t.name) < 0) out.kills.push(t.name); };
     if (e.k === 'hit' || e.k === 'arrow') {
       if (!tgt || !tgt.alive) return out;
       if (e.k === 'arrow' && (e.n || 1) > 1) {
         const per = (e.m || 1.3) / (e.n || 1);
-        for (let i = 0; i < (e.n || 1); i++) wait(() => { if (B && !B.over && tgt.alive) out.dmg += ultDmgHit(u, tgt, per); }, 90 * i);
+        for (let i = 0; i < (e.n || 1); i++) wait(() => { if (B && !B.over && tgt.alive) out.dmg += ultStrike(u, tgt, per, e); }, 90 * i);
       } else {
-        out.dmg += ultDmgHit(u, tgt, e.m || 1.3);
+        out.dmg += ultStrike(u, tgt, e.m || 1.3, e);
       }
       ail(tgt);
+      track(tgt);
     } else if (e.k === 'combo') {
       if (!tgt || !tgt.alive) return out;
       const n = e.n || 2, per = (e.m || 1.4) / n;
       for (let i = 0; i < n; i++) {
         wait(() => {
           if (!B || B.over || !tgt.alive) return;
-          out.dmg += ultDmgHit(u, tgt, per);
+          out.dmg += ultStrike(u, tgt, per, e);
           addFx({ kind: 'slash', x: (rxOf(tgt) + 0.5) * TILE, y: (ryOf(tgt) + 0.45) * TILE, life: 320 });
         }, 130 * i);
       }
-      wait(() => ail(tgt), 130 * n + 40);
+      wait(() => { ail(tgt); track(tgt); }, 130 * n + 40);
     } else if (e.k === 'aoe' || e.k === 'arrowAoe') {
       const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;
       const list = ultFoesAt(cx, cy, e.r || 1, u.side);
@@ -6658,13 +7019,31 @@
           if (!B || B.over || !t.alive) return;
           let d = 0;
           const n = (e.k === 'arrowAoe') ? (e.n || 2) : 1;
-          for (let k = 0; k < n; k++) d += ultDmgHit(u, t, (e.m || 1) / n);
+          for (let k = 0; k < n; k++) d += ultStrike(u, t, (e.m || 1) / n, e);
           out.dmg += d;
           out.hits.push(t.name);
           ail(t);
-          if (e.morale) moraleShift(t, e.morale);
+          track(t);
+          if (t.alive && e.morale) moraleShift(t, e.morale);
           addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
         }, 80 + i * 90);
+      });
+    } else if (e.k === 'line') {
+      /* v5.82 — 3~4칸 직선 관통 (마초·손책·광개토대왕·육손) */
+      const list = ultLineFoes(u, tgt, e.len || 2);
+      if (!list.length && tgt && tgt.alive) list.push(tgt);
+      list.forEach((t, i) => {
+        wait(() => {
+          if (!B || B.over || !t.alive) return;
+          const stat = e.stat === 'int';
+          const d = stat ? ultMagicHit(u, t, e.p || 1.0) : ultStrike(u, t, e.m || 1.0, e);
+          out.dmg += d;
+          out.hits.push(t.name);
+          ail(t);
+          track(t);
+          if (t.alive && e.morale) moraleShift(t, e.morale);
+          addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
+        }, 90 + i * 90);
       });
     } else if (e.k === 'magic' || e.k === 'rock') {
       const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;
@@ -6672,18 +7051,53 @@
       list.forEach((t, i) => {
         wait(() => {
           if (!B || B.over || !t.alive) return;
-          out.dmg += ultMagicHit(u, t, e.p || 1.2);
+          const md = ultMagicHit(u, t, e.p || 1.2);
+          out.dmg += md;
           out.hits.push(t.name);
+          /* v5.82 — 계략형 필살기의 MP 흡수·흡혈·방어 약화도 함께 */
+          if (t.alive && e.mp && e.mp.drain) {
+            const dr = Math.min(t.mp || 0, e.mp.drain);
+            t.mp -= dr;
+            u.mp = Math.min(u.maxMp, (u.mp || 0) + dr);
+            addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, `MP +${dr}`, '#bfe8ff');
+          }
+          if (e.lifesteal && u.alive && md > 0) {
+            const hl = Math.max(1, Math.round(md * e.lifesteal));
+            u.hp = Math.min(u.maxHp, u.hp + hl);
+            addHeal(u, hl, u);
+          }
+          if (t.alive && e.shred && e.shred.def) {
+            const cur = (t.buffs.def && t.buffs.def.v) || 0;
+            t.buffs.def = { v: Math.max(-0.5, cur + e.shred.def), t: 2 };
+          }
           ail(t);
+          track(t);
           if (t.alive && e.morale) moraleShift(t, e.morale);
         }, 120 + i * 80);
       });
     } else if (e.k === 'buff') {
       const r = e.r || 2;
-      allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= r).forEach((a) => {
-        if (e.atk) a.buffs.atk = { v: e.atk, t: e.turns || 3 };
-        if (e.def) a.buffs.def = { v: e.def, t: e.turns || 3 };
+      const b = e.buff || null;
+      const gain = (a) => {
+        const tS = (b && b.turns) || e.turns || 3;
+        if (e.atk || (b && b.atk)) a.buffs.atk = { v: (b && b.atk) || e.atk, t: tS };
+        if (e.def || (b && b.def)) a.buffs.def = { v: (b && b.def) || e.def, t: tS };
+        if (b && b.evade) a.buffs.evade = { v: b.evade, t: tS };
+        if (b && b.counter) a.buffs.counter = { v: b.counter, t: tS };
+        if (b && b.magicDef) a.buffs.magicDef = { v: b.magicDef, t: tS };
         if (e.morale) moraleShift(a, e.morale);
+        if (e.mp && e.mp.gain) a.mp = Math.min(a.maxMp, (a.mp || 0) + e.mp.gain);
+        if (e.heal && e.heal.pct) {
+          const hl = Math.round(a.maxHp * e.heal.pct);
+          a.hp = Math.min(a.maxHp, a.hp + hl);
+          addHeal(a, hl, u);
+          addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.35) * TILE, '+' + hl, '#a8f0b8');
+        }
+        if (e.clear) ailClear(a, 3);
+      };
+      const whole = !e.r || e.r >= 9;
+      allies.filter((a) => whole || manh(u.x, u.y, a.x, a.y) <= r).forEach((a) => {
+        gain(a);
         out.hits.push(a.name);
         addFx({ kind: 'buff', x: (rxOf(a) + 0.5) * TILE, y: (ryOf(a) + 0.5) * TILE, life: 640, color: spec.c });
         addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.2) * TILE, '필살기 ↑', '#ffe08a');
@@ -6696,16 +7110,16 @@
       }
     } else if (e.k === 'heal') {
       const r = e.r || 2;
-      allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= r).forEach((a) => {
-        const hl = Math.round(a.maxHp * (e.p || 0.14));
-        a.hp = Math.min(a.maxHp, a.hp + hl);
-        addHeal(a, hl, u);
-        if (e.clear) ailClear(a, 3);
-        if (e.atk) a.buffs.atk = { v: e.atk, t: e.turns || 3 };
-        if (e.morale) moraleShift(a, e.morale);
-        out.hits.push(a.name);
-        addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.35) * TILE, '+' + hl, '#a8f0b8');
-        addFx({ kind: 'heal', x: (rxOf(a) + 0.5) * TILE, y: (ryOf(a) + 0.5) * TILE, life: 680 });
+      allies.filter((aa) => manh(u.x, u.y, aa.x, aa.y) <= r).forEach((aa) => {
+        const hl = Math.round(aa.maxHp * (e.p || 0.14));
+        aa.hp = Math.min(aa.maxHp, aa.hp + hl);
+        addHeal(aa, hl, u);
+        if (e.clear) ailClear(aa, 3);
+        if (e.atk) aa.buffs.atk = { v: e.atk, t: e.turns || 3 };
+        if (e.morale) moraleShift(aa, e.morale);
+        out.hits.push(aa.name);
+        addFloat((rxOf(aa) + 0.5) * TILE, (ryOf(aa) + 0.35) * TILE, '+' + hl, '#a8f0b8');
+        addFx({ kind: 'heal', x: (rxOf(aa) + 0.5) * TILE, y: (ryOf(aa) + 0.5) * TILE, life: 680 });
       });
     } else if (e.k === 'debuff') {
       const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;
@@ -6713,19 +7127,92 @@
       const list = tgt ? ultFoesAt(cx, cy, r, u.side)
         : foes.filter((t) => manh(u.x, u.y, t.x, t.y) <= ultRange(u, spec));
       list.forEach((t) => {
-        if (e.def) t.buffs.def = { v: e.def, t: e.turns || 3 };
-        if (e.atk) t.buffs.atk = { v: e.atk, t: e.turns || 3 };
+        const db = e.debuff || null;
+        const tS = (db && db.turns) || e.turns || 3;
+        if (e.def || (db && db.def)) t.buffs.def = { v: (db && db.def) || e.def, t: tS };
+        if (e.atk || (db && db.atk)) t.buffs.atk = { v: (db && db.atk) || e.atk, t: tS };
+        if (db && db.move) { t.buffs.moveDown = { v: db.move, t: tS }; t.slow = 1; }
         if (e.morale) moraleShift(t, e.morale);
+        ail(t);
         out.hits.push(t.name);
         addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.3) * TILE, '약화!', '#c9a6ff');
         addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 620, color: spec.c });
       });
+    }
+    /* v5.82 — 자신만/인접 아군만 강화하는 필살기 (조운 회피 +30%, 김유신 인접 공격 +15%) */
+    const applyBuffTo = (t, bt) => {
+      if (!t || !t.alive || !bt) return;
+      const tB = bt.turns || 2;
+      if (bt.atk) t.buffs.atk = { v: bt.atk, t: tB };
+      if (bt.def) t.buffs.def = { v: bt.def, t: tB };
+      if (bt.evade) t.buffs.evade = { v: bt.evade, t: tB };
+      if (bt.counter) t.buffs.counter = { v: bt.counter, t: tB };
+      if (bt.magicDef) t.buffs.magicDef = { v: bt.magicDef, t: tB };
+      addFx({ kind: 'buff', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 640, color: spec.c });
+      addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.2) * TILE, '필살기 ↑', '#ffe08a');
+    };
+    if (e.selfBuff) applyBuffTo(u, e.selfBuff);
+    if (e.adjacentBuff) {
+      allies.filter((a) => a !== u && manh(u.x, u.y, a.x, a.y) <= 1).forEach((a) => applyBuffTo(a, e.adjacentBuff));
+    }
+    /* v5.82 — 아군을 강화하며 곁의 적을 함께 때리는 필살기 (유비 인덕의 맹약) */
+    if (e.allyHit) {
+      ultFoesAt(u.x, u.y, e.allyHit.r || 1, u.side).forEach((t, i) => {
+        wait(() => {
+          if (!B || B.over || !t.alive) return;
+          out.dmg += ultStrike(u, t, (e.allyHit.pct || 80) / 100, e);
+          out.hits.push(t.name);
+          track(t);
+          addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
+        }, 120 + i * 90);
+      });
+    }
+    /* v5.82 — 전장 전체를 흔드는 부수 효과 (이순신 학익진·세종 집현전) */
+    if (e.enemyAll) {
+      foes.forEach((t) => {
+        if (e.enemyAll.morale) moraleShift(t, e.enemyAll.morale);
+        if (e.enemyAll.burn) {
+          if (ailApply(t, 'burn', 1, e.enemyAll.burn.turns || 2)) {
+            t.ailDot = t.ailDot || {};
+            t.ailDot.burn = Math.max(e.enemyAll.burn.dot || 0.04, t.ailDot.burn || 0);
+          }
+        }
+        addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.25) * TILE, e.enemyAll.morale ? `사기 ${e.enemyAll.morale}` : '화상', '#c9a6ff');
+      });
+    }
+    if (e.cover) {
+      u.vpCover = 3;
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.16) * TILE, '아군을 가린다', '#ffe08a', { back: true });
     }
     /* 부수 효과: 아군 공격 보정·자기 방어 */
     if (e.allyAtk) {
       allies.filter((a) => manh(u.x, u.y, a.x, a.y) <= 2).forEach((a) => { a.buffs.atk = { v: e.allyAtk, t: 3 }; });
     }
     if (e.selfDef) u.buffs.def = { v: e.selfDef, t: 3 };
+    /* v5.82 — 처치 시 보상 (여포·장료 재행동 · 하후돈 회복 · 계백·광개토 사기) */
+    if (e.onKill) {
+      wait(() => {
+        if (!B || B.over || !u.alive) return;
+        const ok = e.onKill.extraAction ? out.kills.length > 0 : out.kills.length > 0;
+        if (!ok) return;
+        if (e.onKill.extraAction) {
+          u.acted = false;
+          u.vpExtraAct = true;
+          feed(`${u.name} — 「${spec.n}」으로 적을 베고 한 번 더 움직인다`, u.side === 'ally' ? 'good' : 'bad');
+          addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.08) * TILE, '재행동!', '#ffe08a', { back: true });
+          if (u.side === 'ally') { B.reachCache = null; selectUnit(u); }
+        }
+        if (e.onKill.heal) {
+          const hl = Math.round(u.maxHp * e.onKill.heal);
+          u.hp = Math.min(u.maxHp, u.hp + hl);
+          addHeal(u, hl, u);
+          addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.2) * TILE, '+' + hl, '#a8f0b8');
+        }
+        if (e.onKill.allyMorale) {
+          B.units.forEach((a) => { if (a.alive && a.side === u.side) moraleShift(a, e.onKill.allyMorale); });
+        }
+      }, 700);
+    }
     return out;
   }
 
@@ -6748,7 +7235,10 @@
     const end = () => {
       if (ended) return;
       ended = true;
-      u.acted = true;
+      /* v5.82 — 처치 시 재행동(여포·장료)은 castUlt의 마무리(acted=true)보다 먼저 왔다.
+         그 약속을 마무리에서 살린다. */
+      u.acted = !u.vpExtraAct;
+      u.vpExtraAct = false;
       busy = false;
       SKBattle.refreshUI();
       if (!B || B.over) { if (done) done(); return; }
@@ -6794,6 +7284,11 @@
           } else if (e.k === 'aoe' || e.k === 'arrowAoe') {
             const near = ultFoesAt(t.x, t.y, e.r || 1, u.side);
             hitN = near.length;
+            near.forEach((o) => { est += calcDamage(u, o, { mult: e.m || 1, noCrit: true }).dmg; sumHp += o.hp; });
+          } else if (e.k === 'line') {
+            /* v5.82 — 3~4칸 직선 관통: 그 줄에 선 적을 모두 센다 */
+            const near = ultLineFoes({ x: sp.x, y: sp.y, side: u.side, face: u.face }, t, e.len || 2);
+            hitN = Math.max(1, near.length);
             near.forEach((o) => { est += calcDamage(u, o, { mult: e.m || 1, noCrit: true }).dmg; sumHp += o.hp; });
           } else {
             est = calcDamage(u, t, { mult: e.m || 1.3, noCrit: true }).dmg;
@@ -8107,6 +8602,8 @@
     classAuraPhase('enemy');
     /* v5.56 — 적 장수도 고유 특기(턴 시작형)를 쓴다 (아군과 같은 규칙) */
     B.units.forEach((u) => { if (u.side === 'enemy' && u.alive) triggerPassive(u, 'turn_start'); });
+    /* v5.82 — 적 턴 시작: 사기진작·군의술 같은 40종 특기 */
+    B.units.forEach((u) => { if (u.side === 'enemy' && u.alive) vpTurnStart(u); });
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
     let i = 0;
     const step = () => {
@@ -8127,8 +8624,10 @@
           u.turnStartX = u.x; u.turnStartY = u.y;
           lastMovedUid = null;
           Object.keys(u.buffs).forEach((k) => { u.buffs[k].t -= 1; if (u.buffs[k].t <= 0) delete u.buffs[k]; });
-          /* v5.81 — 기백 순환(고유 특기): 매 턴 MP 회복 */
+          /* v5.82 — 기백 순환(고유 특기): 매 턴 MP 회복 */
           const pMp = pasP(u, 'mpRegen');
+          /* v5.82 — 가리기(cover) 지속 턴 */
+          if (u.vpCover > 0) u.vpCover -= 1;
           if (u.side === 'ally') u.mp = Math.min(u.maxMp, u.mp + 3 + Math.max(0, (u.tfx && u.tfx.mp) || 0) + pMp);
           else u.mp = Math.min(u.maxMp, u.mp + 2 + pMp);
           /* v5.3 — 망루·본성에 선 부대는 턴마다 병력 15% 회복 */
@@ -8149,6 +8648,8 @@
         finishCheck();
         if (!B || B.over) return;
         B.units.forEach((u) => { if (u.side === 'ally' && u.alive) triggerPassive(u, 'turn_start'); });
+        /* v5.82 — 아군 턴 시작: 40종 특기 (사기진작·군의술·의장) */
+        B.units.forEach((u) => { if (u.side === 'ally' && u.alive) vpTurnStart(u); });
         classAuraPhase('ally');
         banner('아군 페이즈', 'ally');
         SKBattle.refreshUI();
@@ -10004,7 +10505,7 @@
     const skipBtn = '<button type="button" class="intro-skip" aria-label="인트로 건너뛰기">건너뛰기 ⏭</button>';
     const render = () => {
       if (!B) return;
-      if (i >= B.introLines.length) { ov.innerHTML = ''; ov.hidden = true; ov.onclick = null; B.introDone = true; classAuraPhase('ally'); banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
+      if (i >= B.introLines.length) { ov.innerHTML = ''; ov.hidden = true; ov.onclick = null; B.introDone = true; classAuraPhase('ally'); /* v5.82 — 첫 아군 턴 시작 특기 */ B.units.forEach((u) => { if (u.side === 'ally' && u.alive) vpTurnStart(u); }); banner('아군 페이즈', 'ally'); const first = B.units.find((u) => u.side === 'ally'); if (first) selectUnit(first); return; }
       const L = B.introLines[i];
       if (L.event) {
         const ev = L.event;
@@ -10260,7 +10761,7 @@
           const s = ultOf(u);
           return { name: u.name, side: u.side, cls: u.cls, tier: unitTier(u), ult: s ? s.n : null,
             vfx: s ? s.v : null, used: !!u.ultUsed, need: !!(s && ultNeedsTarget(s)),
-            range: s ? ultRange(u, s) : null, desc: s ? ultDesc(s) : null,
+            range: s ? ultRange(u, s) : null, desc: s ? ultTextOf(s) : null,
             ready: !!(s && !u.ultUsed && !u.acted && u.side === 'ally') };
         });
       },
@@ -10834,6 +11335,49 @@
         B.lastHits = [];
         doAttack(a, d);
         return { ok: true };
+      },
+      /* v5.82 — 고유 특기·필살기 검증 훅 */
+      doAttack(aName, dName) { return this.attackNow(aName, dName); },
+      turnStart(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        vpTurnStart(u);
+        return { name: u.name, mp: Math.round(u.mp), morale: u.morale, vp: vpid(u) };
+      },
+      ultApply(name, targetName) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        const t = targetName ? B.units.find((o) => o.name === targetName && o.alive) : null;
+        const s = ultOf(u);
+        if (!u || !s) return null;
+        return applyUlt(u, s, t);
+      },
+      vpOf(name) {        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        return { id: vpid(u), vp: (u.passive && u.passive.vp) || null, title: u.passive && u.passive.title };
+      },
+      /* v5.82 — 적중 효과(독공·화공·위압·쾌검)를 시간·난수 없이 한 번에 검사 */
+      strike(aName, dName, dmg) {
+        const a = B && B.units.find((o) => o.name === aName && o.alive);
+        const d = B && B.units.find((o) => o.name === dName && o.alive);
+        if (!a || !d) return null;
+        applyDamage(a, d, dmg == null ? d.hp : dmg, false, null);
+        return { alive: d.alive, hp: Math.round(d.hp) };
+      },
+      ailTest(name, kind) {
+        const t = B && B.units.find((o) => o.name === name && o.alive);
+        if (!t) return null;
+        const o = Math.random; Math.random = () => 0.01;
+        const ok = ailApply(t, kind || 'poison', null, 3);
+        Math.random = o;
+        return { ok, ail: Object.keys(t.ail || {}), res: fxPct(t, 'statusRes'), resist: vpv(t, 'resist'), immune: ailImmune(t, kind || 'poison'), tfx: !!t.tfx };
+      },
+      vpHit(aName, dName, crit) {        const a = B && B.units.find((o) => o.name === aName && o.alive);
+        const d = B && B.units.find((o) => o.name === dName && o.alive);
+        if (!a || !d) return null;
+        const o = Math.random; Math.random = () => 0.01;
+        vpOnHit(a, d, !!crit, {});
+        Math.random = o;
+        return { ail: Object.keys(d.ail || {}), dot: d.ailDot || null, morale: Math.round(d.morale || 0) };
       },
       hits() { return B && B.lastHits ? B.lastHits.slice() : []; },
       findPath(x, y) { const u = B.sel; return u ? findPath(u, x, y) : []; },
