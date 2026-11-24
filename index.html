@@ -23,12 +23,12 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<title>꼬마영웅 대난투</title>
+<title>삼국지-꼬마영웅 난타전</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=103" />
-<meta name="apple-mobile-web-app-title" content="꼬마영웅 대난투" />
-<link rel="stylesheet" href="css/game.css?v=103" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=103" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=104" />
+<meta name="apple-mobile-web-app-title" content="삼국지-꼬마영웅 난타전" />
+<link rel="stylesheet" href="css/game.css?v=104" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=104" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -131,7 +131,7 @@
     <div class="title-inner">
       <div class="title-head">
         <p class="title-kicker">시공초월 올스타 · 천하제일 난투</p>
-        <h1 class="title-logo">꼬마영웅 <span>대난투</span></h1>
+        <h1 class="title-logo">삼국지-꼬마영웅 <span>난타전</span></h1>
         <p class="title-sub">전국을 누비고, 성을 다스리고, 오늘도 한 판!</p>
       </div>
       <div class="title-bottom">
@@ -521,7 +521,7 @@
     <div class="rg-inner">
       <span class="rg-phone" aria-hidden="true">📱</span>
       <b>세로 화면 전용</b>
-      <p>《꼬마영웅 대난투》는 세로 화면에 맞춰 만들었어요.<br />휴대폰을 세로로 돌려 주세요.</p>
+      <p>《삼국지-꼬마영웅 난타전》은 세로 화면에 맞춰 만들었어요.<br />휴대폰을 세로로 돌려 주세요.</p>
       <em>홈 화면에 추가하면 세로 화면이 고정됩니다</em>
     </div>
   </div>
@@ -531,23 +531,24 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=103"></script>
-<script src="js/mapmask.js?v=103"></script>
-<script src="js/city_geo.js?v=103"></script>
-<script src="js/data.js?v=103"></script>
-<script src="js/ult_v582.js?v=103"></script>
-<script src="js/bgm.js?v=103"></script>
-<script src="js/sfx.js?v=103"></script>
-<script src="js/app.js?v=103"></script>
-<script src="js/map.js?v=103"></script>
-<script src="js/battle.js?v=103"></script>
-<script src="js/expedition.js?v=103"></script>
-<script src="js/backguard.js?v=103"></script>
-<script src="js/admin.js?v=103"></script>
+<script src="js/mapgeo.js?v=104"></script>
+<script src="js/mapmask.js?v=104"></script>
+<script src="js/city_geo.js?v=104"></script>
+<script src="js/data.js?v=104"></script>
+<script src="js/ult_v582.js?v=104"></script>
+<script src="js/patch_v584.js?v=104"></script>
+<script src="js/bgm.js?v=104"></script>
+<script src="js/sfx.js?v=104"></script>
+<script src="js/app.js?v=104"></script>
+<script src="js/map.js?v=104"></script>
+<script src="js/battle.js?v=104"></script>
+<script src="js/expedition.js?v=104"></script>
+<script src="js/backguard.js?v=104"></script>
+<script src="js/admin.js?v=104"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=103').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=104').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

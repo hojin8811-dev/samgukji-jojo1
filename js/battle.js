@@ -889,6 +889,8 @@
     resizeCanvas();
     bindBattleCamera();
     mmStatic = null;
+    /* v5.84 — 앞 전장에서 남은 필살기 타격 연출을 새 전장에 끌고 오지 않는다 */
+    try { if (window.V584_ULT_FX && window.V584_ULT_FX.stop) window.V584_ULT_FX.stop(); } catch (e) { /* ignore */ }
     buildMinimap();
     bindMinimap();
     if (!B.started) {
@@ -4012,7 +4014,47 @@
     if ((u.wu || 0) >= 90) return '호장';
     return '명장';
   }
+  /* v5.84 — 일기토 대사: S·A급은 장수별 코믹·귀여운 대사 사전(js/patch_v584.js)을 쓴다.
+     개전(open) · 격돌(clash) · 승리(win) · 패배(lose) 네 순간으로 옮긴다. */
+  const V584_DUEL_PHASE = { start: 'open', clashWin: 'clash', clashLose: 'clash', victory: 'win', defeat: 'lose', collapse: 'lose' };
+  /* 병과 키 → 대사 폴백 풀이 알아보는 계열 이름 */
+  const V584_FAM = {
+    gunwoong: 'lord', gibi: 'cav', gunggi: 'archer', gungsu: 'archer', changbyung: 'spear',
+    geombyung: 'sword', sanjeok: 'sword', sujeok: 'sword', chaeksa: 'mage', pungsusa: 'mage',
+    dosa: 'mage', mudoga: 'martial', yasubyung: 'beast', muhui: 'support', gunakdae: 'support',
+    yeonnobyung: 'crossbow', deunggabyung: 'shield', pocha: 'crossbow', balseokcha: 'crossbow',
+  };
+  function v584Esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+  }
+  /* 명부에서 그 장수의 병과·능력치 (대사 폴백·MVP 한마디에 쓴다) */
+  function v584WhoOf(name) {
+    const h = ((SK.state && SK.state.heroes) || []).find((x) => x && x.name === name);
+    const g = (SK.GEN_BY_NAME && SK.GEN_BY_NAME[name]) || null;
+    const cls = (h && h.cls) || (g && SK.genClass(g)) || '';
+    return { name: name, cls: V584_FAM[cls] || '',
+      war: (h && h.wu) || (g && g.war), int: (h && h.ji) || (g && g.intel) };
+  }
+  /* 부대의 장수 등급 — 아군은 장수 원본 등급, 적군은 명부 등급을 먼저 본다 */
+  function genGradeOf(u) {
+    if (!u) return '';
+    if (u.side === 'ally') { const h = giHero(u); if (h && h.tier) return h.tier; }
+    const g = SK.GEN_BY_NAME && SK.GEN_BY_NAME[u.name];
+    return (g && g.tier) || u.tier || '';
+  }
+  function v584DuelLine(u, moment) {
+    const P = (typeof window !== 'undefined') ? window.V584 : null;
+    if (!P || !P.duelLine || !u) return '';
+    const who = { name: u.name, cls: V584_FAM[u.cls] || '', war: u.wu, int: u.ji, tong: u.tong };
+    try { return P.duelLine(who, V584_DUEL_PHASE[moment] || 'open') || ''; } catch (e) { return ''; }
+  }
   function duelTalk(u, moment) {
+    if (!u) return '';
+    const gr = genGradeOf(u);
+    if (gr === 'S' || gr === 'A') {
+      const line = v584DuelLine(u, moment);
+      if (line) return line;
+    }
     const g = SK.GEN_BY_NAME ? SK.GEN_BY_NAME[u.name] : null;
     if (moment === 'start' && g && DUEL_FACTION_START[g.faction] && Math.random() < 0.55) {
       const f = DUEL_FACTION_START[g.faction];
@@ -7250,6 +7292,53 @@
     return out;
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     v5.84 — 필살기 타격 임팩트 (js/patch_v584.js 의 V584_ULT_FX)
+     · 캔버스 위 실제 대상 부대의 '화면 좌표'를 넘겨서
+       암전·화면 흔들림·히트스톱·Canvas 파티클·큰 데미지 팝업을 띄운다.
+     · 컷인 배너(1.35초)가 닫히기 직전(760ms)에 터지고, 턴은 그 연출이
+       끝난 뒤(1750ms) 넘어간다. 타격감만 더하고 전투 규칙은 건드리지 않는다.
+     ══════════════════════════════════════════════════════════════════ */
+  function v584Fx() { return (typeof window !== 'undefined' && window.V584_ULT_FX) || null; }
+  /* 부대 한 칸이 차지하는 화면 사각형 (전장 캔버스 + 카메라 좌표) */
+  function ultScreenRect(t) {
+    if (!t || !stage) return null;
+    const r = stage.getBoundingClientRect();
+    const s = cam.s || 1, w = Math.max(18, TILE * s);
+    const cx = r.left + (rxOf(t) + 0.5) * TILE * s + cam.x;
+    const cy = r.top + (ryOf(t) + 0.55) * TILE * s + cam.y;
+    return { left: cx - w / 2, top: cy - w / 2, width: w, height: w };
+  }
+  function ultImpactFx(u, spec, tgt, dmg) {
+    const FX = v584Fx();
+    if (!FX || !FX.play || !B || !stage) return;
+    const e = (spec && spec.e) || {};
+    const main = (tgt && tgt.x != null) ? tgt : u;
+    const rc = ultScreenRect(main);
+    if (!rc) return;
+    const n = Math.round(Math.max(0, Number(dmg) || 0));
+    let pr = null;
+    try {
+      pr = FX.play({
+        kind: FX.kindOf ? FX.kindOf(e) : 'hit',
+        tier: spec.tier === 'A' ? 'A' : 'S',
+        color: (typeof spec.c === 'string' ? spec.c : null) || (FX.colorOf ? FX.colorOf('hit') : '255,90,70'),
+        targetElOrRect: rc,
+        shakeEl: stage,
+        dmgText: n > 0 ? n.toLocaleString('ko-KR') : ''
+      });
+    } catch (err) { /* 연출 실패가 전투를 멈추지 않게 */ }
+    /* 연출이 끝나면 빈 캔버스 충만 남기지 않고 오버레이를 거둔다 (다른 연출이 떠 있으면 그대로 둔다) */
+    if (pr && pr.then) {
+      pr.then(() => setTimeout(() => {
+        try {
+          const r = document.getElementById('v584-fx-root');
+          if (r && !r.querySelector('div') && FX.stop) FX.stop();
+        } catch (err) { /* ignore */ }
+      }, 160));
+    }
+  }
+
   /* ── 시전 ──────────────────────────────────────────────────────────── */
   function castUlt(u, spec, tgt, done) {
     if (!B || B.over || !u || !u.alive || !spec || u.ultUsed) { if (done) done(); return false; }
@@ -7275,16 +7364,38 @@
       u.vpExtraAct = false;
       busy = false;
       SKBattle.refreshUI();
+      /* v5.84 — 광역·연타·계략 필살기의 피해는 applyUlt 안의 지연 콜백에서 들어간다.
+         380ms에 본 finishCheck 는 그 전을 지나가므로, 적을 전멸시킨 필살기가 승리를
+         못 알리고 빈 전장에 서 있던 문제를 여기서 한 번 더 보고막는다. */
+      if (B && !B.over) finishCheck();
       if (!B || B.over) { if (done) done(); return; }
       if (done) done(); else nextUnitOrWait();
     };
     wait(() => { if (B && !B.over) ultVfx(u, spec, tgt); }, 150);
+    /* v5.84 — 이번 필살기가 실제로 입힌 피해 (V584 타격 팝업에 그대로 쓴다) */
+    let fxDmg = 0;
+    const fxHp = B.units.filter((o) => o.alive).map((o) => ({ u: o, hp: o.hp, side: o.side }));
     wait(() => {
       if (!B || B.over) { end(); return; }
-      applyUlt(u, spec, tgt);
+      const out = applyUlt(u, spec, tgt);
+      if (out && out.dmg > 0) fxDmg = out.dmg;
       finishCheck();
     }, 380);
-    wait(end, 1250);
+    /* v5.84 — 컷인 배너가 닫히기 직전, 실제 대상 칸에 타격 임팩트.
+       900ms: applyUlt 안의 지연 콜백(광역 10명이면 890ms)까지 끝나 실제 피해가 다 들어온 뒤다. */
+    wait(() => {
+      if (!B || B.over) return;          // 승패가 갈린 일격은 결과 창이 대신한다
+      let d = fxDmg;
+      if (!d) {
+        for (let i = 0; i < fxHp.length; i++) {
+          const rec = fxHp[i];
+          if (rec.side === u.side) continue;
+          d += Math.max(0, rec.hp - Math.max(0, rec.u.hp));
+        }
+      }
+      ultImpactFx(u, spec, tgt, d);
+    }, 900);
+    wait(end, 1750);
     return true;
   }
 
@@ -9439,7 +9550,7 @@
     return h ? h.name : null;
   }
 
-  function battleReportHTML() {
+  function battleReportHTML(opt) {
     if (!B || !B.units) return '';
     const list = B.units.filter((u) => u.side === 'ally').map((u) => {
       const s = u.stat || { dealt: 0, taken: 0, heal: 0, kills: 0 };
@@ -9451,10 +9562,19 @@
     const best = list.slice().sort((a, b) => b.score - a.score)[0];
     const maxDealt = Math.max(1, ...list.map((r) => r.dealt));
     const fmtN = (n) => Math.round(n).toLocaleString('ko-KR');
+    /* v5.84 — 승전 결산에만 1등 공신의 코믹 한마디를 붙인다 (patch_v584 의 V584_EXTRA_LINES.mvp) */
+    let mvpBub = '';
+    if (opt && opt.mvp) {
+      const P = (typeof window !== 'undefined') ? window.V584 : null;
+      let say = '';
+      try { say = (P && P.mvpLine) ? (P.mvpLine(v584WhoOf(best.name)) || '') : ''; } catch (e) { say = ''; }
+      if (say) mvpBub = `<div class="v584-bub mvp"><span class="vb-tag">👑 ${v584Esc(best.name)}</span><p>“${v584Esc(say)}”</p></div>`;
+    }
     /* v5.16 — 총공격력·총피해·총회복 합계 줄 */
     const sum = list.reduce((a, r) => ({ dealt: a.dealt + r.dealt, taken: a.taken + r.taken, heal: a.heal + r.heal, kills: a.kills + r.kills }), { dealt: 0, taken: 0, heal: 0, kills: 0 });
     return `<div class="rm-report">
       <div class="rm-report-head"><b>전투 결산</b><span>MVP <em>👑 ${best.name}</em></span></div>
+      ${mvpBub}
       <div class="rm-report-scroll"><table class="rm-dmg">
         <thead><tr><th>장수</th><th>총공격</th><th>받은피해</th><th>회복</th><th>처치</th></tr></thead>
         <tbody>${list.sort((a, b) => b.score - a.score).map((r) => `<tr class="${r.name === best.name ? 'mvp' : ''}">
@@ -9526,7 +9646,7 @@
       title: `${targetName} 앞길을 지켰다`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
         <p class="rm-line">성 밖 길목에서 적 침공군을 먼저 맞아 꺾었습니다. <b>성벽 피해 없이</b> 침공이 물러갔습니다.</p>
-        ${battleReportHTML()}
+        ${battleReportHTML({ mvp: true })}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -9655,7 +9775,7 @@
         title: '길목을 지켰습니다',
         body: `<div class="result-modal win"><div class="rm-seal">승</div>
           <p class="rm-line">같은 길에서 마주친 적 침공군을 꺾었습니다. <b>${homeName}</b>을 노리던 침공은 무산되었습니다.</p>
-          ${battleReportHTML()}
+          ${battleReportHTML({ mvp: true })}
           <div class="rm-rewards">
             <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
             <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -9687,7 +9807,7 @@
         title: `${(SK.CITY[fld.cityId] || {}).name || ''} 성하 돌파`,
         body: `<div class="result-modal win"><div class="rm-seal">승</div>
           <p class="rm-line">성 밖으로 나온 적을 꺾었습니다. 성안 수비병이 <b>${before.toLocaleString('ko-KR')} → ${after.toLocaleString('ko-KR')}</b>으로 줄었습니다 — 이 달 바로 공성전으로 이어집니다.</p>
-          ${battleReportHTML()}
+          ${battleReportHTML({ mvp: true })}
           <div class="rm-rewards">
             <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
             <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -9709,7 +9829,7 @@
       title: `${B.def.name} 돌파`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
         <p class="rm-line">길을 막던 적 요격대를 물리쳤습니다. <b>${left > 0 ? `${left}개월 뒤 도착` : '곧 도착'}</b> — 행군을 이어갑니다.</p>
-        ${battleReportHTML()}
+        ${battleReportHTML({ mvp: true })}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
@@ -9923,9 +10043,15 @@
     const cha = (lordG && lordG.charm) || 62;
     const pRec = clamp(0.5 + (cha - 60) * 0.006 - (loy - 70) * 0.004 - (g.tier === 'S' ? 0.12 : g.tier === 'A' ? 0.05 : 0), 0.08, 0.85);
     const gold = ({ S: 500, A: 350, B: 250, C: 180 }[g.tier] || 200);
+    /* v5.84 — 포로 대표 한 명의 한마디를 창 위에 깔끔하게 (patch_v584 의 V584_EXTRA_LINES.capture) */
+    let capSay = '';
+    try {
+      const P = (typeof window !== 'undefined') ? window.V584 : null;
+      capSay = (P && P.captureLine) ? (P.captureLine(v584WhoOf(g.name)) || '') : '';
+    } catch (e) { capSay = ''; }
     const m = SK.modal({
       kicker: `포로 ${i + 1} / ${all.length}`, title: `${SK.josa(g.name, 'eul')} 어떻게 할까`, wide: true,
-      body: `<div class="prison-card">
+      body: `${capSay ? `<div class="v584-bub cap"><span class="vb-tag">🗣️ ${v584Esc(g.name)}</span><p>“${v584Esc(capSay)}”</p></div>` : ''}<div class="prison-card">
         <img class="prison-port ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="prison-main">
           <b>${g.name}</b>
@@ -10235,7 +10361,7 @@
           ${woundedAdd ? `<div class="rm-wound"><span>부상병</span><b>${woundedAdd.toLocaleString('ko-KR')}</b><em>회복중</em></div>` : ''}
         </div>
         ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
-        ${battleReportHTML()}
+        ${battleReportHTML({ mvp: true })}
         ${drop ? `<div class="rm-treasure" style="--gc:${SK.GRADE_COLOR[drop.grade]}">
           <span class="rt-grade">${drop.grade} 보물</span>
           <b>${drop.name}</b><em>${drop.effect}</em>
@@ -10391,7 +10517,7 @@
         </div>
         ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
-        ${battleReportHTML()}
+        ${battleReportHTML({ mvp: true })}
         <div class="rm-survivors">${survivors.map((u) => `<img class="${SK.tcls(u)}" src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
         ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
         ${woundedAdd || (rfgInfo && rfgInfo.left) ? `<p class="rm-note">${woundedAdd ? `부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 성에서 회복 중입니다. ` : ''}${rfgInfo && rfgInfo.home ? `${rfgInfo.home} 원군 ${Math.round(rfgInfo.left).toLocaleString('ko-KR')}명이 돌아갔습니다.` : ''}</p>` : ''}
@@ -10515,6 +10641,8 @@
   }
   function closeBattle() {
     clearBattleProgress();
+    /* v5.84 — 필살기 타격 연출(암전·팝업·파티클)이 지도나 결과 창 위에 남지 않게 걷어낸다 */
+    try { if (window.V584_ULT_FX && window.V584_ULT_FX.stop) window.V584_ULT_FX.stop(); } catch (e) { /* ignore */ }
     /* v5.52 — 일기토 창이 떠 있는 채로 전장을 닫지 않는다 */
     if (duel) { duel.done = null; duel = null; }
     if (duelEls) { duelEls.root.hidden = true; duelEls.root.classList.remove('show', 'out'); }

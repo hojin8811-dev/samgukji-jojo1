@@ -101,8 +101,8 @@ b { font-weight: 700; }
   text-shadow: 0 1px 2px rgba(255, 250, 232, 0.9), 0 0 12px rgba(255, 244, 210, 0.65);
 }
 .title-logo {
-  font-family: var(--serif); font-weight: 900; font-size: 46px; line-height: 1.12; margin: 0;
-  letter-spacing: 0.05em; color: #24180a;
+  font-family: var(--serif); font-weight: 900; font-size: clamp(25px, 9.6vw, 42px); line-height: 1.12; margin: 0;
+  letter-spacing: 0.04em; color: #24180a; white-space: nowrap;
   text-shadow: 0 1px 0 rgba(255, 252, 242, 0.55), 0 3px 10px rgba(120, 72, 16, 0.35), 0 0 22px rgba(255, 240, 200, 0.8);
 }
 .title-logo span {
@@ -6873,3 +6873,34 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .adm-mini.ghost { border-color: #8a7460; color: #e4d3b0; background: linear-gradient(180deg, #4a3b25, #2c2214); }
 .adm-sheet-btns { display: flex; gap: 6px; }
 .adm-sheet-btns .adm-wide { margin-top: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v5.84 — 포로·승전 MVP 코믹 한마디 말풍선 (js/patch_v584.js V584_EXTRA_LINES)
+   · 결과 창(전투 결산)과 포로 처리 창 안에서만 쓰는 조용한 말풍선.
+     전투 중 일반 공격 화면에는 아무것도 붙지 않는다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.v584-bub {
+  position: relative; margin: 0 0 10px; padding: 6px 10px 7px; border-radius: 10px;
+  background: linear-gradient(180deg, #fffdf5, #f6ead0);
+  border: 1px solid #dcbf85; box-shadow: 0 2px 7px rgba(90, 70, 40, 0.14);
+  animation: v584BubIn 0.26s ease-out both;
+}
+.v584-bub::after {
+  content: ''; position: absolute; left: 20px; bottom: -5px; width: 9px; height: 9px;
+  background: #f6ead0; border-right: 1px solid #dcbf85; border-bottom: 1px solid #dcbf85;
+  transform: rotate(45deg);
+}
+.v584-bub .vb-tag { display: block; font-size: 9.5px; font-weight: 900; color: #8a5a1c; letter-spacing: -0.01em; }
+.v584-bub p {
+  margin: 2px 0 0; font-family: var(--serif); font-size: 12px; line-height: 1.42; color: #33260f;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+/* 전투 결산 카드 안에 들어갈 때 — 카드 테두리와 겹치지 않게 조용히 */
+.v584-bub.mvp {
+  margin: 5px 6px 6px; background: #fffaea; box-shadow: none; animation: none;
+  border-radius: 9px; padding: 5px 8px 6px;
+}
+.v584-bub.mvp::after { display: none; }
+.v584-bub.mvp p { font-size: 11.5px; color: #5a3f12; }
+@keyframes v584BubIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .v584-bub { animation: none; } }

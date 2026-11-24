@@ -1,17 +1,17 @@
 {
-  "name": "꼬마영웅 대난투",
-  "short_name": "꼬마영웅",
+  "name": "삼국지-꼬마영웅 난타전",
+  "short_name": "삼국지 난타전",
   "description": "시공초월 꼬마영웅들이 벌이는 전국 지도 내정 + 격자 전장 삼국지.",
   "lang": "ko",
   "dir": "ltr",
-  "start_url": "./index.html?v=93",
+  "start_url": "./index.html?v=104",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#26200f",
   "theme_color": "#2c2415",
   "icons": [
-    { "src": "assets/icons/icon-192.png?v=93", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icons/icon-512.png?v=93", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "assets/icons/icon-192.png?v=104", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png?v=104", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }
