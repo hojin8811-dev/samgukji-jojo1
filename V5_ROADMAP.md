@@ -1,6 +1,16 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=105`
+기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=107`
+
+## ✅ v5.86a — 관리자 전장맵 [💾 내 맵 저장] 슬롯 · 여러 새 맵 보관·불러오기·삭제 (2026-11-24 · `?v=107`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| 저장 슬롯 | 전장맵 위 `[💾 내 맵 저장]` — 이름 칸의 이름으로 지금 타일을 `localStorage('samgukji-jojo-admin-maps-v1').savedBattleMaps` 에 `{ name, cols, rows, tiles:[행 문자열], savedAt }` 로 보관한다(이름→맵 객체, 최대 40개). 같은 이름이면 새 내용으로 갱신하고 상태줄이 갱신인지 새 보관인지 알려 준다. 기존 `battle`(작업 중인 편집본)·`world`(천하맵) 키는 그대로 함께 저장돼 어긋나지 않는다 | `js/patch_v585_map_editor.js` `saveCurrentAsSaved`·`saveStore` |
+| 불러오기 | 전장 불러오기 드롭다운을 `── 기본 전장 ──` / `── 내 저장 맵 ──` 두 그룹으로 나눈다. 저장 맵은 `saved:<이름>` 값으로 `💾 이름 (24×24)` 처럼 보이고, 골라 `[불러오기]`하면 타일·크기·이름이 그대로 되살아난다. 저장한 것이 없으면 `아직 저장한 맵이 없습니다` 안내 항목 | `fillBattleMapOptions`·`loadSavedMap` |
+| 삭제 | `[🗑️ 삭제]` — 고른 저장 맵을 5초 안에 `[🗑️ 정말 삭제?]`로 한 번 더 눌러야 지운다(한 번 누름은 확인 단계). 기본 전장은 지우지 않는다 | `deleteSavedMap`·`resetDeleteArm` |
+| 호환·경계 | `새 맵`·`불러오기`·`테스트 전투`·`JSON 복사`·`🌏 천하맵` 모두 그대로. 일반 주소(`?v=107`)에서는 `SK.adminMode !== true`로 파일이 즉시 끝나 DOM·localStorage를 건드리지 않는다 | `js/patch_v585_map_editor.js` |
+| 검수 | `tools/v586a_local.py`·`tools/v586a_live.py` — 로컬·라이브 390×844 각 58항목 전부 통과: 일반 주소 흔적 0, `테스트맵1`·`테스트맵2` 연달아 저장(저장소 키 `savedBattleMaps`·tiles 행 문자열·기존 battle/world 유지), 새로고침 뒤 두 맵 유지, 불러오기 타일 100% 일치, 같은 이름 덮어쓰기 안내, 저장 맵으로 테스트 전투 진입(공성 규칙·타일 일치·판 원상복구), 두 번 눌러 삭제·새로고침 뒤에도 유지, 기본 전장 삭제 차단, JSON 복사·천하맵 회귀, 콘솔 0. 스샷 `preview/v586a/`·`preview/v586a_live/` | `tools/v586a_local.py`·`tools/v586a_live.py` |
 
 ## ✅ v5.85 — 관리자 전장 타일 맵 에디터 · 천하 전략 지도 편집기 (2026-11-24 · `?v=105`)
 
