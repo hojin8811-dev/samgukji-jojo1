@@ -10160,7 +10160,9 @@
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
-    s.fame += 3;
+    /* v5.87b — 요청 승리 명성 120~250 (적 격파 병력이 많을수록 높다) */
+    if (SK.fameAdd) SK.fameAdd('battleWin', { defeated: Math.round(foeLeft) });
+    else s.fame += 3;
     if (st) s.purseCity = inv.target;
     /* 침공 사건을 정리한다 — 뒤이은 침공(큐)은 chainPendingEvents 가 이어서 연다 */
     if (s.pendingInvasion === inv || (s.pendingInvasion && s.pendingInvasion.target === inv.target && s.pendingInvasion.from === inv.from)) s.pendingInvasion = null;
@@ -10283,7 +10285,8 @@
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
-    s.fame += 2;
+    if (SK.fameAdd) SK.fameAdd('battleWin');
+    else s.fame += 2;
     s.pendingMarch = null;
     SK.save();
     SKBattle.refreshUI();
@@ -10821,13 +10824,17 @@
       try {
         const goneNow = SK.pruneLandlessFactions(s) || [];
         if (!fallenFaction && goneNow.length) fallenFaction = goneNow[0];
+        /* v5.87b — 마지막 성을 빼앗아 세력을 지우면 명성 +1,200 */
+        if (goneNow.length && SK.fameAdd) SK.fameAdd('factionDestroy', { count: goneNow.length });
       } catch (e) { /* ignore */ }
     }
     const factionsLeft = Object.keys(s.factions || {}).filter((k) => k !== 'neutral').length;
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
-    s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
+    /* v5.87b — 성 함락 명성: 350 + 성 종류 보너스(대도시 +150 · 중도시 +75 · 관문·요새 +50) */
+    if (SK.fameAdd) SK.fameAdd('cityCapture', { cityId: B.targetId, type: c && c.type });
+    else s.fame += 12 + (SK.battleTypeFor(c) === 'fortress' ? 6 : 0) + (B.event ? 5 : 0);
     const drop = SK.rollTreasure ? SK.rollTreasure(defeatedNames, c.name) : null;
     if (drop && SK.codexTreasure) SK.codexTreasure(drop.id);
     awardMvpMerit();
@@ -11010,7 +11017,9 @@
     s.gold += B.rewards.gold;
     s.food += B.rewards.food;
     const vgGold = addVillageWarGold(s);   // v5.42 — 마을 점령 수당
-    s.fame = (s.fame || 0) + 10;
+    /* v5.87b — 수성전으로 막으면 명성 +160 */
+    if (SK.fameAdd) SK.fameAdd('defendWin');
+    else s.fame = (s.fame || 0) + 10;
     awardMvpMerit();
     const levelUps = [];
     B.units.forEach((u) => {
@@ -11083,7 +11092,7 @@
       garrison: Math.max(700, Math.round((inv.troops || 2000) * 0.45)),
       genIds: inv.genIds || [],
     }) : { refuge: null, moved: 0 };
-    s.fame = Math.max(0, (s.fame || 0) - 10);
+    s.fame = Math.max(0, (s.fame || 0) - 30);
     if (s.cities[B.targetId] && s.cities[B.targetId].owner !== SK.playerFaction()) s.cities[B.targetId].wounded = 0;
     const left = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
     s.pendingInvasion = null;

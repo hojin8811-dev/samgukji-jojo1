@@ -840,7 +840,8 @@ SK.troopForNamed = function (lv, tier) {
   return Math.min(4800, Math.round(1600 + lv * 120 + tier * 380));
 };
 /* v5.2 — 부대 병력 상한. 기본 군주 10,000 / 일반 장수 5,000.
-   장군 직책(rank)을 얻으면 일반 10,000 / 군주 20,000까지 열린다. */
+   v5.87b — 이 값은 '천장'이다. 실제 상한은 기본 2,000에서 레벨·관직을 채워 올린다
+   (SK.troopCapOf / SK.troopCapParts). */
 SK.TROOP_CAP = {
   base: { lord: 10000, named: 5000 },
   general: { lord: 10000, named: 5000 },
@@ -918,14 +919,53 @@ SK.bestOfficeFor = function (hero, branch, fame) {
   pool.forEach((o) => { if ((fame || 0) >= o.fame && merit >= (o.merit || 0)) best = o; });
   return best;
 };
-SK.troopCapOf = function (hero, st) {
+/* ══ v5.87b — 지휘 병력 상한: 기본 2,000 → 레벨·관직을 채워 5,000 (군주 10,000) ══
+   v5.17의 '일반 5,000 · 군주 10,000 고정'을 풀었다. 이제 출진 상한은
+     기본 2,000 + 레벨 보너스(Lv당 +50 · Lv.21에서 +1,000 상한)
+              + 관직 보너스(도위 +400 → 대장군 +2,000)
+              + 군주만: 명성 보너스(명성/12 · 최대 +5,000)
+   로 계산해 일반 장수는 5,000, 군주는 10,000에서 멈춘다.
+   처음 만난 Lv.1 무관 장수는 2,000명 — 곧 출진 기본값(SK.DEPLOY_BASE)과 같다.
+   수치는 상세 창·관직 창이 모두 SK.troopCapParts() 하나를 읽어 적는다. */
+SK.TROOP_CAP_START = 2000;
+SK.TROOP_CAP_LV_STEP = 50;
+SK.TROOP_CAP_LV_MAX = 1000;
+SK.TROOP_CAP_FAME_MAX = 5000;
+/* 관직 분과 안에서의 자리 순서(0=첫 자리) → 추가 병력. 마지막 값이 상한(2,000)이다. */
+SK.OFFICE_TROOP_BONUS = [400, 400, 800, 800, 1200, 1200, 1600, 1600, 2000, 2000, 2000, 2000];
+SK.lvTroopBonus = function (lv) {
+  return Math.min(SK.TROOP_CAP_LV_MAX, Math.max(0, Math.round(Number(lv) || 1) - 1) * SK.TROOP_CAP_LV_STEP);
+};
+SK.officeTroopBonusOf = function (hero) {
+  const o = SK.officeOf(hero);
+  if (!o || !o.branch || o.branch === 'none') return 0;
+  const pool = SK.OFFICES.filter((x) => x.branch === o.branch);
+  const i = pool.findIndex((x) => x.key === o.key);
+  if (i < 0) return 0;
+  const tbl = SK.OFFICE_TROOP_BONUS;
+  return tbl[Math.min(i, tbl.length - 1)] || 0;
+};
+SK.isLordHero = function (hero, st) {
+  if (!hero) return false;
+  if (hero.rank === '군주' || hero.isLord) return true;
   const state = st || SK.state || {};
   const lordName = ((state.factions || {})[state.playerFaction || ''] || {}).lord || '';
-  const isLord = !!(hero && lordName && hero.name === lordName) || (hero && hero.rank === '군주');
-  /* v5.17 — 상한은 단순하다. 일반 장수 5,000 / 군주 10,000.
-     관직·공적 보너스가 붙어도 이 상한을 넘지 않는다 (그 보너스는 공·방·봉급으로 간다). */
-  return isLord ? SK.TROOP_CAP.base.lord : SK.TROOP_CAP.base.named;
+  return !!(lordName && hero.name === lordName);
 };
+/* 상한의 내역 — 화면은 이 하나만 읽어 '기본 2,000 + 레벨 +N + 관직 +M'을 적는다 */
+SK.troopCapParts = function (hero, st) {
+  const state = st || SK.state || {};
+  const isLord = SK.isLordHero(hero, state);
+  const lv = Math.max(1, Number(hero && hero.lv) || 1);
+  const lvBonus = SK.lvTroopBonus(lv);
+  const officeBonus = SK.officeTroopBonusOf(hero);
+  const fameBonus = isLord ? Math.min(SK.TROOP_CAP_FAME_MAX, Math.floor((Number(state.fame) || 0) / 12)) : 0;
+  const capMax = isLord ? SK.TROOP_CAP.base.lord : SK.TROOP_CAP.base.named;
+  const cap = Math.max(SK.TROOP_CAP_START, Math.min(capMax, SK.TROOP_CAP_START + lvBonus + officeBonus + fameBonus));
+  return { isLord: isLord, lv: lv, base: SK.TROOP_CAP_START, lvBonus: lvBonus, officeBonus: officeBonus,
+    fameBonus: fameBonus, cap: cap, capMax: capMax };
+};
+SK.troopCapOf = function (hero, st) { return SK.troopCapParts(hero, st).cap; };
 SK.nextPromo = function (lv) {
   for (let i = 0; i < SK.PROMO_AT.length; i++) if (lv < SK.PROMO_AT[i]) return SK.PROMO_AT[i];
   return null;

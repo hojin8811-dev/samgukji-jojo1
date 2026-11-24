@@ -7302,3 +7302,158 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .hi-exp i { background: linear-gradient(90deg, #c98a2c, #e5b856); }
 .hi-next { color: #7a6234; }
 .hi-merit { color: #6b5427; }
+
+/* ══════════════════════════════════════════════════════════════
+   v5.87b — 성 증축 · 친화도 외교 · 지휘 상한 · 오프닝 데스매치
+   (모달 안쪽은 v5.87a의 비단·금테 위에 얹는다)
+   ══════════════════════════════════════════════════════════════ */
+.dm-open {
+  margin: 6px 0 4px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #fff3cc, #f0dcae);
+  border: 1.5px solid #b0521f;
+  border-left: 5px solid #8a2c22;
+  border-radius: 10px;
+  color: #4a1a10;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.dm-open b { color: #8a2c22; }
+
+/* 성 요약(내정 탭) 안의 증축 줄 */
+.ci-up {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 8px; padding: 7px 9px;
+  background: rgba(156, 117, 56, 0.12);
+  border: 1px solid #c8aa74; border-radius: 9px;
+  font-size: 11px; color: #4a3018;
+}
+.ci-up.ready { background: rgba(45, 125, 88, 0.14); border-color: #2d7d58; }
+.ci-up-lb { font-weight: 800; color: #7a4a12; }
+.ci-up b { font-size: 11.5px; color: #3b2614; }
+.ci-up em { font-style: normal; color: #7a6234; font-size: 10px; }
+.ci-up-btn {
+  margin-left: auto; padding: 4px 9px;
+  border: 1px solid #8a5f1d; border-radius: 8px;
+  background: linear-gradient(180deg, #e5b856, #c98a2c);
+  color: #3a2607; font-weight: 800; font-size: 10.5px;
+  box-shadow: 0 1.5px 0 #8a5f1d;
+}
+.ci-up-btn.ghost { background: linear-gradient(180deg, #fff8e8, #f0e2c4); color: #6b4a1c; }
+
+/* 성 증축 모달 */
+.cup { padding: 2px 2px 4px; color: #3b2614; }
+.cup-head { margin: 0 0 8px; font-size: 13px; }
+.cup-head .cup-to { color: #1e6b48; }
+.cup-rows > div {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 8px; margin-bottom: 5px;
+  background: rgba(156, 117, 56, 0.1);
+  border: 1px solid #c8aa74; border-radius: 8px; font-size: 11.5px;
+}
+.cup-rows span { color: #5c421f; font-weight: 700; }
+.cup-rows span em { font-style: normal; font-weight: 400; color: #8a7448; font-size: 10px; }
+.cup-v { font-size: 11.5px; }
+.cup-v.on { color: #1e6b48; }
+.cup-v.off { color: #a1251b; }
+.cup-gain {
+  display: grid; gap: 2px; margin: 8px 0;
+  padding: 8px 9px; font-size: 11px; line-height: 1.55;
+  background: linear-gradient(180deg, #fff8e8, #f4e6c8);
+  border: 1px solid #d4a64a; border-radius: 9px;
+}
+.cup-gain b { color: #7a2e1f; }
+.cup-note { margin: 6px 0 0; font-size: 10.5px; color: #6b5427; line-height: 1.5; }
+.cup-note.warn { color: #a1251b; }
+
+/* 친화도 외교 */
+.aff-list { display: grid; gap: 8px; }
+.aff-card {
+  padding: 8px 9px;
+  background: linear-gradient(180deg, #fff8e8, #f6ecd6);
+  border: 1px solid #d4a64a; border-radius: 10px;
+  box-shadow: 0 2px 0 #d4be94;
+}
+.aff-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #3b2614; }
+.aff-flag {
+  display: inline-grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 5px;
+  color: #fff; font-size: 10px; font-weight: 800;
+  border: 1px solid rgba(255, 243, 204, 0.6);
+}
+.aff-head em { font-style: normal; font-size: 10px; color: #7a6234; }
+.aff-badge {
+  margin-left: auto; padding: 2px 7px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 800;
+}
+.aff-badge.war { background: #f3d9d3; color: #8a2c22; border: 1px solid #c98d80; }
+.aff-badge.truce { background: #e8e2f5; color: #4b2f6b; border: 1px solid #a897cd; }
+.aff-badge.ally { background: #dcf0e4; color: #1e6b48; border: 1px solid #7fb99a; }
+.aff-meter {
+  position: relative; height: 20px; margin: 6px 0;
+  background: #e4d1ab; border: 1px solid #b58d4c; border-radius: 999px;
+  overflow: hidden;
+}
+.aff-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, #c98a2c, #e5b856);
+}
+.aff-tick {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: #8a2c22; opacity: 0.5; text-decoration: none;
+}
+.aff-tick.ally { background: #1e6b48; opacity: 0.7; }
+.aff-num {
+  position: relative; display: block; padding-left: 9px;
+  font-size: 10px; line-height: 18px; color: #3b2614; font-weight: 700;
+}
+.aff-num b { color: #7a2e1f; }
+.aff-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.aff-btns button {
+  padding: 6px 4px; font-size: 10px; font-weight: 700;
+  background: linear-gradient(180deg, #fff8e8, #efe0c0);
+  border: 1px solid #b58d4c; border-radius: 8px; color: #3b2614;
+}
+.aff-btns button em { font-style: normal; color: #1e6b48; font-weight: 800; }
+.aff-btns button.wide { grid-column: span 1; }
+.aff-btns button.off { opacity: 0.55; }
+.aff-why { margin: 5px 0 0; font-size: 9.5px; color: #8a5f2a; line-height: 1.45; }
+
+.aff-mini {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 8px; padding: 7px 9px;
+  background: rgba(156, 117, 56, 0.12);
+  border: 1px solid #c8aa74; border-radius: 9px;
+  font-size: 11px; color: #3b2614;
+}
+.aff-mini b { color: #8a2c22; }
+.aff-mini-bar {
+  flex: 1 1 90px; position: relative; height: 6px;
+  background: #e4d1ab; border-radius: 999px; overflow: hidden;
+}
+.aff-mini-bar em { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #c98a2c, #e5b856); }
+.aff-mini-need { font-size: 9.5px; color: #7a6234; }
+
+/* 지휘 병력 상한 안내 */
+.ocg { color: #3b2614; }
+.ocg-now {
+  margin-bottom: 8px; padding: 8px 9px;
+  background: linear-gradient(180deg, #fff8e8, #f4e6c8);
+  border: 1px solid #d4a64a; border-left: 4px solid #8a2c22; border-radius: 9px;
+}
+.ocg-now > b { font-size: 13px; }
+.ocg-now > em { font-style: normal; font-size: 10px; color: #7a6234; }
+.ocg-rows { display: grid; gap: 2px; margin-top: 5px; }
+.ocg-row { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: #4a3018; padding: 2px 0; border-bottom: 1px dashed rgba(156, 117, 56, 0.35); }
+.ocg-row b { color: #3b2614; }
+.ocg-cap { color: #1e6b48; }
+.ocg-sum {
+  margin: 0 0 8px; padding: 7px 9px; font-size: 10.5px; line-height: 1.6;
+  background: rgba(156, 117, 56, 0.1); border: 1px solid #c8aa74; border-radius: 8px;
+}
+.ocg-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ocg-h { margin: 0 0 4px; font-size: 10.5px; font-weight: 800; color: #7a2e1f; }
+.ocg-note { margin: 8px 0 0; font-size: 9.5px; color: #6b5427; line-height: 1.5; }
+
+.hi-cap-note { margin: 3px 0 6px; font-size: 9.5px; color: #6b5427; line-height: 1.45; }
+.ap-pick-cap { color: #1e6b48; }
