@@ -7312,6 +7312,8 @@
   function ultImpactFx(u, spec, tgt, dmg) {
     const FX = v584Fx();
     if (!FX || !FX.play || !B || !stage) return;
+    /* v5.83 관전 모드(×10)에서는 한 전투가 몇 초에 지나간다 — 2초짜리 연출을 겹치우지 않는다 */
+    if (paceBoost > 1) return;
     const e = (spec && spec.e) || {};
     const main = (tgt && tgt.x != null) ? tgt : u;
     const rc = ultScreenRect(main);
