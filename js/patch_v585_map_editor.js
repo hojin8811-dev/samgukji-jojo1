@@ -1,7 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    v5.85 — 관리자(?admin=1) 전장 타일 맵 에디터 + 천하 전략 지도 편집기
+   v5.86a — 전장맵에 [💾 내 맵 저장] 슬롯: 여러 새 맵을 이름으로 폰에 보관하고
+            [── 내 저장 맵 ──]에서 다시 불러오거나 [🗑️ 삭제]한다.
+            저장은 같은 localStorage 키 안 savedBattleMaps 에 함께 들어가
+            기존 편집본(battle)·천하맵(world)과 어긋나지 않는다.
    · 주소에 admin=1 이 없으면 (SK.adminMode === false) 이 파일은 즉시 끝난다.
-     DOM·localStorage·게임 데이터 어느 것도 건드리지 않는다 (일반 주소 ?v=105 그대로).
+     DOM·localStorage·게임 데이터 어느 것도 건드리지 않는다 (일반 주소 ?v=107 그대로).
    · 실제 엔진 자료구조에 그대로 물린다 (이름만 비슷한 사본을 만들지 않는다)
         전장 맵  SK.MAPS[key] = ['PPRR…', …]  ·  SK.MAP_META[key] = {cols,rows,allyBase,enemyBase,villages}
         지형     SK.TERRAIN[코드] = {name, def, cost, icon}   (16종: P R F M W S B G C D H T K A E V)
@@ -15,6 +19,7 @@
             · 새 거점 추가·삭제 · 길 연결/해제 · [📋 거점·길 JSON 복사](원본 대비 diff)
             · [🗺️ 지도에 적용] 이번 판 미리보기(저장 안 됨 · 새로고침하면 원래대로)
    · 저장: localStorage('samgukji-jojo-admin-maps-v1') — 관리자 주소에서만 읽고 쓴다.
+            { v, savedAt, battle(작업 중인 편집본), savedBattleMaps{이름→맵}, world }
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -23,10 +28,12 @@
   /* ── 경계: 관리자 주소가 아니면 여기서 끝. 아래 코드는 한 줄도 실행되지 않는다 ── */
   if (!SK || SK.adminMode !== true) return;
 
-  var VERSION = '5.85';
+  var VERSION = '5.86a';
   var STORE_KEY = 'samgukji-jojo-admin-maps-v1';
   var WORLD_W = 2000, WORLD_H = 1333;   /* 엔진의 SK.MAPGEO.w/h 와 같은 크기 */
   var MAX_UNDO = 20;
+  var MAX_SAVED = 40;                   /* 내 맵 저장 슬롯 상한 — 폰 저장소가 넘치지 않게 */
+  var SAVED_PREFIX = 'saved:';          /* 불러오기 드롭다운에서 내 저장 맵을 가리키는 값 */
   var CUSTOM_KEY = '__map_editor';      /* 테스트 전투용 임시 전장 키 */
   var TMP_CITY = '__map_editor_test';   /* 테스트 전투용 임시 거점 id */
 
@@ -94,12 +101,106 @@
         v: VERSION,
         savedAt: Date.now(),
         battle: { name: st.name, cols: st.cols, rows: st.rows, bgKey: st.bgKey, srcKey: st.srcKey, rows: st.tiles.map(function (r) { return r.join(''); }) },
+        /* v5.86a — 내 맵 저장 슬롯 (이름 → { name, cols, rows, tiles, savedAt }) */
+        savedBattleMaps: savedMaps,
         world: { cities: wst.cities, routes: wst.routes, sea: wst.sea, deleted: wst.deleted, sel: wst.sel },
       }));
       storeSaved = true;
     } catch (e) { /* 저장소가 막힌 브라우저는 이번 판만 쓴다 */ }
   }
   var storeSaved = false;
+
+  /* ── 내 맵 저장 슬롯 (v5.86a) ──────────────────────────────────────────── */
+  var savedMaps = {};        /* 이름 → { name, cols, rows, tiles:[행 문자열], savedAt } */
+  var deleteArm = { name: '', until: 0 };   /* [🗑️ 삭제] 두 번 누르기 확인용 */
+
+  function savedMapNames() {
+    return Object.keys(savedMaps).filter(function (n) {
+      var m = savedMaps[n];
+      return m && Array.isArray(m.tiles) && m.tiles.length && typeof m.tiles[0] === 'string';
+    });
+  }
+  function readSavedMaps(store) {
+    var src = store && store.savedBattleMaps, out = {};
+    if (!src) return out;
+    if (Array.isArray(src)) {                       /* 배열로 적힌 옛 모양도 받아 준다 */
+      src.forEach(function (m) { if (m && m.name) out[String(m.name)] = m; });
+    } else if (typeof src === 'object') {
+      Object.keys(src).forEach(function (k) {
+        var m = src[k];
+        if (!m || typeof m !== 'object') return;
+        out[String(m.name || k)] = m;
+      });
+    }
+    return out;
+  }
+  /* 지금 편집 중인 판을 이름으로 저장한다 (같은 이름이면 덮어쓰기) */
+  function saveCurrentAsSaved() {
+    var name = String((ui.battleName && ui.battleName.value) || st.name || '').trim();
+    if (!name) { setStatus('전장 이름을 먼저 적어 주세요 (이름 칸) — 그 이름으로 저장합니다.'); return null; }
+    if (name.length > 24) name = name.slice(0, 24);
+    var exists = !!savedMaps[name];
+    if (!exists && savedMapNames().length >= MAX_SAVED) {
+      setStatus('내 저장 맵은 ' + MAX_SAVED + '개까지 보관합니다 — 쓰지 않는 맵을 [🗑️ 삭제]한 뒤 저장해 주세요.');
+      return null;
+    }
+    st.name = name;
+    if (ui.battleName) ui.battleName.value = name;
+    savedMaps[name] = {
+      name: name,
+      cols: st.cols,
+      rows: st.rows,
+      tiles: rowsFromTiles(st.tiles),
+      savedAt: Date.now(),
+    };
+    st.savedName = name;
+    st.srcKey = '';
+    saveStore();
+    fillBattleMapOptions();
+    if (ui.battleMapSel) ui.battleMapSel.value = SAVED_PREFIX + name;
+    var n = savedMapNames().length;
+    setStatus('[💾 저장 완료] "' + name + '" (' + st.cols + '×' + st.rows + ')'
+      + (exists ? ' — 같은 이름의 저장 맵을 새 내용으로 갱신했습니다' : ' — 내 저장 맵 ' + n + '개째로 보관했습니다')
+      + '. 새로고침해도 [── 내 저장 맵 ──]에 남습니다.');
+    return name;
+  }
+  function loadSavedMap(name) {
+    var m = savedMaps[name];
+    if (!m || !Array.isArray(m.tiles) || !m.tiles.length) return false;
+    var rows = m.tiles.length;
+    var cols = Number(m.cols) || String(m.tiles[0]).length;
+    st.name = m.name || name;
+    st.cols = cols;
+    st.rows = rows;
+    st.tiles = tilesFromRows(m.tiles, cols, rows);
+    st.bgKey = 'plain';
+    st.srcKey = '';
+    st.savedName = name;
+    undo = [];
+    battleZoom = 1; battlePanX = 0; battlePanY = 0;
+    syncBattleFields();
+    renderBattle();
+    if (ui.battleMapSel) ui.battleMapSel.value = SAVED_PREFIX + name;
+    saveStore();
+    return true;
+  }
+  function deleteSavedMap(name) {
+    if (!savedMaps[name]) return false;
+    delete savedMaps[name];
+    if (st.savedName === name) st.savedName = '';
+    saveStore();
+    fillBattleMapOptions();
+    var left = savedMapNames().length;
+    setStatus('내 저장 맵 "' + name + '"을(를) 지웠습니다 — 남은 맵 ' + left + '개.');
+    return true;
+  }
+  function resetDeleteArm() {
+    deleteArm = { name: '', until: 0 };
+    if (ui.saveDelBtn) {
+      ui.saveDelBtn.classList.remove('on');
+      ui.saveDelBtn.textContent = '🗑️ 삭제';
+    }
+  }
 
   /* ═══════════════════════════════════════════════════════════════════════
      1) 전장 맵 — 엔진(SK.MAPS) 읽고 쓰기
@@ -151,6 +252,7 @@
     for (i = 0; i < all.length; i++) if (all[i].key === key) { found = all[i]; break; }
     if (!found) return false;
     st.srcKey = found.key;
+    st.savedName = '';
     st.name = found.label || found.key;
     st.cols = found.cols;
     st.rows = found.rows;
@@ -178,6 +280,7 @@
       next.push(line);
     }
     st.cols = cols; st.rows = rows; st.tiles = next; st.srcKey = '';
+    st.savedName = '';
     battleZoom = 1; battlePanX = 0; battlePanY = 0;
     syncBattleFields();
     renderBattle();
@@ -358,7 +461,7 @@
   /* ═══════════════════════════════════════════════════════════════════════
      3) 편집기 상태
      ═══════════════════════════════════════════════════════════════════════ */
-  var st = { name: '편집_전장', cols: 24, rows: 24, tiles: [], bgKey: 'plain', srcKey: '' };
+  var st = { name: '편집_전장', cols: 24, rows: 24, tiles: [], bgKey: 'plain', srcKey: '', savedName: '' };
   var wst = { cities: [], routes: [], sea: [], deleted: [], sel: '' };
   var wbase = { byId: {}, cities: [], routes: [], sea: [] };
   var brush = 'P';
@@ -383,6 +486,7 @@
   /* ── 초기값: 저장된 편집본 → 없으면 엔진의 평야전 ───────────────────── */
   function initState() {
     var saved = loadStore();
+    savedMaps = readSavedMaps(saved);
     if (saved && saved.battle && Array.isArray(saved.battle.rows) && saved.battle.rows.length) {
       var b = saved.battle;
       st.name = b.name || '편집_전장';
@@ -390,6 +494,7 @@
       st.rows = Number(b.rows) || b.rows.length;
       st.bgKey = b.bgKey || 'plain';
       st.srcKey = b.srcKey || '';
+      if (savedMaps[st.name]) st.savedName = st.name;
       st.tiles = tilesFromRows(b.rows, st.cols, st.rows);
     } else {
       loadEngineMap('plain');
@@ -554,9 +659,16 @@
     ui.battleName = nameIn; ui.battleSize = sizeSel;
 
     var row2 = el('div', 'v585-row');
-    var mapSel = el('select', 'v585-sel'); ui.battleMapSel = mapSel;
+    var mapSel = el('select', 'v585-sel'); mapSel.id = 'v586-map-sel'; ui.battleMapSel = mapSel;
     var loadBtn = el('button', 'v585-btn', '불러오기'); loadBtn.type = 'button';
     row2.appendChild(mapSel); row2.appendChild(loadBtn);
+
+    /* v5.86a — 내 맵 저장 슬롯 */
+    var saveRow = el('div', 'v585-row');
+    var saveBtn = el('button', 'v585-btn', '💾 내 맵 저장'); saveBtn.type = 'button';
+    var delBtn = el('button', 'v585-btn danger', '🗑️ 삭제'); delBtn.type = 'button';
+    saveRow.appendChild(saveBtn); saveRow.appendChild(delBtn);
+    ui.saveBtn = saveBtn; ui.saveDelBtn = delBtn;
 
     var pal = el('div', 'v585-pal'); ui.palette = {};
     CODES.forEach(function (code) {
@@ -590,9 +702,9 @@
     var resetBtn = el('button', 'v585-btn danger', '♻️ 초기화'); resetBtn.type = 'button';
     acts.appendChild(testBtn); acts.appendChild(copyBtn); acts.appendChild(resetBtn);
 
-    var hint = el('p', 'v585-hint', '브러시를 고르고 격자를 문질러 칠합니다. [이동/확대]를 켜면 끌어서 화면을 옮깁니다. A(아군 본진)·E(적 본진)·V(마을)를 찍으면 그 자리에 본진이 서고, 없으면 아래·위 가운데에 자동으로 놓입니다.');
+    var hint = el('p', 'v585-hint', '브러시를 고르고 격자를 문질러 칠합니다. [이동/확대]를 켜면 끌어서 화면을 옮깁니다. A(아군 본진)·E(적 본진)·V(마을)를 찍으면 그 자리에 본진이 서고, 없으면 아래·위 가운데에 자동으로 놓입니다. [💾 내 맵 저장]은 이름 칸의 이름으로 이 폰에 보관하고, [── 내 저장 맵 ──]에서 골라 [불러오기]하면 언제든 되살립니다.');
 
-    sec.appendChild(row1); sec.appendChild(row2); sec.appendChild(pal); sec.appendChild(tools);
+    sec.appendChild(row1); sec.appendChild(row2); sec.appendChild(saveRow); sec.appendChild(pal); sec.appendChild(tools);
     sec.appendChild(wrap); sec.appendChild(acts); sec.appendChild(hint);
     ui.body.appendChild(sec);
 
@@ -609,9 +721,40 @@
     };
     loadBtn.onclick = function () {
       var key = mapSel.value;
-      if (!key) return;
+      if (!key) { setStatus('불러올 전장을 드롭다운에서 골라 주세요.'); return; }
+      if (key.indexOf(SAVED_PREFIX) === 0) {
+        var nm = key.slice(SAVED_PREFIX.length);
+        if (loadSavedMap(nm)) {
+          setStatus('내 저장 맵 "' + nm + '"(' + st.cols + '×' + st.rows + ')을 불러왔습니다 — 타일 그대로입니다.');
+        } else {
+          setStatus('"' + nm + '" 저장 맵을 읽지 못했습니다 — 목록을 새로 고칩니다.');
+          fillBattleMapOptions();
+        }
+        return;
+      }
       if (loadEngineMap(key)) setStatus('기존 전장 "' + st.name + '"(' + st.cols + '×' + st.rows + ')을 불러왔습니다.');
       saveStore();
+    };
+    saveBtn.onclick = function () { resetDeleteArm(); saveCurrentAsSaved(); };
+    delBtn.onclick = function () {
+      var key = mapSel.value;
+      var nm = (key && key.indexOf(SAVED_PREFIX) === 0) ? key.slice(SAVED_PREFIX.length) : '';
+      if (!nm || !savedMaps[nm]) {
+        setStatus('지울 맵을 [── 내 저장 맵 ──]에서 먼저 골라 주세요. (기본 전장은 지우지 않습니다)');
+        return;
+      }
+      if (deleteArm.name === nm && Date.now() < deleteArm.until) {
+        deleteSavedMap(nm);
+        resetDeleteArm();
+        return;
+      }
+      deleteArm = { name: nm, until: Date.now() + 5000 };
+      delBtn.classList.add('on');
+      delBtn.textContent = '🗑️ 정말 삭제?';
+      setStatus('"' + nm + '"을(를) 지우려면 [🗑️ 정말 삭제?]를 5초 안에 한 번 더 눌러 주세요.');
+      setTimeout(function () {
+        if (deleteArm.name === nm && Date.now() >= deleteArm.until) resetDeleteArm();
+      }, 5200);
     };
     panBtn.onclick = function () {
       panMode = !panMode;
@@ -636,6 +779,7 @@
     };
     resetBtn.onclick = function () {
       loadEngineMap('plain');
+      st.savedName = '';
       saveStore();
       setStatus('평야전(plain) 원본으로 되돌렸습니다.');
     };
@@ -720,13 +864,36 @@
     if (!sel) return;
     sel.innerHTML = '';
     var all = engineBattleList();
+    var gEngine = el('optgroup');
+    gEngine.label = '── 기본 전장 ──';
     all.forEach(function (m) {
       var o = el('option', null, m.label + ' (' + m.cols + '×' + m.rows + ')');
       o.value = m.key;
-      sel.appendChild(o);
+      gEngine.appendChild(o);
     });
-    if (!all.length) { var e = el('option', null, '엔진 전장 없음'); e.value = ''; sel.appendChild(e); }
-    if (st.srcKey) sel.value = st.srcKey;
+    if (!all.length) { var e = el('option', null, '엔진 전장 없음'); e.value = ''; gEngine.appendChild(e); }
+    sel.appendChild(gEngine);
+
+    /* ── 내 저장 맵 ── */
+    var gSaved = el('optgroup');
+    gSaved.label = '── 내 저장 맵 ──';
+    var names = savedMapNames();
+    if (!names.length) {
+      var none = el('option', null, '아직 저장한 맵이 없습니다 — [💾 내 맵 저장]으로 보관');
+      none.value = ''; none.disabled = true;
+      gSaved.appendChild(none);
+    } else {
+      names.forEach(function (n) {
+        var m = savedMaps[n];
+        var o = el('option', null, '💾 ' + n + ' (' + (m.cols || '?') + '×' + (m.rows || '?') + ')');
+        o.value = SAVED_PREFIX + n;
+        gSaved.appendChild(o);
+      });
+    }
+    sel.appendChild(gSaved);
+
+    if (st.savedName && savedMaps[st.savedName]) sel.value = SAVED_PREFIX + st.savedName;
+    else if (st.srcKey) sel.value = st.srcKey;
   }
 
   function renderBattle() {
@@ -1378,7 +1545,11 @@
     state: function () {
       return {
         open: open, brush: brush, undo: undo.length, pendingBattle: pendingBattle,
-        battle: { name: st.name, cols: st.cols, rows: st.rows, tiles: clone(st.tiles), rowText: rowsFromTiles(st.tiles) },
+        battle: { name: st.name, cols: st.cols, rows: st.rows, tiles: clone(st.tiles), rowText: rowsFromTiles(st.tiles), savedName: st.savedName },
+        savedMaps: savedMapNames().map(function (n) {
+          var m = savedMaps[n];
+          return { name: n, cols: m.cols, rows: m.rows, savedAt: m.savedAt, rowText: m.tiles.slice() };
+        }),
         world: { cities: clone(wst.cities), routes: clone(wst.routes), sea: clone(wst.sea), sel: wst.sel },
       };
     },
@@ -1405,6 +1576,16 @@
       return true;
     },
     loadBattleMap: loadEngineMap,
+    /* v5.86a — 내 맵 저장 슬롯 검증용 */
+    savedMapNames: savedMapNames,
+    savedMaps: function () { return clone(savedMaps); },
+    saveMapAs: function (name) {
+      if (ui.battleName && name) { ui.battleName.value = name; st.name = name; }
+      return saveCurrentAsSaved();
+    },
+    loadSavedMap: function (name) { return loadSavedMap(name); },
+    deleteSavedMap: function (name) { resetDeleteArm(); return deleteSavedMap(name); },
+    savedStoreKey: STORE_KEY,
     exportBattleJson: battlePayload,
     exportBattleText: battleJsonText,
     exportWorldJson: worldDiff,
