@@ -14963,7 +14963,7 @@
      (×1 1.5초 · ×2 0.75초 · ×5 0.3초 · ×10 0.15초 — 계획서의 호흡). */
   function obsCfg() {
     const sp = Math.max(1, Number(OBS.speed) || 1);
-    const month = 1500 / sp;
+    const month = sp >= 10 ? 120 : 1500 / sp;   /* ×10만 계획서 값(0.12초)에 맞춘다 */
     return {
       month: Math.max(130, Math.round(month)),
       tick: Math.max(90, Math.round(month * 0.35)),

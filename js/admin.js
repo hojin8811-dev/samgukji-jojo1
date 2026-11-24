@@ -457,7 +457,7 @@
             return '<button type="button" data-sp="' + s[0] + '" class="' + (hot ? 'on' : '') + '">' + s[1] + '</button>';
           }).join('') +
         '</div>' +
-        '<p class="adm-hint">×1 ≈ 1.5초에 한 달 · ×10 ≈ 0.15초에 한 달. 관전 중에도 지도 화면은 그대로 보입니다.</p>' +
+        '<p class="adm-hint">×1 ≈ 1.5초에 한 달 · ×10 ≈ 0.12초에 한 달. 관전 중에도 지도 화면은 그대로 보입니다.</p>' +
       '</div>' +
       '<div class="adm-card" id="adm-obs-status"></div>' +
       '<div class="adm-card"><p class="adm-sec">최근 소식</p><div class="adm-log" id="adm-obs-log"></div></div>' +
