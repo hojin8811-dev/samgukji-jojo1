@@ -570,7 +570,7 @@
       '.v585-sw{width:20px;height:10px;border-radius:3px;border:1px solid rgba(255,255,255,.45)}',
       '.v585-cv{position:relative;width:100%;height:250px;border:1.5px solid #6b5a2c;border-radius:10px;overflow:hidden;background:#0d0b09;touch-action:none}',
       '.v585-cv canvas{width:100%;height:100%;display:block}',
-      '.v585-cv.tall{height:270px}',
+      '.v585-cv.tall{height:250px}',
       '.v585-status{position:sticky;bottom:0;font-size:11.5px;line-height:1.4;color:#f7dc88;background:#221a12;border:1px solid #594418;border-radius:8px;padding:6px 9px;word-break:break-all}',
       '.v585-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}',
       '.v585-f{display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:800;color:#c9ad6a}',
@@ -702,7 +702,7 @@
     var resetBtn = el('button', 'v585-btn danger', '♻️ 초기화'); resetBtn.type = 'button';
     acts.appendChild(testBtn); acts.appendChild(copyBtn); acts.appendChild(resetBtn);
 
-    var hint = el('p', 'v585-hint', '브러시를 고르고 격자를 문질러 칠합니다. [이동/확대]를 켜면 끌어서 화면을 옮깁니다. A(아군 본진)·E(적 본진)·V(마을)를 찍으면 그 자리에 본진이 서고, 없으면 아래·위 가운데에 자동으로 놓입니다. [💾 내 맵 저장]은 이름 칸의 이름으로 이 폰에 보관하고, [── 내 저장 맵 ──]에서 골라 [불러오기]하면 언제든 되살립니다.');
+    var hint = el('p', 'v585-hint', '브러시를 골라 격자를 문질러 칠하고, [이동/확대]를 켜면 끌어서 옮깁니다. A·E·V(본진·마을)를 찍으면 그 자리에 서고 없으면 아래·위 가운데에 놓입니다. [💾 내 맵 저장]은 이름 칸의 이름으로 보관 — [── 내 저장 맵 ──]에서 [불러오기]합니다.');
 
     sec.appendChild(row1); sec.appendChild(row2); sec.appendChild(saveRow); sec.appendChild(pal); sec.appendChild(tools);
     sec.appendChild(wrap); sec.appendChild(acts); sec.appendChild(hint);
