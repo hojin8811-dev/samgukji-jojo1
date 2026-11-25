@@ -6493,9 +6493,9 @@
           <div><span>기본</span><b>금 ${fmt(base.baseCost)} · ${base.baseMonths}개월</b></div>
           <div><span>보정</span><b class="hot">지력+정치로 금 할인 (최대 −30%)</b><em>장수를 고르면 아래에 실제 금액이 나옵니다</em></div>
         </div>
+        <div class="tc-sum" id="tc-sum"></div>
         <p class="talent-note">담당 장수를 고르세요 — <b>지력+정치</b>가 높을수록 연구비(금)가 깎입니다(최대 −30%). 기간은 표에 적힌 그대로이고, 고른 장수는 연구가 끝날 때까지 내정·배속·수련에서 빠지며 <b>전쟁에는 나갈 수 있습니다</b>.</p>
         <div class="target-list pick-scroll tech-pick-list">${pool.map(rowHtml).join('') || '<p class="tr-empty">연구를 맡길 장수가 없습니다.</p>'}</div>
-        <div class="tc-sum" id="tc-sum"></div>
       </div>`,
       wide: true,
       actions: [{ label: '뒤로' }, { label: '연구 시작', primary: true, onClick: () => {
@@ -6524,7 +6524,7 @@
           : '<p class="tr-empty">담당 장수를 고르세요.</p>';
       }
       const act = wrap.el.querySelector('.modal-actions .btn-primary');
-      if (act) { act.disabled = !h || s.gold < q.cost; act.textContent = h && s.gold >= q.cost ? `연구 시작 — 금 ${fmt(q.cost)} · ${q.months}개월` : (h ? '금이 부족합니다' : '장수를 고르세요'); }
+      if (act) { act.disabled = !h || s.gold < q.cost; act.textContent = h && s.gold >= q.cost ? `연구 시작 · 금 ${fmt(q.cost)}` : (h ? '금이 부족합니다' : '장수를 고르세요'); }
     };
     wrap.el.querySelectorAll('.tech-pick').forEach((b) => {
       b.onclick = () => { pick = b.dataset.uid; SK.sfx.play('ui'); paint(); };

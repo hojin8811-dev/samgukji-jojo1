@@ -1854,7 +1854,7 @@ b { font-weight: 700; }
 .tc-quote b { display: block; font-size: 11.5px; color: #33280f; margin-top: 1px; }
 .tc-quote b.hot { color: #8a5a12; }
 .tc-quote em { display: block; font-style: normal; font-size: 8.5px; color: #8a7448; line-height: 1.35; margin-top: 2px; }
-.tech-pick-list { max-height: 40vh; }
+.tech-pick-list { max-height: 34vh; }
 .tech-pick .tc-main b { font-size: 12px; }
 .tech-pick .tc-main span { font-size: 9px; }
 .tech-pick .tp-sum { font-style: normal; font-weight: 900; color: #8a5a12; }
@@ -1862,7 +1862,7 @@ b { font-weight: 700; }
 .tech-pick .tc-troops span { font-size: 9px; color: #7d6538; }
 .tech-pick .tc-troops b { font-size: 11px; }
 .tp-cut { font-style: normal; font-weight: 900; color: #2f6f4a; }
-.tc-sum { border-top: 1px dashed #d7bd8c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.tc-sum { border-bottom: 1px dashed #d7bd8c; padding: 0 0 6px; display: flex; flex-direction: column; gap: 3px; }
 .tcs-row { display: flex; align-items: baseline; gap: 8px; font-size: 10px; color: #5b4a27; }
 .tcs-row > span { flex: 0 0 34px; font-weight: 800; color: #8a7448; }
 .tcs-row b { font-size: 11px; color: #33280f; }
