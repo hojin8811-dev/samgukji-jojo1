@@ -603,6 +603,9 @@
   /* 지금 전투 상태를 요약해 저장한다 (아군 턴 시작·첫 배치) */
   function saveSnap() {
     if (!B || B.over || !B._snapOpts) return;
+    /* v5.98 — 튜토리얼 전투는 본편 이탈 복구 스냅샷을 건드리지 않는다
+       (튜토리얼을 중간에 나가도 다음 실행이 본편 전장을 되살리지 않게) */
+    if (typeof window !== 'undefined' && window.SKTUT && window.SKTUT.active) return;
     try {
       const data = {
         v: 1, at: Date.now(),
@@ -1249,8 +1252,14 @@
       if (pointers.size === 0) {
         if (drag.on && wasDrag < 8) {
           const r = canvas.getBoundingClientRect();
-          const t = screenToTile(e.clientX - r.left, e.clientY - r.top);
-          onTileTap(t.x, t.y);
+          const px = e.clientX - r.left, py = e.clientY - r.top;
+          /* v5.98 — 병력 숫자·HP 바 라벨을 눌러도 그 부대를 선택한다 (스프라이트 힟박스 + 라벨 힟박스) */
+          const lab = unitLabelAt(px, py);
+          if (lab) onTappedUnit(lab);
+          else {
+            const t = screenToTile(px, py);
+            onTileTap(t.x, t.y);
+          }
         } else if (drag.on) {
           startInertia(drag.vx || 0, drag.vy || 0);
         }
@@ -1802,6 +1811,100 @@
     cv.addEventListener('dblclick', (ev) => { ev.preventDefault(); ev.stopPropagation(); mmSetBig(!mmBig); });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.98 — 사거리 내 유효 타겟 하이라이트 (.tile-attack-target)
+     · 공격·필살기·책략 대상을 고르는 동안, 지금 때릴 수 있는 적·성문·망루 칸을
+       전장 위에 반짐이는 붉은 테두리로 덮어 헛클릭을 막는다.
+     · 캔버스 그림 위에 DOM 레이어를 깔고 칸마다 .tile-attack-target 클래스를 준다
+       (가이드 스펙의 클래스 이름 그대로 — CSS 반짐 애니메이션은 css/game.css).
+     ══════════════════════════════════════════════════════════════ */
+  let targetLayer = null, targetSig = '';
+  function ensureTargetLayer() {
+    if (!stage) return null;
+    if (!targetLayer || targetLayer.parentNode !== stage) {
+      targetLayer = document.createElement('div');
+      targetLayer.id = 'tile-attack-target-layer';
+      targetLayer.className = 'tile-attack-layer';
+      targetLayer.setAttribute('aria-hidden', 'true');
+      stage.appendChild(targetLayer);
+      targetSig = '';
+    }
+    return targetLayer;
+  }
+  /* 지금 고른 부대가 실제로 때릴 수 있는 칸 목록 */
+  function attackTargetTiles() {
+    const u = B && B.sel;
+    if (!B || !u || !u.alive || u.side !== 'ally' || u.acted) return [];
+    if (B.phase !== 'ally' || busy || B.over) return [];
+    const out = [];
+    const add = (x, y) => {
+      if (x == null || y == null) return;
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
+      for (let i = 0; i < out.length; i++) if (out[i].x === x && out[i].y === y) return;
+      out.push({ x: x, y: y });
+    };
+    if (mode === 'ultTarget') {
+      const spec = ultOf(u);
+      if (!spec) return [];
+      const rng = ultRange(u, spec);
+      B.units.forEach((o) => { if (o.alive && o.side !== u.side && manh(u.x, u.y, o.x, o.y) <= rng) add(o.x, o.y); });
+      return out;
+    }
+    if (mode === 'skillTarget' && pendingSkill) {
+      /* 회복·아군 버프는 아군이 대상이라 붉은 타겟을 찍지 않는다 */
+      if (pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly' || pendingSkill.shape === 'allies') return [];
+      const rng = skRange(u, pendingSkill);
+      const min = pendingSkill.minRange || 1;
+      B.units.forEach((o) => {
+        if (!o.alive || o.side === u.side) return;
+        if (canHit(u, o, rng) && manh(u.x, u.y, o.x, o.y) >= min) add(o.x, o.y);
+      });
+      return out;
+    }
+    if (mode !== 'attack') return out;
+    const rng = effRng(u);
+    /* ① 사거리 안의 적 부대 */
+    B.units.forEach((o) => { if (o.alive && o.side !== u.side && canHit(u, o, rng)) add(o.x, o.y); });
+    /* ② 성문 — 문을 부수는 진영만 */
+    if (gateIntact() && isGateAttacker(u)) {
+      const gates = (B.gates && B.gates.length) ? B.gates : (B.gate ? [B.gate] : []);
+      gates.forEach((g) => {
+        if (!g || g.hp <= 0) return;
+        (g.tiles || []).forEach((t) => { if (manh(u.x, u.y, t.x, t.y) <= rng) add(t.x, t.y); });
+      });
+    }
+    /* ③ 적 망루 (공성전 자동 포격 대포) */
+    towerList().forEach((t) => { if (t.alive && t.side !== u.side && manh(u.x, u.y, t.x, t.y) <= rng) add(t.x, t.y); });
+    return out;
+  }
+  function clearAttackTargets() {
+    targetSig = '';
+    if (targetLayer && targetLayer.parentNode) targetLayer.innerHTML = '';
+  }
+  function syncAttackTargets() {
+    if (!B || !stage) return;
+    const layer = ensureTargetLayer();
+    if (!layer) return;
+    const list = attackTargetTiles();
+    const sig = list.map((t) => t.x + ',' + t.y).join('|') + '@' +
+      Math.round(cam.x) + ',' + Math.round(cam.y) + ',' + cam.s.toFixed(3);
+    if (sig === targetSig) return;
+    targetSig = sig;
+    layer.innerHTML = '';
+    if (!list.length) return;
+    const size = TILE * cam.s;
+    list.forEach((t) => {
+      const d = document.createElement('div');
+      d.className = 'tile-attack-target';
+      d.style.left = (cam.x + t.x * size) + 'px';
+      d.style.top = (cam.y + t.y * size) + 'px';
+      d.style.width = Math.max(6, size) + 'px';
+      d.style.height = Math.max(6, size) + 'px';
+      layer.appendChild(d);
+    });
+  }
+  SK.battleAttackTargets = attackTargetTiles;
+
   function draw() {
     if (!ctx) return;
     const w = canvas.width / dpr, h = canvas.height / dpr;
@@ -1860,6 +1963,8 @@
     drawFloats();
     drawUltBubble(w, h);
     drawMinimap();
+    /* v5.98 — 사거리 안 유효 타겟 붉은 테두리 (.tile-attack-target) */
+    syncAttackTargets();
   }
 
   function drawNight(w, h) {
@@ -3250,6 +3355,13 @@
     const pillH = Math.round((dense ? 12 : 13) * kNum);
     const pillX = bx - pillW / 2;
     const pillY = barY - pillH - Math.round(2 * kNum);
+    /* v5.98 — 부대 선택 힟박스 확장: 스프라이트뿐 아니라 머리 위 병력 숫자·병력 바·병과 배지까지
+       탭하면 그 부대가 선택되게, 지금 그린 라벨 영역을 월드 좌표로 적어 둔다.
+       (칸 안에 정확히 누르지 못해 선택이 풀리던 답답함 — 사용자 가이드) */
+    u._tap = {
+      x0: bx - Math.max(bw, pillW) / 2 - 8, x1: bx + Math.max(bw, pillW) / 2 + 8,
+      y0: pillY - Math.round(16 * kNum), y1: barY + bh + 6,
+    };
     ctx.save();
     if (showNum) {
       ctx.fillStyle = dense ? 'rgba(24,19,11,0.8)' : 'rgba(24,19,11,0.86)';
@@ -3402,6 +3514,11 @@
      길게 떠 있는 문구가 부대 병력 라벨을 덮지 않게 한다. */
   function addFloat(x, y, text, color, opts) {
     floats.push({ x, y, text, color, life: 950, t: 0, back: !!(opts && opts.back) });
+  }
+  /* v5.98 — 안내 말풍선: 부대/칸 위에 둥근 말풍선 한 줄을 띄운다.
+     (빈 타일을 눌렀을 때 "거긴 아무도 없는데?!" 처럼 조작 안내를 숫자와 구분해 보여 준다) */
+  function addSay(x, y, text, color) {
+    floats.push({ x, y, text, color: color || '#ffeec2', life: 1250, t: 0, say: true });
   }
 
   function updateFx(dt, fdt) {
@@ -4163,6 +4280,30 @@
       const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38 + jit;
       ctx.save();
       ctx.globalAlpha = 1 - p * 0.85;
+      /* v5.98 — 말풍선(조작 안내): 숫자와 구분되는 둥근 말풍선 + 작은 꼬리 */
+      if (f.say) {
+        ctx.font = 'bold 11.5px "Noto Serif CJK KR", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(f.text).width;
+        const bw = tw + 18, bh = 20, by2 = sy - p * 6;
+        ctx.fillStyle = 'rgba(30,23,12,0.92)';
+        ctx.strokeStyle = 'rgba(246,214,120,0.9)';
+        ctx.lineWidth = 1.4;
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(sx - bw / 2, by2 - bh / 2, bw, bh, 10); ctx.fill(); ctx.stroke(); }
+        else { ctx.fillRect(sx - bw / 2, by2 - bh / 2, bw, bh); ctx.strokeRect(sx - bw / 2, by2 - bh / 2, bw, bh); }
+        ctx.beginPath();
+        ctx.moveTo(sx - 4, by2 + bh / 2 - 1);
+        ctx.lineTo(sx, by2 + bh / 2 + 6);
+        ctx.lineTo(sx + 4, by2 + bh / 2 - 1);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(30,23,12,0.92)';
+        ctx.fill();
+        ctx.fillStyle = f.color || '#ffeec2';
+        ctx.fillText(f.text, sx, by2 + 0.5);
+        ctx.restore();
+        return;
+      }
       /* v5.26 — 고유 특기 이름(「…」)은 숫자보다 작게 그린다. 17px 고정이라 전장 한가운데를 크게 가렸다 */
       const isName = f.text.indexOf('「') >= 0;
       ctx.font = isName ? 'bold 11.5px "Noto Serif CJK KR", serif' : 'bold 15px "Noto Serif CJK KR", serif';
@@ -4679,8 +4820,9 @@
     return '명장';
   }
   /* v5.84 — 일기토 대사: S·A급은 장수별 코믹·귀여운 대사 사전(js/patch_v584.js)을 쓴다.
-     개전(open) · 격돌(clash) · 승리(win) · 패배(lose) 네 순간으로 옮긴다. */
-  const V584_DUEL_PHASE = { start: 'open', clashWin: 'clash', clashLose: 'clash', victory: 'win', defeat: 'lose', collapse: 'lose' };
+     개전(open) · 격돌(clash) · 피격(hit) · 승리(win) · 패배(lose) 다섯 순간으로 옮긴다.
+     v5.98 — 격돌에서 밀린 순간은 '피격'으로 보내 "아야! 내 꼬까옷…" 공통 대사가 나간다. */
+  const V584_DUEL_PHASE = { start: 'open', clashWin: 'clash', clashLose: 'hit', victory: 'win', defeat: 'lose', collapse: 'lose' };
   /* 병과 키 → 대사 폴백 풀이 알아보는 계열 이름 */
   const V584_FAM = {
     gunwoong: 'lord', gibi: 'cav', gunggi: 'archer', gungsu: 'archer', changbyung: 'spear',
@@ -6331,6 +6473,24 @@
   }
 
   /* ───────────── 조작 ───────────── */
+  /* v5.98 — 머리 위 병력 숫자·HP 바 라벨 힟박스 판정 (drawUnit이 그릴 때 남긴 _tap 사각형)
+     같은 높이에서 겹치면 나중에 그린(아래쪽 y가 큰) 부대를 고른다. */
+  function unitLabelAt(px, py) {
+    if (!B) return null;
+    const w = screenToWorld(px, py);
+    let hit = null;
+    const list = B.units.filter((u) => u.alive && u._tap).sort((a, b) => a.y - b.y);
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i]._tap;
+      if (w.x >= r.x0 && w.x <= r.x1 && w.y >= r.y0 && w.y <= r.y1) hit = list[i];
+    }
+    return hit;
+  }
+  function onTappedUnit(u) {
+    if (!u || !B || B.over) return;
+    onTileTap(u.x, u.y);
+  }
+
   function onTileTap(x, y) {
     if (!B || B.over || busy || !B.introDone) return;
     if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
@@ -6423,6 +6583,14 @@
       const reach = B.reachCache && B.reachCache.uid === u.id ? B.reachCache.set : null;
       if (reach && reach.has(x + ',' + y)) { moveUnit(u, x, y); return; }
     }
+    /* v5.98 — 이미 부대를 고른 상태에서 빈 칸(이동·공격 불가)을 탭해도 선택을 풀지 않는다.
+       무엇을 눌렀는지 말풍선으로 알려 주고, 고른 부대는 그대로 둔다 (헛터치 방지). */
+    if (u && u.alive && u.side === 'ally' && !u.acted) {
+      addSay((x + 0.5) * TILE, (y + 0.35) * TILE, '거긴 아무도 없는데?!', '#ffe9b8');
+      SK.sfx.play('deny');
+      $('#battle-tip').textContent = '빈 칸입니다 — 파란 칸(이동)이나 붉게 빛나는 적을 누르세요';
+      return;
+    }
     clearSel();
   }
 
@@ -6461,6 +6629,7 @@
     B.reachCache = null;
     mode = 'idle';
     pendingSkill = null;
+    clearAttackTargets();   // v5.98 — 선택을 풀면 붉은 타겟 테두리도 걷아낸다
     SKBattle.refreshUI();
     $('#battle-tip').textContent = '화면을 끌어 이동 · 부대를 눌러 선택';
   }
@@ -11421,12 +11590,15 @@
         ${victoryQuote() ? `<p class="rm-quote">“${victoryQuote()}”</p>` : ''}
         <p class="rm-note">${owned >= SK.CITY_LIST.length ? '천하가 하나로 모였습니다!' : '다음 성으로 나아가십시오.'}</p>
       </div>`,
-      actions: [{ label: prisoners.length || fallItem ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
-        closeBattle(); SK.showMap();
-        const goPrison = () => { if (prisoners.length) wait(() => openPrisoners(prisoners), 340); };
-        if (fallItem && SK.showFallBanner) SK.showFallBanner(fallItem, goPrison);
-        else goPrison();
-      } }],
+      actions: [(window.SKTUT && SKTUT.active)
+        /* v5.98 — 튜토리얼 공성전 승리: 결산을 넘기면 '입문 완료!' 팝업으로 잇는다 */
+        ? { label: '입문 완료!', primary: true, onClick: () => { closeBattle(); SKTUT.onWin({ cityName: c.name }); } }
+        : { label: prisoners.length || fallItem ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
+          closeBattle(); SK.showMap();
+          const goPrison = () => { if (prisoners.length) wait(() => openPrisoners(prisoners), 340); };
+          if (fallItem && SK.showFallBanner) SK.showFallBanner(fallItem, goPrison);
+          else goPrison();
+        } }],
       dismissible: false,
     });
   }
@@ -11486,7 +11658,10 @@
         ${battleReportHTML()}
         ${SK.quoteOf('조조', 'retreat') ? `<p class="rm-quote">“${SK.quoteOf('조조', 'retreat')}”</p>` : ''}
         <p class="rm-note">보유 금 -200 · 부상병 ${woundedAdd ? `${Math.round(woundedAdd).toLocaleString('ko-KR')}명이 ${SK.CITY[hid] ? SK.CITY[hid].name : '본성'}에서 회복 중입니다` : '없음'}${salv ? ` · 패전 피해 감소 +${Math.round(salv).toLocaleString('ko-KR')}` : ''}${captured ? ` · 사로잡힌 장수 <b>${captured}</b>` : ''}</p></div>`,
-      actions: [{ label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
+      actions: [(window.SKTUT && SKTUT.active)
+        /* v5.98 — 튜토리얼에서 지면 같은 전장을 다시 열 수 있게 한다 */
+        ? { label: '다시 도전', primary: true, onClick: () => { closeBattle(); SKTUT.onLose(); } }
+        : { label: '지도로', onClick: () => { closeBattle(); SK.showMap(); } }],
       dismissible: false,
     });
   }
@@ -11709,6 +11884,8 @@
     });
     /* v5.84 — 필살기 타격 연출(암전·팝업·파티클)이 지도나 결과 창 위에 남지 않게 걷어낸다 */
     try { if (window.V584_ULT_FX && window.V584_ULT_FX.stop) window.V584_ULT_FX.stop(); } catch (e) { /* ignore */ }
+    /* v5.98 — 사거리 타겟 테두리 레이어도 함께 정리 */
+    try { clearAttackTargets(); if (targetLayer && targetLayer.parentNode) targetLayer.parentNode.removeChild(targetLayer); targetLayer = null; } catch (e) { /* ignore */ }
     /* v5.52 — 일기토 창이 떠 있는 채로 전장을 닫지 않는다 */
     if (duel) { duel.done = null; duel = null; }
     if (duelEls) { duelEls.root.hidden = true; duelEls.root.classList.remove('show', 'out'); }

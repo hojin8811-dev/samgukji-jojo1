@@ -121,6 +121,14 @@ b { font-weight: 700; }
 .title-actions { display: flex; flex-direction: column; gap: 8px; width: min(300px, 84%); }
 .title-actions .btn-primary { padding: 14px; font-size: 17px; letter-spacing: 0.04em; }
 .title-actions .btn-ghost { padding: 11px; font-size: 14px; }
+/* v5.98 — [🎓 튜토리얼 (3분 입문)]: 새로 시작보다 한 단계 아래 위계, 금빛 강조 */
+.title-actions .btn-tutorial {
+  padding: 12px; font-size: 15.5px; letter-spacing: 0.02em;
+  color: #3a2a08; background: linear-gradient(180deg, #ffe7a6, #ecc45f);
+  border: 1px solid #a97c1e;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 4px 12px rgba(60, 40, 8, 0.32);
+}
+.title-actions .btn-tutorial:active { transform: translateY(1px); filter: brightness(0.97); }
 .title-foot {
   margin: 12px 0 0; color: #b9a780; font-size: 10.5px; letter-spacing: 0.09em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
@@ -641,6 +649,25 @@ b { font-weight: 700; }
 
 .battle-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #1e180d; touch-action: none; }
 #battle-canvas { position: absolute; inset: 0; display: block; }
+/* ═══════════ v5.98 — 사거리 내 유효 타겟 하이라이트 ═══════════
+   공격·책략·필살기 대상을 고르는 동안 때릴 수 있는 적·성문·망루 칸을
+   붉은 테두리와 점멸로 덮어 헛클릭을 막는다 (js/battle.js syncAttackTargets). */
+.tile-attack-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+.tile-attack-target {
+  position: absolute; box-sizing: border-box; border-radius: 5px;
+  border: 2.5px solid rgba(255, 86, 54, 0.96);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 78, 44, 0.20), rgba(255, 78, 44, 0.04));
+  box-shadow: 0 0 10px rgba(255, 70, 36, 0.72), inset 0 0 12px rgba(255, 84, 48, 0.42);
+  animation: tileTargetBlink 0.92s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes tileTargetBlink {
+  0%, 100% { opacity: 0.42; transform: scale(0.955); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-attack-target { animation: none; opacity: 0.9; }
+}
 .battle-objective {
   position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 2;
   padding: 4px 12px; border-radius: 12px; background: rgba(36, 29, 16, 0.82);
@@ -7710,3 +7737,66 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 /* v5.93 — 요새 고정 시설 카드의 철거 자리 (잠금 표시) */
 .sc-demolish.off { color: #9a8b6c !important; background: #efe6d2 !important; border-color: #cbbfa2 !important; cursor: default; }
 .academy-list .cw-main span { white-space: normal; overflow: visible; text-overflow: clip; display: block; line-height: 1.4; word-break: keep-all; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v5.98 — 🎓 3분 입문 튜토리얼 (js/tutorial.js)
+   · 화면 위에 항상 한 줄 미션 배너를 띄운다 (내정·지도 / 전투에서 위치만 다르게)
+   · 390×844 세로 화면에서 성 하단 명령줄·전장 조작줄을 가리지 않게 위로 띄운다
+   ═══════════════════════════════════════════════════════════════ */
+.tut-mission {
+  position: fixed; left: 8px; right: 8px; bottom: 78px; z-index: 70;
+  padding: 7px 10px 8px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(42, 33, 16, 0.97), rgba(28, 22, 11, 0.97));
+  border: 1px solid rgba(246, 214, 120, 0.72);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 236, 180, 0.22);
+  color: #f6e8c4; pointer-events: auto;
+}
+body.tut-battle .tut-mission { bottom: 154px; }
+.tut-mission .tm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tut-mission .tm-kicker {
+  font-size: 9px; font-weight: 900; letter-spacing: 0.06em; color: #ffd97a;
+  background: rgba(120, 86, 20, 0.5); border: 1px solid rgba(246, 214, 120, 0.5);
+  padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+}
+.tut-mission .tm-exit {
+  border: 1px solid rgba(246, 214, 120, 0.45); background: rgba(60, 46, 20, 0.7);
+  color: #e8d7ad; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 8px;
+}
+.tut-mission .tm-text { margin: 5px 0 0; font-size: 11.5px; line-height: 1.35; color: #f7ecd2; word-break: keep-all; }
+.tut-mission .tm-text b { color: #ffe08a; }
+.tut-mission .tm-dots { display: flex; gap: 4px; margin-top: 5px; }
+.tut-mission .tm-dots i { flex: 1; height: 3px; border-radius: 2px; background: rgba(246, 214, 120, 0.22); }
+.tut-mission .tm-dots i.on { background: rgba(246, 214, 120, 0.65); }
+.tut-mission .tm-dots i.cur { background: #ffd766; box-shadow: 0 0 6px rgba(255, 215, 102, 0.8); }
+@keyframes tutPulse { 0%, 100% { box-shadow: 0 8px 22px rgba(0,0,0,.45), 0 0 0 0 rgba(255,215,102,.0); } 50% { box-shadow: 0 8px 22px rgba(0,0,0,.45), 0 0 0 3px rgba(255,215,102,.25); } }
+.tut-mission { animation: tutPulse 2.4s ease-in-out infinite; }
+
+/* 입문 소개 · 완료 창 */
+.tut-intro .modal-p, .tut-done .modal-p { margin: 0 0 8px; }
+.tut-sl { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 5px; }
+.tut-sl li {
+  display: flex; align-items: center; gap: 7px; font-size: 11.5px; line-height: 1.35;
+  color: #4a3a18; background: #fbf4e2; border: 1px solid #e0cfa4; border-radius: 8px; padding: 5px 8px;
+}
+.tut-sl li b {
+  flex: 0 0 auto; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center;
+  background: #b8862f; color: #fff8e6; font-size: 10px;
+}
+.tut-sl.done li b { background: #5a7a4a; }
+.tut-armies { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px; }
+.tut-armies .ta {
+  flex: 1; display: block; font-size: 9.5px; line-height: 1.35; padding: 6px 8px; border-radius: 9px;
+  background: #f7efdb; border: 1px solid #d9c69a; color: #5b4a26;
+}
+.tut-armies .ta b { display: block; font-size: 11px; margin-bottom: 2px; }
+.tut-armies .ta.ally { border-color: #8fb0d8; background: #eef5fd; }
+.tut-armies .ta.foe { border-color: #d9a79a; background: #fdf0ec; }
+.tut-armies .ta.vs { flex: 0 0 auto; font-weight: 900; font-size: 10px; color: #8a5a12; background: none; border: 0; padding: 0; }
+.tut-done { text-align: center; }
+.tut-done .td-seal {
+  width: 46px; height: 46px; margin: 2px auto 8px; border-radius: 50%;
+  display: grid; place-items: center; font-family: var(--serif); font-size: 20px; font-weight: 900;
+  color: #fff5dc; background: radial-gradient(circle at 40% 30%, #d8a63c, #9a6a12);
+  border: 2px solid #6d4a08; box-shadow: 0 4px 12px rgba(90, 60, 10, 0.35);
+}
+.tut-done .tut-sl { text-align: left; }

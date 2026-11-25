@@ -2560,7 +2560,8 @@
   SK.showBattleResume = showBattleResume;
 
   /* ───────────── 시작 ───────────── */
-  async function startGame(fresh) {
+  /* v5.98 — 데이터 로딩만 따로 묶는다 (튜토리얼이 표지에서 바로 시작할 때도 같은 준비를 거친다) */
+  async function ensureData() {
     if (!SK.CITY_LIST.length) await loadCities();
     if (!SK.SCENARIOS.length) await loadScenarios();
     if (!SK._classesLoaded) await loadClasses();
@@ -2577,6 +2578,11 @@
     if (!SK.TREASURES.length) await loadTreasures();
     /* v5.83 — 관리자 모드에서 저장해 둔 오버라이드(장수·보물·병과)를 데이터 위에 얹는다 */
     if (SK.adminApply) { try { SK.adminApply(); } catch (e) { /* 관리자 값이 깨져도 게임은 연다 */ } }
+  }
+  SK.ensureData = ensureData;
+
+  async function startGame(fresh) {
+    await ensureData();
     if (fresh) { openScenarioPicker(); return; }
     if (!SK.state) { SK.state = newState(SK.HIST[SK.HIST.length - 1] || null, 'caocao'); SK.save(); }
     if (SK.adminApply) { try { SK.adminApply(); } catch (e) { /* ignore */ } }
@@ -2753,13 +2759,23 @@
   function graceOf(s) { return diffOf(s).grace; }
   SK.graceOf = graceOf;
 
+  /* v5.98 — 입문 추천 세력은 '거점이 가장 많은 곳'이 아니라 유비군으로 고정한다.
+     (사용자: "입문 추천은 약간 떨어져있고 좋은장수가 많은 유비로 정하고")
+     유비군은 영안(촉)에서 시작해 초반 적 침공이 덜 들어오고, 관우·장비·조운 같은
+     S·A급 장수가 명부에 가득해 첫 판을 익히기에 가장 편하다. */
+  const RECO_FACTION = 'liubei';
   function openFactionPicker(sc) {
     const res = SK.resolveScenario(sc);
     const facs = Object.keys(res ? res.factions : {}).filter((k) => k !== 'neutral' && res.factions[k].cities.length)
       .map((k) => res.factions[k])
-      .sort((a, b) => b.cities.length - a.cities.length);
-    /* v5.8 — 입문 추천: 거점이 가장 많은(=전력이 넉넉한) 세력 하나 */
-    const recId = facs.length ? facs[0].id : null;
+      .sort((a, b) => {
+        /* 입문 추천 세력을 목록 맨 위에 세우고, 나머지는 거점 수 순 */
+        const ra = a.id === RECO_FACTION ? 0 : 1, rb = b.id === RECO_FACTION ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        return b.cities.length - a.cities.length;
+      });
+    /* v5.98 — 입문 추천 = 유비군 (없는 시대면 거점이 가장 많은 세력) */
+    const recId = facs.some((f) => f.id === RECO_FACTION) ? RECO_FACTION : (facs.length ? facs[0].id : null);
     const list = $('#faction-list');
     if (list) {
       list.innerHTML = facs.map((f) => factionScreenCard({
@@ -11450,6 +11466,8 @@
   /* ───────────── 출진 준비 ───────────── */
   SK.openSortiePrep = function (targetId, fromCityId) {
     const s = SK.state;
+    /* v5.98 — 튜토리얼: 진류 → 허창 한 곳뿐이라 지도에서 고르는 단계를 건너뛰고 바로 편성 창을 연다 */
+    if (window.SKTUT && window.SKTUT.active && SKTUT.step >= 3) { SKTUT.openSortie(fromCityId); return; }
     if (fromCityId && SK.corpsGuard && SK.corpsGuard(fromCityId)) return;
     let origin = fromCityId || s.lastCity ||
       SK.CITY_LIST.find((c) => s.cities[c.id].owner === PF() && SK.allNeighbors(c.id).some((n) => s.cities[n].owner !== PF()))?.id;
@@ -11672,6 +11690,12 @@
             for (let i = 0; i < (regs[r.cls] || 0); i++) units.push({ kind: 'regiment', cls: r.cls, name: r.name, troops: r.cost });
           });
           s.cities[origin].troops = Math.max(0, avail - totalCost());
+          /* v5.98 — 튜토리얼은 행군 없이 그 자리에서 바로 공성전을 연다 (3분 입문) */
+          if (window.SKTUT && window.SKTUT.active && SKTUT.step >= 3) {
+            m.close();
+            window.SKTUT.battleStart({ origin: origin, targetId: targetId, units: units });
+            return;
+          }
           /* v5.8 — 휴전·동맹 중인 세력을 치면 계약을 깨고 명성이 깎인다 */
           const tOwner = s.cities[targetId] && s.cities[targetId].owner;
           if (tOwner && s.truce && s.truce[tOwner] > (s.turn || 1)) {
@@ -16500,6 +16524,9 @@
     const has = SK.hasSave();
     $('#btn-continue').hidden = !has;
     $('#btn-start').onclick = () => startGame(true);
+    /* v5.98 — 표지 [🎓 튜토리얼 (3분 입문)] — 본편 세이브와 분리된 1:1 입문 모드 */
+    const tutBtn = $('#btn-tutorial');
+    if (tutBtn) tutBtn.onclick = () => { if (window.SKTUT) window.SKTUT.start(); };
     $('#btn-continue').onclick = () => { if (SK.load()) startGame(false); else startGame(true); };
     const slotsBtn = $('#btn-slots');
     if (slotsBtn) slotsBtn.onclick = () => SK.openSaveSlots('load');

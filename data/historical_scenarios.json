@@ -5,7 +5,7 @@
     "title": "천하제일 대난투",
     "historyNote": "시공의 틈이 찢어지더니 28명의 군주가 한 판에 몰려왔다. 땅은 한정, 군주는 28명, 살아남는 건 하나뿐. 쫄리면 뒈지시던가~",
     "cityCaps": {
-      "dongzhuo": 2,
+      "dongzhuo": 1,
       "liubiao": 1,
       "yuanshao": 1
     },
@@ -18,8 +18,7 @@
         "leader": "동탁",
         "capital": "낙양",
         "cities": [
-          "낙양",
-          "호로관"
+          "낙양"
         ],
         "generals": [
           "동탁",
