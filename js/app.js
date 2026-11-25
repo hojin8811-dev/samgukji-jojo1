@@ -2660,7 +2660,7 @@
   const SC_BADGE = { 190: '#7a2b26', 200: '#2b3f6b', 208: '#8a2f24', 220: '#4b2f6b' };
   /* v5.12 — 정사 연도 뱃지 대신 코믹 막(幕) 표기 */
   const SC_ACT = { 190: '1막', 200: '2막', 208: '3막', 220: '4막' };
-  const actOf = (sc) => SC_ACT[sc && sc.year] || '난투';
+  const actOf = (sc) => SC_ACT[sc && sc.year] || '군웅';
   /* v5.18 — 지금 열려 있는 것은 1막뿐. 2·3·4막 자리는 '새 컨텐츠 준비중' 카드로 둔다 */
   const SOON_ACTS = [
     { act: '2막', art: 'scen_200', color: '#2b3f6b' },
@@ -2670,7 +2670,7 @@
   const OPEN_SCENARIO_YEAR = 190;
   function scenarioLine(sc) {
     const n = (sc.factions || []).length;
-    return `${n}개 세력 · 전 영웅 집합!`;
+    return `${n}개 세력 · 역대 영웅 참전`;
   }
 
   function soonCard(s) {
@@ -2719,11 +2719,12 @@
   SK.openScenarioPicker = openScenarioPicker;
 
   /* v5.3 — 세력 선택은 모달이 아니라 시나리오 화면과 같은 먹·나무결·금테 전용 화면(#screen-faction)이다 */
+  /* v6.4 — 시나리오 한 줄 소개도 전략 게임의 말투로 정리 (감탄·비아냥 없이) */
   const SC_NOTE = {
-    190: '살아남는 건 하나뿐 — 쫄리면 뒈지시던가~',
-    200: '발밑에 금 그어 놓고 "여긴 내 거!" 영토 쟁탈전.',
-    208: '배를 다 묶어 놨다… 화공 한 방, 진짜 될까?',
-    220: '이제 셋만 남았어요. 치킨도 셋이 나눠 먹는데!',
+    190: '스물여덟 군주가 한 땅에서 맞선다 — 살아남는 세력은 하나뿐.',
+    200: '하북의 원소와 중원의 조조, 관도에서 북방의 향방이 갈린다.',
+    208: '배를 묶은 대군과 화공 한 첩 — 장강에서 천하의 운명이 갈린다.',
+    220: '위·촉·오 셋만 남았다. 천하의 주인은 마지막에 정해진다.',
   };
   function factionScreenCard(f, rec) {
     const n = (f.cities || []).length;
@@ -2985,7 +2986,7 @@
     const f = s.factions[s.playerFaction] || {};
     const lord = SK.GEN_BY_NAME[f.lord];
     const cap = SK.CITY[s.playerCapital];
-    /* v5.87b — 오프닝 데스매치 문구: "총 N명의 군주가 데스매치를 시작한다" */
+    /* v5.87b — 오프닝 개전 문구: "총 N명의 군주가 같은 땅에서 패권을 다툰다" (v6.4 말투 정리) */
     const aliveN = (() => {
       const set = new Set();
       SK.CITY_LIST.forEach((c) => {
@@ -2997,22 +2998,22 @@
     setTimeout(() => {
       SK.modal({
         kicker: sc ? `시공초월 · ${actOf(sc)}` : '시공초월',
-        title: sc ? sc.title : '천하 대난투 개전!',
+        title: sc ? sc.title : '천하의 패권, 지금 시작된다',
         body: `<div class="intro-modal">
           <div class="intro-portrait tf ${SK.tcls(lord)}"><img src="${SK.ptSrc(lord ? SK.genPortrait(lord) : 'caocao')}" alt=""></div>
-          <p class="dm-open">총 <b>${aliveN}</b>명의 군주가 데스매치를 시작한다. <b>쫄리면 뒈지시던가~</b></p>
+          <p class="dm-open">총 <b>${aliveN}</b>명의 군주가 같은 땅에서 패권을 다툰다. <b>살아남는 세력은 하나뿐이다.</b></p>
           <p>“${SK.quoteOf(f.lord, 'deploy') || '천하는 넓고, 내 길은 멀다.'}”</p>
           <ul>
             <li><b>세력</b> ${f.name || '-'} · ${f.lord || '-'}</li>
             <li><b>수도</b> ${cap ? cap.name : '-'} · <b>영지</b> ${(f.cities || []).length}곳</li>
-            <li><b>목표</b> 살아남는 건 하나뿐 — 옆 성부터 하나씩!</li>
+            <li><b>목표</b> 살아남는 세력은 하나 — 옆 성부터 차례로</li>
           </ul>
           ${sc && sc.historyNote ? `<p class="sc-summary">${sc.historyNote}</p>` : ''}
         </div>`,
-        actions: [{ label: '가즈아 — 시작!', primary: true }],
+        actions: [{ label: '출정 — 시작', primary: true }],
       });
     }, 320);
-    /* v5.88 — 시작 달 연표 카드(시공초월 소식)도 띄우지 않는다. 개전 데스매치 창 1회만 남긴다.
+    /* v5.88 — 시작 달 연표 카드(시공초월 소식)도 띄우지 않는다. 개전 창 1회만 남긴다.
        이미 본 사건으로만 기록해 두어 다시 뜨지 않게 한다. */
     const ev = sc ? SK.timelineFor(sc, s.eraYear, s.month + 1) : null;
     if (ev) {
@@ -3025,7 +3026,7 @@
   function showTimelineCard(ev, intro, after) {
     if (!ev) return;
     SK.modal({
-      kicker: intro ? '시공초월 소식' : '천하 대난투 소식',
+      kicker: intro ? '시공초월 소식' : '천하 군웅 소식',
       title: ev.title,
       body: `<div class="timeline-card">
         <span class="tl-seal">톡</span>
@@ -16459,7 +16460,7 @@
      그 창들이 닫힌 뒤 성에 다시 들어올 때 연다(SK.show의 screen-city 훅이 부른다). */
   function maybeAutoIntro() {
     /* v5.88 — 처음 성에 들어올 때 저절로 뜨던 입문 안내 창도 띄우지 않는다.
-       개전 데스매치 창 1회만 남기고, 입문서는 성 그림의 [📖 입문] 버튼으로 연다. */
+       개전 창 1회만 남기고, 입문서는 성 그림의 [📖 입문] 버튼으로 연다. */
     return;
     const s = SK.state;
     if (!s || introAutoDone || SK.introGuideOff) return;

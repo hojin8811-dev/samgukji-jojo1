@@ -4658,7 +4658,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=129') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=130') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -4772,6 +4772,186 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   22% { opacity: 1; transform: translateY(-4px) rotate(-6deg) scale(1.08); }
   68% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-24px) rotate(-6deg) scale(0.96); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   v6.4 — 일기토 전투 연출 (원정 v6.3 전투씬의 호흡을 무대에 옮김)
+   · 예비동작(뒤로 젖힘) → 돌진(잔상·발밑 먼지) → 접촉(반달 칼바람·스파크·
+     강타 임팩트 링) → 피격 넉백·히트 플래시 → 복귀 · 패배는 기울며 쓰러짐
+   · 모든 모션 길이는 --dsp(전투 배속)를 곱해 줄어든다 — JS의 dwait와 같은 비율
+   ══════════════════════════════════════════════════════════════ */
+.duel-stage { --dsp: 1; --dtr: 46px; --dwn: 13px; --dkn: 22px; }
+.duel-stage.heavy { --dtr: 62px; --dwn: 17px; --dkn: 34px; }
+
+/* 돌진 전 흙먼지 · 잔상은 스프라이트 뒤(z 2), 이펙트는 그 위(z 5) */
+.duel-ghost {
+  position: absolute; pointer-events: none; z-index: 2; object-fit: contain; object-position: center bottom;
+  opacity: 0.45; transform-origin: 50% 100%;
+  filter: brightness(1.9) saturate(0.45) drop-shadow(0 0 9px rgba(160, 232, 255, 0.9));
+  animation: dvGhostFade calc(var(--dsp, 1) * 0.34s) ease-out forwards;
+}
+.duel-ghost.enemy { transform: scaleX(-1); }
+@keyframes dvGhostFade { from { opacity: 0.45; } to { opacity: 0; } }
+
+.duel-fx-item.arc {
+  width: 168px; height: 168px; border-radius: 50%;
+  background: conic-gradient(from 0deg, #0000 0 92deg, #8fe3ff 132deg, #fff 162deg, #fff 200deg, #9fe9ff 232deg, #0000 272deg);
+  -webkit-mask: radial-gradient(closest-side, #0000 60%, #000 69%, #000 91%, #0000 97%);
+  mask: radial-gradient(closest-side, #0000 60%, #000 69%, #000 91%, #0000 97%);
+  filter: drop-shadow(0 0 5px #eaf9ffdd) drop-shadow(0 2px 7px #0007);
+  animation: dvArc calc(var(--dsp, 1) * 0.38s) cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.duel-fx-item.arc.big {
+  width: 212px; height: 212px;
+  background: conic-gradient(from 0deg, #0000 0 88deg, #ffe0a0 128deg, #fff 158deg, #fff 202deg, #ffd27a 236deg, #0000 276deg);
+  filter: drop-shadow(0 0 7px #fff2cc) drop-shadow(0 2px 10px #0008);
+}
+@keyframes dvArc {
+  0% { transform: translate(-50%, -50%) rotate(calc(var(--a, 0deg) - 62deg)) scale(0.55); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) rotate(calc(var(--a, 0deg) + 44deg)) scale(1); opacity: 0; }
+}
+
+.duel-fx-item.spark {
+  width: 84px; height: 84px;
+  background: repeating-conic-gradient(from 0deg, #fff 0 3deg, #0000 3deg 30deg);
+  -webkit-mask: radial-gradient(closest-side, #0000 10%, #000 42%, #0000 80%);
+  mask: radial-gradient(closest-side, #0000 10%, #000 42%, #0000 80%);
+  animation: dvSpark calc(var(--dsp, 1) * 0.36s) ease-out forwards;
+}
+.duel-fx-item.spark.big { width: 118px; height: 118px; }
+@keyframes dvSpark {
+  0% { transform: translate(-50%, -50%) scale(0.28) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.55) rotate(26deg); opacity: 0; }
+}
+
+.duel-fx-item.ring {
+  width: 58px; height: 58px; border-radius: 50%; border: 3px solid #ffe6a8;
+  box-shadow: 0 0 16px rgba(255, 215, 106, 0.85), inset 0 0 12px rgba(255, 236, 180, 0.6);
+  animation: dvRingOut calc(var(--dsp, 1) * 0.46s) ease-out forwards;
+}
+@keyframes dvRingOut {
+  0% { transform: translate(-50%, -50%) scale(0.28); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
+}
+
+.duel-fx-item.dust {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: radial-gradient(#f6efe0f5, #e8dcc288 46%, #e8dcc200 73%);
+  animation: dvDust calc(var(--dsp, 1) * 0.6s) ease-out forwards;
+}
+@keyframes dvDust {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.85; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, -6px))) scale(1.8); opacity: 0; }
+}
+
+/* ① 예비동작 — 뒤로 젖히며 숨을 고른다 */
+.duel-sprite.mo-wind {
+  animation-name: dvWindA; animation-duration: calc(var(--dsp, 1) * 0.26s);
+  animation-timing-function: ease-out; animation-fill-mode: both;
+}
+.duel-sprite.enemy.mo-wind { animation-name: dvWindB; }
+@keyframes dvWindA {
+  0% { transform: translateX(0) rotate(0deg) scale(1); }
+  100% { transform: translateX(calc(-1 * var(--dwn))) rotate(-7deg) scale(0.97); }
+}
+@keyframes dvWindB {
+  0% { transform: translateX(0) rotate(0deg) scale(1); }
+  100% { transform: translateX(var(--dwn)) rotate(7deg) scale(0.97); }
+}
+
+/* ② 돌진 — 앞으로 파고들어 52% 지점에서 부딪히고, 부드럽게 제자리로 */
+.duel-sprite.mo-charge {
+  animation-name: dvChargeA; animation-duration: calc(var(--dsp, 1) * 0.64s);
+  animation-timing-function: cubic-bezier(0.25, 0.7, 0.35, 1); animation-fill-mode: both;
+}
+.duel-sprite.enemy.mo-charge { animation-name: dvChargeB; }
+@keyframes dvChargeA {
+  0% { transform: translateX(calc(-1 * var(--dwn))) rotate(-7deg) scale(0.97); }
+  52% { transform: translateX(var(--dtr)) rotate(7deg) scale(1.05); }
+  66% { transform: translateX(calc(var(--dtr) + 6px)) rotate(8deg) scale(1.05); }
+  100% { transform: translateX(0) rotate(0deg) scale(1); }
+}
+@keyframes dvChargeB {
+  0% { transform: translateX(var(--dwn)) rotate(7deg) scale(0.97); }
+  52% { transform: translateX(calc(-1 * var(--dtr))) rotate(-7deg) scale(1.05); }
+  66% { transform: translateX(calc(-1 * var(--dtr) - 6px)) rotate(-8deg) scale(1.05); }
+  100% { transform: translateX(0) rotate(0deg) scale(1); }
+}
+
+/* ③ 피격 넉백 — 맞은 쪽이 밀렸다가 스프링처럼 돌아온다 */
+.duel-sprite.mo-hit {
+  animation-name: dvKnockA; animation-duration: calc(var(--dsp, 1) * 0.52s);
+  animation-timing-function: cubic-bezier(0.3, 0.8, 0.4, 1); animation-fill-mode: both;
+}
+.duel-sprite.enemy.mo-hit { animation-name: dvKnockB; }
+@keyframes dvKnockA {
+  0% { transform: translateX(0) rotate(0deg); }
+  16% { transform: translateX(calc(-1 * var(--dkn))) rotate(-5deg); }
+  48% { transform: translateX(calc(-1 * var(--dkn) * 0.5)) rotate(-2deg); }
+  74% { transform: translateX(calc(var(--dkn) * 0.12)) rotate(1deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+@keyframes dvKnockB {
+  0% { transform: translateX(0) rotate(0deg); }
+  16% { transform: translateX(var(--dkn)) rotate(5deg); }
+  48% { transform: translateX(calc(var(--dkn) * 0.5)) rotate(2deg); }
+  74% { transform: translateX(calc(var(--dkn) * -0.12)) rotate(-1deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+/* 흰/붉은 히트 플래시 — 맞은 장수만 번쩍인다(적군은 좌우 반전 유지) */
+.duel-sprite.hitflash img { animation: dvHfA calc(var(--dsp, 1) * 0.3s) ease-out 2 both; }
+.duel-sprite.enemy.hitflash img { animation-name: dvHfB; }
+@keyframes dvHfA {
+  0%, 100% { filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.78)); }
+  50% { filter: brightness(2.6) saturate(0.2) drop-shadow(0 0 16px rgba(255, 138, 74, 0.95)); }
+}
+@keyframes dvHfB {
+  0%, 100% { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 10px rgba(255, 90, 40, 0.55)); }
+  50% { filter: brightness(2.6) saturate(0.2) drop-shadow(0 0 16px rgba(255, 90, 42, 0.95)); }
+}
+
+/* ④ 승리·패배 — 이긴 쪽은 한 번 뛰고, 진 쪽은 그 자리에서 기울며 쓰러진다 */
+.duel-sprite.mo-win {
+  animation-name: dvWinA; animation-duration: calc(var(--dsp, 1) * 0.8s);
+  animation-timing-function: ease-out; animation-fill-mode: both;
+}
+.duel-sprite.enemy.mo-win { animation-name: dvWinB; }
+@keyframes dvWinA {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  26% { transform: translateY(-13px) rotate(-3deg) scale(1.05); }
+  48% { transform: translateY(0) rotate(0deg) scale(0.99); }
+  66% { transform: translateY(-5px) rotate(-1deg) scale(1.02); }
+}
+@keyframes dvWinB {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  26% { transform: translateY(-13px) rotate(3deg) scale(1.05); }
+  48% { transform: translateY(0) rotate(0deg) scale(0.99); }
+  66% { transform: translateY(-5px) rotate(1deg) scale(1.02); }
+}
+.duel-sprite.mo-fall {
+  animation-name: dvFallA; animation-duration: calc(var(--dsp, 1) * 0.72s);
+  animation-timing-function: cubic-bezier(0.4, 0.02, 0.6, 1); animation-fill-mode: forwards;
+  transform-origin: 50% 100%;
+}
+.duel-sprite.enemy.mo-fall { animation-name: dvFallB; }
+@keyframes dvFallA {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  24% { transform: translateY(-7px) rotate(-6deg); opacity: 1; }
+  62% { transform: translateY(5px) rotate(-42deg); opacity: 0.92; }
+  100% { transform: translateY(13px) rotate(-72deg); opacity: 0.34; }
+}
+@keyframes dvFallB {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  24% { transform: translateY(-7px) rotate(6deg); opacity: 1; }
+  62% { transform: translateY(5px) rotate(42deg); opacity: 0.92; }
+  100% { transform: translateY(13px) rotate(72deg); opacity: 0.34; }
+}
+/* 배속이 아주 빠를 때도 모션이 사라지지 않게 (×3·×4) */
+@media (max-height: 740px) {
+  .duel-fx-item.arc { width: 146px; height: 146px; }
+  .duel-fx-item.arc.big { width: 184px; height: 184px; }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5878,7 +6058,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=129') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=130') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6387,7 +6567,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=129) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=130) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}
@@ -7875,14 +8055,23 @@ body.tut-battle .tut-mission { bottom: auto; }
 .tut-intro .modal-p, .tut-done .modal-p { margin: 0 0 8px; }
 .tut-sl { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 5px; }
 .tut-sl li {
-  display: flex; align-items: center; gap: 7px; font-size: 11.5px; line-height: 1.35;
+  display: flex; align-items: flex-start; gap: 7px; font-size: 11.5px; line-height: 1.4;
   color: #4a3a18; background: #fbf4e2; border: 1px solid #e0cfa4; border-radius: 8px; padding: 5px 8px;
 }
-.tut-sl li b {
-  flex: 0 0 auto; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center;
-  background: #b8862f; color: #fff8e6; font-size: 10px;
+/* v6.4 — 단계 번호(b.tnum)만 17px 동그라미로 두고, 본문 속 <b>시장</b>·<b>다음 달</b>·<b>포차대</b>·<b>필살기</b>는
+   동그라미를 벗겨 글자 폭만큼만 차지하게 한다(17px 원 안에서 '시장'이 잘리던 문제). */
+.tut-sl li > b.tnum {
+  flex: 0 0 auto; width: 17px; height: 17px; margin-top: 1px; border-radius: 50%;
+  display: grid; place-items: center; background: #b8862f; color: #fff8e6;
+  font-size: 10px; line-height: 1; padding: 0;
 }
-.tut-sl.done li b { background: #5a7a4a; }
+.tut-sl li .tlx { flex: 1 1 auto; min-width: 0; word-break: keep-all; }
+.tut-sl li .tlx b, .tut-sl li > b:not(.tnum) {
+  display: inline; width: auto; height: auto; min-width: 0; border-radius: 0; background: none;
+  color: #7a4b0c; font-weight: 800; font-size: inherit; line-height: inherit; padding: 0;
+  box-shadow: none;
+}
+.tut-sl.done li .tlx b, .tut-sl.done li > b:not(.tnum) { background: none; color: #4a6a35; }
 .tut-armies { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px; }
 .tut-armies .ta {
   flex: 1; display: block; font-size: 9.5px; line-height: 1.35; padding: 6px 8px; border-radius: 9px;
