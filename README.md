@@ -6,6 +6,17 @@
 
 > 이어서 개발할 사람·AI는 **[`HANDOFF.md`](HANDOFF.md)**(인수인계서)와 **[`HANDOFF_PROMPT.md`](HANDOFF_PROMPT.md)**(복붙용 지시서)부터 보세요.
 
+## v5.95 관문도 요새처럼 — 시설 5칸(고정 4 + 자유 1)·고정 시설 철거 불가·성벽 ×2 + 금·군량 실시간 갱신 (2026-11-25)
+
+배포는 `?v=122`입니다. 사용자: "관문도 요새처럼 바꾸고 금은 실시간으로 사용할때마다 바꿔줘". v5.93에서 **요새 2곳에만** 넣었던 규칙을 **관문 9곳(동관·함곡관·호관·산해관·호로관·양평관·검각·노수·대관령)** 에 그대로 적용하고, 금을 쓰는 순간 성 화면 머리 숫자가 따라오게 했습니다.
+
+- **① 관문 = 요새와 같은 규칙** (`js/app.js`): `SLOT_MAX.pass` `4→5`, `SLOT_DEFAULT.pass = ['barracks','wall','academy','training', null]`. 요새·관문 공통 판정 `isFortLike(c)`(=`type === 'fortress' || 'pass'`)를 두고 `ensureSlots`가 관문에도 `enforceFortressSlots(cs)`와 **`cs.wallMul = 2`**를 겁니다. 시설 카드의 `고정` 칩(`renderCitySlots`)·철거 거부(`demolishSlot`, 안내문 `관문의 고정 시설…`)·상세창의 `철거 불가 — 관문 고정 시설`(`openSlot`)이 모두 요새와 같은 자리에서 관문에도 걸립니다. 내정 탭 `성벽 ×2`(`renderCityDev`), 출진 편성 카드 `성벽 60 ×2 (관문)`(`openDeploy`)도 통일했습니다.
+- **② 성벽 방어 2배** (`js/data.js`·`js/battle.js`·`js/app.js`): `SK.fortressWallMul`이 관문도 2.0을 돌려주고(일반 성 1.0), 전장 `B.wallDefMul`·전략 `cityPower`(`cs.wallMul`)가 같은 값을 씁니다. 관문의 전장은 종전대로 산전(`battleTypeFor` → `mountain`)이고, 수비측 성벽 보정만 요새와 같아집니다.
+- **③ 구세이브(관문 4칸) 이관** (`js/app.js` `enforceFortressSlots`): 옛 저장의 관문 4칸은 **건물을 하나도 지우지 않고** 5칸으로 늘립니다 — 빈 칸에 고정 시설을 채우고, 0~3칸이 다 찼으면 비고정 건물 하나를 자유 칸(4)으로 옮겨 그 자리에 넣습니다. 자리가 모자라 못 넣은 고정 시설은 **나중에 철거로 칸이 비면 자동으로 채워집니다**(`ensureSlots`가 성을 열 때마다 부름). 새 게임은 병영·성벽·수련관·연병장 + 공터 1로 시작합니다.
+- **④ 금·군량 실시간 갱신** (`js/app.js`): 금액 표기만 다시 칠하는 얇은 `paintMoney(s)`(지도 HUD `#map-gold`·`#map-food`·합계 + **성 화면 `#city-gold`·`#city-gold-total`·`#city-food`·`#city-food-total`**)를 만들고, ① `refreshHud`가 맨 앞에서 이 함수를 부르고 ② **금고 setter(`installPurse`)가 금·군량이 바뀔 때마다 `SK.purseHudPoke()` → `paintMoney`를 직접 부릅니다**(재귀 방지 플래그). 그래서 포상·성 승격·등용·건설·사건 등 **어느 경로로 소비하든**, 창을 다시 열지 않아도 같은 순간에 숫자가 줄어듭니다. 성 화면이 그리는 성은 `SK.cityScreenId`(openCity가 기록)로 잡고, 지도 HUD의 금고는 실제 소비 금고(`purseIdOf` = `purseCs`와 같은 순서: purseCity → lastCity → playerCapital)로 맞춰 **화면 숫자와 실제 차감되는 금고가 어긋나지 않게** 했습니다.
+- **캐시버스터**: `index.html`(19곳)·`manifest.webmanifest`·`sw.js`(등록 쿼리)·`css/game.css`·`js/battle.js`의 `?v=121` → **`?v=122`**. `SAVE_KEY = 'samgukji-jojo-v4-save'`는 그대로입니다.
+- **검수**: `python3 tools/v595_verify.py` — 시설 칸·기본 배치·`isFortLike` 배선·철거 3곳·성벽 ×2 표시·`fortressWallMul`·구세이브 이관 4가지 모양(건물 보존 확인)·`paintMoney`·setter 훅·캐시버스터·저장 키·관문 9곳/요새 2곳 데이터 — **38항목 OK / 0 FAIL**. JS 문법(esprima, 옵셔널 체이닝 중화) `app.js`·`battle.js`·`data.js`·`sw.js` 오류 0. 라이브(`?v=122`)에서 동탁군으로 시작해 확인: **호로관(관문)** 시설 `4/5칸 · 공터 1`, 병영·성벽·수련관·연병장 모두 `고정`(철거 칩 없음)·상세창 `철거 불가 — 관문 고정 시설`, 내정 탭 `성벽 ×2`. 라이브 상태에서 관문 9곳·요새 2곳 전부 `slots 5`·`keys [barracks,wall,academy,training,null]`·`fixed [true,true,true,true,false]`·`wallMul 2`(대관령 관문 포함), `SK.fortressWallMul(대관령)=2`·`(낙양)=1`. 금 실측: 낙양에서 군량 상인으로 **금 500을 쓰자 창을 닫기 전에** 성 화면 머리 `1,834 → 1,334`, 군량 `6,228 → 6,698`(`/ 6,980 → / 7,450`)로 즉시 바뀌었고, 같은 방식으로 금 1,000을 쓰고 되판 뒤 `#city-food-total`이 `7,920 → 6,980`으로 따라오는 것까지 확인했습니다(창을 닫으면 그 값 그대로). 페이지 오류 0건. 스샷 `preview/v595/`. ※ 대관령은 어느 시나리오에서도 중립이라 화면 시연은 같은 `pass` 타입인 **호로관**으로 했고, 대관령 자체는 라이브 상태값으로 확인했습니다.
+
 ## v5.94 하단 [인사·탐색] 버튼 회색 해제 + 군주 선택 초상 단일화 (2026-11-25)
 
 배포는 `?v=121`입니다. v5.93에서 들어간 **하단 버튼 잠금을 되돌리고**, 군주 선택 화면에서 아직 통일되지 않았던 초상들을 정리했습니다(사용자: "주점 업그레이드 한거에선 인사탭 안에 주점만 회색으로 없을시. 그랬는데 하단인사탭까지 회색이 들어갔어 고쳐줘" · "군주픽 탭에선 아직도 단일화가 안된 군주가 있고" · "초상화 단일화도 진행해줘").
