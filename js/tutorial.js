@@ -151,7 +151,8 @@
     banner.className = 'tut-mission';
     banner.setAttribute('role', 'status');
     banner.setAttribute('aria-live', 'polite');
-    document.body.appendChild(banner);
+    /* #app 안에 두어야 모달(#modal-root z=50) 아래에 깔린다 (#app이 자체 스택 문맥) */
+    (document.getElementById('app') || document.body).appendChild(banner);
     return banner;
   }
   /* 화면마다 실측한 하단 막대 위(전장은 상단 머리 아래)에 배너를 앉힌다.
@@ -279,7 +280,7 @@
         '<div class="tut-armies"><span class="ta ally"><b>아군 진류</b>조조 · 하후돈 · 곽가<br>병력 8,000 · 금 1,000 · 군량 3,000</span>' +
         '<span class="ta vs">VS</span>' +
         '<span class="ta foe"><b>적 허창</b>재야 수비병<br>병력 1,200 · 성벽 1중</span></div>' +
-        '<p class="modal-sub">언제든 오른쪽 위 [튜토리얼 나가기]로 표지로 돌아갈 수 있습니다.</p>' +
+        '<p class="modal-sub">언제든 미션 배너의 [튜토리얼 나가기]로 표지로 돌아갈 수 있습니다.</p>' +
         '</div>',
       actions: [
         { label: '나가기', onClick: function () { exit(); backToTitle(); } },

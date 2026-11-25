@@ -7805,3 +7805,7 @@ body.tut-battle .tut-mission { bottom: auto; }
   border: 2px solid #6d4a08; box-shadow: 0 4px 12px rgba(90, 60, 10, 0.35);
 }
 .tut-done .tut-sl { text-align: left; }
+
+/* v5.98 — 튜토리얼 미션 배너가 성 화면 맨 아래 줄을 가리지 않게 스크롤 여백을 준다 */
+body.tut-on .city-mid { padding-bottom: 58px; }
+body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }

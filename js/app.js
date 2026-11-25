@@ -11624,7 +11624,7 @@
         <div><b>${armyName(f)} 수비병 ${fmt(ts.troops)}</b><span>${fc ? `전장 적 총병력 <b class="df-total">${fmt(fc.total)}</b> (${fc.count}부대)${fc.supportMax ? ` · 원군 최대 +${fmt(fc.supportMax)}` : ''} · ` : ''}성벽 ${ts.def}${isFortLike(tc) ? ` <b class="df-total">×2 (${typeName(tc.type)})</b>` : ''} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, Object.keys(pick), s)}
-      <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name}${viaTxt ? `<b class="mn-via">${viaTxt}</b>` : ''}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2개월째에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ' — 바로 이어진 길입니다. 다음 달 도착해 수비병 2,500 이상이면 80% 확률로 길목 요격전을 치르고 곧바로 공성전으로 이어집니다')}</p>
+      <p class="march-note">${(window.SKTUT && window.SKTUT.active) ? `<b>입문</b> · ${SK.CITY[origin].name} → ${tc.name} — [출진!]을 누르면 행군 없이 바로 공성전이 열립니다` : `<b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name}${viaTxt ? `<b class="mn-via">${viaTxt}</b>` : ''}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2개월째에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ' — 바로 이어진 길입니다. 다음 달 도착해 수비병 2,500 이상이면 80% 확률로 길목 요격전을 치르고 곧바로 공성전으로 이어집니다')}`}</p>
       ${(ts.genIds && ts.genIds.length) ? `<p class="enemy-gens">적장 — ${ts.genIds.map((gid) => SK.GEN_BY_ID[gid]).filter(Boolean).map((g) => `${g.name}(${g.tier})`).join(' · ')}</p>` : ''}
       ${aiSup.length ? `<p class="enemy-support">⚠ 인접 ${aiSup.map((x) => x.name).join(' · ')}에 원군 병력 — 수성전에 <b>적 지원군</b>이 합류할 수 있습니다</p>` : ''}
       <div class="troop-ledger">
@@ -14633,6 +14633,7 @@
   SK.pickChoiceTalent = pickChoiceTalent;
   SK.choiceTalentPool = choiceTalentPool;
   function rollChoiceEvent(s, forceKind) {
+    if (s && s.tutorial) return null;   // v5.98 — 튜토리얼은 선택지 사건 없이 4단계만
     if ((s.turn || 1) < 3) return null;
     if (!forceKind && Math.random() > 0.45) return null;
     const cap = CITY[s.playerCapital] || CITY[s.lastCity] || { name: '본성' };
@@ -14737,6 +14738,9 @@
   }
 
   function rollMonthEvent(s) {
+    /* v5.98 — 튜토리얼에서는 돌발 내정 사건(산적·흉년 등)을 열지 않는다.
+       입문 약속(병력 8,000 · 금 1,000 · 군량 3,000)이 첫 달에 흔들리지 않게. */
+    if (s && s.tutorial) return null;
     const season = seasonOf(s.month);
     const list = SK.DOMESTIC_EVENTS || [];
     if (list.length) {
