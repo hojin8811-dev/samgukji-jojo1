@@ -2963,29 +2963,33 @@ SK.innerSlots = function (rings, cols) {
   const n = cols || (rings >= 3 ? 32 : (rings === 2 ? 28 : 24));
   return SK.enemySlots('siege', rings, n);
 };
-/* 성 안쪽(수비) 슬롯 — 적 본진을 감싸는 자리 */
-function slotsAround(base, n, count) {
+/* 성 안쪽(수비) 슬롯 — 적 본진을 감싸는 자리
+   v5.90 — 가로(n)·세로(nr)를 따로 받는다 (직사각형 지도에서 세로 칸이 잘리지 않게) */
+function slotsAround(base, n, count, nr) {
   const out = [];
-  if (!base) return [[Math.floor(n / 2), Math.floor(n / 2)]];
+  const ny = nr || n;
+  if (!base) return [[Math.floor(n / 2), Math.floor(ny / 2)]];
   for (let dy = 0; dy <= 3; dy++) {
     for (let dx = -2; dx <= 2; dx++) {
       const x = base.x + dx, y = base.y + dy;
-      if (x < 0 || y < 0 || x >= n || y >= n) continue;
+      if (x < 0 || y < 0 || x >= n || y >= ny) continue;
       out.push([x, y]);
     }
     for (let dx = -2; dx <= 2; dx++) {
       const x = base.x + dx, y = base.y - dy;
-      if (y < 0 || x < 0 || x >= n || y >= n) continue;
+      if (y < 0 || x < 0 || x >= n || y >= ny) continue;
       if (dy > 0) out.push([x, y]);
     }
   }
   return out.slice(0, count || 10);
 }
-SK.enemySlots = function (type, rings, cols) {
+SK.enemySlots = function (type, rings, cols, rows) {
   const meta = SK.MAP_META[type === 'defense' ? 'siege' : (SK.BATTLE_TYPES[type] && SK.BATTLE_TYPES[type].img)] || null;
   const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
   const m = SK.MAP_META[key] || meta;
   const n = cols || (m ? m.cols : 24);
+  /* v5.90 — 세로 칸수도 따로 받는다 */
+  const nr = rows || (m ? m.rows : n);
   if (type === 'defense') {
     /* 수성전 — 침공군은 성 밖 길목에서 올라온다 */
     const outerRow = Math.max(3, (m ? m.rows : n) - 3);
@@ -3018,20 +3022,22 @@ SK.enemySlots = function (type, rings, cols) {
     const near = slotsAround(m.enemyBase, n, 10).filter(([, y]) => y < outerGate);
     return out.concat(near).slice(0, 10);
   }
-  return slotsAround(m && m.enemyBase, n, 10);
+  return slotsAround(m && m.enemyBase, n, 10, nr);
 };
 function clampX(x, n) { return Math.max(0, Math.min(n - 1, x)); }
-SK.allySlots = function (type, rings, cols) {
+SK.allySlots = function (type, rings, cols, rows) {
   const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
   const m = SK.MAP_META[key];
   const n = cols || (m ? m.cols : 24);
-  if (type === 'defense') return slotsAround(m && m.enemyBase, n, 10);
-  const base = m && m.allyBase ? m.allyBase : { x: Math.floor(n / 2), y: n - 2 };
+  /* v5.90 — 세로 칸수도 따로 받는다 (직사각형 지도에서 아래쪽 자리가 잘리지 않게) */
+  const nr = rows || (m ? m.rows : n);
+  if (type === 'defense') return slotsAround(m && m.enemyBase, n, 10, nr);
+  const base = m && m.allyBase ? m.allyBase : { x: Math.floor(n / 2), y: nr - 2 };
   /* 아군은 본진 앞 두 줄에 폭 5칸으로 늘어선다 (10부대) */
   const out = [];
   [0, -1, -2].forEach((dy) => [-2, -1, 0, 1, 2].forEach((dx) => {
     const x = base.x + dx, y = base.y + dy;
-    if (x >= 0 && y >= 0 && x < n && y < n) out.push([x, y]);
+    if (x >= 0 && y >= 0 && x < n && y < nr) out.push([x, y]);
   }));
   return out;
 };

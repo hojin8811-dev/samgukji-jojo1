@@ -6,9 +6,15 @@
   const SK = window.SK;
   const $ = (s) => document.querySelector(s);
   /* v5.17 — 격자 크기는 전장마다 다르다. 요격·소도시 24, 중도시 28, 대도시 32.
-     startBattle에서 B.cols·B.rows에 맞춰 N·WORLD를 다시 잡는다. */
+     v5.90 — 가로(COLS)·세로(ROWS)를 따로 둔다. 직사각형 지도에서도 카메라 클램프·
+     미니맵·그리기 범위가 실제 지도 크기와 어긋나지 않는다.
+     startBattle에서 B.cols·B.rows에 맞춰 다시 잡는다. */
   const TILE = 64;
-  let N = 18, WORLD = N * TILE;
+  let COLS = 18, ROWS = 18;
+  let WORLD_W = COLS * TILE, WORLD_H = ROWS * TILE;
+  /* v5.90 — 화면 가장자리 HUD(위 목표 띠·오른쪽 미니맵·아래 줌/팁)에 가려진 끝 칸도
+     가운데 쪽으로 끌어와 누를 수 있게, 카메라가 지도 밖으로 이만큼 더 나가게 허용한다. */
+  const CAM_PAD_L = 72, CAM_PAD_R = 72, CAM_PAD_T = 56, CAM_PAD_B = 84;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const rnd = (a, b) => a + Math.random() * (b - a);
   /* cheb — 정사각(맨해튼 아님) 거리. 인연·특기 같은 '주변' 판정에만 쓴다 */
@@ -195,7 +201,8 @@
     const meta = SK.MAP_META[mapKey] || (def.map && SK.MAP_META[def.map]) || null;
     const cols = meta ? meta.cols : tiles[0].length;
     const rows = meta ? meta.rows : tiles.length;
-    N = cols; WORLD = N * TILE;
+    COLS = cols; ROWS = rows;
+    WORLD_W = COLS * TILE; WORLD_H = ROWS * TILE;
     const bgKey = (type === 'siege' || type === 'defense')
       ? (rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'))
       : (def.img || def.map);
@@ -393,12 +400,13 @@
         { k: 'siege_tower', x: 4, y: 14, s: 0.9 }, { k: 'siege_tower', x: 13, y: 14, s: 0.9 },
       ];
     }
-    placeSide(allies, SK.allySlots(type, rings, cols), 'ally', type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null);
+    /* v5.90 — 배치 도우미에도 가로·세로를 함께 넘긴다 (직사각형 지도 대응) */
+    placeSide(allies, SK.allySlots(type, rings, cols, rows), 'ally', type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null);
     /* v5.81 — AI 진형: 탱커(검병·창병·등갑병)를 전열에, 원거리·보조를 후열에 세운다 */
     const DEPLOY_RANK = { geombyung: 0, changbyung: 1, deunggabyung: 0, mudoga: 2, yasubyung: 2, sanjeok: 2, sujeok: 2, gibi: 2, gunwoong: 3,
       gungsu: 4, gunggi: 4, yeonnobyung: 4, pocha: 5, balseokcha: 5, chaeksa: 6, dosa: 6, pungsusa: 7, muhui: 7, gunakdae: 7 };
     enemies.sort((a, b) => (DEPLOY_RANK[a.cls] == null ? 3 : DEPLOY_RANK[a.cls]) - (DEPLOY_RANK[b.cls] == null ? 3 : DEPLOY_RANK[b.cls]));
-    placeSide(enemies, SK.enemySlots(type, rings, cols), 'enemy');
+    placeSide(enemies, SK.enemySlots(type, rings, cols, rows), 'enemy');
     /* v5.31 — 사기·상태이상 초기화 (보물의 사기 +N·상태이상 저항이 여기서 붙는다) */
     B.units.forEach(initStatus);
     /* v5.32 — 행군 중도 야영(사기 +N)과 강행군 기습(적 사기 −8)을 전장으로 넘긴다 */
@@ -817,11 +825,11 @@
   }
   SK.defenseZoneSlots = defenseZoneSlots;
   function findFree(tiles, cx, cy) {
-    for (let r = 0; r < N; r++) {
+    for (let r = 0; r < Math.max(COLS, ROWS); r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const x = cx + dx, y = cy + dy;
-          if (x < 0 || y < 0 || x >= N || y >= N) continue;
+          if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
           if (!passable(tiles[y][x])) continue;
           if (B.units.some((o) => o.x === x && o.y === y)) continue;
           return { x, y };
@@ -930,11 +938,16 @@
 
   function camClamp() {
     const w = canvas.width / dpr, h = canvas.height / dpr;
-    const sw = WORLD * cam.s, sh = WORLD * cam.s;
-    if (sw <= w) cam.x = (w - sw) / 2;
-    else cam.x = clamp(cam.x, w - sw, 0);
-    if (sh <= h) cam.y = (h - sh) / 2;
-    else cam.y = clamp(cam.y, h - sh, 0);
+    const sw = WORLD_W * cam.s, sh = WORLD_H * cam.s;
+    /* v5.90 — 좌우 72px·위 56px·아래 84px 여백을 허용한다. 지도가 화면보다 크면
+       끝 칸(0,0 · COLS-1,0 · 0,ROWS-1 · COLS-1,ROWS-1)을 HUD 안쪽 가운데로 끌어올 수 있고,
+       작으면 여백 안에서 가운데로 둔다. */
+    const iw = Math.max(40, w - CAM_PAD_L - CAM_PAD_R);
+    const ih = Math.max(40, h - CAM_PAD_T - CAM_PAD_B);
+    if (sw <= iw) cam.x = CAM_PAD_L + (iw - sw) / 2;
+    else cam.x = clamp(cam.x, (w - CAM_PAD_R) - sw, CAM_PAD_L);
+    if (sh <= ih) cam.y = CAM_PAD_T + (ih - sh) / 2;
+    else cam.y = clamp(cam.y, (h - CAM_PAD_B) - sh, CAM_PAD_T);
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -1107,9 +1120,16 @@
     new ResizeObserver(() => { if (B) { resizeCanvas(); camClamp(); } }).observe(stage);
   }
 
+  /* v5.90 — 여백(CAM_PAD_*)을 뺀 상자에 지도 전체가 들어가는 배율 */
+  function viewFit() {
+    if (!stage) return 1;
+    const iw = Math.max(40, stage.clientWidth - CAM_PAD_L - CAM_PAD_R);
+    const ih = Math.max(40, stage.clientHeight - CAM_PAD_T - CAM_PAD_B);
+    return Math.min(iw / WORLD_W, ih / WORLD_H);
+  }
   function zoomAt(ns, fx2, fy2) {
     stopInertia();
-    const fit = Math.min(stage.clientWidth / WORLD, stage.clientHeight / WORLD);
+    const fit = viewFit();
     ns = clamp(ns, fit * 0.95, 2.2);
     const k = ns / cam.s;
     cam.x = fx2 - (fx2 - cam.x) * k;
@@ -1175,14 +1195,14 @@
 
   function buildSiegeLayer(tiles) {
     const cv = document.createElement('canvas');
-    cv.width = cv.height = Math.round(WORLD * SIEGE_SCALE);
+    cv.width = Math.round(WORLD_W * SIEGE_SCALE); cv.height = Math.round(WORLD_H * SIEGE_SCALE);
     const g = cv.getContext('2d');
     g.scale(SIEGE_SCALE, SIEGE_SCALE);
-    const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 'P' : tiles[y][x]);
+    const at = (x, y) => (x < 0 || y < 0 || x >= COLS || y >= ROWS ? 'P' : tiles[y][x]);
     // 1) 바닥(잔디)을 전부 깔고 2) 지형별로 덧그린다
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) siegeGrass(g, x, y);
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) siegeGrass(g, x, y);
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = at(x, y);
         const px = x * TILE, py = y * TILE;
         g.save();
@@ -1203,8 +1223,8 @@
       }
     }
     // 성문은 두 칸을 한 덩어리로 그려야 하므로 벽 위에 따로 얹는다
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         if (at(x, y) === 'G' && at(x - 1, y) !== 'G') {
           const w = at(x + 1, y) === 'G' ? 2 : 1;
           g.save(); g.translate(x * TILE, y * TILE); siegeGate(g, w); g.restore();
@@ -1404,8 +1424,8 @@
     const t = performance.now() / 1400;
     ctx.save();
     ctx.strokeStyle = 'rgba(200,232,245,0.5)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         if (B.tiles[y][x] !== 'W') continue;
         for (let i = 0; i < 2; i++) {
           const ph = (t + siegeHash(x, y, 130 + i)) % 1;
@@ -1431,7 +1451,7 @@
     if (!mmBig) return MM_SMALL;
     const vw = window.innerWidth || 390;
     /* v5.33 — 32×32 대도시에서는 확대해도 성곽(본성·성문)을 덜 가리게 한 단계 작게 */
-    const cap = N >= 28 ? 148 : 168;
+    const cap = Math.max(COLS, ROWS) >= 28 ? 148 : 168;
     return Math.round(Math.min(cap, Math.max(136, vw * 0.42)));
   }
   /* v5.33 — 확대한 미니맵이 덮는 폭만큼 전장 초점을 왼쪽으로 비켜 준다 */
@@ -1456,13 +1476,13 @@
     const sc = st.getContext('2d');
     sc.setTransform(dpr2, 0, 0, dpr2, 0, 0);
     sc.fillStyle = '#2a2317'; sc.fillRect(0, 0, S, S);
-    const sx = S / N, sy = S / N;
+    const sx = S / COLS, sy = S / ROWS;
     /* v5.86b — 커스텀 전장은 칠한 타일을 색으로 줄여 미니맵에 그대로 보여 준다 */
     const custom = !!B.customTilesRender;
     const img = custom ? null : loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
     if (custom) {
-      for (let y = 0; y < N; y++) {
-        for (let x = 0; x < N; x++) {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
           sc.fillStyle = MM_CUSTOM[B.tiles[y][x]] || MM_CUSTOM.P;
           sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6);
         }
@@ -1470,8 +1490,8 @@
     } else {
       if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, S, S);
       else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, S, S); }
-      for (let y = 0; y < N; y++) {
-        for (let x = 0; x < N; x++) {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
           const ch = B.tiles[y][x];
           if (ch === 'C' || ch === 'H') { sc.fillStyle = 'rgba(34,26,14,0.62)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
           else if (ch === 'W') { sc.fillStyle = 'rgba(40,96,150,0.55)'; sc.fillRect(x * sx, y * sy, sx + 0.6, sy + 0.6); }
@@ -1498,7 +1518,7 @@
     c.drawImage(mmStatic, 0, 0);
     const dpr2 = cv.width / S;
     c.setTransform(dpr2, 0, 0, dpr2, 0, 0);
-    const sx = S / N, sy = S / N;
+    const sx = S / COLS, sy = S / ROWS;
     /* 본진·마을 */
     (B.sites || []).forEach((s) => {
       /* v5.38 — 점령된 본진은 미니맵에서도 점령한 진영 색 */
@@ -1550,8 +1570,8 @@
     const vw = (w / cam.s) / TILE, vh = (h / cam.s) / TILE;
     c.strokeStyle = 'rgba(255,255,255,0.95)';
     c.lineWidth = 1.4;
-    const x0 = clamp(vx, 0, N) * sx, y0 = clamp(vy, 0, N) * sy;
-    const x1 = clamp(vx + vw, 0, N) * sx, y1 = clamp(vy + vh, 0, N) * sy;
+    const x0 = clamp(vx, 0, COLS) * sx, y0 = clamp(vy, 0, ROWS) * sy;
+    const x1 = clamp(vx + vw, 0, COLS) * sx, y1 = clamp(vy + vh, 0, ROWS) * sy;
     c.strokeRect(x0, y0, Math.max(2, x1 - x0), Math.max(2, y1 - y0));
     if (mmNote) mmNote(mmOpen);
   }
@@ -1625,8 +1645,8 @@
     const jump = (ev) => {
       if (!B || !canvas) return;
       const r = cv.getBoundingClientRect();
-      const x = clamp((ev.clientX - r.left) / r.width, 0, 1) * N;
-      const y = clamp((ev.clientY - r.top) / r.height, 0, 1) * N;
+      const x = clamp((ev.clientX - r.left) / r.width, 0, 1) * COLS;
+      const y = clamp((ev.clientY - r.top) / r.height, 0, 1) * ROWS;
       centerCam(Math.floor(x), Math.floor(y));
       SK.sfx.play('ui');
     };
@@ -1657,8 +1677,8 @@
     } else {
       // v5.17 — 모든 전장이 칸 수에 맞는 그림을 쓴다 (공성·수성은 겹성벽 그림)
       const bg = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
-      if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD, WORLD);
-      else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+      if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD_W, WORLD_H);
+      else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
     }
 
     drawTerrainTint();
@@ -1747,11 +1767,11 @@
     /* v5.17 — 배경 그림이 막사·성벽·성문을 이미 담고 있다. 프랍을 다시 얹으면 겹쳐 보인다. */
     return;
     const img = (n) => loadImg(`assets/battle/${n}.webp`);
-    const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 'P' : B.tiles[y][x]);
+    const at = (x, y) => (x < 0 || y < 0 || x >= COLS || y >= ROWS ? 'P' : B.tiles[y][x]);
     const wallAt = (x, y) => { const c = at(x, y); return c === 'C' || c === 'G'; };
     /* 성벽·성문 */
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = at(x, y);
         if (ch === 'G') {
           const gate = (B.gates || []).find((g) => g.tiles.some((t) => t.x === x && t.y === y));
@@ -1764,8 +1784,8 @@
       }
     }
     /* 망루·본성·숲·산 */
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = at(x, y);
         if (ch === 'T') drawProp(img('watchtower'), x, y, 1.0);
         else if (ch === 'K') drawProp(img('hq_pavilion'), x, y, 1.12);
@@ -2209,14 +2229,14 @@
   /* 커스텀 전장 바탕 한 장 — 칸마다 자기 지형을 그린다 */
   function buildCustomTerrain() {
     const cv = document.createElement('canvas');
-    cv.width = WORLD; cv.height = WORLD;
+    cv.width = WORLD_W; cv.height = WORLD_H;
     const c = cv.getContext('2d');
     if (!c) return null;
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) ctGrass(c, x * TILE, y * TILE, x, y);
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) ctGrass(c, x * TILE, y * TILE, x, y);
     }
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = ctAt(x, y);
         const X = x * TILE, Y = y * TILE;
         if (ch === 'R') ctRoad(c, X, Y, x, y);
@@ -2238,23 +2258,25 @@
   }
   function drawCustomTerrain() {
     if (!B || !B.tiles) return;
-    if (!B._terrain || B._terrain.width !== WORLD) B._terrain = buildCustomTerrain();
-    if (B._terrain) ctx.drawImage(B._terrain, 0, 0, WORLD, WORLD);
-    else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD, WORLD); }
+    if (!B._terrain || B._terrain.width !== WORLD_W || B._terrain.height !== WORLD_H) B._terrain = buildCustomTerrain();
+    if (B._terrain) ctx.drawImage(B._terrain, 0, 0, WORLD_W, WORLD_H);
+    else { ctx.fillStyle = '#7d8a52'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
   }
 
   function drawGrid() {
     ctx.save();
     ctx.strokeStyle = 'rgba(46,38,22,0.20)';
     ctx.lineWidth = 1 / Math.max(0.4, cam.s);
-    for (let i = 0; i <= N; i++) {
-      ctx.beginPath(); ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, WORLD); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, i * TILE); ctx.lineTo(WORLD, i * TILE); ctx.stroke();
+    for (let i = 0; i <= COLS; i++) {
+      ctx.beginPath(); ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, WORLD_H); ctx.stroke();
+    }
+    for (let i = 0; i <= ROWS; i++) {
+      ctx.beginPath(); ctx.moveTo(0, i * TILE); ctx.lineTo(WORLD_W, i * TILE); ctx.stroke();
     }
     // frame
     ctx.strokeStyle = 'rgba(30,24,14,0.55)';
     ctx.lineWidth = 3 / cam.s;
-    ctx.strokeRect(2, 2, WORLD - 4, WORLD - 4);
+    ctx.strokeRect(2, 2, WORLD_W - 4, WORLD_H - 4);
     ctx.restore();
   }
 
@@ -2267,8 +2289,8 @@
     const cw = canvas.width / dpr, chh = canvas.height / dpr;
     const x0 = Math.max(0, Math.floor((-cam.x / cam.s) / TILE) - 1);
     const y0 = Math.max(0, Math.floor((-cam.y / cam.s) / TILE) - 1);
-    const x1 = Math.min(N - 1, Math.ceil((cw - cam.x) / cam.s / TILE) + 1);
-    const y1 = Math.min(N - 1, Math.ceil((chh - cam.y) / cam.s / TILE) + 1);
+    const x1 = Math.min(COLS - 1, Math.ceil((cw - cam.x) / cam.s / TILE) + 1);
+    const y1 = Math.min(ROWS - 1, Math.ceil((chh - cam.y) / cam.s / TILE) + 1);
     ctx.save();
     ctx.lineCap = 'round';
     for (let y = y0; y <= y1; y++) {
@@ -2299,8 +2321,8 @@
     if (B.type === 'siege' || B.type === 'defense') {
       const t0 = B.tiles;
       ctx.save();
-      for (let y = 0; y < N; y++) {
-        for (let x = 0; x < N; x++) {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
           const ch = t0[y][x];
           if (ch === 'C') {
             ctx.fillStyle = 'rgba(44,36,24,0.10)';
@@ -2321,8 +2343,8 @@
       return;
     }
     const t = B.tiles;
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = t[y][x];
         if (ch === 'C') {
           ctx.fillStyle = 'rgba(86,78,62,0.42)';
@@ -2396,8 +2418,8 @@
     if (!B || !B.tiles) return;
     const tower = loadImg('assets/battle/watchtower.webp');
     const keep = loadImg('assets/battle/hq_pavilion.webp');
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = B.tiles[y][x];
         if (ch === 'T') drawProp(tower, x, y, 0.94, 0.96);
         else if (ch === 'K') drawProp(keep, x, y, 1.08, 0.96);
@@ -2606,7 +2628,7 @@
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         if (!dx && !dy) continue;
         const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+        if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
         const ch = B.tiles[ny][nx];
         const cost = moveCost(u.cls, ch, nx, ny, u.side, u);
         if (cost >= 90) continue;
@@ -2653,8 +2675,8 @@
         /* v5.13 — 회복·아군 버프는 범위 자체를 초록으로 물들인다 (자기 발밑 포함) */
         const greenRange = pendingSkill.kind === 'heal' || pendingSkill.kind === 'buffAlly';
         const inSet = new Set();
-        for (let y2 = 0; y2 < N; y2++) {
-          for (let x2 = 0; x2 < N; x2++) {
+        for (let y2 = 0; y2 < ROWS; y2++) {
+          for (let x2 = 0; x2 < COLS; x2++) {
             const d2 = manh(u.x, u.y, x2, y2);
             if (d2 < minR || d2 > rng) continue;
             inSet.add(x2 + ',' + y2);
@@ -2688,8 +2710,8 @@
         if (rad > 0) {
           const hx = (hoverTile && manh(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.x : u.x;
           const hy = (hoverTile && manh(u.x, u.y, hoverTile.x, hoverTile.y) <= rng) ? hoverTile.y : u.y;
-          for (let y2 = 0; y2 < N; y2++) {
-            for (let x2 = 0; x2 < N; x2++) {
+          for (let y2 = 0; y2 < ROWS; y2++) {
+            for (let x2 = 0; x2 < COLS; x2++) {
               if (manh(hx, hy, x2, y2) > rad) continue;
               ctx.fillStyle = 'rgba(255,170,90,0.26)';
               ctx.fillRect(x2 * TILE + 2, y2 * TILE + 2, TILE - 4, TILE - 4);
@@ -2706,8 +2728,8 @@
         const pulse3 = 0.5 + 0.5 * Math.sin(performance.now() / 400);
         const minA = u.minRng || 1;
         const inSetA = new Set();
-        for (let y2 = 0; y2 < N; y2++) {
-          for (let x2 = 0; x2 < N; x2++) {
+        for (let y2 = 0; y2 < ROWS; y2++) {
+          for (let x2 = 0; x2 < COLS; x2++) {
             const d2 = manh(u.x, u.y, x2, y2);
             if (d2 < minA || d2 > rng) continue;
             inSetA.add(x2 + ',' + y2);
@@ -2784,7 +2806,7 @@
 
   /* 타일 지형 방어 배지 — 화면 크기에 맞춰 일정하게 보인다 */
   function drawTerrainBadge(x, y, dim, high) {
-    if (x < 0 || y < 0 || x >= N || y >= N) return;
+    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
     const tr = SK.TERRAIN[B.tiles[y][x]] || SK.TERRAIN.P;
     const label = `${tr.name}${tr.def ? ` 방어${tr.def > 0 ? '+' : ''}${Math.round(tr.def * 100)}%` : ''}`;
     const k = 1 / Math.max(0.42, cam.s);
@@ -4010,7 +4032,7 @@
         for (let dx = -1; dx <= 1; dx++) {
           if (!dx && !dy) continue;
           const nx = cur.x + dx, ny = cur.y + dy;
-          if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue;
+          if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
           const cost = moveCost(u.cls, B.tiles[ny][nx], nx, ny, u.side, u);
           if (cost >= 90) continue;
           if (blocked(nx, ny)) continue;
@@ -5980,7 +6002,7 @@
   /* ───────────── 조작 ───────────── */
   function onTileTap(x, y) {
     if (!B || B.over || busy || !B.introDone) return;
-    if (x < 0 || y < 0 || x >= N || y >= N) return;
+    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
     /* v5.89 — 관전 중에는 명령을 받지 않는다. 부대 정보만 열어 준다 */
     if (spectateMode || skipMode) {
       const t0 = B.units.find((o) => o.alive && o.x === x && o.y === y);
@@ -6882,7 +6904,7 @@
     SK.sfx.play(sk.kind === 'healArea' ? 'heal' : sk.kind === 'buffAllAllies' ? 'drum' : 'spell');
     /* v5.60 — 전장 전체 기술은 파동 반경을 전장 크기로 잡고, 화면도 한 번 금빛으로 물들인다 */
     if (sk.kind === 'buffAllAllies') {
-      skillFxAt(u, sk, u.x, u.y, { radius: Math.max(6, Math.round((B.cols || N) / 3)) });
+      skillFxAt(u, sk, u.x, u.y, { radius: Math.max(6, Math.round((B.cols || COLS) / 3)) });
       addFx({ kind: 'tint', life: 520, color: '255,214,120' });
       shakeScreen(5);
     } else skillFxAt(u, sk, u.x, u.y);
@@ -8859,8 +8881,8 @@
     if (!B) return null;
     if (B._home) return B._home;
     let gateRow = -1, wallRow = -1;
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = B.tiles[y] && B.tiles[y][x];
         if (ch === 'G') gateRow = Math.max(gateRow, y);
         if (ch === 'C') wallRow = Math.max(wallRow, y);
@@ -8871,9 +8893,9 @@
       || (B.sites || []).find((s) => s.type === 'enemyHQ') || null;
     const towers = [];
     for (let y = 0; y <= Math.max(gateRow, 0); y++) {
-      for (let x = 0; x < N; x++) if (B.tiles[y] && B.tiles[y][x] === 'T') towers.push({ x, y });
+      for (let x = 0; x < COLS; x++) if (B.tiles[y] && B.tiles[y][x] === 'T') towers.push({ x, y });
     }
-    B._home = { gateRow, wallRow, insideY: gateRow > 0 ? gateRow - 1 : N - 1, hq, towers };
+    B._home = { gateRow, wallRow, insideY: gateRow > 0 ? gateRow - 1 : ROWS - 1, hq, towers };
     return B._home;
   }
   /* v5.88 — 수비선(성 안쪽 어디까지 지킬 수 있는가).
@@ -8881,13 +8903,13 @@
      모든 문이 뚫리면 본진 앞에서 막는다. */
   function defenseBoundary(homeIn) {
     const home = homeIn || defenseHome();
-    if (!B) return home ? home.insideY : N - 1;
+    if (!B) return home ? home.insideY : ROWS - 1;
     const gates = (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []));
     const intact = gates.filter((g) => g && g.hp > 0);
     if (!intact.length) {
       const hq = home && home.hq;
-      if (hq && hq.y != null) return Math.max(0, Math.min(N - 1, hq.y + 1));
-      return home ? Math.max(0, home.insideY - 1) : N - 1;
+      if (hq && hq.y != null) return Math.max(0, Math.min(ROWS - 1, hq.y + 1));
+      return home ? Math.max(0, home.insideY - 1) : ROWS - 1;
     }
     const out = intact.slice().sort((a, b) => (b.row || 0) - (a.row || 0))[0];
     return Math.max(0, (out.row || 0) - 1);
@@ -8976,7 +8998,7 @@
     for (let y = 0; y <= home.insideY && !anySafe; y++) {
       const row = B.tiles[y];
       if (!row) continue;
-      for (let x = 0; x < N; x++) {
+      for (let x = 0; x < COLS; x++) {
         const ch = row[x];
         if (!ch || ch === 'C' || ch === 'H' || ch === 'G') continue;
         if (safe(x, y)) { anySafe = true; break; }
@@ -9240,7 +9262,7 @@
           if (dd > reach) return;
           cover += 1 + (1 - a.hp / Math.max(1, a.maxHp)) * 1.6;
         });
-        const hq = home.hq || { x: Math.floor(N / 2), y: home.insideY };
+        const hq = home.hq || { x: Math.floor(COLS / 2), y: home.insideY };
         /* 지원이 닿으면 그 자리, 안 닿으면 아군 쪽으로 다가간다 (적 사거리 밖은 allow가 지킨다) */
         score = cover * 9 - Math.max(0, near - reach) * 2.2 - Math.min(d, 14) * 0.7 - manh(t.x, t.y, hq.x, hq.y) * 0.1;
         if (B.tiles[t.y][t.x] === 'K') score += 1.5;
@@ -9355,7 +9377,7 @@
         // back to player's turn
         B.turn += 1;
         /* v5.17 — 대형 전장(28·32칸)은 턴 한도를 늘린다 */
-        if (B.turn > (N >= 28 ? 40 : 30)) return defeat();
+        if (B.turn > (Math.max(COLS, ROWS) >= 28 ? 40 : 30)) return defeat();
         B.units.forEach((u) => {
           if (!u.alive) return;
           u.acted = false;
@@ -11577,6 +11599,17 @@
     retreat,
     debug: {
       get battle() { return B; },
+      /* v5.90 — 검수용: 지도 칸수·월드 크기·끝 칸의 화면 좌표 */
+      get cols() { return COLS; },
+      get rows() { return ROWS; },
+      get world() { return { w: WORLD_W, h: WORLD_H, tile: TILE }; },
+      tileScreen(x, y) {
+        if (!canvas) return null;
+        const X = (x + 0.5) * TILE * cam.s + cam.x, Y = (y + 0.5) * TILE * cam.s + cam.y;
+        const r = canvas.getBoundingClientRect();
+        return { x: X, y: Y, pageX: r.left + X, pageY: r.top + Y,
+          w: canvas.width / dpr, h: canvas.height / dpr, s: cam.s, cam: { x: cam.x, y: cam.y } };
+      },
       /* v5.37 — 관전 QA: 전투가 멈춘 것인지(페이즈·연출·행동 플래그) 한 번에 본다 */
       state() {
         if (!B) return null;
@@ -11592,7 +11625,7 @@
       get autoOn() { return autoOn; },
       get cam() { return cam; },
       centerCam(x, y) { centerCam(x, y); },
-      zoomFit() { if (!stage) return; const fit = Math.min(stage.clientWidth / WORLD, stage.clientHeight / WORLD); cam.s = fit; cam.x = (stage.clientWidth - WORLD * fit) / 2; cam.y = (stage.clientHeight - WORLD * fit) / 2; },
+      zoomFit() { if (!stage) return; const fit = viewFit(); cam.s = fit; cam.x = (stage.clientWidth - WORLD_W * fit) / 2; cam.y = (stage.clientHeight - WORLD_H * fit) / 2; camClamp(); },
       get enemies() { return B ? B.units.filter((u) => u.side === 'enemy' && u.alive).map((u) => u.name) : []; },
       get anims() { return anims.map((a) => a.kind); },
       get fx() { return fx.map((f) => f.kind); },
@@ -12103,7 +12136,7 @@
         const rng = o.rng != null ? o.rng : effRng(u);
         const minR = o.minR != null ? o.minR : (u.minRng || 1);
         const out = [];
-        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
           const d = manh(u.x, u.y, x, y);
           if (d < minR || d > rng) continue;
           out.push([x, y, d]);
@@ -12381,10 +12414,11 @@
     $('#b-zoom-in').onclick = () => zoomAt(cam.s * 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
     $('#b-zoom-out').onclick = () => zoomAt(cam.s / 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
     $('#b-zoom-fit').onclick = () => {
-      const fit = Math.min(stage.clientWidth / WORLD, stage.clientHeight / WORLD);
+      const fit = viewFit();
       cam.s = fit;
-      cam.x = (stage.clientWidth - WORLD * fit) / 2;
-      cam.y = (stage.clientHeight - WORLD * fit) / 2;
+      cam.x = (stage.clientWidth - WORLD_W * fit) / 2;
+      cam.y = (stage.clientHeight - WORLD_H * fit) / 2;
+      camClamp();
     };
   });
 })();

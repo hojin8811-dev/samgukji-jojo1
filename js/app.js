@@ -648,8 +648,8 @@
       fx: '군량 수확 +30% · 매달 민심 +2 · 금 수입 -10%', fxShort: '수확 +30% · 민심 +2 · 금 -10%' },
     war:      { name: '전시 체제', short: '징병·훈련·성벽 우선', desc: '징병·훈련·성벽 보수로 성을 요새로 만듭니다.',
       fx: '징병·훈련 +30% · 성벽 방어 +10% · 금 수입 -15% · 매달 민심 -1', fxShort: '징병·훈련 +30% · 성벽 +10% · 금 -15% · 민심 -1' },
-    supply:   { name: '수송 중시', short: '잉여 병력을 지정 성으로', desc: '싸우지 않고 남는 병력을 지정한 성으로 매달 보냅니다.',
-      fx: '지정 성 자동 수송 · 수송 상한 60%→75% · 남기는 병력 45%→40%', fxShort: '자동 수송 · 상한 60→75%' },
+    supply:   { name: '수송 중시', short: '잉여 병력·금·군량을 지정 성으로', desc: '싸우지 않고 남는 병력과 금·군량을 지정한 성으로 매달 보냅니다.',
+      fx: '지정 성으로 병력·금·군량 자동 수송 · 남기는 병력 35%', fxShort: '자동 수송 · 남기는 병력 35%' },
   };
   SK.POLICIES = POLICIES;
   const POLICY_KEYS = ['balanced', 'trade', 'farm', 'war', 'supply'];
@@ -4420,8 +4420,11 @@
   /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다
      v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다
      v5.36 — 요구량 상향: Lv.1→2 120 · Lv.2→3 200 · Lv.3→4 300 · Lv.4→5 420
-     (담당 배속 시 대략 3·5·7·9개월) */
-  const SLOT_EXP_NEED = [0, 120, 200, 300, 420];
+     v5.90 — 시설이 너무 빨리 만렙이 되어 '증축할 게 없다'가 되던 것을 늦춘다.
+       요구량 [0, 240, 420, 650, 950] + 월 경험 완화(담당 16+lv*5 · 부장 9+lv*2 · 무배속 5)
+       → 실제 적립은 정치 60 담당 Lv.1 월 +20(240/20 ≈ 12개월) · 조조(정치 94) +25(≈10개월)
+         · 부장만 +11(≈22개월) · 무배속 +5(≈48개월). (예전 담당 정치 60은 월 +32 · 3.8개월) */
+  const SLOT_EXP_NEED = [0, 240, 420, 650, 950];
   function slotExpNeed(lv) {
     const L = clamp(Math.round(Number(lv) || 1), 1, 4);
     return SLOT_EXP_NEED[L];
@@ -4431,9 +4434,10 @@
      (예전에는 담당이 없어도 '2개월 뒤'라고 적어 실제와 어긋났다) */
   function slotExpMonthly(cs, sl, g, dep) {
     const lv = (sl && sl.lv) || 1;
-    if (g) return Math.round((26 + lv * 8) * slotMul(cs, sl, g));
-    if (dep) return 14 + lv * 4;
-    return 9;
+    /* v5.90 — 예전 담당 (26 + lv*8)의 약 60% 수준 */
+    if (g) return Math.round((16 + lv * 5) * slotMul(cs, sl, g));
+    if (dep) return 9 + lv * 2;
+    return 5;
   }
   SK.slotExpMonthly = slotExpMonthly;
   function slotExpRatio(sl) {
@@ -5437,7 +5441,9 @@
         const lv = sl.lv;
         /* v5.2 — 시설 경험치. 담당 장수가 있으면 빨리, 없으면 천천히 쌓인다 */
         if (lv < 5) {
-          let gain = Math.round((g ? 26 + lv * 8 : (dep ? 14 + lv * 4 : 9)) * (g ? mul : 1));
+          /* v5.90 — 실제 적립도 slotExpMonthly 한 곳에서 (예전엔 이 줄에 식이 따로 박혀
+             slotExpMonthly를 고쳐도 성장 속도가 바뀌지 않았다) */
+          let gain = slotExpMonthly(cs, sl, g, dep);
           /* v5.41 — 첩보소는 살필 이웃 성이 없으면 일을 안 하므로 경험도 절반만 쌓는다 */
           if (sl.key === 'lab' && !spyTargets(c.id).length) gain = Math.round(gain * 0.5);
           sl.exp = (sl.exp || 0) + gain;
@@ -9180,7 +9186,7 @@
           <p>위임 방침 — 달이 바뀔 때 내정 순서와 <b>실제 수치</b>가 함께 바뀝니다${isCapital ? ' (본성에도 적용)' : ''}</p>
           <div class="op-grid">${POLICY_KEYS.map((k) => `<button class="op-btn ${pol === k ? 'on' : ''}" data-pol="${k}"><b>${POLICIES[k].name}</b><span class="op-fx">${POLICIES[k].fxShort || POLICIES[k].fx}</span></button>`).join('')}</div>
           <p class="op-note"><b>지금 적용 — ${POLICIES[pol].name}</b> · ${POLICIES[pol].fx}${pol === 'supply' ? ` · 보내는 곳 <b>${supplyName}</b>` : ''}<br>${POLICIES[pol].desc}${isCapital ? `<br>수도 자동 내정이 ${capAuto ? '켜져 있어 방침대로 수도도 내정합니다' : '꺼져 있어도 방침의 수치 효과는 수도에 그대로 붙습니다'}.` : ''}</p>
-          ${pol === 'supply' ? `<button class="grp-row" data-o="supplyTo" style="margin-top:4px"><div><b>수송 목적지 — ${supplyName}</b><span>남는 병력을 매달 이 성으로 보냅니다</span></div><span class="grp-go">▸</span></button>` : ''}
+          ${pol === 'supply' ? `<button class="grp-row" data-o="supplyTo" style="margin-top:4px"><div><b>수송 목적지 — ${supplyName}</b><span>남는 병력·금·군량을 매달 이 성으로 보냅니다</span></div><span class="grp-go">▸</span></button>` : ''}
         </div>
         ${isCapital ? `<button class="office-auto ${capAuto ? 'on' : ''}" data-o="capAuto">
           <b>수도 자동 내정 ${capAuto ? '켜짐' : '꺼짐'}</b>
@@ -10533,25 +10539,48 @@
         if (extraKeys) { const ex = extraOf(res.msg, extraKeys); if (ex) shortTxt += ` · ${ex}`; }
         acts.push({ key, name, short: shortTxt });
       }
-      /* v5.7 — 수송 중시: 남는 병력을 지정한 성으로 매달 보낸다 */
+      /* v5.7 — 수송 중시: 남는 병력을 지정한 성으로 매달 보낸다
+         v5.90 — 병력만이 아니라 금·군량도 함께 보낸다. 문턱도 낮춰(병력 150 · 금 200 · 군량 300)
+         소도시에서도 실제 수송이 일어나게 했다. */
       if (pol === 'supply') {
         const to = cs.supplyTo;
         const dst = to && s.cities[to];
-        let sent = false;
+        const sent = [];
         if (dst && dst.owner === PF() && to !== c.id) {
-          /* v5.40 — 수송 중시: 남기는 병력 45% → 40% (더 많이 보낸다) */
-          const keep = Math.max(700, Math.floor(cityCap(cs) * 0.40));
+          /* 병력 — 남기는 병력 35%(최소 500), 받는 성 상한까지 */
+          const keep = Math.max(500, Math.floor(cityCap(cs) * 0.35));
           const spare = Math.floor((cs.troops || 0) - keep);
           const room = Math.max(0, cityCap(dst) - (dst.troops || 0));
-          const send = Math.min(spare, room);
-          if (send >= 300) {
-            cs.troops = Math.max(0, cs.troops - send);
-            dst.troops += send;
-            sent = true;
-            acts.push({ key: 'supply', name: '수송', short: `${CITY[to].name} 병력 +${fmt(send)}` });
+          const troopSend = Math.min(spare, room);
+          if (troopSend >= 150) {
+            cs.troops = Math.max(0, (cs.troops || 0) - troopSend);
+            dst.troops = (dst.troops || 0) + troopSend;
+            sent.push(`병력 +${fmt(troopSend)}`);
+          }
+          /* 금 — 1,200을 남기고 절반 (200 이상일 때만) */
+          if ((cs.gold || 0) > 1200) {
+            const goldSend = Math.floor(((cs.gold || 0) - 1200) * 0.5);
+            if (goldSend >= 200) {
+              cs.gold -= goldSend;
+              dst.gold = (dst.gold || 0) + goldSend;
+              sent.push(`금 +${fmt(goldSend)}`);
+            }
+          }
+          /* 군량 — 2,000을 남기고 절반 (300 이상일 때만) */
+          if ((cs.food || 0) > 2000) {
+            const foodSend = Math.floor(((cs.food || 0) - 2000) * 0.5);
+            if (foodSend >= 300) {
+              cs.food -= foodSend;
+              dst.food = (dst.food || 0) + foodSend;
+              sent.push(`군량 +${fmt(foodSend)}`);
+            }
           }
         }
-        if (!sent && !acts.length && !upActs.length && !idle) idle = '보낼 잉여 병력이 없습니다';
+        if (sent.length) {
+          acts.push({ key: 'supply', name: '수송', short: `${CITY[to].name} · ${sent.join(' · ')}` });
+        } else if (!acts.length && !upActs.length && !idle) {
+          idle = '보낼 잉여 병력·금·군량이 없습니다';
+        }
       }
       acts.push(...upActs);        // 보고는 '한 일 먼저, 증축은 끝에'
       if (!acts.length && !idle && cs.slots && cs.slots.some((sl) => sl.key && sl.lv < 5 && (sl.exp || 0) >= slotExpNeed(sl.lv)))
@@ -12830,6 +12859,8 @@
     const fsize = clamp((owned.length - 2) / 10, 0, 1);
     /* 초반(late=0)에는 예전과 똑같은 1.45배 — 대국 압박도 중후반에만 붙는다 */
     const needRatio = 1.45 - 0.30 * late - 0.15 * fsize * late;
+    /* v5.90 — 성 1~2곳뿐인 소국(특히 한국 세력)은 재야·약한 이웃을 노릴 때 문턱을 1.20까지 낮춘다 */
+    const smallFaction = owned.length <= 2;
     let best = null;
     owned.forEach((a) => {
       const as = s.cities[a.id];
@@ -12841,13 +12872,17 @@
         /* v5.72 — 동맹·휴전 중인 AI 세력의 성은 후보에서 뺀다 */
         if (aiPactLive(s, fid, ts.owner)) return;
         const ratio = strength / cityPower(ts);
-        if (ratio < needRatio) return;
+        /* v5.90 — 소국이 재야나 자기보다 확실히 약한 이웃을 칠 때는 1.20배까지만 요구한다
+           (그래야 1~2성 소국이 초반부터 인접 성을 하나씩 넓힌다) */
+        const want = (smallFaction && (ts.owner === 'neutral' || (ts.troops || 0) < strength * 0.8))
+          ? Math.min(needRatio, 1.20) : needRatio;
+        if (ratio < want) return;
         /* v5.66 — 중후반에는 마지막 한 성만 남은 약소 세력을 마무리하는 쪽에 가산점
            (세력 수가 자연히 줄어 대국 중심으로 재편된다) */
         const finish = (ts.owner !== 'neutral' && countBy[ts.owner] === 1) ? (0.2 + 0.2 * late) * late : 0;
         const aiBonus = (0.12 + 0.3 * late) * late;
         const score = ratio + (ts.owner === 'neutral' ? 0.18 * (1 - late) : aiBonus) + finish;
-        if (!best || score > best.score) best = { from: a.id, target: tid, strength, ratio, score, needRatio };
+        if (!best || score > best.score) best = { from: a.id, target: tid, strength, ratio, score, needRatio: want };
       });
     });
     return best;
@@ -12995,6 +13030,39 @@
     return best;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v5.90 — 소국(성 1~2곳) 전용 출진 슬롯
+     · runAiCampaigns는 성이 많은 대국부터 돌기 때문에, 대국이 raidCap(초반 2회)을
+       다 쓰면 성 1~2곳 소국(고구려·백제·신라·조선·고려·사섭군 등)은 한 달에 한 번도
+       나가지 못해 지도 위에서 거의 자라지 않았다.
+     · 대국 몫(raidCap)과 별개로 소국 몫을 둔다: 한국 세력은 한 달 2회, 그 밖의 소국은 1회.
+       소국이 쓴 횟수는 raids(대국 카운터)에서 깎지 않아 대국에 밀리지 않는다.
+     ══════════════════════════════════════════════════════════════ */
+  function v590OwnedCount(s, fid) {
+    return SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === fid).length;
+  }
+  /* 한국 성을 하나라도 가진 세력인가 — s.cities는 { [id]: cityState } 객체라 c.id로 찾는다 */
+  function v590IsKorean(s, fid) {
+    return SK.CITY_LIST.some((c) => s.cities[c.id] && s.cities[c.id].owner === fid && SK.cityGroup(c.id) === '한국');
+  }
+  function v590SmallQuota(s, fid) {
+    return v590IsKorean(s, fid) ? 2 : 1;
+  }
+  /* 이번 달 소국별 사용량 — 한 달(턴)마다 새로 센다. 세이브에 남지 않게 모듈 변수로 둔다 */
+  let v590RaidMonth = { turn: -1, small: {} };
+  function v590RaidUsed(s) {
+    const t = s.turn || 0;
+    if (v590RaidMonth.turn !== t) v590RaidMonth = { turn: t, small: {} };
+    return v590RaidMonth.small;
+  }
+  /* 대국은 남은 raidCap으로, 소국은 자기 전용 슬롯으로 나갈 수 있는가 */
+  function v590RaidAllowed(s, fid, raids, raidCap) {
+    if (v590OwnedCount(s, fid) > 2) return raids < raidCap;
+    const used = v590RaidUsed(s)[fid] || 0;
+    return used < v590SmallQuota(s, fid);
+  }
+  SK.v590RaidAllowed = v590RaidAllowed;
+
   function runAiCampaigns(s) {
     const news = [];
     if (!s) return news;
@@ -13044,14 +13112,23 @@
     const raidCap = AI_RAID_BASE + Math.round(AI_RAID_LATE * lateAI);
     let raids = 0;
     order.forEach((fid) => {
-      if (raids >= raidCap) return;
-      /* 성 6곳 이상 대국은 두 방향으로 동시에 나간다 (군세를 모아 치는 셈) */
-      const tries = (lateAI > 0 && sizeOf(fid) >= 6) ? 2 : 1;
-      for (let t = 0; t < tries && raids < raidCap; t++) {
+      /* v5.90 — 소국은 대국 카운터와 무관한 자기 슬롯으로 나간다 */
+      if (!v590RaidAllowed(s, fid, raids, raidCap)) return;
+      const isSmall = sizeOf(fid) <= 2;
+      /* 성 6곳 이상 대국은 두 방향으로 동시에 나간다 (군세를 모아 치는 셈)
+         v5.90 — 한국 소국은 한 달 두 번까지 나가 본다 */
+      const tries = isSmall ? v590SmallQuota(s, fid) : ((lateAI > 0 && sizeOf(fid) >= 6) ? 2 : 1);
+      for (let t = 0; t < tries && v590RaidAllowed(s, fid, raids, raidCap); t++) {
         const plan = aiAttackPlan(s, fid);
         if (!plan) return;
         const r = resolveAiRaid(s, plan, fid);
-        raids += 1;
+        if (isSmall) {
+          /* 소국의 출진은 raids를 깎지 않는다 — 대국 몫을 축내지 않게 */
+          const used = v590RaidUsed(s);
+          used[fid] = (used[fid] || 0) + 1;
+        } else {
+          raids += 1;
+        }
         news.push({
           kind: r.win ? 'capture' : 'repelled',
           text: r.win
