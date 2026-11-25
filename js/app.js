@@ -691,18 +691,61 @@
   function riceCheap(s) { return ricePrice(s) >= 130; }
   SK.riceCheap = riceCheap;
 
-  /* 연병장 수련 명단 — 달이 바뀔 때 행동을 써서 개인 경험치를 얻는다 */
-  function trainCrewOf(cs) {
-    if (!cs) return [];
-    if (!Array.isArray(cs.trainCrew)) cs.trainCrew = [];
-    return cs.trainCrew;
+  /* ═══════════════════════════════════════════
+     v5.93 — 수련관(academy): 장수 전용 다인 배속 육성
+     · 한 수련관에 최대 4명까지 배속한다 (sl.trainees = [uid...]).
+     · 달이 바뀔 때 배속 장수는 수련 경험치를 얻고,
+       17% 확률로 5대 능력치(무·지·통·정·매) 중 하나가 +1 (상한 100).
+       1년 내리 배속하면 기대치 약 +2 — 명세의 '1년 5대 능력치 최대 약 +2'.
+     · 배속 장수는 출진·다른 내정 명령을 잠그지 않는다 (v5.88 규칙 그대로).
+     ═══════════════════════════════════════════ */
+  const ACADEMY_MAX = 4;
+  const ACADEMY_STAT_KEYS = ['wu', 'ji', 'tong', 'pol', 'cha'];
+  const ACADEMY_STAT_LABEL = { wu: '무력', ji: '지력', tong: '통솔', pol: '정치', cha: '매력' };
+  SK.ACADEMY_MAX = ACADEMY_MAX;
+  SK.ACADEMY_STAT_LABEL = ACADEMY_STAT_LABEL;
+  function academyTraineesOf(sl) {
+    if (!sl) return [];
+    if (!Array.isArray(sl.trainees)) sl.trainees = [];
+    return sl.trainees;
   }
-  SK.trainCrewOf = trainCrewOf;
+  SK.academyTraineesOf = academyTraineesOf;
+  /* 수련관 하나에 지금 배속된 장수 (성 단위 — 수련관이 여러 채면 합친다) */
+  function academyCrewOf(cs) {
+    const out = [];
+    (cs && cs.slots || []).forEach((sl) => {
+      if (!sl || sl.key !== 'academy') return;
+      academyTraineesOf(sl).forEach((uid) => { if (out.indexOf(uid) < 0) out.push(uid); });
+    });
+    return out;
+  }
+  SK.academyCrewOf = academyCrewOf;
+  function academySlotOf(cs, uid) {
+    return (cs && cs.slots || []).find((sl) => sl && sl.key === 'academy' && academyTraineesOf(sl).indexOf(uid) >= 0) || null;
+  }
+  SK.academySlotOf = academySlotOf;
   function crewGain(sl, h) {
     const lv = sl && sl.lv ? sl.lv : 1;
-    return Math.round(34 + lv * 11 + ((h && h.tong) || 60) * 0.25);
+    return Math.round(40 + lv * 12 + ((h && h.tong) || 60) * 0.2);
   }
   SK.crewGain = crewGain;
+  /* v5.93 — 수련관 한 달치: 경험치 + (가끔) 능력치 +1. 표에서는 양쪽이 함께 쓴다 */
+  function academyTrainOnce(sl, h) {
+    const gain = crewGain(sl, h);
+    SK.gainExp(h, gain);
+    h.academyMonths = (h.academyMonths || 0) + 1;
+    let up = null;
+    if (Math.random() < 0.17) {
+      const open = ACADEMY_STAT_KEYS.filter((k) => (Number(h[k]) || 0) < 100);
+      if (open.length) {
+        const k = open[Math.floor(Math.random() * open.length)];
+        h[k] = Math.min(100, Math.round(Number(h[k]) || 0) + 1);
+        up = { key: k, label: ACADEMY_STAT_LABEL[k], val: h[k] };
+      }
+    }
+    return { gain, up };
+  }
+  SK.academyTrainOnce = academyTrainOnce;
 
   /* 충성 — 포상으로 오르고, 낮으면 전투에서 힘을 덜 쓴다 (v5.8 이간·항복의 바탕) */
   function loyalOf(h) { return h && h.loyal != null ? h.loyal : 100; }
@@ -4331,6 +4374,13 @@
   }
   /* 행군 중인 장수는 성에 없는 것으로 친다 (v5.3) */
   function cityGens(cityId) { return SK.state.heroes.filter((h) => h.city === cityId && !h.marchId && !h.rfgTo && !h.captured && !h.transitTo); }
+  /* v5.93 — 이 성에 주점이 있는가. 주점이 없으면 인재 등용(인사·탐색)을 잠근다 */
+  function hasTavernOf(cityId) {
+    const cs = SK.state && SK.state.cities && SK.state.cities[cityId];
+    if (!cs || !Array.isArray(cs.slots)) return false;
+    return cs.slots.some((sl) => sl && sl.key === 'tavern');
+  }
+  SK.hasTavernOf = hasTavernOf;
 
   /* 세력 이름 뒤에 '군'을 한 번만 붙인다 (공융군군 → 공융군) */
   function armyName(f) {
@@ -4389,7 +4439,9 @@
     market: { name: '시장', icon: 'market', stat: 'pol', res: 'gold', desc: '매달 금을 벌어들입니다 (Lv가 오를수록 수입이 크게 늡니다)' },
     farm: { name: '농원', icon: 'farm', stat: 'pol', res: 'food', desc: '10월 가을 대수확을 키웁니다 (매달 비축은 조금)' },
     barracks: { name: '병영', icon: 'barracks', stat: 'tong', res: 'troops', desc: '매달 수비병을 모읍니다' },
-    training: { name: '연병장', icon: 'training', stat: 'tong', res: 'train', desc: '훈련도를 올리고 담당 장수를 키웁니다' },
+    /* v5.93 — 연병장은 병사 전용(훈련도·사기). 장수 육성은 새로 지은 수련관(academy)이 맡는다 */
+    training: { name: '연병장', icon: 'training', stat: 'tong', res: 'train', desc: '거점에 주둔한 병사의 훈련도와 사기를 올립니다 (장수 육성은 수련관)' },
+    academy: { name: '수련관', icon: 'academy', stat: 'tong', res: 'train', desc: '장수를 최대 4명 배속해 매달 수련 경험치와 5대 능력치(무·지·통·정·매)를 키웁니다' },
     patrol: { name: '순찰소', icon: 'patrol', stat: 'cha', res: 'loyalty', desc: '민심과 치안을 다스립니다' },
     tavern: { name: '주점', icon: 'tavern', stat: 'cha', res: 'talent', desc: '재야 인재가 모여듭니다' },
     wall: { name: '성벽', icon: 'wall', stat: 'tong', res: 'def', desc: '성벽을 손보고 적 첩보·계략을 막습니다' },
@@ -4401,22 +4453,70 @@
   /* v5.35 — 시설 카드에 '담당 없음 · 수입 50%'가 병영·연병장·성벽에도 붙어 오해를 샀다.
      건물마다 실제로 반값이 되는 효과를 적어 준다. */
   const SLOT_HALF = {
-    market: '수입 50%', farm: '수확 50%', barracks: '모집 50%', training: '훈련 50%',
+    market: '수입 50%', farm: '수확 50%', barracks: '모집 50%', training: '훈련 50%', academy: '수련 50%',
     patrol: '민심·치안 50%', tavern: '소문 50%', wall: '보수·방첩 50%', lab: '자동 첩보 정지', workshop: '수입 50% · 제작 정지',
   };
   SK.SLOT_DEFS = SLOT_DEFS;
   /* v5.17 — 도시 규모별 공터·시설 칸: 소도시 6 · 중도시 8 · 대도시 10
      v5.87b — 관문·요새도 4칸 (병영·성벽·시장·농장을 한 성에 같이 둘 수 있게) */
-  const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 4, fortress: 4 };
+  /* v5.93 — 요새 거점은 5칸 (고정 4 + 자유 1). 아래 enforceFortressSlots가 그 4칸을 지킨다 */
+  const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 4, fortress: 5 };
   SK.SLOT_MAX = SLOT_MAX;
   const SLOT_DEFAULT = {
     capital: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
     mid: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
     town: ['market', 'farm', 'barracks'],
     pass: ['wall'],
-    fortress: ['wall', 'barracks'],
+    /* v5.93 — 요새: 병영·성벽·수련관·연병장 고정 + 마지막 1칸 자유 */
+    fortress: ['barracks', 'wall', 'academy', 'training', null],
   };
   function slotCount(type) { return SLOT_MAX[type] || 4; }
+  /* ═══════════════════════════════════════════
+     v5.93 — 요새(거점) 시설 5칸 = 고정 4 + 자유 1
+     · 병령·성벽·수련관·연병장은 요새에 늘 있는 고정 시설(철거 불가).
+       (명세의 '막사'는 이 엔진에 별도 건물이 없어, 성벽과 함께 군사 시설인 연병장으로 대신한다.)
+     · 5번째 칸 하나만 자유 건설 — 시장·농원·주점·순찰소·첨보소·공방.
+     · 구세이브(요새 4칸)는 빈 칸에 고정 시설을 채워 넣고, 이미 지어 둔 건물은 옮기거나 지우지 않는다.
+     ═══════════════════════════════════════════ */
+  const FORT_FIXED = ['barracks', 'wall', 'academy', 'training'];
+  SK.FORT_FIXED = FORT_FIXED;
+  function isFortFixedKey(k) { return FORT_FIXED.indexOf(k) >= 0; }
+  SK.isFortFixedKey = isFortFixedKey;
+  function enforceFortressSlots(cs) {
+    if (!cs) return cs;
+    if (!Array.isArray(cs.slots)) cs.slots = [];
+    while (cs.slots.length < 5) cs.slots.push({ key: null, lv: 0, uid: null, exp: 0 });
+    /* 5칸을 넘는 옛 배열은 자유 칸에 몰아 두고(건물을 지우지 않는다) 나머지만 덜어 낸다 */
+    if (cs.slots.length > 5) {
+      cs.slots.slice(5).forEach((sl) => {
+        if (sl && sl.key && (!cs.slots[4] || !cs.slots[4].key)) cs.slots[4] = sl;
+      });
+      cs.slots.length = 5;
+    }
+    FORT_FIXED.forEach((k) => {
+      if (cs.slots.some((sl) => sl && sl.key === k)) return;
+      /* 빈 칸이 먼저 — 고정 칸 순서(0~3)에만 넣는다. 자유 칸(4)은 비워 둔다. */
+      let idx = cs.slots.findIndex((sl, i) => i < 4 && sl && !sl.key);
+      if (idx < 0) {
+        /* 0~3칸이 모두 다른 건물로 찼다면 그 건물을 자유 칸으로 잠시 옮기고 그 자리를 쓴다.
+           (구세이브에서 지어 둔 건물을 지우지 않기 위한 것) */
+        const holder = cs.slots.findIndex((sl, i) => i < 4 && sl && sl.key && !isFortFixedKey(sl.key));
+        if (holder >= 0 && (!cs.slots[4] || !cs.slots[4].key)) {
+          cs.slots[4] = cs.slots[holder];
+          cs.slots[holder] = { key: null, lv: 0, uid: null, exp: 0 };
+          idx = holder;
+        }
+      }
+      if (idx < 0) return;   /* 자리가 없으면 아무것도 지우지 않고 둔다 */
+      cs.slots[idx] = { key: k, lv: 1, exp: 0, uid: null, fixed: true };
+    });
+    cs.slots.forEach((sl) => {
+      if (!sl) return;
+      sl.fixed = !!(sl.key && isFortFixedKey(sl.key));
+    });
+    return cs;
+  }
+  SK.enforceFortressSlots = enforceFortressSlots;
   /* v5.2 — 시설 경험치. 담당 장수를 앉혀 몇 달 굴려야 다음 Lv이 열린다
      v5.4 — 첫 증축(Lv.1→2)은 두어 달이면 눌린다. 비용은 금이 크게 문다
      v5.36 — 요구량 상향: Lv.1→2 120 · Lv.2→3 200 · Lv.3→4 300 · Lv.4→5 420
@@ -4462,6 +4562,8 @@
       if (sl.exp == null) sl.exp = 0;
     });
     if (cs.order == null) cs.order = 55;
+    if (c && c.type === 'fortress') { enforceFortressSlots(cs); cs.wallMul = 2; }
+    else if (cs.wallMul) cs.wallMul = 1;
   }
   SK.ensureSlots = ensureSlots;
 
@@ -4730,7 +4832,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b>${extra}<em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i></div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${(c.type === 'fortress' && (sl.fixed || isFortFixedKey(sl.key))) ? '<i class="sc-demolish off" title="요새 고정 시설은 철거할 수 없습니다">고정</i>' : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -4792,6 +4894,12 @@
     if (!cs || !Array.isArray(cs.slots)) return false;
     const sl = cs.slots[idx];
     if (!sl || !sl.key) { SK.toast('이미 비어 있는 공터입니다.'); return false; }
+    const cityMeta = CITY[cityId];
+    /* v5.93 — 요새의 고정 시설(병영·성벽·수련관·연병장)은 허물 수 없다 */
+    if (cityMeta && cityMeta.type === 'fortress' && (sl.fixed || isFortFixedKey(sl.key))) {
+      SK.toast('요새의 고정 시설(병영·성벽·수련관·연병장)은 철거할 수 없습니다.');
+      return false;
+    }
     const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
     const owner = slotOwner(cityId, sl);
     const dep = slotDeputy(cityId, sl);
@@ -5073,8 +5181,11 @@
           ${(g && !targetRole) ? `<button data-a="assignDep">부장 교체 — 효과 +45%</button>` : ''}
           ${depG ? '<button data-a="freeDep">부장 해제</button>' : ''}
           ${g ? '<button data-a="free">주담당 해제 — 이번 달 자유 행동</button>' : ''}
-          ${sl.key === 'training' ? `<button data-a="crew">수련 명단 — 함께 수련할 대기 장수 (${trainCrewOf(cs).length}명)</button>` : ''}
-          <button data-a="demolish" class="slot-demolish">철거 — 공터로 되돌리기</button>
+          ${sl.key === 'academy' ? `<button data-a="crew">수련관 — 배속 장수 고르기 (${academyTraineesOf(sl).length}/${ACADEMY_MAX}명)</button>` : ''}
+          ${sl.key === 'training' ? '<p class="talent-note slot-fixed-note">연병장은 주둔 병사의 훈련도·사기만 올립니다. 장수 육성은 <b>수련관</b>에서 합니다.</p>' : ''}
+          ${(c.type === 'fortress' && (sl.fixed || isFortFixedKey(sl.key)))
+            ? '<button data-a="demolish" class="slot-demolish" disabled>철거 불가 — 요새 고정 시설</button>'
+            : '<button data-a="demolish" class="slot-demolish">철거 — 공터로 되돌리기</button>'}
         </div>
         ${targetRole && free.length ? `<p class="duty-pick-head">${targetRole === 'deputy' ? '부장' : '주담당'}으로 앉힐 장수 <em>카드를 누르면 바로 배속됩니다</em></p><div class="target-list">${opts}</div>` : ''}`,
       wide: true, actions: [{ label: '닫기' }],
@@ -5109,7 +5220,7 @@
           openDutyPick(cityId, idx, 'deputy');
         } else if (a === 'crew') {
           m.close();
-          openTrainCrew(cityId, idx);
+          openAcademy(cityId, idx);
         } else if (a === 'demolish') {
           m.close();
           setTimeout(() => demolishSlot(cityId, idx), 40);
@@ -5139,71 +5250,97 @@
   SK.openGeneralDetail = function (uid) { showHeroInfo(uid); };
 
   /* v5.7 — 연병장 수련 명단: 남는 대기 장수를 여러 명 넣어 두고 매달 경험치를 쌓는다 */
-  function openTrainCrew(cityId, idx) {
+  /* v5.93 — 수련관 창: 장수 최대 4명을 배속해 매달 수련시킨다 (연병장의 장수 육성 기능을 옮겨 왔다) */
+  function openAcademy(cityId, idx) {
     SK.setPurse(cityId);
     const s = SK.state;
     const cs = s.cities[cityId];
-    const sl = (cs.slots || []).find((x) => x.key === 'training') || (cs.slots || [])[idx] || { lv: 1 };
-    const crew = trainCrewOf(cs);
-    const gens = cityGens(cityId).filter((g) => !onDuty(g, cityId));
+    ensureSlots(cs, CITY[cityId]);
+    let sl = (cs.slots || [])[idx];
+    if (!sl || sl.key !== 'academy') sl = (cs.slots || []).find((x) => x.key === 'academy') || sl || { lv: 1 };
+    const crew = academyTraineesOf(sl);
+    const allHere = cityGens(cityId);
+    const gens = allHere.filter((g) => !onDuty(g, cityId) || crew.indexOf(g.uid) >= 0);
+    const slotHtml = [];
+    for (let i = 0; i < ACADEMY_MAX; i += 1) {
+      const uid = crew[i];
+      const h = uid ? allHere.find((x) => x.uid === uid) : null;
+      slotHtml.push(h
+        ? `<button type="button" class="academy-trainee-slot filled" data-uid="${h.uid}" title="${h.name} 빼기">
+             <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
+             <em>${h.name}</em><i class="ats-out">×</i></button>`
+        : `<span class="academy-trainee-slot empty" aria-label="빈 수련 자리">＋</span>`);
+    }
     const rows = gens.map((h) => {
       const on = crew.indexOf(h.uid) >= 0;
+      const months = h.academyMonths || 0;
       return `<div class="crew-row">
         <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
-        <div class="cw-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 통솔 ${h.tong}${h.actedThisMonth ? ' · 이번 달 완료' : ''}</span></div>
+        <div class="cw-main"><b>${h.name}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv} · 무 ${h.wu} 지 ${h.ji} 통 ${h.tong} 정 ${h.pol} 매 ${h.cha}${months ? ` · 수련 ${months}개월` : ''}${onDuty(h.uid, cityId) ? ' · 담당 중' : ''}</span></div>
         <span class="cw-gain">EXP +${crewGain(sl, h)}</span>
         <button class="onoff ${on ? 'on' : ''}" data-uid="${h.uid}">${on ? '빼기' : '넣기'}</button>
       </div>`;
     }).join('');
     const m = SK.modal({
-      kicker: `${CITY[cityId].name} 연병장`, title: `수련 명단 — Lv.${sl.lv || 1}`,
-      body: `<p class="talent-note">명단에 넣은 장수는 달이 바뀔 때 연병장에서 개인 경험치(EXP)를 얻고, 그달 다른 내정·출진 명령은 하지 못합니다. 교관(담당)이 병사의 훈련도를 올리는 것과는 별개입니다.</p>
-        <div class="crew-list">${rows || '<p class="tr-empty">수련에 넣을 대기 장수가 없습니다.</p>'}</div>
-        <p class="talent-note">지금 ${crew.length}명 수련 중 · 연병장 하나에 최대 6명.</p>`,
+      kicker: `${CITY[cityId].name} 수련관`, title: `장수 수련 — Lv.${sl.lv || 1} · ${crew.length}/${ACADEMY_MAX}명`,
+      body: `<p class="talent-note">배속한 장수는 <b>달이 바뀔 때 수련 경험치</b>를 얻고, 가끔 <b>5대 능력치(무·지·통·정·매)</b> 중 하나가 +1 오릅니다(상한 100, 1년이면 대략 +2).</p>
+        <div class="academy-trainee-wrap">${slotHtml.join('')}</div>
+        <p class="talent-note"><b>수련 중에도 출진과 다른 내정 명령을 그대로 할 수 있습니다.</b> 연병장은 이제 병사 훈련만 맡습니다.</p>
+        <div class="crew-list academy-list">${rows || '<p class="tr-empty">수련에 넣을 수 있는 장수가 없습니다. (건물 담당 장수는 뺄 수 없습니다)</p>'}</div>
+        <p class="talent-note">지금 ${crew.length}명 수련 중 · 수련관 하나에 최대 ${ACADEMY_MAX}명.</p>`,
       wide: true, actions: [{ label: '닫기' }],
     });
     m.el.querySelectorAll('button[data-uid]').forEach((b) => {
       b.onclick = () => {
         const uid = b.dataset.uid;
-        const i = crew.indexOf(uid);
-        if (i >= 0) crew.splice(i, 1);
-        else {
-          if (crew.length >= 6) { SK.toast('한 연병장에서 여섯 명까지 수련할 수 있습니다.'); return; }
-          crew.push(uid);
+        const cur = academyTraineesOf(sl);
+        const i = cur.indexOf(uid);
+        if (i >= 0) {
+          cur.splice(i, 1);
+          const h0 = s.heroes.find((x) => x.uid === uid);
+          SK.toast(`${josa(h0 ? h0.name : '', 'eul')} 수련관에서 뺐습니다.`);
+        } else {
+          if (cur.length >= ACADEMY_MAX) { SK.toast(`수련관 한 곳에는 ${ACADEMY_MAX}명까지 배속할 수 있습니다.`); return; }
+          cur.push(uid);
+          const h0 = s.heroes.find((x) => x.uid === uid);
+          SK.toast(`${josa(h0 ? h0.name : '', 'i')} 수련관에 들어갔습니다 — 달이 바뀌면 수련이 시작됩니다.`);
         }
         SK.save();
         m.close();
-        openTrainCrew(cityId, idx);
+        openAcademy(cityId, idx);
       };
     });
   }
-  SK.openTrainCrew = openTrainCrew;
+  SK.openAcademy = openAcademy;
+  /* 옛 이름 호출 자리(내정 메뉴 등)는 수련관으로 잇는다 */
+  SK.openTrainCrew = openAcademy;
 
-  /* 달이 바뀔 때 수련 명단이 경험치를 받고, 그달 행동을 쓴 것으로 친다 */
-  function runTrainCrew(s) {
+  /* 달이 바뀔 때 수련관 배속 장수가 경험치·능력치를 얻는다.
+     행동력은 쓰지 않는다 — v5.88의 '시설 배속 장수도 출진 가능' 규칙 그대로. */
+  function runAcademy(s) {
     const rows = [];
     SK.CITY_LIST.forEach((c) => {
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
-      const crew = trainCrewOf(cs);
-      if (!crew.length) return;
-      const sl = (cs.slots || []).find((x) => x.key === 'training');
-      if (!sl) { cs.trainCrew = []; return; }
-      const keep = [];
-      crew.forEach((uid) => {
-        const h = s.heroes.find((x) => x.uid === uid);
-        if (!h || h.city !== c.id || h.marchId) return;
-        const gain = crewGain(sl, h);
-        SK.gainExp(h, gain);
-        h.actedThisMonth = true;
-        rows.push({ city: CITY[c.id].name, name: h.name, gain });
-        keep.push(uid);
+      (cs.slots || []).forEach((sl) => {
+        if (!sl || sl.key !== 'academy') return;
+        const keep = [];
+        academyTraineesOf(sl).forEach((uid) => {
+          const h = s.heroes.find((x) => x.uid === uid);
+          if (!h || h.city !== c.id || h.marchId) return;   // 다른 성으로 갔거나 행군 중이면 빠진다
+          const r = academyTrainOnce(sl, h);
+          rows.push({ city: CITY[c.id].name, name: h.name, gain: r.gain, up: r.up, months: h.academyMonths || 0 });
+          keep.push(uid);
+        });
+        sl.trainees = keep;
       });
-      cs.trainCrew = keep;
+      /* v5.93 — 연병장의 옛 수련 명단(trainCrew)은 폐지 — 저장에 남아 있으면 비운다 */
+      if (Array.isArray(cs.trainCrew) && cs.trainCrew.length) cs.trainCrew = [];
     });
     return rows;
   }
-  SK.runTrainCrew = runTrainCrew;
+  SK.runAcademy = runAcademy;
+  SK.runTrainCrew = function () { return []; };
 
   /* v5.3 — 9종 건물 모두 해당 능력치가 높은 순으로 앉힐 후보를 정렬하고 1등에게 [추천] */
   const STAT_LABEL = { pol: '정치', cha: '매력', tong: '통솔', wu: '무력', ji: '지력' };
@@ -6081,7 +6218,8 @@
       items: [
         { key: 'talent', label: '주점 — 인재 등용', desc: '사신을 골라 보냅니다 — 매력이 높으면 값이 줄고 성공률이 오릅니다' },
         { key: 'explore', label: '탐색 — 보물·은거 인재', desc: '금 0 · 장수의 이번 달 행동으로 산야를 뒤져 보물·인재·의용병·산적 퇴치를 찾습니다' },
-        { key: 'traincrew', label: '연병장 수련 — 대기 장수 경험치', desc: '대기 장수를 여러 명 넣어 두면 달이 바뀔 때 개인 경험치를 쌓습니다' },
+        /* v5.93 — 연병장의 장수 육성은 수련관으로 옮겼다 (최대 4명 배속·5대 능력치 성장) */
+        { key: 'academy', label: '수련관 — 장수 최대 4명 배속 육성', desc: '배속한 장수는 달마다 수련 경험치를 얻고, 가끔 5대 능력치가 +1 오릅니다 (출진은 그대로)' },
         { key: 'transfer', label: '장수 전출 — 다른 내 성으로 이동', desc: '장수 한 명을 골라 다른 아군 성으로 옮깁니다' },
         /* v5.89 — 반대 방향: 다른 성의 장수를 이 성으로 데려온다 */
         { key: 'summon', label: '장수 데려오기 — 다른 내 성에서 소환', desc: '다른 아군 성의 장수를 이 성으로 불러옵니다 (1칸 = 1개월)' },
@@ -6123,21 +6261,37 @@
     const g = GROUPS[grp];
     if (!g) return;
     const cityId = SK.state.lastCity;
-    const rows = g.items.map((it) => `<button class="grp-row" data-k="${it.key}">
-      <div><b>${it.label}</b><span>${it.desc}</span></div><span class="grp-go">▸</span></button>`).join('');
+    /* v5.93 — 주점이 없는 성은 [주점 — 인재 등용] 줄을 회색으로 잠근다 */
+    const tavernOk = hasTavernOf(cityId);
+    const rows = g.items.map((it) => {
+      const off = (it.key === 'talent' && !tavernOk);
+      return `<button class="grp-row${off ? ' disabled' : ''}" data-k="${it.key}"${off ? ' data-off="1"' : ''}>
+      <div><b>${it.label}</b><span>${off ? '주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 열립니다' : it.desc}</span></div><span class="grp-go">${off ? '주점 필요' : '▸'}</span></button>`;
+    }).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} · ${g.name}`, title: g.sub,
       body: `<div class="grp-list">${rows}</div>`, actions: [{ label: '닫기' }], wide: true,
     });
     m.el.querySelectorAll('.grp-row').forEach((b) => {
-      b.onclick = () => { const k = b.dataset.k; m.close(); setTimeout(() => groupAction(k, cityId), 30); };
+      b.onclick = () => {
+        if (b.dataset.off) { SK.sfx.play('deny'); SK.toast('주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 인재를 등용할 수 있습니다.'); return; }
+        const k = b.dataset.k; m.close(); setTimeout(() => groupAction(k, cityId), 30);
+      };
     });
+    /* 주점이 없으면 열자마자 한 번 안내한다 */
+    if (grp === 'talent' && !tavernOk) setTimeout(() => SK.toast('주점 건설 필요 — 이 성에는 주점이 없어 인재 등용이 잠겨 있습니다.'), 120);
   }
   SK.openGroupMenu = openGroupMenu;
 
   function groupAction(k, cityId) {
     /* v5.88 — 군단 위임 성은 총도독이 맡는다. 직접 명령은 잠그고 해제만 안내한다. */
     if (corpsGuard(cityId)) return;
+    /* v5.93 — 주점이 없는 성은 등용 명령이 잠긴다 */
+    if (k === 'talent' && !hasTavernOf(cityId)) {
+      SK.sfx.play('deny');
+      SK.toast('주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 인재를 등용할 수 있습니다.');
+      return;
+    }
     if (k === 'build') {
       /* v5.65 — 공터가 있으면 건설 목록을 바로 연다 (모달만 닫히고 토스트만 뜨던 막다른 안내) */
       const s = SK.state;
@@ -6176,11 +6330,12 @@
     if (k === 'rice') { openRiceTrader(cityId); return; }
     if (k === 'transfer') { openTransferPick(cityId); return; }
     if (k === 'summon') { openSummon(cityId); return; }   // v5.89 — 장수 데려오기
-    if (k === 'traincrew') {
+    if (k === 'academy' || k === 'traincrew') {
       const ci = SK.state.cities[cityId];
-      const ti = (ci.slots || []).findIndex((sl) => sl.key === 'training');
-      if (ti < 0) { SK.toast('이 성에 연병장이 없습니다. 공터에 연병장을 먼저 지으세요.'); return; }
-      openTrainCrew(cityId, ti);
+      ensureSlots(ci, CITY[cityId]);
+      const ti = (ci.slots || []).findIndex((sl) => sl.key === 'academy');
+      if (ti < 0) { SK.toast('이 성에 수련관이 없습니다. [시설 관리]에서 공터에 수련관을 먼저 지으세요.'); return; }
+      openAcademy(cityId, ti);
       return;
     }
     doCommand(k);
@@ -7622,7 +7777,7 @@
         ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'agri' })}
         ${devCard({ label: '민심', icon: 'loyal', val: Math.round(cs.loyalty), pct: cs.loyalty, color: 'linear-gradient(90deg,#a8443a,#d97a63)', help: 'loyal', warn: cs.loyalty < 40 })}
         ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm' })}
-        ${devCard({ label: '성벽', icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
+        ${devCard({ label: (c.type === 'fortress' ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, delta: (c.type === 'fortress' ? '요새 2배' : ''), color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
         ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
       </div>${transitStripHtml(cityId)}`;
     const info = $('#city-info');
@@ -7681,6 +7836,16 @@
     }
     const lvEl = $('#city-level');
     if (lvEl) { lvEl.textContent = `Lv.${lv}`; lvEl.dataset.lv = lv; }
+    /* v5.93 — 주점이 없으면 하단 [인사·탐색] 버튼을 회색으로 (누르면 '주점 건설 필요' 안내) */
+    const talentBtn = document.querySelector('.city-commands .cmd[data-grp="talent"]');
+    if (talentBtn) {
+      const ok = hasTavernOf(cityId);
+      talentBtn.classList.toggle('disabled', !ok);
+      talentBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+      talentBtn.title = ok ? '인사·탐색 — 주점에서 인재 등용' : '주점 건설 필요';
+      const sm = talentBtn.querySelector('small');
+      if (sm) sm.textContent = ok ? '등용·탐색' : '주점 필요';
+    }
   }
   SK.renderCityDev = renderCityDev;
   SK.cityLevelOf = function (id) { return cityLevel(SK.state.cities[id]); };
@@ -8679,22 +8844,19 @@
       cs.train = clamp(beforeTrain + Math.max(5, Math.round(8 * eff * trM * trnOff * trDom)), 0, 100);
       if (cs.train >= 70) cs.trainAlert = 0;
       const trainGain = Math.round(cs.train) - Math.round(beforeTrain);
-      const bonus = roll(0.2) ? 60 : 0;
+      /* v5.93 — 연병장 병사 전용화: 장수 개인 경험치는 주지 않는다 (장수 육성은 수련관).
+         지휘를 선 장수에게는 지휘 공훈만 조금 준다. */
+      if (actor) SK.gainMerit(actor, Math.max(1, Math.round(8 * eff)));
       const rows = gens.map((h) => {
         const isActor = actor && h.uid === actor.uid;
-        const gain = Math.round((90 + bonus + (isActor ? 90 : 0)) * (isActor ? eff : 1));
-        const ups = SK.gainExp(h, gain);
-        const title = SK.classTitle(h.cls, h.lv);
-        const upTxt = ups.length ? ups.map((u) => `Lv.${u.lv}${u.promote ? ` · ${u.title} 승급!` : ' 달성'}`).join(' ') : null;
-        return `<div class="train-row ${ups.length ? 'up' : ''}">
+        return `<div class="train-row">
           <img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
-          <div class="tr-main"><b>${h.name}${isActor ? ' <em class="tr-lead">지휘</em>' : ''}</b><span>${title} · Lv.${h.lv}</span></div>
-          <div class="tr-exp"><i style="width:${Math.min(100, Math.round(h.exp / SK.expNeed(h.lv) * 100))}%"></i><em>${h.exp} / ${SK.expNeed(h.lv)}</em></div>
-          ${upTxt ? `<span class="tr-up">${upTxt}</span>` : `<span class="tr-gain">EXP +${gain}</span>`}
+          <div class="tr-main"><b>${h.name}${isActor ? ' <em class="tr-lead">지휘</em>' : ''}</b><span>${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span></div>
+          <span class="tr-gain">${isActor ? '병사 훈련 지휘' : '병사와 함께 훈련'}</span>
         </div>`;
       }).join('');
       return {
-        msg: `훈련 완료 — 훈련도 ${Math.round(beforeTrain)}→${Math.round(cs.train)}${actor ? ` · ${actor.name} 경험치 +${Math.round(180 * eff)} · 공훈 +${Math.max(1, Math.round(180 * eff / 12))}` : ''}`,
+        msg: `훈련 완료 — 병사 훈련도 ${Math.round(beforeTrain)}→${Math.round(cs.train)}${actor ? ` · ${actor.name} 지휘` : ''}`,
         hotKey: 'repair', hot: `훈련도 ${Math.round(cs.train)}`, exp: 0, train: cs.train,
         after: () => SK.modal({ kicker: `${CITY[cityId].name} 훈련장`, title: '병법을 익혔다',
           body: `<div class="train-banner">
@@ -8702,14 +8864,17 @@
                 <b>${Math.round(beforeTrain)} <em>→</em> ${Math.round(cs.train)}</b>
                 <em class="tb-gain">${trainGain > 0 ? `+${trainGain}` : '최고'}</em></div>
               <i class="tb-bar"><s style="width:${clamp(Math.round(cs.train), 0, 100)}%"></s><u style="left:${clamp(Math.round(beforeTrain), 0, 100)}%"></u></i>
-              <p class="tb-note">${trainGain > 0 ? `이 성에서 출진하는 부대의 전장 훈련도가 함께 올라갑니다 — 공·방 <b>${trainPctTxt(cs.train)}</b> (50 기준).` : '이미 최고 훈련도입니다 — 장수 경험치만 올랐습니다.'}</p>
+              <p class="tb-note">${trainGain > 0 ? `이 성에서 출진하는 부대의 전장 훈련도가 함께 올라갑니다 — 공·방 <b>${trainPctTxt(cs.train)}</b> (50 기준).` : '이미 최고 훈련도입니다.'}</p>
             </div>
-            <div class="train-list">${rows}</div>`,
+            <div class="train-list">${rows}</div>
+            <p class="talent-note train-academy-note">연병장은 <b>병사 훈련</b>만 맡습니다. 장수 경험치와 능력치 육성은 <b>수련관</b>(최대 4명 배속)에서 하세요.</p>`,
           actions: [{ label: '확인', primary: true }] }),
       };
     } },
     talent: { name: '인재', run(cityId, actor) {
       const s = SK.state;
+      /* v5.93 — 주점이 없는 성에서는 등용할 수 없다 */
+      if (!hasTavernOf(cityId)) return fail('주점 건설이 필요합니다 — [시설 관리]에서 공터에 주점을 지으세요.');
       if (cityGens(cityId).length >= 99) return fail('이 성에는 더 이상 장수를 둘 수 없습니다.');
       if (!tavernPool(cityId).length) return fail('주점에 소문난 인재가 없습니다. 다른 성의 주점을 찾아보세요.');
       openTavern(cityId, actor);
@@ -11074,7 +11239,7 @@
     const body = `<div class="deploy-wrap">
       <div class="deploy-banner" style="--fc:${f.color}">
         <span class="db-flag">${SK.markOf(f)}</span>
-        <div><b>${armyName(f)} 수비병 ${fmt(ts.troops)}</b><span>${fc ? `전장 적 총병력 <b class="df-total">${fmt(fc.total)}</b> (${fc.count}부대)${fc.supportMax ? ` · 원군 최대 +${fmt(fc.supportMax)}` : ''} · ` : ''}성벽 ${ts.def} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
+        <div><b>${armyName(f)} 수비병 ${fmt(ts.troops)}</b><span>${fc ? `전장 적 총병력 <b class="df-total">${fmt(fc.total)}</b> (${fc.count}부대)${fc.supportMax ? ` · 원군 최대 +${fmt(fc.supportMax)}` : ''} · ` : ''}성벽 ${ts.def}${tc.type === 'fortress' ? ' <b class="df-total">×2 (요새)</b>' : ''} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, Object.keys(pick), s)}
       <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name}${viaTxt ? `<b class="mn-via">${viaTxt}</b>` : ''}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2개월째에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ' — 바로 이어진 길입니다. 다음 달 도착해 수비병 2,500 이상이면 80% 확률로 길목 요격전을 치르고 곧바로 공성전으로 이어집니다')}</p>
@@ -12444,7 +12609,8 @@
   const AI_GRACE_TURNS = 4;       // 1~4월은 플레이어 적응 보호
   const AI_CITY_RESERVE = 900;    // 성을 비우지 않을 최소 병력
 
-  function cityPower(cs) { return (cs.troops || 0) + (cs.def || 0) * 6 + 300; }
+  /* v5.93 — 요새 거점은 성벽이 두 배로 버틴다 (cs.wallMul = 2 · 일반 성 1) */
+  function cityPower(cs) { return (cs.troops || 0) + (cs.def || 0) * 6 * (cs.wallMul || 1) + 300; }
   SK.cityPower = cityPower;
 
   function syncFactionCities(s) {
@@ -15441,8 +15607,8 @@
         h.mp = maxMpOf(h.cls, h.lv);
       }
     });
-    /* v5.7 — 연병장 수련 명단은 이번 달 행동을 써서 경험치를 쌓는다 */
-    const crewLog = runTrainCrew(s);
+    /* v5.93 — 수련관 배속 장수가 이번 달 수련 경험치·능력치를 얻는다 (행동력은 쓰지 않는다) */
+    const academyLog = runAcademy(s);
     /* v5.75 — 총도독 군단의 달 운영 (자동 내정·징병 → 후방 수송 → 자동 출진·점령) */
     const corpsRun = runCorpsTurn(s);
     /* v5.7 — AI 세력의 확장·공세 (플레이어 침공은 한 달 전 경고 뒤에 온다) */
@@ -15663,8 +15829,8 @@
           <div class="mr-auto-row"><b>${gmVisit.city}</b><span>먼 길을 걸어온 대상인이 2개월 머뭅니다 — 군량 특가 · 보물 판매</span></div></div>` : ''}
         ${unrest ? `<div class="mr-row"><span>민심 흔들리는 성</span><b class="minus">${unrest}곳</b></div>` : ''}
         <div class="mr-row"><span>명성</span><b>+3</b></div>
-        ${crewLog.length ? `<div class="mr-auto"><p class="mr-auto-title">연병장 수련</p>
-          ${crewLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.name}</b><span>EXP +${l.gain}</span></div>`).join('')}${crewLog.length > 6 ? `<p class="mr-note">${crewLog.length - 6}명 더 수련했습니다.</p>` : ''}</div>` : ''}
+        ${academyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">수련관 <em>배속 장수 육성</em></p>
+          ${academyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.name}</b><span>EXP +${l.gain}${l.up ? ` · <b class="plus">${l.up.label} +1 → ${l.up.val}</b>` : ''}<i> (수련 ${l.months}개월)</i></span></div>`).join('')}${academyLog.length > 6 ? `<p class="mr-note">${academyLog.length - 6}명 더 수련했습니다.</p>` : ''}</div>` : ''}
         ${corpsRun.lines.length ? `<div class="mr-auto"><p class="mr-auto-title">총도독 군단 <em>자동 내정·수송·출진</em></p>
           ${corpsRun.lines.slice(0, 8).map((l) => `<div class="mr-auto-row"><b>${l.corps}</b><span>${l.text}</span></div>`).join('')}${corpsRun.lines.length > 8 ? `<p class="mr-note">${corpsRun.lines.length - 8}개 군단 더 움직였습니다.</p>` : ''}</div>` : ''}
         ${aiNews.length ? `<div class="mr-ai"><p class="mr-ai-title">천하 소식 — 다른 세력의 움직임</p>

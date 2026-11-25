@@ -380,6 +380,11 @@
       reserve: Math.max(0, Math.round(opts.reserve || 0)),
       /* v5.65 — 적 총병력(예측/실제) */
       enemyTotal, enemyPlanTotal: plan.total,
+      /* v5.93 — 요새 성벽 방어 2배: 거점 주인이 서는 쪽을 '수비측'으로 두고
+         그쪽 부대의 성벽 방어를 계수(요새 2.0)만큼 올린다 (공성·수성·요새전 공통) */
+      wallDefMul: (SK.fortressWallMul ? SK.fortressWallMul(target) : ((target && target.type === 'fortress') ? 2 : 1)),
+      wallDefSide: (((s.cities[opts.targetId] || {}).owner === SK.playerFaction()) ? 'ally' : 'enemy'),
+      wallPct: Math.max(0, Math.min(100, Number((((s.cities[opts.targetId] || {}).def) == null ? 50 : s.cities[opts.targetId].def)))),
     };
     /* v5.11 — 공성 진영 장식 (assets/battle). 격자 뒤에 깔려 부대를 가리지 않는다 */
     if (type === 'camp') {
@@ -4692,7 +4697,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=120'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
@@ -5654,13 +5659,22 @@
     const site = siteBonusOf(u);
     const sit = site ? site.def : 1;
     /* v5.29 — 보물 방어력, 성벽·망루·본진 위에서는 '성벽 위 방어력'까지 */
-    const wall = (ch === 'C' || ch === 'T' || ch === 'K' || ch === 'G') ? fxPct(u, 'defWall') : 0;
+    const onWallTile = (ch === 'C' || ch === 'T' || ch === 'K' || ch === 'G');
+    const wall = onWallTile ? fxPct(u, 'defWall') : 0;
     const tdef = fxPct(u, 'def') + wall + terrFxPct(u);
     /* v5.31 — 조각배 위에서는 방어도 조금 떨어진다 (수적 제외) */
     const boat = (u.aboard && u.cls !== 'sujeok') ? 0.88 : 1;
+    /* v5.93 — 거점 성벽 방어 계수: 요새(2.0)면 수비측이 성벽·망루 위에서 얻는 방어 +
+       거점 성벽 수치(def 0~100)만큼의 철벽 보정까지 두 배로 받는다. */
+    let fortWall = 1;
+    if (B && B.wallDefMul > 1 && u.side === B.wallDefSide) {
+      const pct = clamp(Number(B.wallPct) || 0, 0, 100) / 100;
+      const holdAdd = onWallTile ? (hold - 1) : 0;
+      fortWall = (1 + 0.25 * pct * (B.wallDefMul - 1)) * (1 + holdAdd * (B.wallDefMul - 1));
+    }
     /* v5.56 — 사기·훈련도는 방어에도 그대로 붙는다 (낮은 사기는 공·방을 함께 깎는다) */
     return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef)
-      * mul * hold * sit * boat * moraleMul(u) * trainMul(u)
+      * mul * hold * sit * boat * fortWall * moraleMul(u) * trainMul(u)
       /* v5.82 — 방진(인접 아군 있으면 방어 +)·문무겸전·지휘 오라 */
       * vpDefMul(u) * (1 + vpAura(u, 'def'));
   }

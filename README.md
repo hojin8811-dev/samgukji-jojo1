@@ -6,6 +6,19 @@
 
 > 이어서 개발할 사람·AI는 **[`HANDOFF.md`](HANDOFF.md)**(인수인계서)와 **[`HANDOFF_PROMPT.md`](HANDOFF_PROMPT.md)**(복붙용 지시서)부터 보세요.
 
+## v5.93 내정·시설 개편 — 주점 잠금·연병장 병사 전용·수련관·요새 5칸·요새 성벽 2배 + 일기토 새 배경 (2026-11-25)
+
+배포는 `?v=120`입니다. 첨부 명세서(`내정_시설개편_v590_작업명세서`)의 5개 항목을 **실제 엔진 심볼**(`SLOT_DEFS`·`ensureSlots`·`runSlots`·`SK.startBattle`·`effDef`)에 직접 배선했습니다. 명세서의 `fort`·`FACILITY_TYPES`·`slot.fid` 같은 이름은 이 엔진에 없어 실제 이름(`fortress`·`SLOT_DEFS`·`slot.key`)으로 옮겼고, 명세서의 `막사`는 이 엔진에 별도 건물이 없어 **군사 시설인 연병장**으로 대신했습니다.
+
+- **① 주점 없으면 [인재] 잠금** (`js/app.js`·`css/game.css`): 이 엔진에는 별도 '인재 탭'이 없고 하단 명령 `[인사·탐색]`(구 `talent` 그룹)이 그 자리입니다. 성 슬롯에 `tavern`이 없으면 그 버튼에 `.disabled`(회색·명암·툴팁 `주점 건설 필요`, 작은 글씨 `주점 필요`)를 붙이고, 누르면 **"주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 인재를 등용할 수 있습니다"** 토스트가 뜹니다. 메뉴 안의 `주점 — 인재 등용` 줄도 회색 잠금(`data-off`)이 되어 눌러도 안내만 나옵니다. **탐색·전출·데려오기·장수 명부는 그대로** 쓸 수 있게 두었습니다(주점이 없어도 필요한 기능). `SK.hasTavernOf(cityId)`가 판정하고, `CMDS.talent`·`groupAction('talent')`에도 같은 가드를 넣어 다른 경로로도 등용되지 않습니다.
+- **② 연병장 병사 전용화** (`js/app.js`): 연병장의 장수 육성(옛 `trainCrew` 수련 명단·`runTrainCrew`)을 폐지했습니다. `[훈련]` 명령도 이제 **병사 훈련도만** 올리고 장수 개인 경험치를 주지 않습니다(지휘관에게는 공훈 소량). 안내 문구에 "장수 육성은 수련관"을 적었습니다.
+- **③ 수련관(academy) 신설** (`js/app.js`·`css/game.css`·`assets/buildings/academy_lv1~5.webp`): `SLOT_DEFS.academy`(통솔 담당·`stat:'tong'`)를 추가하고, 공터 건설 목록·요새 고정 시설에 넣었습니다. `openAcademy()` 창은 `.academy-trainee-wrap`(4칸, `.academy-trainee-slot`)으로 배속 상태를 보여 주고, 후보 장수를 `넣기/빼기`로 **최대 4명**까지 배속합니다. 달이 바뀌면 `runAcademy()`가 배속 장수에게 수련 EXP(`40 + Lv×12 + 통솔×0.2`)를 주고, **17% 확률로 5대 능력치(무·지·통·정·매) 중 하나 +1**(상한 100) — 1년이면 기대치 약 +2입니다(명세의 '1년 최대 약 +2'). 월정산 보고에 `수련관` 줄로 `EXP +N · 정치 +1 → 51 (수련 3개월)`처럼 남습니다. **배속 장수는 출진·다른 내정 명령을 잠그지 않습니다**(v5.88 규칙 유지 — `actedThisMonth`를 건드리지 않음). 옛 저장의 `cs.trainCrew`는 월정산 때 비웁니다.
+- **④ 요새 시설 5칸 = 고정 4 + 자유 1** (`js/app.js`): `SLOT_MAX.fortress` `4→5`, `SLOT_DEFAULT.fortress = ['barracks','wall','academy','training', null]`. `enforceFortressSlots(cs)`가 ① 5칸을 채우고 ② 빠진 고정 시설을 빈 칸(0~3)에 넣고 ③ **이미 지어 둔 건물은 옮기거나 지우지 않으며**(0~3이 다 찼으면 그 건물을 자유 칸 4로 옮기고 그 자리를 쓴다) ④ `sl.fixed`를 세웁니다. `ensureSlots`가 요새에서 이 함수를 부르므로 **`SK.load()`(구세이브)와 새 게임 초기화가 같은 경로**로 보정됩니다. 고정 시설은 `demolishSlot`이 거부하고(토스트), 시설 카드의 `철거` 칩도 `고정`으로 바뀌며, 상세창 철거 버튼은 `disabled`입니다.
+- **⑤ 요새 성벽 방어 2배** (`js/data.js`·`js/battle.js`·`js/app.js`): `SK.fortressWallMul(city)`(요새 2 · 일반 1)을 두고, ① 전장에서는 `B.wallDefMul`·`B.wallDefSide`(거점 주인 쪽)·`B.wallPct`(성벽 수치)를 만들어 `effDef`가 수비측에 **성벽 수치만큼의 철벽 보정(최대 +25%→요새 ×2 = +50%)과 성벽·망루 위 방어 보정 2배**를 붙입니다. ② 전략 수치도 `cs.wallMul`(요새 2)로 `cityPower`의 성벽 항을 두 배로 셉니다(AI 공격 판단·침공 규모). ③ 화면에는 내정 탭 `성벽 ×2`, 출진 화면 `성벽 60 ×2 (요새)`로 표시합니다.
+- **⑥ 일기토 새 배경·마주 보는 자세** (`assets/duel_arena_bg.webp`·`css/game.css`): 사용자가 보낸 720×1280 그림을 WebP(104KB)로 바꿔 덮어썼습니다. `.duel-sprite`를 `bottom: 25% → 35%`로 올려 **가운데 원 안 바닥**에 세우고, 왼쪽(아군)은 원래 방향(오른쪽을 봄), 오른쪽(적군)만 `scaleX(-1)`로 뒤집어 **서로 마주 보게** 했습니다(`duelIdleA/B` 키프레임도 반전 유지). 배경 URL에 `?v=120`을 붙여 폰 캐시를 갈아 줍니다. 원정(3×3) 전장도 같은 그림을 씁니다.
+- **캐시버스터**: `index.html`·`manifest.webmanifest`·`sw.js`(등록 쿼리)·`css/game.css`의 `duel_arena_bg.webp?v=120` → **`?v=120`**.
+- **검수**(390×844): 로컬·라이브 콘솔·페이지 오류 **0건**, ① 주점 없는 영안 → `[인사·탐색]` `.disabled`·`주점 필요`·메뉴 `talent(off)` 1줄 잠금 / 주점 있는 성은 정상 ② 수련관 건설 → 4명 배속 → 12개월 `SK.runAcademy` 48행, 능력치 +1 11회·EXP +176~180·`actedThisMonth=false`(출진 가능) ③ 요새 해릉 `slotCount 5`·`keys [wall,barracks,academy,training,free]`·고정 4 철거 거부 ④ 요새전 `wallDefMul 2`·`wallDefSide enemy`·`wallPct 60` ⑤ 일기토 `scrollHeight 844 = clientHeight 844`. 스크립트 `pt_v593.py`, 스샷 `preview/v593/`.
+
 ## v5.90b 4종 개선 — 시설 레벨업·끝 칸 터치·한국 소국 AI·수송 중시 자원 (2026-11-25)
 
 배포는 `?v=116`입니다. AI Studio(클로드) 초안의 4건을 **실제 엔진 심볼에 직접 배선**해 넣었습니다(초안의 `// ASSUMED`는 전부 걷어냈습니다).

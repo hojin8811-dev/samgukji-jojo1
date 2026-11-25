@@ -4542,7 +4542,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=120') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -4559,18 +4559,21 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   100% { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
-/* 두 장수 — 황금 모래 원의 가운데로 올려 세운다 (서로 마주 보게 왼쪽을 뒤집는다) */
-.duel-sprite { position: absolute; bottom: 25%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
-.duel-sprite.ally { left: 9%; }
-.duel-sprite.enemy { right: 9%; }
+/* 두 장수 — v5.93 새 배경의 가운데 원 안 바닥에 세우고 서로 마주 보게 둔다.
+   아군(왼쪽)은 원래 그림이 오른쪽을 향하므로 그대로, 적군(오른쪽)만 좌우를 뒤집어
+   두 사람의 얼굴·무기·방패가 가운데를 향한다. (bottom: 35% = 원 안쪽 바닥) */
+.duel-sprite { position: absolute; bottom: 35%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.duel-sprite.ally { left: 10%; }
+.duel-sprite.enemy { right: 10%; }
 .duel-sprite img { width: 139px; height: auto; filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.78)); }
-.duel-sprite.ally img { transform: scaleX(-1); animation: duelIdleA 2.8s ease-in-out infinite; }
+.duel-sprite.ally img { transform-origin: 50% 100%; animation: duelIdleA 2.8s ease-in-out infinite; }
 .duel-sprite.enemy img {
+  transform-origin: 50% 100%; transform: scaleX(-1);
   animation: duelIdleB 2.8s ease-in-out infinite;
   filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 10px rgba(255, 90, 40, 0.55));
 }
-@keyframes duelIdleA { 0%, 100% { transform: scaleX(-1) translateY(0); } 50% { transform: scaleX(-1) translateY(-3px); } }
-@keyframes duelIdleB { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes duelIdleA { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes duelIdleB { 0%, 100% { transform: scaleX(-1) translateY(0); } 50% { transform: scaleX(-1) translateY(-3px); } }
 
 .duel-bubble {
   position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%);
@@ -4737,9 +4740,9 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 @media (max-height: 740px) {
   .duel-arena { gap: 5px; padding-top: 7px; padding-bottom: 8px; }
   .duel-sprite img { width: 119px; }
-  .duel-sprite { bottom: 23%; }
-  .duel-sprite.ally { left: 8%; }
-  .duel-sprite.enemy { right: 8%; }
+  .duel-sprite { bottom: 33%; }
+  .duel-sprite.ally { left: 10%; }
+  .duel-sprite.enemy { right: 10%; }
   .duel-cmd { height: 46px; }
   .duel-cmd .dcmd-ico { height: 17px; }
   .duel-cmd .dcmd-ico svg { width: 16px; height: 16px; }
@@ -5759,7 +5762,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=120') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6242,7 +6245,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=120) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}
@@ -7577,3 +7580,40 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #screen-battle.spectating #btn-speed,
 #screen-battle.spectating #battle-actions .act.auto { display: none !important; }
 #screen-battle.spectating #battle-actions .act:not(.speed) { opacity: .45; filter: grayscale(.45); }
+
+/* ══════════════════════════════════════════════════════════════
+   v5.93 — 내정·시설 개편: 주점 없으면 [인사·탐색] 잠금 · 수련관 다인 배속
+   ══════════════════════════════════════════════════════════════ */
+/* 주점이 없는 성 — 하단 [인사·탐색] 버튼을 회색으로 (누르면 '주점 건설 필요' 안내) */
+.city-commands .cmd.disabled { opacity: 0.45; filter: grayscale(100%); }
+.city-commands .cmd.disabled .cmd-ic { background: #d9cfb8 !important; border-color: #b8a883 !important; }
+.city-commands .cmd.disabled b, .city-commands .cmd.disabled small { color: #8d8168 !important; }
+/* 메뉴 안의 잠긴 줄 */
+.grp-row.disabled { opacity: 0.55; filter: grayscale(90%); background: #f3ecdc; border-style: dashed; }
+.grp-row.disabled .grp-go { color: #9a8b6c; font-size: 9.5px; font-weight: 800; }
+
+/* 수련관 — 4칸 배속 슬롯 */
+.academy-trainee-wrap {
+  display: flex; gap: 6px; padding: 5px 6px; margin: 2px 0 6px;
+  background: rgba(90, 62, 24, 0.07); border: 1px solid #d9c396; border-radius: 10px;
+  justify-content: center;
+}
+.academy-trainee-slot {
+  width: 56px; height: 66px; border: 1.5px dashed #b79a63; border-radius: 9px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: #fffaf0; color: #b09a6e; font-size: 16px; font-weight: 900; position: relative; overflow: hidden;
+}
+.academy-trainee-slot.empty { opacity: 0.75; }
+.academy-trainee-slot.filled { border-style: solid; border-color: #b8862f; background: linear-gradient(180deg, #fffdf6, #f2e4c4); }
+.academy-trainee-slot.filled img { width: 40px; height: 40px; border-radius: 7px; object-fit: cover; object-position: 50% 16%; border: 1px solid #c8a75f; }
+.academy-trainee-slot.filled em { font-style: normal; font-size: 9px; font-weight: 800; color: #43330f; max-width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.academy-trainee-slot .ats-out {
+  position: absolute; top: -1px; right: -1px; width: 15px; height: 15px; border-radius: 0 8px 0 8px;
+  background: #a8443a; color: #fff5e2; font-size: 10px; font-style: normal; font-weight: 900;
+  display: grid; place-items: center;
+}
+.slot-fixed-note { margin: 4px 0 0; font-size: 9.5px; color: #7d6538; }
+.train-academy-note { margin-top: 6px; font-size: 9.5px; }
+/* v5.93 — 요새 고정 시설 카드의 철거 자리 (잠금 표시) */
+.sc-demolish.off { color: #9a8b6c !important; background: #efe6d2 !important; border-color: #cbbfa2 !important; cursor: default; }
+.academy-list .cw-main span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
