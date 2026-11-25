@@ -11846,7 +11846,7 @@
     const c = cv.getContext('2d');
     c.drawImage(img, 0, 0);
     c.globalCompositeOperation = 'source-atop';
-    c.fillStyle = 'rgba(34,27,20,0.58)';    /* 그을린 돌빛 */
+    c.fillStyle = 'rgba(38,30,22,0.42)';    /* 그을린 돌빛 */
     c.fillRect(0, 0, cv.width, cv.height);
     _towerGhosts[key] = cv;
     return cv;
@@ -11907,7 +11907,7 @@
           ctx.lineTo(x1, base + 2);
           ctx.closePath();
           ctx.clip();
-          ctx.globalAlpha = 0.82;
+          ctx.globalAlpha = 0.92;
           ctx.drawImage(towerGhost(img), cx - w / 2, base - h, w, h);
           ctx.restore();
           ctx.globalAlpha = 1;
