@@ -1765,6 +1765,19 @@
     ctx.restore();
   }
 
+  /* v5.91a — 세로를 기준으로 그림 비율을 지켜 그린다.
+     정제한 망루 스프라이트는 정사각이 아니라서 drawProp으로 그리면 가로로 늘어난다. */
+  function drawPropTall(img, x, y, scale, alpha) {
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const h = TILE * (scale || 1);
+    const w = h * (img.naturalWidth / img.naturalHeight);
+    const cx = (x + 0.5) * TILE, by = (y + 0.9) * TILE;
+    ctx.save();
+    if (alpha != null) ctx.globalAlpha = alpha;
+    ctx.drawImage(img, cx - w / 2, by - h, w, h);
+    ctx.restore();
+  }
+
   function drawBattleProps() {
     if (!B || !B.tiles) return;
     /* v5.17 — 배경 그림이 막사·성벽·성문을 이미 담고 있다. 프랍을 다시 얹으면 겹쳐 보인다. */
@@ -2419,12 +2432,12 @@
   /* v5.17 — 망루(T)·본성 계단(K)은 배경 그림에 없으므로 코드로 얹는다 */
   function drawKeyProps() {
     if (!B || !B.tiles) return;
-    const tower = loadImg('assets/battle/watchtower.webp');
+    const tower = loadImg(TOWER_SRC);
     const keep = loadImg('assets/battle/hq_pavilion.webp');
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
         const ch = B.tiles[y][x];
-        if (ch === 'T') drawProp(tower, x, y, 0.94, 0.96);
+        if (ch === 'T') drawPropTall(tower, x, y, 0.94, 0.96);
         else if (ch === 'K') drawProp(keep, x, y, 1.08, 0.96);
       }
     }
@@ -11811,88 +11824,125 @@
   }
 
   /* ── 렌더링 ── */
+  /* v5.91a — v5.91에서 캔버스 도형(사각 기단·삼각 지붕)으로 얹었던 자동 포격 망루를
+     고퀄리티 도트 스프라이트로 바꾼다. 원본 png의 왼쪽 목책 조각·오른쪽 자투리를 지우고
+     관측창 흰 틈을 뚫은 정제본(tools/refine_watchtower.py)을 쓴다.
+     · 아군(수성 측) 망루는 깃발만 푸른 판(watchtower_ally.webp)으로 세운다.
+     · 부서진 망루는 그을린 반투명 잔해 + 돌무더기로 남긴다.
+     · 살아 있는 망루 위에는 500/500 내구도 바를 그대로 얹는다. */
+  const TOWER_SRC = 'assets/battle/watchtower.webp?v=118';
+  const TOWER_SRC_ALLY = 'assets/battle/watchtower_ally.webp?v=118';
+  function towerSprite(side) {
+    const ally = loadImg(TOWER_SRC_ALLY);
+    if (side === 'ally' && ally.complete && ally.naturalWidth) return ally;
+    return loadImg(TOWER_SRC);
+  }
+  const _towerGhosts = {};
+  function towerGhost(img) {
+    const key = img.src + '|' + img.naturalWidth + 'x' + img.naturalHeight;
+    if (_towerGhosts[key]) return _towerGhosts[key];
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = 'rgba(34,27,20,0.58)';    /* 그을린 돌빛 */
+    c.fillRect(0, 0, cv.width, cv.height);
+    _towerGhosts[key] = cv;
+    return cv;
+  }
   function drawTowers() {
     const list = towerList();
     if (!list.length || !ctx) return;
-    const now = performance.now();
     list.forEach((t) => {
       const px = t.x * TILE, py = t.y * TILE;
+      const cx = px + TILE * 0.5;
+      const base = py + TILE * 0.92;                 /* 망루 발이 닿는 줄 */
+      const h = TILE * 1.04;                          /* 한 칸보다 살짝 크게 */
+      const img = towerSprite(t.side);
+      const ready = !!(img && img.complete && img.naturalWidth);
+      const w = ready ? h * (img.naturalWidth / img.naturalHeight) : h;
       ctx.save();
+      /* 그림자 — 발밑을 눌러 배경에 뜨지 않게 */
+      ctx.fillStyle = t.alive ? 'rgba(0,0,0,0.24)' : 'rgba(0,0,0,0.16)';
+      ctx.beginPath();
+      ctx.ellipse(cx, base - TILE * 0.02, TILE * 0.34, TILE * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
       if (t.alive) {
-        /* 그림자 */
-        ctx.fillStyle = 'rgba(0,0,0,0.22)';
-        ctx.beginPath(); ctx.ellipse(px + TILE * 0.5, py + TILE * 0.9, TILE * 0.33, TILE * 0.1, 0, 0, Math.PI * 2); ctx.fill();
-        /* 기단 */
-        ctx.fillStyle = '#7a6a52';
-        ctx.fillRect(px + TILE * 0.22, py + TILE * 0.68, TILE * 0.56, TILE * 0.2);
-        ctx.strokeStyle = '#3b2f22'; ctx.lineWidth = 1.2;
-        ctx.strokeRect(px + TILE * 0.22, py + TILE * 0.68, TILE * 0.56, TILE * 0.2);
-        /* 다리 */
-        ctx.fillStyle = '#6b543a';
-        ctx.fillRect(px + TILE * 0.3, py + TILE * 0.42, TILE * 0.1, TILE * 0.28);
-        ctx.fillRect(px + TILE * 0.6, py + TILE * 0.42, TILE * 0.1, TILE * 0.28);
-        /* 몸통 */
-        ctx.fillStyle = '#8b6f45';
-        ctx.fillRect(px + TILE * 0.26, py + TILE * 0.28, TILE * 0.48, TILE * 0.18);
-        ctx.strokeStyle = '#2f2418'; ctx.lineWidth = 1.2;
-        ctx.strokeRect(px + TILE * 0.26, py + TILE * 0.28, TILE * 0.48, TILE * 0.18);
-        /* 지붕 */
-        ctx.fillStyle = t.side === 'ally' ? '#2f6fb5' : '#b0332a';
-        ctx.beginPath();
-        ctx.moveTo(px + TILE * 0.14, py + TILE * 0.3);
-        ctx.lineTo(px + TILE * 0.5, py + TILE * 0.06);
-        ctx.lineTo(px + TILE * 0.86, py + TILE * 0.3);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#1d1610'; ctx.lineWidth = 1.3; ctx.stroke();
-        /* 깃발 */
-        ctx.strokeStyle = '#e8e2d2'; ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.moveTo(px + TILE * 0.5, py + TILE * 0.06); ctx.lineTo(px + TILE * 0.5, py - TILE * 0.16); ctx.stroke();
-        const wave = 0.5 + 0.5 * Math.sin(now / 320 + t.x);
-        ctx.fillStyle = t.side === 'ally' ? '#7fc0ff' : '#ff8a7a';
-        ctx.beginPath();
-        ctx.moveTo(px + TILE * 0.5, py - TILE * 0.16);
-        ctx.lineTo(px + TILE * 0.5 + TILE * 0.2, py - TILE * 0.12 + wave * 2);
-        ctx.lineTo(px + TILE * 0.5, py - TILE * 0.04);
-        ctx.closePath(); ctx.fill();
-        /* 내구도 바 + 500/500 */
-        const bw = TILE * 0.84, bh = Math.max(4, Math.round(TILE * 0.11));
-        const bx = px + (TILE - bw) / 2, by = py - bh - 9;
-        ctx.fillStyle = 'rgba(0,0,0,0.68)';
-        ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+        if (ready) ctx.drawImage(img, cx - w / 2, base - h, w, h);
+        /* 내구도 바 + 500/500 — 부대 병력 라벨과 같은 방식으로 화면 배율에 맞춰 크기를 잡고,
+           도트 위에서도 읽히게 검은 반침·글자 외곽선을 준다 */
+        const k = clamp(1 / Math.max(0.5, cam.s), 1, 1.6);
+        const bw = TILE * 0.78, bh = Math.max(3, Math.round(5 * k));
+        const bx = px + (TILE - bw) / 2, by = py - bh - Math.round(6 * k);
+        ctx.fillStyle = 'rgba(0,0,0,0.72)';
+        ctx.fillRect(bx - 1.5, by - 1.5, bw + 3, bh + 3);
         const ratio = Math.max(0, t.hp / Math.max(1, t.maxHp));
         ctx.fillStyle = ratio > 0.5 ? '#4cd964' : (ratio > 0.25 ? '#f1c40f' : '#e74c3c');
         ctx.fillRect(bx, by, bw * ratio, bh);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold ' + Math.max(9, Math.round(TILE * 0.22)) + 'px "Noto Serif CJK KR", sans-serif';
+        ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+        ctx.font = '800 ' + Math.round(9 * k) + 'px "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText(Math.round(t.hp) + '/' + t.maxHp, px + TILE / 2, by - 1);
+        ctx.lineWidth = Math.max(1.6, 2.4 * k);
+        ctx.strokeStyle = 'rgba(12,9,6,0.92)';
+        ctx.strokeText(Math.round(t.hp) + '/' + t.maxHp, cx, by - Math.round(1.5 * k));
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(Math.round(t.hp) + '/' + t.maxHp, cx, by - Math.round(1.5 * k));
       } else {
-        /* 파괴된 잔해 — 부서진 기단·부러진 기둥·재더미를 흐리게 */
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = '#5c544a';
-        ctx.beginPath(); ctx.ellipse(px + TILE * 0.5, py + TILE * 0.76, TILE * 0.36, TILE * 0.16, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#6f675c';
+        /* 파괴 — 부러진 윗면을 남긴 성벽 몸통(그을린 스프라이트) + 발치의 돌무더기 */
+        const cut = base - TILE * 0.42;
+        if (ready) {
+          const x0 = cx - w / 2, x1 = cx + w / 2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(x0, base + 2);
+          ctx.lineTo(x0, cut + 3);
+          for (let i = 0; i <= 8; i++) {
+            const xt = x0 + (x1 - x0) * (i / 8);
+            const yt = cut + (i % 2 ? 5 : 0) + (i % 3 === 0 ? 3 : 0);   /* 들쭉날쭉 부러진 윗면 */
+            ctx.lineTo(xt, yt);
+          }
+          ctx.lineTo(x1, base + 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.globalAlpha = 0.82;
+          ctx.drawImage(towerGhost(img), cx - w / 2, base - h, w, h);
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        }
+        /* 발치 돌무더기 — 작은 돌 여남은 개를 흩어 놓는다 */
+        ctx.fillStyle = 'rgba(18,15,12,0.3)';
         ctx.beginPath();
-        ctx.moveTo(px + TILE * 0.18, py + TILE * 0.78);
-        ctx.lineTo(px + TILE * 0.32, py + TILE * 0.5);
-        ctx.lineTo(px + TILE * 0.5, py + TILE * 0.62);
-        ctx.lineTo(px + TILE * 0.68, py + TILE * 0.46);
-        ctx.lineTo(px + TILE * 0.84, py + TILE * 0.78);
-        ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = '#2e2a24'; ctx.lineWidth = 1.1; ctx.stroke();
-        /* 부러진 기둥 조각 */
-        ctx.strokeStyle = '#4a3a28'; ctx.lineWidth = 3.4; ctx.lineCap = 'round';
+        ctx.ellipse(cx, base - TILE * 0.02, TILE * 0.38, TILE * 0.1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        const stone = (dx, dy, rw, rh, c1, c2) => {
+          ctx.beginPath();
+          ctx.ellipse(cx + dx * TILE, base - dy * TILE, rw * TILE, rh * TILE, 0, Math.PI, 0);
+          ctx.closePath();
+          const g2 = ctx.createLinearGradient(0, base - (dy + rh) * TILE, 0, base - dy * TILE);
+          g2.addColorStop(0, c1); g2.addColorStop(1, c2);
+          ctx.fillStyle = g2; ctx.fill();
+          ctx.strokeStyle = '#2b241c'; ctx.lineWidth = 1; ctx.stroke();
+        };
+        stone(-0.3, 0.0, 0.11, 0.07, '#a49a86', '#5d5546');
+        stone(-0.16, 0.01, 0.13, 0.09, '#b3a894', '#665d4d');
+        stone(0.0, 0.0, 0.12, 0.07, '#9c9280', '#574f41');
+        stone(0.15, 0.01, 0.14, 0.1, '#aba08c', '#615849');
+        stone(0.31, 0.0, 0.1, 0.06, '#948a78', '#544c3f');
+        stone(0.06, 0.03, 0.09, 0.12, '#b7ac97', '#6a6151');
+        /* 부러진 들보 조각 두 자루 */
+        ctx.strokeStyle = '#3d3023'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(px + TILE * 0.26, py + TILE * 0.7); ctx.lineTo(px + TILE * 0.4, py + TILE * 0.44);
-        ctx.moveTo(px + TILE * 0.74, py + TILE * 0.72); ctx.lineTo(px + TILE * 0.6, py + TILE * 0.46);
+        ctx.moveTo(cx - 0.2 * TILE, base - TILE * 0.02); ctx.lineTo(cx - 0.24 * TILE, base - TILE * 0.16);
+        ctx.moveTo(cx + 0.2 * TILE, base - TILE * 0.01); ctx.lineTo(cx + 0.3 * TILE, base - TILE * 0.12);
         ctx.stroke();
         ctx.lineCap = 'butt';
-        /* 재·돌조각 */
-        ctx.fillStyle = 'rgba(38,36,33,0.85)';
-        ctx.beginPath(); ctx.arc(px + TILE * 0.44, py + TILE * 0.72, 3.4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(px + TILE * 0.62, py + TILE * 0.76, 2.8, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(150,144,132,0.8)';
-        ctx.beginPath(); ctx.arc(px + TILE * 0.34, py + TILE * 0.78, 2.2, 0, Math.PI * 2); ctx.fill();
+        /* 재 */
+        ctx.fillStyle = 'rgba(26,23,20,0.55)';
+        ctx.beginPath(); ctx.arc(cx + 0.1 * TILE, base - TILE * 0.03, 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx - 0.36 * TILE, base - TILE * 0.02, 1.8, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     });
