@@ -364,7 +364,7 @@
       targetId: opts.targetId, origin: opts.origin,
       tiles, units: [], turn: 1, phase: 'ally', sel: null, insp: null,   // v5.53 — insp = 아래 카드에 띄운 부대(적군 포함, 읽기 전용)
       cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey, customTilesRender: customTilesRender,
-      acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings,
+      acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings, towers: [],
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
@@ -439,6 +439,8 @@
       if (enemyPos) B.sites.push({ type: 'enemyHQ', x: enemyPos.x, y: enemyPos.y, owner: 'enemy' });
       (meta.villages || []).forEach((v) => B.sites.push({ type: 'village', x: v.x, y: v.y, owner: null }));
     }
+    /* v5.91 — 공성·수성전: 성문 좌우에 자동 포격 망루 (성 규모 1/2/3 → 2/3/4대) */
+    initTowers();
     /* v5.17 — 총대장(적)·아군 총대장 표식. v5.32 — 격파해도 전투는 끝나지 않는다(금관 표시용) */
     const eLeader = B.units.filter((u) => u.side === 'enemy').sort((a, b) => ((b.boss ? 1 : 0) - (a.boss ? 1 : 0)) || (b.lv - a.lv))[0];
     if (eLeader) {
@@ -1691,6 +1693,7 @@
     drawObjective();
     drawHighlights();
     drawBackFloats();
+    drawTowers();
     drawUnits();
     drawFx();
     ctx.restore();
@@ -2633,6 +2636,7 @@
         const cost = moveCost(u.cls, ch, nx, ny, u.side, u);
         if (cost >= 90) continue;
         if (B.units.some((o) => o.alive && o.x === nx && o.y === ny)) continue;
+        if (towerBlockAt(nx, ny)) continue;          // v5.91 — 살아 있는 망루 칸은 지나갈 수 없다
         const nc = c + cost;
         if (nc > cap) continue;
         const k = key(nx, ny);
@@ -4019,7 +4023,7 @@
     const prev = new Map();
     dist.set(key(u.x, u.y), 0);
     const open = [{ x: u.x, y: u.y, c: 0 }];
-    const blocked = (x, y) => B.units.some((o) => o.alive && o !== u && o.x === x && o.y === y);
+    const blocked = (x, y) => B.units.some((o) => o.alive && o !== u && o.x === x && o.y === y) || towerBlockAt(x, y);
     let found = false;
     let guard = 0;
     while (open.length && guard++ < 900) {
@@ -6048,6 +6052,26 @@
         return;
       }
     }
+
+    /* v5.91 — 망루: 공격 측 부대가 사거리 안의 살아 있는 망루를 눌러 공략한다. */
+    const twp = !t ? towerAt(x, y) : null;
+    if (twp) {
+      if (u && u.side === 'ally' && !u.acted && u.side === towerAttackerSide()) {
+        if (manh(u.x, u.y, twp.x, twp.y) > effRng(u)) {
+          SK.toast(`망루까지 거리가 멉니다. (사거리 ${effRng(u)})`);
+          return;
+        }
+        openTowerAttack(u, twp);
+        return;
+      }
+      if (u && u.side === towerOwnerSide()) {
+        SK.toast(`우리 망루입니다 — 내구도 ${Math.round(twp.hp)} / ${twp.maxHp}`);
+        return;
+      }
+      SK.toast(`적 망루 — 내구도 ${Math.round(twp.hp)} / ${twp.maxHp} · 공격 측 부대를 골라 누르면 공략할 수 있습니다.`);
+      return;
+    }
+    if (!t && towerRubbleAt(x, y)) { SK.toast('부서진 망루의 잔해입니다.'); return; }
 
     if (t && t.side === 'ally') {
       if (t.acted) { selectUnit(t); return; }
@@ -9190,6 +9214,9 @@
     });
     if (best) return best;
     if (sup) return sup;
+    /* v5.91 — 칠 적도 없고 성문도 사거리 밖이면, 사거리 안의 망루를 공략한다 */
+    const twPlan = planTowerStrike(u);
+    if (twPlan) return twPlan;
     let pick = null;
     tiles.forEach((t) => {
       const d = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
@@ -9301,6 +9328,7 @@
           const sk = SK.SKILLS[p.skill];
           if (!aiCast(u, sk, p.sx == null ? p.x : p.sx, p.sy == null ? p.y : p.sy)) { u.acted = true; SKBattle.refreshUI(); }
         } else if (p.gate && gateIntact()) doGateAttack(u, p.gate);
+        else if (p.tower && p.tower.alive) doTowerAttack(u, p.tower);
         else if (p.target && p.target.alive && canHit(u, p.target)) doAttack(u, p.target);
         else { u.acted = true; SKBattle.refreshUI(); }
       }
@@ -9345,13 +9373,15 @@
       return;
     }
     if (plan && (plan.x !== u.x || plan.y !== u.y)) {
-      autoPending = { uid: u.uid, target: plan.kind === 'hit' ? plan.target : null, gate: plan.kind === 'gate' ? plan.gate : null };
+      autoPending = { uid: u.uid, target: plan.kind === 'hit' ? plan.target : null, gate: plan.kind === 'gate' ? plan.gate : null,
+        tower: plan.kind === 'tower' ? plan.tower : null };
       moveUnit(u, plan.x, plan.y);
       autoTimer = wait(autoStep, 260);
       return;
     }
     if (plan && plan.kind === 'hit' && plan.target) doAttack(u, plan.target);
     else if (plan && plan.kind === 'gate' && plan.gate) doGateAttack(u, plan.gate);
+    else if (plan && plan.kind === 'tower' && plan.tower) doTowerAttack(u, plan.tower);
     else { u.acted = true; SKBattle.refreshUI(); }
     autoTimer = wait(autoStep, 420);
   }
@@ -9369,6 +9399,14 @@
     B.units.forEach((u) => { if (u.side === 'enemy' && u.alive) triggerPassive(u, 'turn_start'); });
     /* v5.82 — 적 턴 시작: 사기진작·군의술 같은 40종 특기 */
     B.units.forEach((u) => { if (u.side === 'enemy' && u.alive) vpTurnStart(u); });
+    /* v5.91 — 수비 측(공성전의 적) 망루 포격을 먼저 풀고 적 행동을 시작한다 */
+    if (towerTurnFire('enemy', enemyActLoop)) return;
+    enemyActLoop();
+  }
+
+  /* v5.91 — 적군 행동 루프 (enemyPhase의 나머지) */
+  function enemyActLoop() {
+    if (!B || B.over) return;
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive).sort((a, b) => a.y - b.y);
     let i = 0;
     const step = () => {
@@ -9420,13 +9458,18 @@
         classAuraPhase('ally');
         banner('아군 페이즈', 'ally');
         SKBattle.refreshUI();
-        const first = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
-        if (first) selectUnit(first);
-        else {
-          /* v5.33 — 턴 시작부터 전원이 행동 불가(기절·혼란 등)면 안내만 띄우고 멈추지 않는다 */
-          $('#battle-tip').textContent = '행동할 수 있는 부대가 없습니다 — 잠시 뒤 적군 차례로 넘어갑니다.';
-          scheduleAutoEndTurn(520);
-        }
+        const startAllyTurn = () => {
+          if (!B || B.over) return;
+          const first = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
+          if (first) selectUnit(first);
+          else {
+            /* v5.33 — 턴 시작부터 전원이 행동 불가(기절·혼란 등)면 안내만 띄우고 멈추지 않는다 */
+            $('#battle-tip').textContent = '행동할 수 있는 부대가 없습니다 — 잠시 뒤 적군 차례로 넘어갑니다.';
+            scheduleAutoEndTurn(520);
+          }
+        };
+        /* v5.91 — 수비 측(수성전 아군) 망루 포격 후 아군 턴 시작 */
+        if (!towerTurnFire('ally', startAllyTurn)) startAllyTurn();
         return;
       }
       const e = enemies[i++];
@@ -9600,6 +9643,11 @@
       const gp = gateStrikePlan(e);
       if (gp) { enemyGateStrike(e, gp, done); return; }
     }
+    /* v5.91 — 아군 부대도 성문도 사거리에 없으면 수비 측 망루를 때린다 */
+    if (!already) {
+      const twNow = towerAiTarget(e);
+      if (twNow && doTowerAttack(e, twNow, null, done)) return;
+    }
     const reach = reachSet(e);
     const freeTiles = [];
     /* v5.88 — 공성전 수비측: 문이 살아 있는 동안 성 밖(문 너머)으로 나가는 칸은 버린다.
@@ -9672,6 +9720,9 @@
             });
             return;
           }
+          /* v5.91 — 걸어간 자리에서도 아군을 못 치면 망루를 친다 */
+          const tw2 = towerAiTarget(e);
+          if (tw2 && doTowerAttack(e, tw2, null, done)) return;
           e.acted = true;
           finishCheck();
           done();
@@ -11361,11 +11412,16 @@
     /* v5.82 — 첫 아군 턴 시작 특기 */
     B.units.forEach((u) => { if (u.side === 'ally' && u.alive) vpTurnStart(u); });
     banner(spectateMode ? (skipMode ? '자동 결산' : '관전') : '아군 페이즈', 'ally');
-    if (spectateMode) {
-      const first = B.units.find((u) => u.side === 'ally');
-      if (first) selectUnit(first);
-    }
-    if (spectateMode || skipMode) startSpectating();
+    const afterVolley = () => {
+      if (!B) return;
+      if (spectateMode) {
+        const first = B.units.find((u) => u.side === 'ally');
+        if (first) selectUnit(first);
+      }
+      if (spectateMode || skipMode) startSpectating();
+    };
+    /* v5.91 — 수성전 첫 아군 턴(수비 측)도 망루가 먼저 쏜다 */
+    if (!towerTurnFire('ally', afterVolley)) afterVolley();
   }
 
   /* v5.89 — 관전/자동결산: 아군 [자동]을 강제로 켜고, 플레이어 명령·후퇴·배속 버튼을 잠근다.
@@ -11446,6 +11502,400 @@
       };
     };
     render();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     v5.91 — 공성 자동 포격 망루 (수성 측 성문 좌우)
+     · 공성전(siege)·수성전(defense)에서 성 규모(rings)에 맞춰 2 · 3 · 4대를
+       가장 바깥 성문부터 성문 좌우 안쪽 칸에 세운다 (가운데 통로는 비워 둔다).
+     · 수비 측 턴이 시작되면 살아 있는 망루가 사거리 3칸 안의 가장 가까운
+       공격 측 부대에 화살을 쏜다 (130~180 − 방어×0.6, 최소 40).
+     · 공격 측 부대는 사거리 안의 망루를 눌러 공략할 수 있다 (포차·발석차 ×1.5).
+       수비 측 부대는 자기편 망루를 치지 못한다. 공격 측 AI도 같은 규칙을 쓴다.
+     · 기존 망루(T) 지형 효과(방어 +45% · 사거리 +1 · 회복)는 그대로 둔다.
+     ════════════════════════════════════════════════════════════════════════ */
+  const TOWER = {
+    HP: 500, RNG: 3,
+    DMG_MIN: 130, DMG_MAX: 180, DMG_FLOOR: 40, DEF_CUT: 0.6,
+    SIEGE_MUL: 1.5, SIEGE_CLS: { pocha: 1, balseokcha: 1 },
+    ATK_K: 5.0,                 // 공격 측 부대가 망루에 주는 피해 계수
+    ARROW_MS: 380, FIRE_GAP: 240,
+  };
+  function towerOwnerSide() { return B && B.defense ? 'ally' : 'enemy'; }
+  function towerAttackerSide() { return B && B.defense ? 'enemy' : 'ally'; }
+  function towerList() { return (B && B.towers) || []; }
+  function towerAt(x, y) {
+    const list = towerList();
+    for (let i = 0; i < list.length; i++) if (list[i].alive && list[i].x === x && list[i].y === y) return list[i];
+    return null;
+  }
+  /* 파괴된 잔해도 칸을 막는다 — 부대가 잔해 위에 서지 않게 */
+  function towerRubbleAt(x, y) {
+    const list = towerList();
+    for (let i = 0; i < list.length; i++) if (!list[i].alive && list[i].x === x && list[i].y === y) return list[i];
+    return null;
+  }
+  /* 살아 있는 망루만 길을 막는다 (잔해는 밟고 지나갈 수 있다) */
+  function towerBlockAt(x, y) { return !!towerAt(x, y); }
+
+  function towerCountFor(rings) {
+    const r = Number(rings) || 1;
+    return r >= 3 ? 4 : (r === 2 ? 3 : 2);
+  }
+  /* 망루를 세울 수 있는 칸인가 — 부대·성문·성벽·본성·기존 망루 지형·본진/마을과 겹치지 않게 */
+  function towerSpotFree(x, y) {
+    if (x < 1 || y < 1 || x >= COLS - 1 || y >= ROWS - 1) return false;
+    const row = B.tiles[y];
+    const ch = row ? row[x] : '';
+    if (!ch) return false;
+    if (ch === 'C' || ch === 'H' || ch === 'G' || ch === 'K' || ch === 'T' || ch === 'W' || ch === 'M') return false;
+    if ((B.gates || []).some((g) => (g.tiles || []).some((t) => t.x === x && t.y === y))) return false;
+    if (B.units.some((u) => u.alive && u.x === x && u.y === y)) return false;
+    if ((B.sites || []).some((s) => s.x === x && s.y === y)) return false;
+    if (towerBlockAt(x, y)) return false;
+    return true;
+  }
+
+  /* 전투를 열 때(B·부대·성문·본진이 모두 자리 잡은 뒤) 한 번 부른다. */
+  function initTowers() {
+    if (!B) return;
+    B.towers = [];
+    if (B.type !== 'siege' && B.type !== 'defense') return;
+    const gates = (B.gates || []).slice().sort((a, b) => (b.row || 0) - (a.row || 0));
+    if (!gates.length) return;
+    const n = towerCountFor(B.rings || 1);
+    const side = towerOwnerSide();
+    /* 성문마다 좌·우 한 대씩, 안쪽(성 안) 가까운 칸부터 후보를 모은다 */
+    const slots = gates.map((g) => {
+      const xs = (g.tiles || []).map((t) => t.x);
+      const ys = (g.tiles || []).map((t) => t.y);
+      if (!xs.length) return [];
+      const leftX = Math.min.apply(null, xs), rightX = Math.max.apply(null, xs);
+      const innerY = Math.min.apply(null, ys) - 1;
+      /* 성문 좌·우에서 안쪽으로 한 칸 더 들어간 자리부터 — 성문 누각 그림에 가리지 않게 */
+      const spots = [];
+      [1, 0, 2, 3].forEach((dy) => {
+        [1, 2, 3, 4].forEach((off) => {
+          spots.push({ x: leftX - off, y: innerY - dy });
+          spots.push({ x: rightX + off, y: innerY - dy });
+        });
+      });
+      return spots.filter((s) => towerSpotFree(s.x, s.y));
+    });
+    /* 성문을 돌아가며 한 대씩 — 가장 바깥 성문부터 */
+    let round = 0;
+    while (B.towers.length < n && round < 8) {
+      for (let gi = 0; gi < gates.length && B.towers.length < n; gi++) {
+        const s = slots[gi].shift();
+        if (!s) continue;
+        B.towers.push({
+          id: 'tw' + (B.towers.length + 1), x: s.x, y: s.y,
+          hp: TOWER.HP, maxHp: TOWER.HP, side: side, rng: TOWER.RNG,
+          alive: true, gateIdx: gi,
+        });
+      }
+      round += 1;
+    }
+    B.towerFired = null;
+  }
+  SK.initTowers = initTowers;   // 훅(검수·재배치용)
+
+  /* ── 피해 · 포격 ── */
+  function towerStrikeDamage(target) {
+    const base = TOWER.DMG_MIN + Math.random() * (TOWER.DMG_MAX - TOWER.DMG_MIN);
+    return Math.max(TOWER.DMG_FLOOR, Math.round(base - effDef(target) * TOWER.DEF_CUT));
+  }
+  function towerFireArrow(t, target, onEnd) {
+    const sx = (t.x + 0.5) * TILE, sy = (t.y + 0.34) * TILE;
+    const tx = (rxOf(target) + 0.5) * TILE, ty = (ryOf(target) + 0.45) * TILE;
+    addFx({ kind: 'proj', sub: 'arrow', x: sx, y: sy, tx: tx, ty: ty, arc: 0.34, life: TOWER.ARROW_MS, onEnd: onEnd });
+    SK.sfx.play('bow');
+  }
+  /* 망루 화살이 부대에 꽂혔을 때 */
+  function towerHitUnit(target, dmg) {
+    if (!B || B.over || !target || !target.alive || dmg <= 0) return;
+    const wasAlive = target.hp > 0;
+    target.hp = Math.max(0, target.hp - dmg);
+    statOf(target).taken += dmg;
+    if (target.maxHp && dmg >= target.maxHp * 0.15) moraleShift(target, -4);
+    addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '-' + dmg, '#ff5a4a');
+    addFx({ kind: 'burst', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.5) * TILE, life: 360, color: '255,150,90' });
+    impactAt(target, '255,140,90');
+    SK.sfx.play('hit');
+    B.lastHits = B.lastHits || [];
+    B.lastHits.push({ a: '망루', d: target.name, dmg: dmg, crit: false, tower: true });
+    if (B.lastHits.length > 14) B.lastHits.shift();
+    feed(`망루 포격 — ${target.name}에게 ${dmg} 피해`, target.side === 'ally' ? 'bad' : 'good');
+    if (wasAlive && target.hp <= 0) {
+      downUnit(target);
+      addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.2) * TILE,
+        target.fate === '생포' ? '생포!' : '퇴각', target.fate === '생포' ? '#ffd166' : '#ff9a7a');
+      target.flash = 1;
+    }
+    SKBattle.refreshUI();
+  }
+  /* 수비 측 턴 시작 — 살아 있는 망루가 사거리 3칸 안 가장 가까운 적 부대를 쏜다.
+     실제로 쏠 망루가 있으면 true(비동기로 done을 부른다), 없으면 false. */
+  function towerTurnFire(side, done) {
+    const cb = typeof done === 'function' ? done : function () { };
+    if (!B || B.over || !towerList().length) return false;
+    if (side !== towerOwnerSide()) return false;
+    const queue = towerList().filter((t) => t.alive);
+    if (!queue.length) return false;
+    const mark = (B.turn || 0) + ':' + side;
+    if (B.towerFired === mark) return false;
+    if (!queue.some((t) => towerPickTarget(t))) return false;
+    B.towerFired = mark;
+    busy = true;
+    mode = 'idle';
+    B.reachCache = null;
+    banner('망루 포격', side);
+    let i = 0;
+    const step = () => {
+      if (!B || B.over) { busy = false; return; }
+      if (i >= queue.length) {
+        busy = false;
+        SKBattle.refreshUI();
+        cb();
+        return;
+      }
+      const t = queue[i++];
+      if (!t.alive) { step(); return; }
+      const target = towerPickTarget(t);
+      if (!target) { step(); return; }
+      towerFireArrow(t, target, () => {
+        if (!B || B.over) { busy = false; return; }
+        towerHitUnit(target, towerStrikeDamage(target));
+        if (!B || B.over) { busy = false; return; }
+        finishCheck();
+        if (!B || B.over) { busy = false; return; }
+        wait(step, TOWER.FIRE_GAP);
+      });
+    };
+    wait(step, 300);
+    return true;
+  }
+  /* 망루가 노릴 부대 — 사거리 3칸 안 공격 측 부대 중 가장 가까운(동률이면 병력이 적은) 부대 */
+  function towerPickTarget(t) {
+    if (!B || !t || !t.alive) return null;
+    let best = null, bd = Infinity;
+    B.units.forEach((u) => {
+      if (!u.alive || u.hp <= 0 || u.side === t.side) return;
+      const d = manh(t.x, t.y, u.x, u.y);
+      if (d < 1 || d > t.rng) return;
+      if (d < bd || (d === bd && best && u.hp < best.hp)) { bd = d; best = u; }
+    });
+    return best;
+  }
+  /* ── 공격 측: 망루 공략 ── */
+  function towerInRange(u, t) {
+    return !!(B && u && t && t.alive && u.alive && u.side !== t.side && manh(u.x, u.y, t.x, t.y) <= effRng(u));
+  }
+  function towerDamageOf(u, t) {
+    const kind = attackKind(u);
+    let base = effAtk(u) * TOWER.ATK_K;
+    if (TOWER.SIEGE_CLS[u.cls]) base *= TOWER.SIEGE_MUL;
+    if (kind === 'arrow' || kind === 'bolt') base *= 0.8;
+    base *= rnd(0.94, 1.06);
+    return { dmg: Math.max(40, Math.round(base)), kind: kind };
+  }
+  function towerAiTarget(u) {
+    if (!B || !u || !u.alive || u.side !== towerAttackerSide()) return null;
+    const rng = effRng(u);
+    const list = towerList().filter((t) => t.alive && t.side !== u.side
+      && manh(u.x, u.y, t.x, t.y) >= 1 && manh(u.x, u.y, t.x, t.y) <= rng);
+    if (!list.length) return null;
+    list.sort((a, b) => (a.hp - b.hp) || (manh(u.x, u.y, a.x, a.y) - manh(u.x, u.y, b.x, b.y)));
+    return list[0];
+  }
+  /* 지금 설 수 있는 칸(지금 칸 + 이동 가능 칸) 중 망루를 칠 수 있는 가장 값진 자리 */
+  function planTowerStrike(u) {
+    if (!B || !u || !u.alive || u.side !== towerAttackerSide()) return null;
+    const towers = towerList().filter((t) => t.alive && t.side !== u.side);
+    if (!towers.length) return null;
+    const rng = effRng(u);
+    const cands = [{ x: u.x, y: u.y }];
+    (B.reachCache && B.reachCache.uid === u.id ? B.reachCache.set : new Set()).forEach((k) => {
+      const [x, y] = k.split(',').map(Number);
+      if (B.units.some((o) => o.alive && o.x === x && o.y === y)) return;
+      cands.push({ x: x, y: y });
+    });
+    let best = null;
+    cands.forEach((c) => {
+      towers.forEach((t) => {
+        const d = manh(c.x, c.y, t.x, t.y);
+        if (d < 1 || d > rng) return;
+        const sc = 40 - d * 3 + (1 - t.hp / Math.max(1, t.maxHp)) * 34
+          + (c.x === u.x && c.y === u.y ? 2 : 0) + (TOWER.SIEGE_CLS[u.cls] ? 6 : 0);
+        if (!best || sc > best.score) best = { x: c.x, y: c.y, tower: t, score: sc, kind: 'tower' };
+      });
+    });
+    return best;
+  }
+  /* 망루에 들어간 피해 — 0이 되면 파괴(잔해) */
+  function damageTower(t, dmg, by) {
+    if (!B || !t || !t.alive) return 0;
+    const hit = Math.max(1, Math.round(dmg));
+    t.hp = Math.max(0, t.hp - hit);
+    addFloat((t.x + 0.5) * TILE, (t.y + 0.1) * TILE, '-' + hit, '#ffd24a');
+    addFx({ kind: 'burst', x: (t.x + 0.5) * TILE, y: (t.y + 0.4) * TILE, life: 420, color: '255,214,120' });
+    if (by) { statOf(by).dealt += hit; by.acted = true; }
+    B.lastHits = B.lastHits || [];
+    B.lastHits.push({ a: by ? by.name : '아군', d: '망루', dmg: hit, crit: false, destroyTower: t.hp <= 0 });
+    if (B.lastHits.length > 14) B.lastHits.shift();
+    feed(`${by ? by.name + ' — ' : ''}망루에 ${hit} 피해 (${Math.round(t.hp)}/${t.maxHp})`, by && by.side === 'ally' ? 'good' : 'bad');
+    if (t.hp <= 0) {
+      t.alive = false;
+      addFx({ kind: 'ring', x: (t.x + 0.5) * TILE, y: (t.y + 0.5) * TILE, life: 640, color: '255,150,80' });
+      addFloat((t.x + 0.5) * TILE, (t.y + 0.05) * TILE, '망루 파괴!', '#ffffff', { back: true });
+      shakeScreen(5);
+      SK.sfx.play('drum');
+      SK.toast(t.side === 'ally' ? '아군 망루가 파괴되었습니다.' : '적 망루를 파괴했습니다!');
+      feed(t.side === 'ally' ? '아군 망루가 부서졌습니다' : '적 망루가 무너졌습니다', t.side === 'ally' ? 'bad' : 'good');
+    } else {
+      SK.sfx.play('hit');
+    }
+    SKBattle.refreshUI();
+    return hit;
+  }
+  function doTowerAttack(a, t, dmg, onDone) {
+    if (!B || B.over || busy || !a || !a.alive || !t || !t.alive) return false;
+    if (a.side !== towerAttackerSide()) return false;
+    if (!towerInRange(a, t)) return false;
+    const res = dmg != null ? { dmg: dmg, kind: attackKind(a) } : towerDamageOf(a, t);
+    busy = true;
+    mode = 'idle';
+    a.acted = true;
+    B.reachCache = null;
+    SKBattle.refreshUI();
+    const land = () => {
+      if (!B || B.over) { busy = false; if (onDone) onDone(); return; }
+      damageTower(t, res.dmg, a);
+      busy = false;
+      SKBattle.refreshUI();
+      if (onDone) { onDone(); return; }
+      if (!B.over) wait(() => { if (B && !B.over) nextUnitOrWait(); }, 240);
+    };
+    if (res.kind === 'melee') {
+      const cx = (t.x + 0.5) * TILE, cy = (t.y + 0.5) * TILE;
+      wait(() => {
+        if (!B || B.over || !a.alive) { busy = false; if (onDone) onDone(); return; }
+        addFx({ kind: 'slash', x: cx, y: cy, life: 360 });
+        SK.sfx.play('sword');
+        wait(land, 70);
+      }, 120);
+    } else {
+      launchProjectile(a, { x: t.x, y: t.y, rx: t.x, ry: t.y }, res.kind, land);
+    }
+    return true;
+  }
+  function openTowerAttack(u, t) {
+    if (!B || B.over || busy || !u || !u.alive || !t || !t.alive) return null;
+    if (u.side !== towerAttackerSide()) {
+      SK.toast(u.side === 'ally' ? '우리 망루는 아군이 칠 수 없습니다.' : '아군 망루는 칠 수 없습니다.');
+      return null;
+    }
+    if (!towerInRange(u, t)) { SK.toast(`망루까지 거리가 멉니다. (사거리 ${effRng(u)})`); return null; }
+    const res = towerDamageOf(u, t);
+    const mul = TOWER.SIEGE_CLS[u.cls] ? ` · ${SK.CLASSES[u.cls].name} 공성 ×${TOWER.SIEGE_MUL}` : '';
+    return SK.modal({
+      kicker: '망루 공략',
+      title: `${u.name} → ${t.side === 'enemy' ? '적' : '아군'} 망루`,
+      body: `<div class="atk-preview">
+        <div class="ap-row"><span>망루 피해</span><b>${res.dmg}</b><em>${res.kind === 'rock' ? '포격 특화' : res.kind === 'melee' ? '근접' : '사격'}${mul}</em></div>
+        <div class="ap-row"><span>망루 내구도</span><b>${t.hp.toLocaleString('ko-KR')}</b><em>/ ${t.maxHp.toLocaleString('ko-KR')}</em></div>
+        <p class="ap-note">망루는 수비 측 턴이 시작될 때마다 사거리 3칸 안의 부대에 화살을 쏩니다. 부수면 그 포격이 멈춥니다.</p>
+      </div>`,
+      actions: [{ label: '취소' }, { label: '공격!', primary: true, onClick: () => doTowerAttack(u, t, res.dmg) }],
+    });
+  }
+
+  /* ── 렌더링 ── */
+  function drawTowers() {
+    const list = towerList();
+    if (!list.length || !ctx) return;
+    const now = performance.now();
+    list.forEach((t) => {
+      const px = t.x * TILE, py = t.y * TILE;
+      ctx.save();
+      if (t.alive) {
+        /* 그림자 */
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath(); ctx.ellipse(px + TILE * 0.5, py + TILE * 0.9, TILE * 0.33, TILE * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+        /* 기단 */
+        ctx.fillStyle = '#7a6a52';
+        ctx.fillRect(px + TILE * 0.22, py + TILE * 0.68, TILE * 0.56, TILE * 0.2);
+        ctx.strokeStyle = '#3b2f22'; ctx.lineWidth = 1.2;
+        ctx.strokeRect(px + TILE * 0.22, py + TILE * 0.68, TILE * 0.56, TILE * 0.2);
+        /* 다리 */
+        ctx.fillStyle = '#6b543a';
+        ctx.fillRect(px + TILE * 0.3, py + TILE * 0.42, TILE * 0.1, TILE * 0.28);
+        ctx.fillRect(px + TILE * 0.6, py + TILE * 0.42, TILE * 0.1, TILE * 0.28);
+        /* 몸통 */
+        ctx.fillStyle = '#8b6f45';
+        ctx.fillRect(px + TILE * 0.26, py + TILE * 0.28, TILE * 0.48, TILE * 0.18);
+        ctx.strokeStyle = '#2f2418'; ctx.lineWidth = 1.2;
+        ctx.strokeRect(px + TILE * 0.26, py + TILE * 0.28, TILE * 0.48, TILE * 0.18);
+        /* 지붕 */
+        ctx.fillStyle = t.side === 'ally' ? '#2f6fb5' : '#b0332a';
+        ctx.beginPath();
+        ctx.moveTo(px + TILE * 0.14, py + TILE * 0.3);
+        ctx.lineTo(px + TILE * 0.5, py + TILE * 0.06);
+        ctx.lineTo(px + TILE * 0.86, py + TILE * 0.3);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#1d1610'; ctx.lineWidth = 1.3; ctx.stroke();
+        /* 깃발 */
+        ctx.strokeStyle = '#e8e2d2'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(px + TILE * 0.5, py + TILE * 0.06); ctx.lineTo(px + TILE * 0.5, py - TILE * 0.16); ctx.stroke();
+        const wave = 0.5 + 0.5 * Math.sin(now / 320 + t.x);
+        ctx.fillStyle = t.side === 'ally' ? '#7fc0ff' : '#ff8a7a';
+        ctx.beginPath();
+        ctx.moveTo(px + TILE * 0.5, py - TILE * 0.16);
+        ctx.lineTo(px + TILE * 0.5 + TILE * 0.2, py - TILE * 0.12 + wave * 2);
+        ctx.lineTo(px + TILE * 0.5, py - TILE * 0.04);
+        ctx.closePath(); ctx.fill();
+        /* 내구도 바 + 500/500 */
+        const bw = TILE * 0.84, bh = Math.max(4, Math.round(TILE * 0.11));
+        const bx = px + (TILE - bw) / 2, by = py - bh - 9;
+        ctx.fillStyle = 'rgba(0,0,0,0.68)';
+        ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+        const ratio = Math.max(0, t.hp / Math.max(1, t.maxHp));
+        ctx.fillStyle = ratio > 0.5 ? '#4cd964' : (ratio > 0.25 ? '#f1c40f' : '#e74c3c');
+        ctx.fillRect(bx, by, bw * ratio, bh);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold ' + Math.max(9, Math.round(TILE * 0.22)) + 'px "Noto Serif CJK KR", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(Math.round(t.hp) + '/' + t.maxHp, px + TILE / 2, by - 1);
+      } else {
+        /* 파괴된 잔해 — 부서진 기단·부러진 기둥·재더미를 흐리게 */
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#5c544a';
+        ctx.beginPath(); ctx.ellipse(px + TILE * 0.5, py + TILE * 0.76, TILE * 0.36, TILE * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#6f675c';
+        ctx.beginPath();
+        ctx.moveTo(px + TILE * 0.18, py + TILE * 0.78);
+        ctx.lineTo(px + TILE * 0.32, py + TILE * 0.5);
+        ctx.lineTo(px + TILE * 0.5, py + TILE * 0.62);
+        ctx.lineTo(px + TILE * 0.68, py + TILE * 0.46);
+        ctx.lineTo(px + TILE * 0.84, py + TILE * 0.78);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#2e2a24'; ctx.lineWidth = 1.1; ctx.stroke();
+        /* 부러진 기둥 조각 */
+        ctx.strokeStyle = '#4a3a28'; ctx.lineWidth = 3.4; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(px + TILE * 0.26, py + TILE * 0.7); ctx.lineTo(px + TILE * 0.4, py + TILE * 0.44);
+        ctx.moveTo(px + TILE * 0.74, py + TILE * 0.72); ctx.lineTo(px + TILE * 0.6, py + TILE * 0.46);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+        /* 재·돌조각 */
+        ctx.fillStyle = 'rgba(38,36,33,0.85)';
+        ctx.beginPath(); ctx.arc(px + TILE * 0.44, py + TILE * 0.72, 3.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + TILE * 0.62, py + TILE * 0.76, 2.8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(150,144,132,0.8)';
+        ctx.beginPath(); ctx.arc(px + TILE * 0.34, py + TILE * 0.78, 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    });
   }
 
   const SKBattle = {
@@ -11609,6 +12059,41 @@
         const r = canvas.getBoundingClientRect();
         return { x: X, y: Y, pageX: r.left + X, pageY: r.top + Y,
           w: canvas.width / dpr, h: canvas.height / dpr, s: cam.s, cam: { x: cam.x, y: cam.y } };
+      },
+      /* v5.91 — 망루 검수 훅 */
+      towers() {
+        return towerList().map((t) => ({
+          id: t.id, x: t.x, y: t.y, hp: Math.round(t.hp), maxHp: t.maxHp,
+          side: t.side, alive: t.alive, rng: t.rng, gateIdx: t.gateIdx,
+          terrain: (B && B.tiles[t.y] ? B.tiles[t.y][t.x] : null),
+        }));
+      },
+      get towerFired() { return B ? (B.towerFired || null) : null; },
+      towerOwner() { return towerOwnerSide(); },
+      /* 전투 AI가 이 부대에 내린 계획(망루 타격 경로 검수용) */
+      planOf(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const p = planAuto(u);
+        return p ? { kind: p.kind, x: p.x, y: p.y, score: p.score, tower: p.tower ? p.tower.id : null,
+          gate: !!p.gate, target: p.target ? p.target.name : null } : null;
+      },
+      /* 망루 피해 계산 값(공격 전) — 병과 계수 검수용 */
+      towerDmg(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        const t = towerList().filter((x) => x.alive)[0];
+        if (!u || !t) return null;
+        const r = towerDamageOf(u, t);
+        return { name: u.name, cls: u.cls, side: u.side, atk: u.atk, effAtk: Math.round(effAtk(u) * 100) / 100,
+          rng: effRng(u), dmg: r.dmg, kind: r.kind, siegeMul: TOWER.SIEGE_CLS[u.cls] ? TOWER.SIEGE_MUL : 1,
+          tower: t.id, inRange: towerInRange(u, t) };
+      },
+      /* 망루를 칠 수 있는 아군 부대 이름 (사거리 안) */
+      towerShooters() {
+        return B ? B.units.filter((u) => u.side === 'ally' && u.alive).map((u) => ({
+          name: u.name, cls: u.cls, x: u.x, y: u.y, acted: !!u.acted, rng: effRng(u),
+          towers: towerList().filter((t) => towerInRange(u, t)).map((t) => t.id),
+        })) : [];
       },
       /* v5.37 — 관전 QA: 전투가 멈춘 것인지(페이즈·연출·행동 플래그) 한 번에 본다 */
       state() {
