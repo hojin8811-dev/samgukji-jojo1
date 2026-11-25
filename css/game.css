@@ -4563,7 +4563,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .duel-sprite { position: absolute; bottom: 25%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
 .duel-sprite.ally { left: 9%; }
 .duel-sprite.enemy { right: 9%; }
-.duel-sprite img { width: 96px; height: auto; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.75)); }
+.duel-sprite img { width: 139px; height: auto; filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.78)); }
 .duel-sprite.ally img { transform: scaleX(-1); animation: duelIdleA 2.8s ease-in-out infinite; }
 .duel-sprite.enemy img {
   animation: duelIdleB 2.8s ease-in-out infinite;
@@ -4593,7 +4593,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .duel-fx { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .duel-fx-item { position: absolute; width: 170px; height: 170px; transform: translate(-50%, -50%); }
 .duel-fx-item svg { width: 100%; height: 100%; overflow: visible; }
-.fx-strike, .fx-speed, .fx-read, .fx-kill, .fx-guard { animation: dvFlash 0.82s ease-out forwards; }
+.fx-strike, .fx-speed, .fx-read, .fx-kill, .fx-guard, .fx-parry { animation: dvFlash 0.82s ease-out forwards; }
 @keyframes dvFlash {
   0% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.72); }
   12% { opacity: 1; transform: translate(-50%, -50%) scale(0.96); }
@@ -4617,6 +4617,8 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .fx-guard .dv-rip1 { transform-origin: 100px 100px; animation: dvRipple 0.8s ease-out both; }
 .fx-guard .dv-rip2 { transform-origin: 100px 100px; animation: dvRipple 0.8s 0.12s ease-out both; }
 @keyframes dvRipple { 0% { opacity: 0.95; transform: scale(0.5); } 100% { opacity: 0; transform: scale(1.28); } }
+.fx-parry .dv-par { transform-origin: 100px 100px; animation: dvPar 0.78s ease-out both; }
+@keyframes dvPar { 0% { opacity: 0; stroke-dasharray: 300; stroke-dashoffset: 300; } 30% { opacity: 1; } 100% { opacity: 0.9; stroke-dasharray: 300; stroke-dashoffset: 0; } }
 
 /* 일기토 화면 자체가 흔들린다 (전장은 창에 가려 보이지 않는다) */
 .duel-stage.hit { animation: dvShake 0.3s ease-in-out; }
@@ -4653,42 +4655,96 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   100% { opacity: 0; transform: translateY(-24px) rotate(-6deg) scale(0.96); }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   v5.92 — 일기토 리메이크: 보물 포함 무력 구간별 커맨드 해금
+   · 왕조 목판(짙은 옻질 목판) + 비단·금테 톤 통일 — 아래 명령판도 같은 목판/금빛 계열
+   · 캐릭터 스프라이트 1.45배(96 → 139px) 확대
+   · 390×844 한 화면(무스크롤) — 명령 6칸(3×2)이 들어가도 연기 주역이 남도록 조율
+   ══════════════════════════════════════════════════════════════ */
 .duel-panel {
-  background: linear-gradient(180deg, #faf2df, #efe2c4); color: #2b2113;
-  border-radius: 14px; border: 2px solid #b59457; padding: 7px 8px 8px;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(180deg, #3d2b18 0%, #2a1d10 58%, #1d140b 100%);
+  color: #f7eed8; border-radius: 14px; border: 2px solid #c8a45c; padding: 6px 8px 7px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 228, 168, 0.26);
 }
 .duel-hint {
-  font-size: 9.5px; font-weight: 800; color: #5b472b; text-align: center;
-  background: rgba(181, 148, 87, 0.18); border-radius: 7px; padding: 4px 6px; margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 9.5px; font-weight: 800; color: #e8d5a8; text-align: center;
+  background: rgba(200, 164, 92, 0.12); border: 1px solid rgba(200, 164, 92, 0.34);
+  border-radius: 8px; padding: 3px 7px; margin-bottom: 5px; white-space: nowrap;
 }
-.duel-cmds { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.duel-hint .dh-war { color: #ffd980; font-weight: 900; }
+.duel-hint .dh-war.peak { color: #fff2c4; text-shadow: 0 0 8px rgba(255, 190, 80, 0.8); }
+.duel-hint .dh-txt { color: #c9b28a; }
+/* 공격 다양성 도트 — 기본 커맨드 5개(금색) + 초필살기 1개(더 큰 금빛) */
+.div-dots { display: inline-flex; gap: 3px; align-items: center; }
+.div-dots .dot {
+  width: 5px; height: 5px; border-radius: 50%; box-sizing: border-box;
+  background: #3a2b18; border: 1px solid #6b5533;
+}
+.div-dots .dot.on { background: #f7cd63; border-color: #ffe9a8; box-shadow: 0 0 4px #f7cd63; }
+.div-dots .dot.ult { width: 6px; height: 6px; }
+.div-dots .dot.ult.on { background: linear-gradient(180deg, #ffd66a, #e08a12); box-shadow: 0 0 6px rgba(255, 190, 70, 0.9); }
+/* 커맨드 그리드 — 6칸(기본 5 + 초필살기 1) = 3열 × 2행 */
+.duel-cmds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .duel-cmd {
-  background: #fff9ec; border: 1.5px solid #bfa167; border-radius: 10px; padding: 5px 1px;
-  display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0;
+  height: 51px; background: linear-gradient(180deg, #443221, #2c1f13);
+  border: 1.5px solid #7c5c31; border-radius: 9px; padding: 3px 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: 0;
+  color: #f7eed8; box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.16);
 }
-.duel-cmd .dcmd-ico { font-size: 17px; line-height: 1; display: grid; place-items: center; height: 21px; }
-.duel-cmd .dcmd-ico svg { width: 20px; height: 20px; display: block; }
-.duel-cmd[data-k="strike"] .dcmd-ico { color: #a8761a; }
-.duel-cmd[data-k="speed"] .dcmd-ico { color: #178a7d; }
-.duel-cmd[data-k="read"] .dcmd-ico { color: #7043c8; }
-.duel-cmd[data-k="kill"] .dcmd-ico { color: #cc3f22; }
-.duel-cmd[data-k="guard"] .dcmd-ico { color: #a8862a; }
-.duel-cmd b { font-size: 11px; font-weight: 900; color: #2b2113; }
-.duel-cmd span:last-child { font-size: 8.2px; color: #6e5838; line-height: 1.1; font-weight: 700; text-align: center; }
-.duel-cmd.on { background: linear-gradient(180deg, #fff1c9, #f5d380); border-color: #b87c1e; box-shadow: 0 2px 6px rgba(184, 124, 30, 0.35); }
+.duel-cmd .dcmd-ico { font-size: 16px; line-height: 1; display: grid; place-items: center; height: 19px; }
+.duel-cmd .dcmd-ico svg { width: 18px; height: 18px; display: block; }
+.duel-cmd[data-k="strike"] .dcmd-ico { color: #f0c258; }
+.duel-cmd[data-k="speed"] .dcmd-ico { color: #4fdcc0; }
+.duel-cmd[data-k="guard"] .dcmd-ico { color: #e8cf7a; }
+.duel-cmd[data-k="read"] .dcmd-ico { color: #b58cff; }
+.duel-cmd[data-k="parry"] .dcmd-ico { color: #ff9a80; }
+.duel-cmd b { font-size: 11px; font-weight: 900; color: #fdf4e0; line-height: 1.15; }
+.duel-cmd .dcmd-rule, .duel-cmd span:last-child {
+  font-size: 8px; color: #c6ac80; line-height: 1.1; font-weight: 700; text-align: center;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 아직 무력이 모자란 수 — 자물쇠 + 누를 수 없음 */
+.duel-cmd.locked {
+  opacity: 0.58; cursor: not-allowed; background: linear-gradient(180deg, #2a2118, #1c1510);
+  border-color: #4a3a26; box-shadow: none;
+}
+.duel-cmd.locked b { color: #9b8a6c; }
+.duel-cmd.locked .dcmd-ico { color: #6d5b40; }
+.duel-cmd.locked .dcmd-rule { color: #8a7757; }
+.duel-cmd:disabled { pointer-events: none; }
+/* 무력 100+ 무쌍 — 황금빛 전용 슬롯 */
+.duel-cmd.ult {
+  background: linear-gradient(180deg, #6b2014, #3a1008); border-color: #ffaa44;
+  box-shadow: inset 0 1px 0 rgba(255, 210, 120, 0.35), 0 0 8px rgba(255, 140, 40, 0.28);
+}
+.duel-cmd.ult b { color: #ffe6b0; }
+.duel-cmd.ult .dcmd-ico { color: #ffb347; }
+.duel-cmd.ult.locked {
+  opacity: 0.52; background: linear-gradient(180deg, #3a2a1e, #241a12);
+  border-color: #6b512e; box-shadow: none;
+}
+.duel-cmd.on { background: linear-gradient(180deg, #7a5a24, #4a3413); border-color: #ffd980; box-shadow: 0 2px 8px rgba(255, 200, 90, 0.35); }
+.duel-cmd.ult.on { animation: ultPulse 1.8s infinite alternate; }
+@keyframes ultPulse {
+  0% { box-shadow: 0 0 6px rgba(255, 100, 30, 0.42), inset 0 1px 0 rgba(255, 210, 120, 0.35); }
+  100% { box-shadow: 0 0 15px rgba(255, 175, 55, 0.85), inset 0 1px 0 rgba(255, 210, 120, 0.48); }
+}
 .duel-cmd:active { transform: translateY(1px); }
-.duel-reward { margin-top: 5px; font-size: 9px; color: #5a462a; text-align: center; font-weight: 700; line-height: 1.2; }
+.duel-reward { margin-top: 5px; font-size: 9px; color: #bba583; text-align: center; font-weight: 700; line-height: 1.2; }
 
 /* 낮은 화면(390×680 등) — 원 안에 두 장수가 다 들어오게 줄인다 */
 @media (max-height: 740px) {
   .duel-arena { gap: 5px; padding-top: 7px; padding-bottom: 8px; }
-  .duel-sprite img { width: 82px; }
+  .duel-sprite img { width: 119px; }
   .duel-sprite { bottom: 23%; }
   .duel-sprite.ally { left: 8%; }
   .duel-sprite.enemy { right: 8%; }
+  .duel-cmd { height: 46px; }
+  .duel-cmd .dcmd-ico { height: 17px; }
+  .duel-cmd .dcmd-ico svg { width: 16px; height: 16px; }
   .duel-cmd b { font-size: 10.5px; }
-  .duel-cmd span:last-child { font-size: 7.6px; }
+  .duel-cmd .dcmd-rule, .duel-cmd span:last-child { font-size: 7.4px; }
   .duel-hint { font-size: 8.8px; padding: 3px 5px; }
   .duel-reward { font-size: 8.2px; }
   .duel-bubble { font-size: 9.8px; max-width: 116px; }

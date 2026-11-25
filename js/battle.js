@@ -4367,12 +4367,14 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     v5.52 — 고퀄 1:1 일기토 미니게임 (사용자 확정 사양)
+     v5.52 — 고퀄 1:1 일기토 미니게임 (사용자 확정 사양) · v5.92 리메이크
      · 이름 있는 장수끼리 근접 교전에서 벌어진다 — 확률은 두 장수의 무력으로 가중(2~7%, v5.53) (아군이 거는 공격만)
        한 판에 3번까지 · 같은 상대와는 한 번만
-     · HP 100 대 100 · 최대 5턴 · 5가지 수의 가위바위보
-       ⚔️강공 → 💨속공·👁️간파 / 💨속공 → 👁️간파·🔥필살 / 👁️간파 → 🔥필살·🛡️방어
-       🔥필살 → 🛡️방어·⚔️강공 / 🛡️방어 → ⚔️강공·💨속공
+     · HP 100 대 100 · 최대 5턴
+     · v5.92 — 보물 포함 무력(totalWar = 장수 무력 + 장착 보물 무력) 구간별로 커맨드가 열린다
+       ~59 강공 / 60~69 +속공 / 70~79 +방어 / 80~89 +간파 / 90~99 +반격 / 100+ 장수 고유 초필살기(황금 슬롯 · 한 판 1회)
+       ⚔️강공 → 💨속공·👁️간파 / 💨속공 → 👁️간파·💥반격 / 🛡️방어 → ⚔️강공·💨속공(지면 피해 50% 반감)
+       👁️간파 → 🛡️방어·🔥초필살기 / 💥반격 → ⚔️강공(유인 150%) / 🔥초필살기 → 나머지 전부(간파에만 진다)
      · 무장은 무력, 문관(책사·도사·풍수·무희·군악)은 지력으로 공격하고, 통솔로 피해를 덜어낸다
      · 승리 = 사기 +18 + 본대 병력 10% 회복 · 패배 = 10% 붕괴(생포) / 90% 사기 −22
      · 빨리 감기 ×3·×4나 자동전투에서는 연출과 진행이 함께 짧아진다
@@ -4392,21 +4394,26 @@
   const DUEL_MAX_HP = 100;
   /* 문관 계열 — 공격에 지력을 쓴다 */
   const DUEL_INT_CLS = { chaeksa: 1, pungsusa: 1, dosa: 1, muhui: 1, gunakdae: 1 };
+  /* v5.92 — 무력 구간별 해금. req = 그 커맨드가 열리는 totalWar */
   const DUEL_MOVES = [
-    { k: 'strike', ico: '⚔️', name: '강공', fx: '황금 대참격', beats: ['speed', 'read'], short: '속공·간파 승' },
-    { k: 'speed', ico: '💨', name: '속공', fx: '청록 연참', beats: ['read', 'kill'], short: '간파·필살 승' },
-    { k: 'read', ico: '👁️', name: '간파', fx: '보라 역습', beats: ['kill', 'guard'], short: '필살·방어 승' },
-    { k: 'kill', ico: '🔥', name: '필살', fx: '화염 폭발', beats: ['guard', 'strike'], short: '방어·강공 승' },
-    { k: 'guard', ico: '🛡️', name: '방어', fx: '금빛 파동', beats: ['strike', 'speed'], short: '강공·속공 승' },
+    { k: 'strike', ico: '⚔️', name: '강공', fx: '황금 대참격', beats: ['speed', 'read'], short: '속공·간파 승', req: 0, mul: 1 },
+    { k: 'speed', ico: '💨', name: '속공', fx: '청록 연참', beats: ['read', 'parry'], short: '간파·반격 승', req: 60, mul: 1 },
+    { k: 'guard', ico: '🛡️', name: '방어', fx: '금빛 파동', beats: ['strike', 'speed'], short: '강공·속공 승 · 피해 반감', req: 70, mul: 1, guard: 1 },
+    { k: 'read', ico: '👁️', name: '간파', fx: '보라 역습', beats: ['guard', 'ult'], short: '방어·필살 격파', req: 80, mul: 1.15 },
+    { k: 'parry', ico: '💥', name: '반격', fx: '진홍 반격', beats: ['strike'], short: '강공 유인 150%', req: 90, mul: 1.5 },
   ];
+  /* 100+ 무쌍 전용 — 장수 고유 초필살기 (황금빛 전용 슬롯 · 절대 위력 · 한 판에 1번) */
+  const DUEL_ULT = { k: 'ult', ico: '🔥', name: '초필살기', fx: '화염 폭발',
+    beats: ['strike', 'speed', 'guard', 'parry'], short: '절대 위력', req: 100, mul: 1.8, once: 1 };
   const DUEL_MOVE_BY = {};
-  DUEL_MOVES.forEach((m) => { DUEL_MOVE_BY[m.k] = m; });
+  DUEL_MOVES.concat([DUEL_ULT]).forEach((m) => { DUEL_MOVE_BY[m.k] = m; });
   /* 수 아이콘 — 어떤 폰에서도 같은 모양이 나오게 이모지 대신 SVG로 그린다 */
   const DUEL_ICONS = {
     strike: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 4l13 13"/><path d="M4 4v3.4M4 4h3.4"/><path d="M20 4L7 17"/><path d="M20 4v3.4M20 4h-3.4"/><path d="M15.6 18.4L18.4 21.6M8.4 18.4L5.6 21.6" stroke-width="2"/></svg>',
     speed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 7h11.5a3.2 3.2 0 100-6.4"/><path d="M3 12h14.5"/><path d="M3 17h9.5a3 3 0 110 6"/></svg>',
     read: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"><path d="M2.4 12S6.4 5.6 12 5.6 21.6 12 21.6 12 17.6 18.4 12 18.4 2.4 12 2.4 12z"/><circle cx="12" cy="12" r="3.1" fill="currentColor" stroke="none"/></svg>',
     kill: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.6 2c.4 3.2 2.3 4.3 3.6 6.4 1.6 2.6 2.4 4.2 2.4 6.6a6.6 6.6 0 11-13.2 0c0-2 .8-3.3 2-4.8.5 1.3 1.1 2 2.1 2.7-.3-2.4.4-5.4 3.1-7.6-.4 2 .3 3 1.2 3.7.3-2 .1-4.3-1.2-7z"/></svg>',
+    parry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 18.2a8.4 8.4 0 0112.9-10.6"/><path d="M19.4 3.6v4.3h-4.3"/><path d="M20.6 5.8L16.3 10.1"/><path d="M4 19.6l5-5.1"/><path d="M6.2 16.9l1.4 1.4"/></svg>',
     guard: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.8l8.2 3v7.1c0 5-3.5 8.4-8.2 10.3C7.3 20.3 3.8 16.9 3.8 11.9V4.8l8.2-3z"/><path d="M12 5.4l5 1.9v4.7c0 3.2-2.1 5.4-5 6.7-2.9-1.3-5-3.5-5-6.7V7.3l5-1.9z" fill="#fff9ec" opacity="0.85"/></svg>',
   };
   /* 장수 말풍선 — 성격(무력·지력)과 세력에 맞춰 고른다 */
@@ -4490,6 +4497,16 @@
       <path class="dv-rip2" d="M100,52 L142,70 Q142,120 100,154 Q58,120 58,70 Z" fill="none" stroke="#ffd45e" stroke-width="3"/>
       <circle cx="100" cy="100" r="10" fill="#fffdf0"/>
     </svg>`,
+    /* v5.92 — 반격: 진홍 낙하산 겸 되받아치기 (강공을 유인해 150%로 돌려준다) */
+    parry: `<svg viewBox="0 0 200 200" aria-hidden="true">
+      <defs><radialGradient id="dvCrim" cx="50%" cy="50%" r="52%">
+        <stop offset="0%" stop-color="#fff0e6" stop-opacity="0.95"/><stop offset="46%" stop-color="#ff6b48" stop-opacity="0.62"/><stop offset="100%" stop-color="#6d0d05" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="76" fill="url(#dvCrim)"/>
+      <path class="dv-par" d="M162,42 A86,86 0 1 0 178,124" fill="none" stroke="#fff2e4" stroke-width="7" stroke-linecap="round"/>
+      <path d="M150,26 L176,40 L154,62 Z" fill="#fff6ea" stroke="#ff9a5a" stroke-width="3"/>
+      <path d="M30,164 Q86,120 118,74 Q96,132 46,182 Z" fill="#ffd8c2" opacity="0.9"/>
+      <circle cx="70" cy="66" r="5" fill="#ffe2cc"/><circle cx="140" cy="150" r="5.5" fill="#ffb090"/>
+    </svg>`,
   };
 
   let duel = null;      // 진행 중인 일기토 상태
@@ -4565,14 +4582,105 @@
   }
   function duelAiPick(u) {
     if (duel && duel.forceAi) { const k = duel.forceAi; duel.forceAi = null; return k; }
-    const pref = DUEL_INT_CLS[u && u.cls] ? ['read', 'guard', 'kill']
-      : ((u && u.wu >= 90) ? ['strike', 'kill'] : ['strike', 'guard', 'speed']);
-    const w = DUEL_MOVES.map((m) => (pref.indexOf(m.k) >= 0 ? 1.7 : 1));
+    /* v5.92 — 적 AI도 자기 무력에 해금된 커맨드 중에서만 고른다 (잠긴 수는 쓰지 않는다) */
+    const isAi = !!(duel && u === duel.d);
+    const deck = duelDeckFor(u);
+    const usedUlt = !!(duel && (isAi ? duel.ultD : duel.ultA));
+    const pool = deck.cmds.filter((c) => c.unlocked && !(c.k === 'ult' && usedUlt));
+    if (!pool.length) return 'strike';
+    const war = deck.war.total;
+    const pref = DUEL_INT_CLS[u && u.cls] ? ['read', 'guard']
+      : (war >= 90 ? ['strike', 'parry'] : ['strike', 'guard', 'speed']);
+    const w = pool.map((m) => (m.k === 'ult' ? 1 : (pref.indexOf(m.k) >= 0 ? 1.7 : 1)));
     let total = w.reduce((x, y) => x + y, 0);
     let r = Math.random() * total;
-    for (let i = 0; i < DUEL_MOVES.length; i++) { r -= w[i]; if (r <= 0) return DUEL_MOVES[i].k; }
-    return 'strike';
+    for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i].k; }
+    return pool[0].k;
   }
+  function duelWarStat(u) {
+    if (!u) return { base: 50, bonus: 0, total: 50 };
+    /* 부대에 보물 목록이 실려 오는 경우(다른 모드·향후 확장) — 목록의 무력 보너스를 그대로 더한다 */
+    if (Array.isArray(u.treasures) && u.treasures.length) {
+      const base = Number(u.war != null ? u.war : (u.str != null ? u.str : (u.wu != null ? u.wu : 50)));
+      const tb = u.treasures.reduce((s, t) => s + Number((t && (t.war != null ? t.war : (t.statBonus && t.statBonus.war))) || 0), 0);
+      const bonus = tb + Number(u.itemWar || 0);
+      return { base, bonus, total: base + bonus };
+    }
+    const h = giHero(u);   // 아군 장수 원본(명부) — 장착 보물도 여기에 있다
+    const eqWar = (h && SK.equipBonus) ? Math.round(Number(SK.equipBonus(h).war) || 0) : 0;
+    /* 아군 부대의 u.wu 는 이미 (장수 무력 + 장착 보물 무력)이다 — 보너스를 따로 보여 주려고 나눠 둔다 */
+    const total0 = Number(u.wu != null ? u.wu : (u.war != null ? u.war : (u.str != null ? u.str : 50)));
+    const itemWar = Number(u.itemWar || 0);
+    const total = total0 + itemWar;
+    const bonus = eqWar + itemWar;
+    return { base: Math.max(0, total - bonus), bonus, total };
+  }
+  /* 무력 구간 → 커맨드 해금 수 (1~5) */
+  function duelDiversity(totalWar) {
+    if (totalWar >= 90) return 5;
+    if (totalWar >= 80) return 4;
+    if (totalWar >= 70) return 3;
+    if (totalWar >= 60) return 2;
+    return 1;
+  }
+  /* 장수 고유 초필살기 이름 — SK.ULTIMATES 의 기술명 → 기존 이름 → '초필살기' */
+  function duelUltName(u) {
+    const s = (u && SK.ULTIMATES) ? SK.ULTIMATES[u.name] : null;
+    return (s && (s.skill || s.n)) || '초필살기';
+  }
+  /* 이 장수가 지금 쓸 수 있는 커맨드 덱 — 잠긴 수는 unlocked:false 로 남긴다 */
+  function duelDeckFor(u) {
+    const war = duelWarStat(u);
+    const level = duelDiversity(war.total);
+    const cmds = DUEL_MOVES.map((m) => Object.assign({}, m, {
+      unlocked: war.total >= m.req, label: war.total >= m.req ? m.name : `🔒 무${m.req}`,
+    }));
+    const hasUlt = war.total >= 100;
+    cmds.push(Object.assign({}, DUEL_ULT, {
+      unlocked: hasUlt, ultName: duelUltName(u),
+      label: hasUlt ? duelUltName(u) : '🔒 무100',
+      short: hasUlt ? duelUltName(u) : '무력 100 필요',
+    }));
+    return { war, level, cmds, hasUlt };
+  }
+  function duelMoveLabel(u, k) {
+    return k === 'ult' ? duelUltName(u) : ((DUEL_MOVE_BY[k] || {}).name || k);
+  }
+  /* 커맨드 카드·다양성 도트·무력 표시를 그 장수의 덱으로 다시 그린다 */
+  function renderDuelDeck() {
+    if (!duel || !duelEls || !duel.deckA) return;
+    const e = duelEls, deck = duel.deckA;
+    e.cmds.innerHTML = deck.cmds.map((c) => {
+      const usedUp = c.k === 'ult' && !!duel.ultA;
+      const locked = !c.unlocked || usedUp;
+      const cls = `duel-cmd${locked ? ' locked' : ''}${c.k === 'ult' ? ' ult' : ''}`;
+      const nm = c.k === 'ult' ? '초필살기' : c.name;
+      const sub = c.k === 'ult'
+        ? (usedUp ? '사용 완료' : (c.unlocked ? `${c.ultName || '초필살기'} · 1회` : `🔒 무${c.req}`))
+        : (c.unlocked ? c.short : `🔒 무${c.req}`);
+      return `<button type="button" class="${cls}" data-k="${c.k}"${locked ? ' disabled aria-disabled="true"' : ''}>`
+        + `<span class="dcmd-ico">${DUEL_ICONS[c.k] || (c.k === 'ult' ? DUEL_ICONS.kill : '')}</span><b>${nm}</b><span class="dcmd-rule">${sub}</span></button>`;
+    }).join('');
+    e.cmds.querySelectorAll('.duel-cmd').forEach((b) => { b.onclick = () => duelPick(b.dataset.k); });
+    /* 지금 고른 수는 다시 그린 뒤에도 금테 표시를 남긴다 */
+    if (duel.last && duel.busy) {
+      e.cmds.querySelectorAll('.duel-cmd').forEach((b) => b.classList.toggle('on', b.dataset.k === duel.last.player));
+    }
+    if (e.dots) {
+      e.dots.innerHTML = deck.cmds.map((c) => `<i class="dot${c.k === 'ult' ? ' ult' : ''}${c.unlocked ? ' on' : ''}"></i>`).join('');
+      e.dots.title = `공격 다양성 ${deck.level}/5${deck.hasUlt ? ' + 초필살기' : ''}`;
+    }
+    if (e.war) {
+      e.war.textContent = `무 ${Math.round(deck.war.total)}${deck.war.bonus ? ` (보물 +${deck.war.bonus})` : ''}`;
+      e.war.classList.toggle('peak', deck.hasUlt);
+      e.war.title = `장수 무력 ${Math.round(deck.war.base)}${deck.war.bonus ? ` + 보물 ${deck.war.bonus}` : ''}`;
+    }
+    if (e.deckTxt) {
+      const n = deck.cmds.filter((c) => c.k !== 'ult' && c.unlocked).length;
+      e.deckTxt.textContent = `커맨드 ${n}/5${deck.hasUlt ? ' +초필살기' : ''}`;
+    }
+  }
+
   /* 일기토 연출 시계 — 전투 배속이 빠르면 연출도 함께 짧아진다 */
   let duelFast = false;   // QA 전용: 연출 없이 즉시 진행
   function dwait(fn, ms) {
@@ -4617,8 +4725,12 @@
         <span class="duel-dmg d" id="duel-dmg-d"></span>
       </div>
       <div class="duel-panel">
-        <div class="duel-hint">수마다 고유 타격 · 무장=무력 / 문관=지력 / 통솔=방어</div>
-        <div class="duel-cmds" id="duel-cmds">${DUEL_MOVES.map((m) => `<button type="button" class="duel-cmd" data-k="${m.k}"><span class="dcmd-ico">${DUEL_ICONS[m.k]}</span><b>${m.name}</b><span>${m.short}</span></button>`).join('')}</div>
+        <div class="duel-hint" id="duel-hint">
+          <span class="dh-war" id="duel-war">무 50</span>
+          <span class="div-dots" id="duel-dots" aria-hidden="true"></span>
+          <span class="dh-txt" id="duel-deck">커맨드 1/5</span>
+        </div>
+        <div class="duel-cmds" id="duel-cmds"></div>
         <div class="duel-reward">승리: 사기 +18 · 본대 병력 10% 회복 · 패배: 10% 붕괴(생포) / 90% 사기 −22</div>
       </div>`;
     document.body.appendChild(root);
@@ -4635,9 +4747,9 @@
       spA: q('#duel-sp-a'), spD: q('#duel-sp-d'),
       bubA: q('#duel-bub-a'), bubD: q('#duel-bub-d'),
       fx: q('#duel-fx'), dmgA: q('#duel-dmg-a'), dmgD: q('#duel-dmg-d'),
-      cmds: q('#duel-cmds'),
+      cmds: q('#duel-cmds'), dots: q('#duel-dots'), war: q('#duel-war'), deckTxt: q('#duel-deck'),
     };
-    duelEls.cmds.querySelectorAll('.duel-cmd').forEach((b) => { b.onclick = () => duelPick(b.dataset.k); });
+    /* 커맨드 카드는 일기토를 열 때 그 장수의 무력에 맞춰 다시 그린다 (renderDuelDeck) */
     duelEls.auto.onclick = () => duelToggleAuto();
     root.addEventListener('click', (e) => {
       if (duel && duel.over) { e.preventDefault(); e.stopPropagation(); closeDuel(); }
@@ -4677,6 +4789,8 @@
   }
   function duelFxAt(side, mk) {
     if (!duelEls || !duelEls.stage) return;
+    /* v5.92 — 초필살기는 기존 '필살' 화염 연출(fx-kill)을 그대로 쓴다 */
+    if (mk === 'ult') mk = 'kill';
     const sp = side === 'a' ? duelEls.spA : duelEls.spD;
     const stage = duelEls.stage;
     const r = sp.getBoundingClientRect(), sr = stage.getBoundingClientRect();
@@ -4732,6 +4846,8 @@
     duel = {
       a, d, hpA: DUEL_MAX_HP, hpD: DUEL_MAX_HP, turn: 1, over: false, busy: false,
       auto: !!autoOn, done: done || null, last: null, ended: null,
+      /* v5.92 — 두 장수의 무력 덱(해금 커맨드) · 초필살기 사용 여부 */
+      deckA: duelDeckFor(a), deckD: duelDeckFor(d), ultA: false, ultD: false,
       bond: SK.bondBetween ? SK.bondBetween(a.name, d.name) : null,
     };
     const e = els;
@@ -4753,6 +4869,7 @@
     e.bubA.hidden = true; e.bubD.hidden = true;
     e.root.querySelectorAll('.duel-cmd').forEach((b) => b.classList.remove('on'));
     e.cmds.classList.remove('busy', 'done');
+    renderDuelDeck();
     updateDuelHp();
     e.root.hidden = false;
     e.root.classList.remove('out');
@@ -4770,6 +4887,11 @@
 
   function duelPick(k) {
     if (!duel || duel.over || duel.busy || !DUEL_MOVE_BY[k]) return false;
+    /* v5.92 — 잠긴 커맨드는 눌리지 않고, 초필살기는 한 판에 한 번만 */
+    const cmd = (duel.deckA && duel.deckA.cmds) ? duel.deckA.cmds.filter((c) => c.k === k)[0] : null;
+    if (!cmd || !cmd.unlocked) return false;
+    if (k === 'ult' && duel.ultA) return false;
+    if (k === 'ult') duel.ultA = true;
     duel.busy = true;
     if (duelEls) {
       duelEls.cmds.classList.add('busy');
@@ -4784,32 +4906,46 @@
     const a = duel.a, d = duel.d;
     const aiK = duelAiPick(d);
     const A = DUEL_MOVE_BY[playerK], D = DUEL_MOVE_BY[aiK];
+    if (aiK === 'ult') duel.ultD = true;          // v5.92 — 적의 초필살기도 한 판 1회
+    const labA = duelMoveLabel(a, playerK), labD = duelMoveLabel(d, aiK);
     duel.last = { player: playerK, ai: aiK };
     duel.log = duel.log || [];
     duel.log.push({ turn: duel.turn, player: playerK, ai: aiK });
-    setDuelBanner(`${a.name} [${A.name}]`, `${d.name} [${D.name}]`, '···');
+    if (playerK === 'ult' || aiK === 'ult') renderDuelDeck();   // 다 쓴 초필살기 슬롯을 바로 잠근다
+    setDuelBanner(`${a.name} [${labA}]`, `${d.name} [${labD}]`, '···');
     dwait(() => {
       if (!duel || duel.over) return;
       const aWins = A.beats.indexOf(aiK) >= 0;
       const dWins = D.beats.indexOf(playerK) >= 0;
+      /* v5.92 — 상성·특징을 피해에 그대로 반영한다
+         · 반격이 강공을 유인하면 150% · 초필살기는 절대 위력(180%) · 간파의 격파 115%
+         · 지고도 방어를 들었으면 피해 50% 반감 */
+      const mulOf = (mv, foeMv) => (mv.mul || 1) * (foeMv && foeMv.guard ? 0.5 : 1);
       let line = '';
       if (aWins) {
-        const dmg = duelDamage(a, d);
+        const dmg = Math.round(duelDamage(a, d) * mulOf(A, D));
         duel.hpD = Math.max(0, duel.hpD - dmg);
         duelFxAt('d', playerK);
         duelPop('d', dmg);
-        line = `상성 승리! ${A.fx}이 ${d.name}을 강타했다!`;
+        if (playerK === 'read' && aiK === 'ult') line = `초필살기를 간파했다! ${labA} — 상대의 절대 위력을 꿰뚫었다!`;
+        else if (playerK === 'parry') line = `강공을 유인해 되받아쳤다! ${labA} — 150% 반격!`;
+        else if (playerK === 'ult') line = `${labA} — 초필살기! 절대 위력이 ${d.name}을 덮쳤다!`;
+        else line = `상성 승리! ${A.fx}이 ${d.name}을 강타했다!`;
+        if (D.guard) line += ' (방어로 피해 50% 반감)';
         showDuelBubble('a', duelTalk(a, 'clashWin'), 1500);
         if (Math.random() < 0.5) showDuelBubble('d', duelTalk(d, 'clashLose'), 1500);
         SK.sfx.play('sword');
         duelShake(false);
         shakeScreen(7);
       } else if (dWins) {
-        const dmg = duelDamage(d, a);
+        const dmg = Math.round(duelDamage(d, a) * mulOf(D, A));
         duel.hpA = Math.max(0, duel.hpA - dmg);
         duelFxAt('a', aiK);
         duelPop('a', dmg);
-        line = `상성 패배… ${D.fx}이 ${a.name}을 덮쳤다!`;
+        if (aiK === 'ult') line = `${labD} — 초필살기! 절대 위력에 ${a.name}이 밀렸다!`;
+        else if (aiK === 'parry') line = `${d.name}이 강공을 유인해 150%로 되받아쳤다!`;
+        else line = `상성 패배… ${D.fx}이 ${a.name}을 덮쳤다!`;
+        if (A.guard) line += ' (방어로 피해 50% 반감)';
         showDuelBubble('d', duelTalk(d, 'clashWin'), 1500);
         if (Math.random() < 0.5) showDuelBubble('a', duelTalk(a, 'clashLose'), 1500);
         SK.sfx.play('hit');
@@ -4823,12 +4959,12 @@
         duelFxAt('a', 'guard');
         duelFxAt('d', 'guard');
         duelPop('a', c2); duelPop('d', c1);
-        line = `같은 ${A.name} — 칼날이 맞부딪혀 양쪽이 물러섰다`;
+        line = `같은 ${labA} — 칼날이 맞부딪혀 양쪽이 물러섰다`;
         SK.sfx.play('hit');
         duelShake(false);
         shakeScreen(4);
       }
-      setDuelBanner(`${a.name} [${A.name}]`, `${d.name} [${D.name}]`, line);
+      setDuelBanner(`${a.name} [${labA}]`, `${d.name} [${labD}]`, line);
       updateDuelHp();
       dwait(duelNext, 1000);
     }, 430);
@@ -12725,15 +12861,37 @@
         if (!a || !d) return null;
         if (duel) closeDuel();
         openDuel(a, d, null);
-        return { a: a.name, d: d.name, atkA: duelAtkStat(a), atkD: duelAtkStat(d) };
+        return { a: a.name, d: d.name, atkA: duelAtkStat(a), atkD: duelAtkStat(d),
+          warA: Math.round(duelWarStat(a).total), warD: Math.round(duelWarStat(d).total),
+          deckA: duel.deckA.cmds.filter((c) => c.unlocked).map((c) => c.k),
+          deckD: duel.deckD.cmds.filter((c) => c.unlocked).map((c) => c.k) };
       },
       duelState() {
         if (!duel) return null;
         return { a: duel.a.name, d: duel.d.name, hpA: Math.round(duel.hpA), hpD: Math.round(duel.hpD),
           turn: duel.turn, over: !!duel.over, busy: !!duel.busy, auto: !!duel.auto,
-          last: duel.last, ended: duel.ended, war: duel.a.alive && duel.d.alive };
+          last: duel.last, ended: duel.ended, war: duel.a.alive && duel.d.alive,
+          ultA: !!duel.ultA, ultD: !!duel.ultD,
+          levelA: duel.deckA ? duel.deckA.level : null, levelD: duel.deckD ? duel.deckD.level : null };
       },
       duelChoose(k) { return duelPick(k); },
+      /* v5.92 — 보물 포함 무력·해금 커맨드·초필살기 슬롯 검수 훅 */
+      duelDeck(name) {
+        const u = (duel && !name) ? duel.a : (B && B.units.find((o) => o.name === name));
+        if (!u) return null;
+        const deck = duelDeckFor(u);
+        return { name: u.name, side: u.side, cls: u.cls, wu: Math.round(u.wu),
+          base: Math.round(deck.war.base), bonus: Math.round(deck.war.bonus), total: Math.round(deck.war.total),
+          level: deck.level, hasUlt: deck.hasUlt, ultName: duelUltName(u),
+          cmds: deck.cmds.map((c) => ({ k: c.k, name: c.name, req: c.req, unlocked: !!c.unlocked })) };
+      },
+      duelUltUsed() { return duel ? { a: !!duel.ultA, d: !!duel.ultD } : null; },
+      duelCards() {
+        return [...document.querySelectorAll('#duel-cmds .duel-cmd')].map((b) => ({
+          k: b.dataset.k, disabled: !!b.disabled, locked: b.classList.contains('locked'),
+          ult: b.classList.contains('ult'), text: (b.textContent || '').replace(/\s+/g, ' ').trim(),
+        }));
+      },
       duelForceAi(k) { if (!duel) return null; duel.forceAi = k; return k; },
       duelFast(v) { duelFast = !!v; return duelFast; },
       duelRateSet(v) { if (v != null) duelRate = Math.max(0, Math.min(1, Number(v) || 0)); return duelRate; },
