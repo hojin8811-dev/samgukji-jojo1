@@ -4658,7 +4658,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=128') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=129') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -5878,7 +5878,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=128') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=129') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6387,7 +6387,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=128) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=129) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}
@@ -6399,25 +6399,38 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .bt-time{text-align:center;font-size:22px;font-weight:900;color:#ffe9a8;text-shadow:0 2px 4px #000}
 #expRoot .bt-field{position:absolute;inset:0;z-index:100;overflow:hidden}
 #expRoot .bt-u{position:absolute;left:0;top:0;width:58px;height:58px;will-change:transform}
-#expRoot .bt-u img{width:58px;height:58px;object-fit:contain;display:block;filter:drop-shadow(0 4px 3px #0009);transition:transform .15s}
-#expRoot .bt-u.t1 img{transform:scaleX(-1)}
+#expRoot .bt-sp,#expRoot .bt-mo{position:absolute;inset:0;transform-origin:50% 100%;will-change:transform;backface-visibility:hidden}
+#expRoot .bt-u img{width:58px;height:58px;object-fit:contain;display:block;filter:drop-shadow(0 4px 3px #0009);transition:filter .12s}
+#expRoot .bt-shd{position:absolute;left:50%;bottom:-3px;width:32px;height:9px;margin-left:-16px;border-radius:50%;background:radial-gradient(#000a,#0000 72%);pointer-events:none}
 #expRoot .bt-u.boss{width:68px}
 #expRoot .bt-u.boss img{width:68px;height:68px;margin:-10px 0 0 -5px}
+#expRoot .bt-u.boss .bt-shd{width:42px;height:12px;margin-left:-21px}
 #expRoot .bt-u.noimg::before{content:attr(data-ch);position:absolute;inset:6px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;background:#3a5a9a}
 #expRoot .bt-u.t1.noimg::before{background:#9a3a3a}
-#expRoot .bt-u.lunge img{transform:translateX(14px) scale(1.12)}
-#expRoot .bt-u.t1.lunge img{transform:scaleX(-1) translateX(14px) scale(1.12)}
-#expRoot .bt-u.hurt img{filter:brightness(2.2) drop-shadow(0 0 4px #f44)}
-#expRoot .bt-u.cast img{filter:drop-shadow(0 0 10px #ffe35a) brightness(1.4)}
-#expRoot .bt-u.dead{opacity:0;transition:opacity .5s;pointer-events:none}
-#expRoot .bt-u.dead img{transform:translateY(8px) rotate(80deg)}
+/* 피격 — 흰 플래시(일반) / 붉은 플래시(크리티컬) */
+#expRoot .bt-u.hit .bt-mo img{filter:brightness(2.5) saturate(.3) drop-shadow(0 0 7px #fff)}
+#expRoot .bt-u.hitcrit .bt-mo img{filter:brightness(2.7) sepia(1) saturate(7) hue-rotate(-14deg) drop-shadow(0 0 9px #ff5a2a)}
+#expRoot .bt-u.cast .bt-mo img{filter:drop-shadow(0 0 10px #ffe35a) brightness(1.4)}
+/* 사망 — 그 자리에서 뒤로 기울며 쓰러진 뒤 사라진다 */
+#expRoot .bt-u.dying{pointer-events:none}
+#expRoot .bt-u.dying .bt-shd{opacity:0;transition:opacity .45s}
+#expRoot .bt-u.dying .bt-hp{opacity:0;transition:opacity .3s}
+#expRoot .bt-u.dying .bt-mo{animation:sxFall .62s cubic-bezier(.4,.02,.6,1) forwards}
+@keyframes sxFall{
+  0%{transform:none;opacity:1}
+  22%{transform:translateY(-7px) rotate(calc(var(--fall,-76deg) * .18));opacity:1}
+  56%{transform:translateY(1px) rotate(calc(var(--fall,-76deg) * .7));opacity:1}
+  100%{transform:translateY(6px) rotate(var(--fall,-76deg));opacity:0}
+}
+#expRoot .bt-u.dead{pointer-events:none}
 #expRoot .bt-hp{position:absolute;left:6px;right:6px;top:-6px;height:5px;background:#000a;border-radius:3px;overflow:hidden}
 #expRoot .bt-hp i{display:block;height:100%;width:100%}
 #expRoot .bt-u.t0 .bt-hp i{background:#58e06a}
 #expRoot .bt-u.t1 .bt-hp i{background:#ff5252}
-#expRoot .bt-proj{position:absolute;left:0;top:0;width:16px;height:16px}
-#expRoot .bt-proj.arrow{height:3px;width:22px;margin-top:6px;background:linear-gradient(90deg,#0000,#ffe9a8);border-radius:2px}
-#expRoot .bt-proj.orb{border-radius:50%;background:radial-gradient(#fff,#7ad7ff 50%,#0000 72%);box-shadow:0 0 10px #7ad7ff}
+#expRoot .bt-proj{position:absolute;left:0;top:0;width:16px;height:16px;will-change:transform}
+#expRoot .bt-proj.arrow{height:4px;width:26px;margin-top:6px;border-radius:2px;background:linear-gradient(90deg,#0000,#dff4ff 60%,#fff);box-shadow:0 0 8px #bfe9ffcc,0 0 16px #7ad7ff88}
+#expRoot .bt-proj.arrow::after{content:"";position:absolute;right:100%;top:-0px;width:46px;height:4px;border-radius:2px;background:linear-gradient(90deg,#0000,#bfe9ff55 45%,#eaf9ffcc)}
+#expRoot .bt-proj.orb{width:14px;height:14px;border-radius:50%;background:radial-gradient(#fff,#7ad7ff 50%,#0000 72%);box-shadow:0 0 12px #7ad7ff,0 0 24px #7ad7ff66}
 #expRoot .bt-fx{position:absolute;pointer-events:none;transform:translate(-50%,-50%)}
 #expRoot .bt-fx.slash{width:52px;height:6px;background:linear-gradient(90deg,#0000,#fff,#0000);border-radius:4px;animation:sxSlash .3s forwards}
 @keyframes sxSlash{from{transform:translate(-50%,-50%) rotate(-40deg) scaleX(.2);opacity:1}to{transform:translate(-50%,-50%) rotate(-40deg) scaleX(1.4);opacity:0}}
@@ -6426,6 +6439,62 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .bt-fx.big{width:150px;height:150px;border-radius:50%;background:radial-gradient(#fff9,#ffb43a88 45%,#0000 70%);animation:sxFlash .45s forwards}
 #expRoot .bt-fx.bolt{width:8px;height:90px;margin-top:-50px;background:linear-gradient(#fff,#ffe35a,#0000);animation:sxBolt .35s forwards}
 @keyframes sxBolt{from{opacity:1;transform:translate(-50%,-50%) scaleY(.3)}to{opacity:0;transform:translate(-50%,-50%) scaleY(1.2)}}
+
+/* ══ v6.3 — 반달 칼바람 · 스파크 · 임팩트 링 · 흙먼지 · 잔상 · 발밑 빛무리 ══ */
+/* 반달 칼바람 — 사막빛 배경에서도 또렷하게: 흰 심 + 청록 테두리 + 그림자 */
+#expRoot .bt-fx.arc{width:150px;height:150px;border-radius:50%;
+  background:conic-gradient(from 0deg,#0000 0 92deg,#8fe3ff 132deg,#fff 162deg,#fff 200deg,#9fe9ff 232deg,#0000 272deg);
+  -webkit-mask:radial-gradient(closest-side,#0000 60%,#000 69%,#000 91%,#0000 97%);
+  mask:radial-gradient(closest-side,#0000 60%,#000 69%,#000 91%,#0000 97%);
+  filter:drop-shadow(0 0 5px #eaf9ffdd) drop-shadow(0 2px 7px #0007);
+  animation:sxArc .34s cubic-bezier(.2,.7,.3,1) forwards}
+#expRoot .bt-fx.arc.big{width:206px;height:206px;animation-duration:.42s;
+  background:conic-gradient(from 0deg,#0000 0 88deg,#ffe0a0 128deg,#fff 158deg,#fff 202deg,#ffd27a 236deg,#0000 276deg);
+  filter:drop-shadow(0 0 7px #fff2cc) drop-shadow(0 2px 10px #0008);}
+@keyframes sxArc{
+  0%{transform:translate(-50%,-50%) rotate(calc(var(--a,0deg) - 62deg)) scale(.55);opacity:0}
+  22%{opacity:1}
+  100%{transform:translate(-50%,-50%) rotate(calc(var(--a,0deg) + 44deg)) scale(1);opacity:0}
+}
+#expRoot .bt-fx.spark{width:72px;height:72px;background:repeating-conic-gradient(from 0deg,#fff 0 3deg,#0000 3deg 30deg);
+  -webkit-mask:radial-gradient(closest-side,#0000 10%,#000 42%,#0000 80%);
+  mask:radial-gradient(closest-side,#0000 10%,#000 42%,#0000 80%);
+  animation:sxSpark .36s ease-out forwards}
+#expRoot .bt-fx.spark.big{width:108px;height:108px}
+@keyframes sxSpark{0%{transform:translate(-50%,-50%) scale(.28) rotate(0);opacity:1}100%{transform:translate(-50%,-50%) scale(1.55) rotate(26deg);opacity:0}}
+#expRoot .bt-fx.ring{width:44px;height:44px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 14px #fff8;animation:sxRing .44s ease-out forwards}
+#expRoot .bt-fx.ring.big{width:74px;height:74px;border-width:4px;border-color:#ffe6a8}
+@keyframes sxRing{0%{transform:translate(-50%,-50%) scale(.25);opacity:1}100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
+#expRoot .bt-fx.dust{width:24px;height:24px;border-radius:50%;
+  background:radial-gradient(#f6efe0f5,#e8dcc288 46%,#e8dcc200 73%);
+  filter:drop-shadow(0 1px 3px #00000026);
+  animation:sxDust .6s ease-out forwards}
+#expRoot .bt-fx.dust.big{width:34px;height:34px}
+@keyframes sxDust{0%{transform:translate(-50%,-50%) scale(.5);opacity:.85}100%{transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-6px))) scale(1.8);opacity:0}}
+#expRoot .bt-fx.trail{width:10px;height:10px;border-radius:50%;animation:sxTrail .21s ease-out forwards}
+#expRoot .bt-fx.trail.arrow{width:12px;height:12px;background:radial-gradient(#eaf9ffee,#bfe9ff66 55%,#bfe9ff00 75%)}
+#expRoot .bt-fx.trail.orb{width:14px;height:14px;background:radial-gradient(#eaf9ffff,#7ad7ff88 55%,#7ad7ff00 76%)}
+@keyframes sxTrail{to{transform:translate(-50%,-50%) scale(.3);opacity:0}}
+#expRoot .bt-fx.muzzle{width:26px;height:12px;border-radius:50%;background:radial-gradient(#fff,#ffd98a99 55%,#0000 75%);animation:sxMuzzle .19s ease-out forwards}
+@keyframes sxMuzzle{0%{transform:translate(-50%,-50%) scale(.45);opacity:1}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
+#expRoot .bt-fx.globe{width:40px;height:40px;border-radius:50%;background:radial-gradient(#fff,#9fe6ff88 50%,#0000 74%);animation:sxGlobe .48s ease-out forwards}
+@keyframes sxGlobe{0%{transform:translate(-50%,-50%) scale(.35);opacity:0}28%{opacity:1}100%{transform:translate(-50%,-110%) scale(1.05);opacity:0}}
+#expRoot .bt-fx.rune{width:58px;height:20px;border-radius:50%;background:radial-gradient(#ffe9a8aa,#ffb43a44 55%,#0000 76%);box-shadow:0 0 16px #ffd76a77;animation:sxRune .56s ease-out forwards}
+@keyframes sxRune{0%{transform:translate(-50%,-50%) scale(.35);opacity:0}28%{opacity:1}100%{transform:translate(-50%,-50%) scale(1.55);opacity:0}}
+#expRoot .bt-ghost{position:absolute;left:0;top:0;background-size:contain;background-repeat:no-repeat;background-position:center;
+  transform-origin:50% 100%;pointer-events:none;filter:brightness(1.7) saturate(.45) drop-shadow(0 0 8px #9fe6ff);
+  animation:sxGhost .3s ease-out forwards}
+@keyframes sxGhost{from{opacity:.5}to{opacity:0}}
+/* 전장 화면 흔들림 — 크리티컬 1단 · 필살기/보스 2단 */
+#expRoot .bt-field.sh1{animation:sxSh1 .22s ease-out}
+#expRoot .bt-field.sh2{animation:sxSh2 .34s ease-out}
+@keyframes sxSh1{0%,100%{transform:translate3d(0,0,0)}22%{transform:translate3d(-3px,2px,0)}52%{transform:translate3d(3px,-2px,0)}78%{transform:translate3d(-1px,1px,0)}}
+@keyframes sxSh2{0%,100%{transform:translate3d(0,0,0)}14%{transform:translate3d(-7px,4px,0)}34%{transform:translate3d(6px,-5px,0)}56%{transform:translate3d(-4px,3px,0)}78%{transform:translate3d(3px,-2px,0)}}
+/* 일시정지 — 흐르던 이펙트가 그 자리에서 멈춘다 */
+#expRoot .bt.paused :is(.bt-fx,.bt-pop,.bt-proj,.bt-ghost,.ex-cutin,.bt-banner,.bt-card.ready){animation-play-state:paused}
+#expRoot .bt.paused::after{content:"⏸ 일시정지";position:absolute;left:50%;bottom:152px;transform:translateX(-50%);z-index:350;
+  padding:6px 14px;border-radius:12px;background:#000c;border:1px solid #ffd76a;color:#ffe9a8;font-weight:800;font-size:13px;pointer-events:none}
+#expRoot .bt-ctl .pause.on{background:#b9801e;border-color:#ffe08a}
 #expRoot .bt-pop{position:absolute;transform:translateX(-50%);font-weight:900;font-size:16px;color:#fff;text-shadow:-1px -1px #000,1px 1px #000,0 0 6px #000;animation:sxPop .8s forwards;pointer-events:none;z-index:9999}
 #expRoot .bt-pop.foe{color:#ff8a8a}
 #expRoot .bt-pop.heal{color:#7dff9a}
