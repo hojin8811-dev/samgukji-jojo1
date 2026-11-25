@@ -12439,7 +12439,9 @@
   /* v5.15 — 요격전 8종을 지형에 맞게 고르되 전부 고르게 등장시킨다.
      바다 = 수전 / 강 건너 = 도하전 / 관문·산길 = 산전·협곡 / 요새 = 요새전 /
      그 밖의 육로 = 평야·밀림·야영. */
-  const INTERCEPT_POOL = ['plain', 'forest', 'camp', 'gorge', 'mountain', 'ford'];
+  /* v6.0 — 요격전 9종: 보급대 습격(convoy)·나루터 부교(bridge)·북방 초원(steppe)을 더했다.
+     FIELD_CHANCE(성하 야전 80%)는 그대로 두고, 뜨는 지형만 길과 목표 성에 맞춰 고르게 편다. */
+  const INTERCEPT_POOL = ['plain', 'forest', 'camp', 'gorge', 'mountain', 'ford', 'convoy', 'bridge', 'steppe'];
   function pickFrom(tbl, r) {
     let acc = 0;
     for (let i = 0; i < tbl.length; i++) { acc += tbl[i][1]; if (r < acc) return tbl[i][0]; }
@@ -12449,16 +12451,23 @@
     const A = SK.CITY[m.origin], B = SK.CITY[m.target];
     if (A && (A.sea || []).indexOf(m.target) >= 0) return 'naval';
     const r = Math.random();
+    /* 강을 건너는 길 — 여울·부교가 먼저 뜨고, 보급대를 끊는 습격전도 섞는다 */
     if (pathCrossesRiver(m.origin, m.target)) {
-      return pickFrom([['ford', 0.5], ['plain', 0.2], ['forest', 0.12], ['gorge', 0.08], ['camp', 0.1]], r);
+      return pickFrom([['ford', 0.28], ['bridge', 0.24], ['plain', 0.12], ['forest', 0.1], ['gorge', 0.08], ['camp', 0.08], ['convoy', 0.10]], r);
     }
     if (B && B.type === 'pass') {
-      return pickFrom([['mountain', 0.4], ['gorge', 0.4], ['forest', 0.2]], r);
+      return pickFrom([['mountain', 0.34], ['gorge', 0.34], ['forest', 0.16], ['bridge', 0.06], ['convoy', 0.10]], r);
     }
     if (B && B.type === 'fortress') {
-      return pickFrom([['fortress', 0.3], ['plain', 0.25], ['camp', 0.25], ['mountain', 0.2]], r);
+      return pickFrom([['fortress', 0.24], ['plain', 0.2], ['camp', 0.2], ['mountain', 0.16], ['convoy', 0.1], ['steppe', 0.1]], r);
     }
-    return pickFrom(INTERCEPT_POOL.map((k) => [k, k === 'plain' ? 0.24 : k === 'forest' ? 0.22 : k === 'camp' ? 0.2 : k === 'gorge' ? 0.14 : k === 'mountain' ? 0.12 : 0.08]), r);
+    /* v6.0 — 북방 초원(평원) 거점으로 가는 길은 초원·목책전이 잘 뜬다 (부여·옥저 등) */
+    if (B && (B.battleType === 'plain' || B.battleType === 'steppe')) {
+      return pickFrom([['steppe', 0.38], ['plain', 0.18], ['camp', 0.16], ['convoy', 0.14], ['forest', 0.14]], r);
+    }
+    /* 그 밖의 육로 — 9종을 고르게 편다 (한 지형만 반복되지 않게) */
+    return pickFrom([['plain', 0.18], ['forest', 0.16], ['camp', 0.14], ['gorge', 0.10], ['mountain', 0.10],
+      ['ford', 0.08], ['convoy', 0.10], ['bridge', 0.08], ['steppe', 0.06]], r);
   }
   SK.interceptTypeFor = interceptTypeFor;
 

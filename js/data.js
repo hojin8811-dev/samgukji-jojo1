@@ -24,6 +24,21 @@ SK.TERRAIN = {
   A: { name: '아군 본진', def: 0, cost: 1, icon: 'base' },
   E: { name: '적 본진', def: 0, cost: 1, icon: 'base' },
   V: { name: '마을', def: 0, cost: 1, icon: 'village' },
+  /* ══ v6.0 — 전략 지형 7종 (조조전·영걸전식 지형 싸움) ══
+     · U 고지대: 위에서 내려치는 피해 +15%, 원거리 사거리 +1, 방어 +25%,
+       기병은 오르는 데 이동 3칸(진입 제한에 가깝다).
+     · J 갈대밭: 화공·불·포격이 닿으면 그 칸이 연소한다(추가 화상·이동 방해).
+     · Q 군량고 · Y 무기고: 점령하면 그 진영 전체가 이득을 본다 (battle.js objPhase).
+     · N 목책: 성벽처럼 막히는 나무 울타리 (돌성벽 대신 쓰는 북방 진지).
+     · L 부교: 물 위에 띄운 다리 (걸어서 건넌다).
+     · O 포구: 물가의 나무 선착장 — 수군이 오르내리는 자리. */
+  U: { name: '고지대', def: 0.25, cost: 2, icon: 'highland' },
+  J: { name: '갈대밭', def: 0.05, cost: 2, icon: 'reeds' },
+  Q: { name: '군량고', def: 0.15, cost: 1, icon: 'granary' },
+  Y: { name: '무기고', def: 0.15, cost: 1, icon: 'armory' },
+  N: { name: '목책', def: 0.30, cost: 99, icon: 'palisade' },
+  L: { name: '부교', def: 0.00, cost: 1, icon: 'pontoon' },
+  O: { name: '포구', def: 0.05, cost: 1, icon: 'port' },
 };
 
 /* ───────────── 병과 (16종) ───────────── */
@@ -242,8 +257,11 @@ SK.affinity = function (cls, ch) {
   if (cls === 'dosa' && (ch === 'F' || ch === 'M')) { atk = 0.10; label = '산중 수행 +10%'; }
   if (cls === 'changbyung' && ch === 'G') { def = 0.20; label = '성문 수비 +20%'; }
   if (cls === 'geombyung' && (ch === 'G' || ch === 'D')) { def = 0.20; label = '성문 수비 +20%'; }
-  if ((cls === 'gungsu' || cls === 'gunggi') && (ch === 'M' || ch === 'G')) { rng = 1; label = '고지 사격 +1'; }
+  if ((cls === 'gungsu' || cls === 'gunggi') && (ch === 'M' || ch === 'G' || ch === 'U')) { rng = 1; label = '고지 사격 +1'; }
   if ((cls === 'pocha' || cls === 'balseokcha') && (ch === 'G' || ch === 'D')) { def = 0.15; label = '공성 진지'; }
+  if (cls === 'sanjeok' && ch === 'U') { atk = 0.15; label = '고지 습격 +15%'; }
+  if (cls === 'yasubyung' && ch === 'U') { atk = 0.10; label = '고지 추격 +10%'; }
+  if ((cls === 'chaeksa' || cls === 'dosa') && ch === 'J') { def = 0.10; label = '갈대 은신 +10%'; }
   return { atk, def, rng, label };
 };
 
@@ -2594,11 +2612,8 @@ SK.roadIssues = function () {
   return out;
 };
 
-/* 도시 유형·데이터의 battleType을 그대로 사용 */
-SK.battleTypeFor = function (city) {
-  if (!city) return 'siege';
-  return city.battleType || 'siege';
-};
+/* v6.0 — battleTypeFor는 파일 뒤쪽(전장 유형 표 아래)에서 한 번만 정의한다.
+   (여기 있던 옛 정의는 지웠다 — 표를 두 벌 두면 지형 매칭이 갈라진다) */
 
 /* 방어 병력 기본값 (fallback) */
 SK.cityTroopsBase = function (type) {
@@ -2680,6 +2695,10 @@ function plainMap() {
   blob(g, 2, 18, 2, 'F', 3); blob(g, 21, 18, 2, 'F', 4);
   blob(g, 1, 11, 1, 'M', 5); blob(g, 22, 12, 1, 'M', 6);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  /* v6.0 — 평야전 리뉴얼: 중앙 교차로 좌우에 고지대 언덕 두 개와 가운데 숲덩이.
+     언덕을 먼저 잡은 쪽이 활·노로 길을 내려다보고, 기병은 언덕을 돌아 나가야 한다. */
+  blob(g, 6, 7, 2, 'U', 205); blob(g, 17, 16, 2, 'U', 206);
+  blob(g, 10, 6, 2, 'F', 207); blob(g, 14, 18, 2, 'F', 208);
   /* v5.42 — 마을을 중앙 교차로 곁으로 옮겼다 (예전엔 네 모서리 숲 앞이라 아무도 지나치지 않았다) */
   return finishMap('plain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 11], [16, 11], [cx, 15]] });
 }
@@ -2691,6 +2710,10 @@ function fordMap() {
   fillRect(g, 10, 13, 0, n - 1, 'W');
   fillRect(g, 10, 13, cx - 1, cx, 'B');
   fillRect(g, 10, 13, 3, 4, 'S'); fillRect(g, 10, 13, 19, 20, 'S');
+  /* v6.0 — 도하전 리뉴얼: 다리 옆 갈대밭(화공 지형)과 가운데 여울 하나.
+     다리만 노리면 갈대밭에 붙은 부대가 불에 탄다 — 여울로 우회하는 길이 생겼다. */
+  fillRect(g, 9, 9, 7, 10, 'J'); fillRect(g, 14, 14, 13, 16, 'J');
+  fillRect(g, 10, 13, cx - 6, cx - 6, 'S');
   vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
   blob(g, 3, 4, 2, 'F', 11); blob(g, 20, 4, 2, 'F', 12);
   blob(g, 3, 19, 2, 'F', 13); blob(g, 20, 19, 2, 'F', 14);
@@ -2711,6 +2734,12 @@ function mountainMap() {
   blob(g, 8, 4, 1, 'F', 21); blob(g, 15, 19, 1, 'F', 22);
   blob(g, 15, 4, 1, 'F', 23); blob(g, 8, 19, 1, 'F', 24);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23]], 'F');
+  /* v6.0 — 산전 리뉴얼: 계곡 양쪽 산허리에 고지대(U)를 얹고, 왼쪽에 우회 오솔길을 냈다.
+     정면 다리 하나만 두면 늘 같은 싸움이라, 넓은 산허리로 돌아가는 길을 만든다. */
+  fillRect(g, 2, 9, 5, 5, 'R'); fillRect(g, 14, 21, 5, 5, 'R');
+  fillRect(g, 2, 21, 6, 6, 'M');
+  paint(g, [[3, 4], [4, 4], [5, 4], [6, 4], [17, 4], [18, 4], [19, 4], [20, 4]], 'U');
+  paint(g, [[4, 17], [5, 17], [6, 17], [7, 17], [16, 17], [17, 17], [18, 17], [19, 17]], 'U');
   /* v5.42 — 마을은 다리 남·북 어귀 (협곡 길목을 두고 붙는 자리) */
   return finishMap('mountain', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 13], [15, 13], [cx, 9]] });
 }
@@ -2723,6 +2752,10 @@ function forestMap() {
   hline(g, 10, 0, n - 1, 'R'); hline(g, 11, 0, n - 1, 'R');
   [[6, 3], [17, 3], [6, 8], [18, 8], [6, 15], [17, 15], [5, 20], [18, 20]].forEach(([x, y], i) => blob(g, x, y, 2, 'F', 31 + i));
   blob(g, 1, 12, 1, 'M', 41); blob(g, 22, 12, 1, 'M', 42);
+  /* v6.0 — 밀림 리뉴얼: 숲 사이 고지대 둘레와 숲을 가로지르는 오솔길.
+     큰 숲만 있으면 매복만 반복되므로, 언덕을 잡고 길을 내는 싸움을 넣었다. */
+  blob(g, 12, 6, 2, 'U', 209); blob(g, 12, 17, 2, 'U', 210);
+  hline(g, 5, 4, 20, 'R'); hline(g, 18, 4, 20, 'R');
   /* v5.42 — 마을은 중앙 십자로 갈래 곁 */
   return finishMap('forest', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 9], [15, 11], [cx, 14]] });
 }
@@ -2738,6 +2771,11 @@ function gorgeMap() {
   setT(g, 10, 8, 'S'); setT(g, 11, 8, 'S'); setT(g, 10, 15, 'S'); setT(g, 11, 15, 'S');
   blob(g, 9, 5, 1, 'F', 41); blob(g, 14, 17, 1, 'F', 42);
   blob(g, 9, 18, 1, 'F', 43); blob(g, 14, 4, 1, 'F', 44);
+  /* v6.0 — 협곡 리뉴얼: 잔도 위 절벽에 고지대(U)와 외길 밖으로 난 염소길(오솔길).
+     한 줄 길목만 두면 창병 벽 하나로 끝나므로, 절벽 위 사격 자리와 우회로를 넣었다. */
+  vline(g, 6, 0, 6, 'P'); vline(g, 6, 7, 23, 'P'); vline(g, 6, 7, 23, 'R'); vline(g, 6, 0, 6, 'R');
+  paint(g, [[4, 6], [5, 6], [7, 6], [8, 6], [15, 6], [16, 6], [17, 6], [18, 6]], 'U');
+  paint(g, [[4, 17], [5, 17], [7, 17], [8, 17], [15, 17], [16, 17], [17, 17], [18, 17]], 'U');
   /* v5.42 — 마을은 다리 남·북 어귀 */
   return finishMap('gorge', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[9, 9], [14, 12]] });
 }
@@ -2753,6 +2791,10 @@ function campMap() {
   blob(g, 2, 14, 1, 'F', 51); blob(g, 21, 14, 1, 'F', 52);
   blob(g, 6, 18, 1, 'F', 53); blob(g, 17, 18, 1, 'F', 54);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  /* v6.0 — 야영 기습전 리뉴얼: 적 진영 안에 군량고(Q)·무기고(Y)와 목책(N).
+     막사만 부수는 싸움에서, 보급품과 무기를 먼저 차지하는 싸움으로 바꿨다. */
+  setT(g, 3, 9, 'Q'); setT(g, 4, 14, 'Q'); setT(g, 3, 15, 'Y'); setT(g, 8, 9, 'N'); setT(g, 8, 10, 'N');
+  setT(g, 8, 13, 'N'); setT(g, 8, 14, 'N'); setT(g, 8, 15, 'N');
   /* v5.42 — 마을은 camp 앞 중앙 길목 (진영 앞 넓은 길 y=10 곁) */
   return finishMap('camp', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[8, 10], [16, 10], [cx, 13]] });
 }
@@ -2770,6 +2812,10 @@ function navalMap() {
   blob(g, 1, 3, 1, 'F', 61); blob(g, 22, 3, 1, 'F', 62);
   blob(g, 1, 20, 1, 'F', 63); blob(g, 22, 20, 1, 'F', 64);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  /* v6.0 — 수전 리뉴얼: 두 다리 옆 갈대밭과 남쪽 포구(O).
+     물가 갈대에 붙은 배는 불에 약하고, 포구를 잡으면 선착이 빨라진다. */
+  fillRect(g, 8, 8, 8, 11, 'J'); fillRect(g, 16, 16, 13, 16, 'J');
+  setT(g, 18, 5, 'O'); setT(g, 19, 6, 'O'); setT(g, 5, 5, 'O');
   /* v5.42 — 마을은 서·동 다리 북쪽 어귀 + 남안 길목 */
   return finishMap('naval', g, { ally: [cx, n - 2], enemy: [cx, 2], villages: [[6, 8], [17, 8], [cx, 17]] });
 }
@@ -2792,6 +2838,11 @@ function fortressMap() {
   blob(g, 3, 16, 2, 'F', 71); blob(g, 20, 16, 2, 'F', 72);
   blob(g, 6, 21, 1, 'F', 73); blob(g, 17, 21, 1, 'F', 74);
   paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22]], 'M');
+  /* v6.0 — 요새전 리뉴얼: 성문으로 오르는 진입로 양산에 고지대와 보루(T), 앞들에 갈대밭.
+     성문만 정면으로 두드리면 손해가 크다 — 진입로 언덕을 먼저 잡는 싸움. */
+  blob(g, 5, 15, 2, 'U', 211); blob(g, 18, 15, 2, 'U', 212);
+  setT(g, 4, 9, 'T'); setT(g, 4, 14, 'T');
+  fillRect(g, 17, 17, 9, 10, 'J'); fillRect(g, 17, 17, 13, 14, 'J');
   /* v5.42 — 마을은 성문 앞 좌·우 + 안쪽 성벽 앞 한 곳 */
   return finishMap('fortress', g, { ally: [cx, n - 2], enemy: [cx, 8], villages: [[7, 14], [16, 14], [8, 9]] });
 }
@@ -2803,13 +2854,11 @@ function fortressMap() {
    · 대도시: 1중(아래) · 2중(가운데) + 맨 위 중앙의 네모(ㄷ자) 본성 성곽 —
      본성 성곽 안에 적 총대장 본진(1×1)이 있다.
    1단 문을 깨면 1·2단 사이 외성 마당, 2단 문을 깨면 2·3단 사이 마당,
-   마지막 본성 문을 깨면 총대장 본진 앞까지 들어갈 수 있다. */
-function siegeMap(rings) {
+   마지막 본성 문을 깨면 총대장 본진 앞까지 들어갈 수 있다.
+   v6.0 — 중·대도시는 정문 외에 동·서 측면 샛문이 뚫리고, 겹성벽마다 군량고(Q)·무기고(Y)가
+   놓인다. 정문 하나만 두드리면 손해가 큰 '우회 공성전'이 된다. */
+function siegeBase(rings) {
   rings = rings === 3 ? 3 : (rings === 2 ? 2 : 1);
-  /* 성벽 두께는 그림과 맞춰 2칸. walls는 바깥(아래)부터가 아니라 안쪽→바깥 순서로 적는다. */
-  /* v5.22 — 배경 그림(battle_siege*.webp)의 성벽 줄과 격자를 맞췄다.
-     1중성은 그림 성벽이 한 칸 위에 있어 성벽 줄을 11·12 → 10·11로 올렸고,
-     3중성 본성 성곽은 그림의 담장(아래 11·12줄, 좌우 3·28열)에 맞춰 넓혔다. */
   const cfg = rings === 3
     ? { size: 32, walls: [[17, 18], [24, 25]], box: { top: [1, 2], bottom: [11, 12], x0: 3, x1: 28 } }
     : (rings === 2
@@ -2848,6 +2897,12 @@ function siegeMap(rings) {
       setT(g, y, cx - 1, 'G'); setT(g, y, cx, 'G');
     });
   });
+  /* v6.0 — 중·대도시 동·서 측면 샛문. 성벽 한 칸짜리 작은 문이라 정문보다 약하다.
+     공격측이 정면에만 몰리지 않고 측면을 찌를 수 있게 한다. */
+  if (rings >= 2) {
+    const sx = [Math.round(n * 0.185), n - 1 - Math.round(n * 0.185)];
+    walls.forEach((rows) => { rows.forEach((y) => { sx.forEach((x) => setT(g, y, x, 'G')); }); });
+  }
   /* 바깥 성문 앞길 */
   for (let y = outer + 1; y <= n - 1; y++) { setT(g, y, cx - 1, 'R'); setT(g, y, cx, 'R'); }
   hline(g, n - 3, cx - 5, cx + 4, 'R');
@@ -2858,25 +2913,183 @@ function siegeMap(rings) {
   blob(g, 3, n - 4, 2, 'F', 81); blob(g, n - 4, n - 4, 2, 'F', 82);
   blob(g, 2, n - 8, 1, 'F', 83); blob(g, n - 3, n - 8, 1, 'F', 84);
   paint(g, [[0, 0], [0, 1], [1, 0], [n - 1, n - 1], [n - 1, n - 2], [n - 2, n - 1]], 'M');
+  /* v6.0 — 성 안 군량고·무기고: 겹성벽 사이 마당마다 하나씩, 성문 안쪽 좌·우에 붙인다.
+     공격측이 문을 뚫고 들어와 차지하면 그 진영 전체가 회복·공격 버프를 받는다. */
+  /* 성벽 줄을 건드리지 않도록 마당 안쪽 두 줄(outer-2, outer-3)에만 놓는다 */
+  const court = (y, leftX, rightX) => {
+    setT(g, y, leftX, 'Q'); setT(g, y - 1, leftX, 'Y');
+    setT(g, y, rightX, 'Y'); setT(g, y - 1, rightX, 'Q');
+  };
+  if (rings === 3) {
+    court(outer - 2, cx - 8, cx + 7);
+    court(walls[0][1] - 2, cx - 7, cx + 6);
+  } else if (rings === 2) {
+    court(outer - 2, cx - 7, cx + 6);
+  } else {
+    court(outer - 2, cx - 6, cx + 5);
+  }
+  return { g: g, n: n, cx: cx, walls: walls, outer: outer, cfg: cfg, enemyBase: enemyBase, rings: rings, palEnd: palEnd };
+}
+
+function siegeMap(rings) {
+  const s0 = siegeBase(rings);
+  const g = s0.g, n = s0.n, cx = s0.cx, outer = s0.outer;
+  /* v6.0 — 성 밖에도 전략 지형: 성문 앞 갈대밭과 진입로 언덕 */
+  fillRect(g, outer + 3, outer + 3, cx - 7, cx - 4, 'J');
+  fillRect(g, outer + 3, outer + 3, cx + 3, cx + 6, 'J');
+  blob(g, cx - 8, n - 5, 1, 'U', 221);
+  blob(g, cx + 7, n - 5, 1, 'U', 222);
   /* v5.42 — 마을은 성문 앞 좌·우 협공 자리 + 1중·2중 성벽 사이 마당 한 곳
      (예전에는 소도시 마을이 성 안 구석·성 밖 모서리에 있어 아무도 밟지 않았다) */
-  const villages = rings === 3
+  const villages = s0.rings === 3
     ? [[cx - 5, outer + 2], [cx + 4, outer + 2], [6, 21]]
-    : (rings === 2
+    : (s0.rings === 2
       ? [[cx - 5, outer + 2], [cx + 4, outer + 2], [5, 16]]
       : [[cx - 5, outer + 2], [cx + 4, outer + 2], [6, 8]]);
-  const key = rings === 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege');
-  return finishMap(key, g, { ally: [cx, n - 2], enemy: enemyBase, villages });
+  const key = s0.rings === 3 ? 'siege3' : (s0.rings === 2 ? 'siege2' : 'siege');
+  return finishMap(key, g, { ally: [cx, n - 2], enemy: s0.enemyBase, villages: villages });
+}
+
+/* ── v6.0 — 수상 공성전: 성 앞 강물 + 다리 2개 + 여울 1곳 ──
+   하비·강하·건업·한성·웅진·부산·탐라처럼 물에 닿은 성을 칠 때 쓴다.
+   성벽과 성문은 그대로 두고, 공격측 들판을 강이 가로지른다 — 다리를 먼저 건너야 한다. */
+function siegeNavalMap(rings) {
+  const s0 = siegeBase(rings);
+  const g = s0.g, n = s0.n, cx = s0.cx, outer = s0.outer;
+  const y0 = outer + 2;
+  const y1 = Math.min(n - 4, outer + 3);
+  /* 강물 두 줄 — 성 앞을 가로지른다 */
+  fillRect(g, y0, y1, 0, n - 1, 'W');
+  /* 다리 두 개(서·동)와 가운데 여울 하나. 여울은 느리지만 배 없이 걸어 건넌다 */
+  fillRect(g, y0, y1, cx - 7, cx - 6, 'B');
+  fillRect(g, y0, y1, cx + 5, cx + 6, 'B');
+  fillRect(g, y0, y1, cx - 1, cx, 'S');
+  /* 다리 어귀 길 — 다리에서 성문 앞길과 남쪽 들판으로 이어진다 */
+  [cx - 7, cx + 5].forEach((bx) => {
+    setT(g, outer + 1, bx, 'R'); setT(g, outer + 1, bx + 1, 'R');
+    fillRect(g, y1 + 1, n - 1, bx, bx + 1, 'R');
+  });
+  /* 물가 갈대밭(화공 지형)과 포구 */
+  fillRect(g, y0 - 1, y0 - 1, 3, 7, 'J');
+  fillRect(g, y1 + 1, y1 + 1, n - 8, n - 4, 'J');
+  setT(g, y0 - 1, 2, 'O'); setT(g, y1 + 1, n - 3, 'O');
+  /* 강 남안에 고지대 둑 */
+  blob(g, cx - 9, n - 5, 1, 'U', 231);
+  blob(g, cx + 8, n - 6, 1, 'U', 232);
+  const key = s0.rings === 3 ? '__siege_naval3' : (s0.rings === 2 ? '__siege_naval2' : '__siege_naval');
+  return finishMap(key, g, { ally: [cx, n - 2], enemy: s0.enemyBase,
+    villages: [[cx - 6, y0 - 1], [cx + 5, y1 + 1], [cx, n - 3]] });
+}
+
+/* ── v6.0 — 산성 공략전: 산등성이 + 좁은 비탈 + 고지대 + 목책/돌성벽 ──
+   한중·안시성·국내성·함흥·무릉·영릉·계양처럼 산 위에 앉은 성.
+   성 밖은 전부 산지라 성문 앞 비탈길 하나가 정면, 왼쪽 염소길이 우회로다. */
+function siegeMountainMap(rings) {
+  const s0 = siegeBase(rings);
+  const g = s0.g, n = s0.n, cx = s0.cx, outer = s0.outer;
+  /* 성문 앞 비탈(중앙 두 줄)만 남기고 성 밖을 산으로 바꾼다 */
+  for (let y = outer + 1; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const cur = g[y][x];
+      if (cur === 'R' || cur === 'B' || cur === 'F' || cur === 'W' || cur === 'U' || cur === 'J') continue;
+      if (x >= cx - 1 && x <= cx) { setT(g, y, x, 'R'); continue; }
+      setT(g, y, x, 'M');
+    }
+  }
+  /* 왼쪽 염소길 — 성벽까지 이어지는 좁은 오솔길. 여기에 측면 문을 낸다 */
+  fillRect(g, outer + 1, n - 2, 3, 3, 'R');
+  s0.walls.forEach((rows) => { rows.forEach((y) => setT(g, y, 3, 'G')); });
+  /* 비탈을 지키는 고지대 능선과 목책 */
+  paint(g, [[outer + 2, cx - 5], [outer + 3, cx - 6], [outer + 4, cx - 5], [outer + 5, cx - 6], [outer + 6, cx - 5]], 'U');
+  paint(g, [[outer + 2, cx + 4], [outer + 3, cx + 5], [outer + 4, cx + 4], [outer + 5, cx + 5], [outer + 6, cx + 4]], 'U');
+  paint(g, [[outer + 1, cx - 4], [outer + 1, cx - 3], [outer + 1, cx + 2], [outer + 1, cx + 3]], 'N');
+  /* 성 안쪽에도 산등성 언덕 한 줄 (수비측 원거리 사격 자리) */
+  paint(g, [[outer - 3, cx - 9], [outer - 3, cx + 8], [outer - 4, cx - 8], [outer - 4, cx + 7]], 'U');
+  const key = s0.rings === 3 ? '__siege_mountain3' : (s0.rings === 2 ? '__siege_mountain2' : '__siege_mountain');
+  return finishMap(key, g, { ally: [cx, n - 2], enemy: s0.enemyBase,
+    villages: [[cx - 5, outer + 3], [cx + 4, outer + 5], [cx, n - 4]] });
+}
+
+/* ── v6.0 — 보급대 습격전(요격전): 적 보급고·호송 마차를 끊는다 ──
+   길게 늘어선 보급 행렬을 가운데서 끊는 싸움. 군량고(Q)·무기고(Y)를 차지하면
+   적 사기가 급락하고 이어지는 공성전까지 이득이 남는다. */
+function convoyMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  /* 남북으로 난 보급로와 가운데 마차 진지 */
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  hline(g, 11, 0, n - 1, 'R'); hline(g, 12, 0, n - 1, 'R');
+  fillRect(g, 9, 14, cx - 4, cx + 3, 'D');
+  /* 호송 진지의 군량고·무기고 */
+  setT(g, 10, cx - 3, 'Q'); setT(g, 13, cx + 2, 'Q');
+  setT(g, 13, cx - 3, 'Y'); setT(g, 10, cx + 2, 'Y');
+  /* 진지를 두른 목책 — 동·서 어귀만 열어 둔다 */
+  paint(g, [[9, cx - 4], [9, cx - 3], [9, cx - 2], [9, cx + 1], [9, cx + 2], [9, cx + 3]], 'N');
+  paint(g, [[14, cx - 4], [14, cx - 3], [14, cx - 2], [14, cx + 1], [14, cx + 2], [14, cx + 3]], 'N');
+  /* 좌우 숲·언덕, 남쪽 갈대밭(불 지르기 좋은 자리) */
+  blob(g, 3, 5, 2, 'F', 241); blob(g, 20, 18, 2, 'F', 242);
+  blob(g, 4, 18, 2, 'U', 243); blob(g, 19, 5, 2, 'U', 244);
+  fillRect(g, 16, 16, 4, 9, 'J');
+  blob(g, 2, 11, 1, 'M', 245); blob(g, 21, 12, 1, 'M', 246);
+  return finishMap('__convoy', g, { ally: [cx, n - 2], enemy: [cx, 7],
+    villages: [[6, 11], [17, 12], [cx, 16]] });
+}
+
+/* ── v6.0 — 나루터 부교전(요격전): 중앙 좁은 부교 + 좌우 갈대밭(화공) ──
+   넓은 강에 부교 하나만 놓인 나루. 부교는 좁고, 좌우 갈대밭에 붙은 부대는 불에 탄다. */
+function bridgeMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  fillRect(g, 10, 13, 0, n - 1, 'W');
+  /* 부교 어귀 길을 먼저 내고, 그 위에 부교를 얹는다 (길이 부교를 덮지 않게) */
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  fillRect(g, 10, 13, cx - 1, cx, 'L');          // 중앙 좁은 부교 (두 칸)
+  /* 좌우 갈대밭 — 화공이 통하는 자리 */
+  fillRect(g, 8, 9, 5, 9, 'J'); fillRect(g, 14, 15, 14, 18, 'J');
+  /* 물가 포구와 둑길 */
+  setT(g, 9, 3, 'O'); setT(g, 14, 20, 'O');
+  blob(g, 3, 4, 1, 'U', 251); blob(g, 20, 19, 1, 'U', 252);
+  blob(g, 4, 19, 2, 'F', 253); blob(g, 19, 4, 2, 'F', 254);
+  paint(g, [[0, 0], [0, 1], [1, 0], [23, 23], [23, 22], [22, 23], [0, 23], [1, 23], [0, 22], [23, 0], [22, 0], [23, 1]], 'M');
+  return finishMap('__bridge', g, { ally: [cx, n - 2], enemy: [cx, 2],
+    villages: [[cx - 4, 9], [cx + 3, 14], [cx, 17]] });
+}
+
+/* ── v6.0 — 북방 초원·목책전: 넓은 초원 + 목책 진지 + 고지대 ──
+   부여·옥저 같은 북방 거점과 평원 요격. 적은 목책 진지에 웅크리고, 초원의 언덕이 열쇠다. */
+function steppeMap() {
+  const n = 24, cx = 12;
+  const g = mkGrid(n, n, 'P');
+  vline(g, cx - 1, 0, n - 1, 'R'); vline(g, cx, 0, n - 1, 'R');
+  hline(g, 12, 1, n - 2, 'R');
+  /* 적 목책 진지 — 위쪽을 두르고 가운데 두 어귀만 연다 */
+  hline(g, 7, 2, cx - 3, 'N'); hline(g, 7, cx + 3, n - 3, 'N');
+  vline(g, 2, 2, 7, 'N'); vline(g, n - 3, 2, 7, 'N');
+  fillRect(g, 2, 6, 3, n - 4, 'D');
+  setT(g, 4, cx - 4, 'Q'); setT(g, 4, cx + 3, 'Y');
+  /* 초원의 고지대 언덕 — 기병이 돌아가야 하는 자리 */
+  blob(g, 5, 14, 2, 'U', 261); blob(g, 18, 14, 2, 'U', 262);
+  blob(g, 11, 18, 1, 'U', 263);
+  /* 드문드문한 숲과 물웅덩이 */
+  blob(g, 3, 20, 1, 'F', 264); blob(g, 20, 20, 1, 'F', 265);
+  fillRect(g, 16, 16, 6, 8, 'W'); fillRect(g, 16, 16, 7, 7, 'S');
+  blob(g, 1, 12, 1, 'M', 266); blob(g, 22, 12, 1, 'M', 267);
+  return finishMap('__steppe', g, { ally: [cx, n - 2], enemy: [cx, 3],
+    villages: [[6, 10], [17, 10], [cx, 15]] });
 }
 
 SK.MAPS = {};
 plainMap(); fordMap(); mountainMap(); forestMap(); gorgeMap(); campMap(); navalMap(); fortressMap();
+siegeMap(1); siegeMap(2); siegeMap(3);
+/* v6.0 — 신규 전장 6종 (수상 공성·산성 공략·보급대 습격·나루터 부교·북방 초원) */
+siegeNavalMap(1); siegeNavalMap(2); siegeNavalMap(3);
+siegeMountainMap(1); siegeMountainMap(2); siegeMountainMap(3);
+convoyMap(); bridgeMap(); steppeMap();
 /* 모든 전장 유형의 지도가 실제로 있는지 확인 (없으면 startBattle이 터진다) */
 Object.keys(SK.BATTLE_TYPES || {}).forEach((k) => {
   const key = SK.BATTLE_TYPES[k].map;
   if (!SK.MAPS[key]) console.error('전장 지도 없음:', k, key);
 });
-siegeMap(1); siegeMap(2); siegeMap(3);
 /* v5.15 — 옛 저장의 ambush 요격전은 밀림전으로 이어진다 */
 SK.MAPS.ambush = SK.MAPS.forest;
 SK.MAP_META.ambush = SK.MAP_META.forest;
@@ -2892,6 +3105,25 @@ SK.siegeRingsOfCity = function (city) {
   return t === 'capital' ? 3 : (t === 'mid' ? 2 : 1);
 };
 SK.siegeMapKey = function (rings) { return rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'); };
+/* v6.0 — 수상 공성·산성 공략은 성 크기별로 지도 키가 따로 있다 (1중·2중·3중) */
+SK.siegeVariantKey = function (type, rings) {
+  const base = type === 'siege_naval' ? '__siege_naval' : type === 'siege_mountain' ? '__siege_mountain' : null;
+  if (!base) return null;
+  const r = rings >= 3 ? 3 : (rings === 2 ? 2 : 1);
+  return r === 1 ? base : base + r;
+};
+/* 전장 유형 → 실제 지도 키. 공성 계열은 성벽 겹수(rings)로 고른다 */
+SK.mapKeyFor = function (type, rings) {
+  const v = SK.siegeVariantKey(type, rings);
+  if (v && SK.MAPS[v]) return v;
+  if (type === 'siege' || type === 'defense') return SK.siegeMapKey(rings || 1);
+  const bt = SK.BATTLE_TYPES && SK.BATTLE_TYPES[type];
+  return (bt && bt.map) || 'siege';
+};
+/* 공성 계열인가 — 성문·성벽을 뚫고 성 안으로 들어가는 전투 */
+SK.isSiegeType = function (type) {
+  return type === 'siege' || type === 'defense' || type === 'siege_naval' || type === 'siege_mountain';
+};
 /* v5.93 — 요새 거점의 성벽 방어 계수 (일반 성 1.0 · 요새 2.0).
    공성·수성·거점 방어 계산과 요새전 수비측 방어력에 그대로 쓴다.
    v5.95 — 관문도 요새와 같이 2.0 (사용자 요청 '관문도 요새처럼'). */
@@ -2901,7 +3133,9 @@ SK.fortressWallMul = function (city) {
 
 /* v5.17 — 전장 격자 크기. 요격전·소도시 24 / 중도시 28 / 대도시 32 */
 SK.battleSizeFor = function (type, rings) {
-  if (type === 'siege' || type === 'defense') return rings >= 3 ? 32 : (rings === 2 ? 28 : 24);
+  if (type === 'siege' || type === 'defense' || type === 'siege_naval' || type === 'siege_mountain') {
+    return rings >= 3 ? 32 : (rings === 2 ? 28 : 24);
+  }
   if (type === 'fortress') return 24;
   return 24;
 };
@@ -2930,15 +3164,63 @@ SK.BATTLE_TYPES = {
   /* v5.7 — 수성전: 아군이 성 안에서 적 침공군을 맞는다 (지도는 공성전을 뒤집어 쓴다) */
   defense: { name: '수성전', hanja: '', map: 'siege', img: 'siege', desc: '성을 지켜 적을 물리쳐라',
     objective: '성을 지켜라 — 적을 전멸시켜라', skill: '궁수·궁기병은 성벽 안에서 유리합니다.' },
+  /* ══ v6.0 — 신규 전장 6종 ══ */
+  /* 수상 공성전: 성 앞을 강이 가로지른다. 다리 둘·여울 하나로 건너 성문을 두드린다 */
+  siege_naval: { name: '수상 공성전', hanja: '', map: '__siege_naval', img: 'siege',
+    desc: '성 앞 강을 건너 성을 두드린다', tone: 'siege',
+    objective: '다리와 여울로 강을 건너 적을 전멸시켜라',
+    skill: '갈대밭에 붙은 부대는 화공에 탄다. 다리 어귀를 먼저 잡아라.' },
+  /* 산성 공략전: 성 밖이 전부 산지. 비탈 정면과 왼쪽 염소길(측면 문)이 있다 */
+  siege_mountain: { name: '산성 공략전', hanja: '', map: '__siege_mountain', img: 'siege',
+    desc: '산성을 비탈로 올라 함락하라', tone: 'siege',
+    objective: '비탈과 염소길을 넘어 적을 전멸시켜라',
+    skill: '고지대를 잡으면 사거리 +1·방어 +25%. 기병은 비탈에서 느려진다.' },
+  /* 보급대 습격전: 적 보급 행렬의 군량고·무기고를 끊는다 */
+  convoy: { name: '보급대 습격전', hanja: '', map: '__convoy', img: 'convoy',
+    desc: '적 보급대와 호송 마차를 습격한다',
+    objective: '군량고·무기고를 차지하고 호송대를 전멸시켜라',
+    skill: '군량고를 차지하면 적 사기가 급락하고, 이어지는 공성전이 쉬워집니다.' },
+  /* 나루터 부교전: 좁은 부교 하나와 좌우 갈대밭 */
+  bridge: { name: '나루터 부교전', hanja: '', map: '__bridge', img: 'bridge',
+    desc: '좁은 부교를 사이에 두고 나루를 다툰다',
+    objective: '부교를 건너 적을 전멸시켜라',
+    skill: '부교는 좁아 길이 막힌다. 좌우 갈대밭은 화공에 잘 탄다.' },
+  /* 북방 초원·목책전: 넓은 초원과 목책 진지 */
+  steppe: { name: '북방 초원·목책전', hanja: '', map: '__steppe', img: 'steppe',
+    desc: '넓은 초원에서 목책 진지를 무너뜨린다',
+    objective: '목책 진지를 뚫고 적을 전멸시켜라',
+    skill: '기병은 초원에서 강하지만 목책과 언덕 앞에서는 힘을 못 씁니다.' },
 };
 
-/* v5.0.1 — 도시 공략은 언제나 공성전. 관문은 산전, 요새는 요새전.
-   수전·산전은 강·바다를 건너는 길과 행군 요격전(2단계)에서 쓴다. */
+/* 모든 전장 유형의 지도가 실제로 있는지 확인 (없으면 startBattle이 터진다) */
+Object.keys(SK.BATTLE_TYPES).forEach((k) => {
+  const key = SK.BATTLE_TYPES[k].map;
+  if (!SK.MAPS[key]) console.error('전장 지도 없음:', k, key);
+});
+
+/* v6.0 — 80거점 자동 매칭: 도시 규모(소·중·대)와 cities.json의 battleType(지형)을
+   함께 읽어 전장을 고른다.
+   · 관문·요새           → 요새전 (목책·보루)
+   · 강·바다에 닿은 성    → 수상 공성전 (다리·여울·갈대밭)
+   · 산악 성(산지 병력)   → 산성 공략전 (비탈·고지대·측면 문)
+   · 북방 초원(평원 성)   → 북방 초원·목책전
+   · 나머지 내륙 성       → 공성전 (소 1중 · 중 2중 · 대 3중 + 측면 샛문) */
 SK.battleTypeFor = function (city) {
   if (!city) return 'siege';
-  if (city.type === 'pass') return 'mountain';
-  if (city.type === 'fortress') return 'fortress';
+  const t = city.type;
+  const bt = city.battleType || '';
+  if (t === 'pass' || t === 'fortress') return 'fortress';
+  if (bt === 'naval') return 'siege_naval';
+  if (bt === 'mountain') return 'siege_mountain';
+  /* 성곽 도시(안시성·북평·요동)는 산성으로 친다 — 돌성벽·비탈·측면 문 */
+  if (bt === 'fortress') return 'siege_mountain';
+  if (bt === 'plain' || bt === 'steppe') return 'steppe';
   return 'siege';
+};
+/* 수성전도 같은 지형을 뒤집어 쓴다 (성을 지키는 아군이 그 성의 지형에서 싸운다) */
+SK.defenseTypeFor = function (city) {
+  const atk = SK.battleTypeFor(city);
+  return atk === 'fortress' ? 'fortress' : 'defense';
 };
 
 /* 방어 병력 기본값 */
@@ -2960,6 +3242,12 @@ SK.enemyClassesFor = function (type, idx) {
     forest:   ['sanjeok', 'yasubyung', 'yasubyung', 'sanjeok', 'mudoga', 'gungsu', 'chaeksa', 'sanjeok', 'gungsu', 'yasubyung'],
     gorge:    ['changbyung', 'deunggabyung', 'yeonnobyung', 'gungsu', 'changbyung', 'chaeksa', 'deunggabyung', 'balseokcha', 'gungsu', 'mudoga'],
     camp:     ['gibi', 'geombyung', 'changbyung', 'gungsu', 'yasubyung', 'chaeksa', 'mudoga', 'yeonnobyung', 'gungsu', 'gibi'],
+    /* v6.0 — 신규 전장 적 편성 */
+    siege_naval:    ['sujeok', 'gungsu', 'geombyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'changbyung', 'sujeok', 'gunggi', 'gungsu'],
+    siege_mountain: ['sanjeok', 'gungsu', 'yeonnobyung', 'sanjeok', 'chaeksa', 'changbyung', 'yasubyung', 'deunggabyung', 'gungsu', 'mudoga'],
+    convoy:  ['gibi', 'gungsu', 'changbyung', 'gibi', 'chaeksa', 'geombyung', 'gungsu', 'mudoga', 'yeonnobyung', 'gibi'],
+    bridge:  ['sujeok', 'gungsu', 'changbyung', 'sujeok', 'chaeksa', 'yeonnobyung', 'geombyung', 'sujeok', 'gungsu', 'mudoga'],
+    steppe:  ['gibi', 'gibi', 'gungsu', 'changbyung', 'gibi', 'chaeksa', 'mudoga', 'gungsu', 'yasubyung', 'geombyung'],
   };
   const t = tables[type] || tables.siege;
   return t[idx % t.length];
@@ -2991,8 +3279,8 @@ function slotsAround(base, n, count, nr) {
   return out.slice(0, count || 10);
 }
 SK.enemySlots = function (type, rings, cols, rows) {
-  const meta = SK.MAP_META[type === 'defense' ? 'siege' : (SK.BATTLE_TYPES[type] && SK.BATTLE_TYPES[type].img)] || null;
-  const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
+  const key = SK.mapKeyFor(type, rings || 1);
+  const meta = SK.MAP_META[key] || SK.MAP_META[type === 'defense' ? 'siege' : (SK.BATTLE_TYPES[type] && SK.BATTLE_TYPES[type].img)] || null;
   const m = SK.MAP_META[key] || meta;
   const n = cols || (m ? m.cols : 24);
   /* v5.90 — 세로 칸수도 따로 받는다 */
@@ -3006,7 +3294,7 @@ SK.enemySlots = function (type, rings, cols, rows) {
   }
   /* v5.17 — 공성 수비대는 성벽 마당마다 나눠 선다(바깥 마당 → 안쪽 → 본진).
      한 곳에 뭉치면 회복 거점과 겹쳐 전투가 끝나지 않는다. */
-  if (type === 'siege' && m) {
+  if (SK.isSiegeType(type) && type !== 'defense' && m) {
     const rows2 = m.rows, cx2 = Math.floor(n / 2);
     const gateRows = [];
     (SK.MAPS[key] || []).forEach((line, y) => { if (line.indexOf('G') >= 0) gateRows.push(y); });
@@ -3033,7 +3321,7 @@ SK.enemySlots = function (type, rings, cols, rows) {
 };
 function clampX(x, n) { return Math.max(0, Math.min(n - 1, x)); }
 SK.allySlots = function (type, rings, cols, rows) {
-  const key = (type === 'siege' || type === 'defense') ? SK.siegeMapKey(rings || 1) : (SK.BATTLE_TYPES[type] ? SK.BATTLE_TYPES[type].map : 'siege');
+  const key = SK.mapKeyFor(type, rings || 1);
   const m = SK.MAP_META[key];
   const n = cols || (m ? m.cols : 24);
   /* v5.90 — 세로 칸수도 따로 받는다 (직사각형 지도에서 아래쪽 자리가 잘리지 않게) */

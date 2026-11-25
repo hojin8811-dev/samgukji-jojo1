@@ -191,10 +191,11 @@
     const snapOpts = snapOptsOf(opts, type);
     /* v5.11 — 공성·수성 통일: 같은 성이면 공격/방어 모두 같은 성벽 맵을 쓴다.
        도시 등급이 높을수록 성벽이 1중 → 2중 → 3중으로 겹친다. */
-    const isSiege = (type === 'siege' || type === 'defense');
+    /* v6.0 — 수상 공성·산성 공략도 공성 계열이다 (성문·성벽·겹성벽 규칙을 그대로 쓴다) */
+    const isSiege = (SK.isSiegeType ? SK.isSiegeType(type) : (type === 'siege' || type === 'defense'));
     const cellState = s.cities[opts.targetId];
     const rings = isSiege ? (SK.siegeRingsOfCity ? SK.siegeRingsOfCity(target) : 1) : 0;
-    const mapKey = isSiege && SK.siegeMapKey ? SK.siegeMapKey(rings) : def.map;
+    const mapKey = (SK.mapKeyFor ? SK.mapKeyFor(type, rings) : (isSiege && SK.siegeMapKey ? SK.siegeMapKey(rings) : def.map));
     /* v5.86b — 에디터에서 칠한 커스텀 전장(__map_editor)은 통이미지 대신 타일을 직접 그린다 */
     const customTilesRender = !!(opts.customTiles) || (typeof mapKey === 'string' && mapKey.slice(0, 2) === '__');
     const mapRows = SK.MAPS[mapKey] || SK.MAPS[def.map];
@@ -205,7 +206,7 @@
     const rows = meta ? meta.rows : tiles.length;
     COLS = cols; ROWS = rows;
     WORLD_W = COLS * TILE; WORLD_H = ROWS * TILE;
-    const bgKey = (type === 'siege' || type === 'defense')
+    const bgKey = isSiege
       ? (rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'))
       : (def.img || def.map);
     /* v5.33 — 요격 출진은 '아군 성'에서 벌어지므로 targetId의 주인이 곧 아군이다.
@@ -335,7 +336,7 @@
     /* v5.2 — 성문 내구도. v5.11 — 겹성벽이면 바깥 성문부터 차례로 부순다.
        수성전도 같은 성문·성벽을 그대로 쓴다 (진영만 바뀐다). */
     const gateRows = [];
-    if (type === 'siege' || type === 'defense' || type === 'fortress') {
+    if (isSiege || type === 'fortress') {
       const rowsWithGate = [];
       tiles.forEach((row, y) => {
         if (row.indexOf('G') < 0) return;
@@ -354,10 +355,35 @@
     }
     /* 바깥(큰 y)부터 안쪽 순서 */
     gateRows.sort((a, b) => b.row - a.row);
+    /* v6.0 — 같은 성벽 줄에 정문과 동·서 측면 샛문이 함께 있으면 문마다 따로 부순다.
+       성문 칸을 가로 위치로 묶어(한 칸 사이는 같은 문, 3칸 이상 벌어지면 다른 문) 각각 하나의 성문으로 만든다.
+       정문 HP를 다 깎지 않고 측면 샛문을 먼저 뚫는 '우회 공성'이 가능해진다. */
     const gateHpBase = clamp(Math.round(cityTroops * 0.14) + 500, 800, 2200);
-    const gates = gateRows.map((gr, i) => {
-      const hp = Math.max(500, Math.round(gateHpBase * (i === 0 ? 1 : (i === 1 ? 0.72 : 0.55))));
-      return { row: gr.row, tiles: gr.tiles, hp, maxHp: hp, ring: i + 1 };
+    const cxMid = Math.floor(COLS / 2);
+    const gateList = [];
+    gateRows.forEach((gr, bandIdx) => {
+      const xs = Array.from(new Set(gr.tiles.map((t) => t.x))).sort((a, b) => a - b);
+      const clusters = [];
+      xs.forEach((x) => {
+        const last = clusters[clusters.length - 1];
+        if (last && x - last[last.length - 1] <= 1) last.push(x);
+        else clusters.push([x]);
+      });
+      clusters.forEach((cl) => {
+        const center = cl.reduce((a, b) => a + b, 0) / cl.length;
+        const main = Math.abs(center - cxMid) <= 1;
+        const list = [];
+        gr.rows.forEach((y) => cl.forEach((x) => list.push({ x, y })));
+        gateList.push({ row: gr.row, rows: gr.rows, center, main, band: bandIdx, tiles: list });
+      });
+    });
+    /* 같은 줄이면 정문 → 측문 순. 바깥 줄이 먼저 온다 */
+    gateList.sort((a, b) => (b.row - a.row) || ((b.main ? 1 : 0) - (a.main ? 1 : 0)) || (a.center - b.center));
+    const gates = gateList.map((g) => {
+      const ring = g.band + 1;
+      const factor = ring === 1 ? 1 : (ring === 2 ? 0.72 : 0.55);
+      const hp = Math.max(420, Math.round(gateHpBase * factor * (g.main ? 1 : 0.7)));
+      return { row: g.row, rows: g.rows, tiles: g.tiles, hp, maxHp: hp, ring, main: !!g.main, side: !g.main };
     });
     const gateInit = gates[0] || null;   // B.gate는 가장 바깥에 남은 성문을 가리킨다
 
@@ -398,7 +424,21 @@
         { k: 'barricade', x: 2, y: 10, s: 0.88 }, { k: 'barricade', x: 15, y: 7, s: 0.88 },
         { k: 'camp', x: 2, y: 16, s: 1.0 }, { k: 'camp', x: 15, y: 16, s: 1.0 },
       ];
-    } else if (type === 'siege' || type === 'defense' || type === 'fortress') {
+    } else if (type === 'convoy') {
+      /* v6.0 — 호송 마차 진지: 보급품 상자·바리케이드·막사 */
+      B.props = [
+        { k: 'supply', x: 9, y: 11, s: 0.9 }, { k: 'supply', x: 14, y: 12, s: 0.9 },
+        { k: 'supply', x: 12, y: 9, s: 0.82 }, { k: 'barricade', x: 8, y: 12, s: 0.86 },
+        { k: 'barricade', x: 15, y: 11, s: 0.86 }, { k: 'camp', x: 11, y: 14, s: 0.92 },
+      ];
+    } else if (type === 'steppe') {
+      /* v6.0 — 초원 목책 진지: 천막과 바리케이드 */
+      B.props = [
+        { k: 'camp', x: 6, y: 4, s: 1.0 }, { k: 'camp', x: 17, y: 4, s: 1.0 },
+        { k: 'barricade', x: 9, y: 6, s: 0.86 }, { k: 'barricade', x: 14, y: 6, s: 0.86 },
+        { k: 'supply', x: 8, y: 3, s: 0.84 }, { k: 'supply', x: 16, y: 3, s: 0.84 },
+      ];
+    } else if (isSiege || type === 'fortress') {
       B.props = [
         { k: 'camp', x: 2, y: 15, s: 1.0 }, { k: 'camp', x: 15, y: 15, s: 1.0 },
         { k: 'supply', x: 2, y: 16, s: 0.88 }, { k: 'supply', x: 15, y: 16, s: 0.88 },
@@ -425,6 +465,26 @@
     placeSide(enemies, SK.enemySlots(type, rings, cols, rows), 'enemy', { blocked: spawnTaken });
     /* v5.31 — 사기·상태이상 초기화 (보물의 사기 +N·상태이상 저항이 여기서 붙는다) */
     B.units.forEach(initStatus);
+    /* v6.0 — 전략 지형 상태: 연소 중인 갈대밭(B.fire)과 군량고·무기고(B.objs) */
+    B.fire = {};
+    B.objs = makeObjs();
+    B.objTaken = {};
+    /* v6.0 — 직전 요격전(보급대 습격 등)에서 적 군량고·무기고를 끊었으면
+       이어지는 공성전의 성문이 약해지고 적 사기가 낮게 시작한다. */
+    const siegeGift = (SK.state && SK.state.nextSiegeBonus) || null;
+    if (siegeGift && isSiege && !defense && siegeGift.cityId === opts.targetId) {
+      (B.gates || []).forEach((g) => {
+        g.hp = Math.max(220, Math.round(g.hp * (siegeGift.gate || 0.8)));
+        g.maxHp = Math.max(g.maxHp, g.hp);
+      });
+      B.units.forEach((u) => {
+        if (u.side !== 'enemy') return;
+        u.morale = clamp((u.morale == null ? MORALE_BASE : u.morale) - (siegeGift.morale || 10), 0, u.moraleMax || 100);
+      });
+      B.siegeGift = siegeGift;
+      SK.state.nextSiegeBonus = null;
+      wait(() => SK.toast('요격전 성과 — 적 군량이 끊겨 성문이 약하고 적 사기가 낮습니다'), 900);
+    }
     /* v5.32 — 행군 중도 야영(사기 +N)과 강행군 기습(적 사기 −8)을 전장으로 넘긴다 */
     B.units.forEach((u, i) => {
       if (u.side !== 'ally') return;
@@ -479,7 +539,7 @@
       if (type === 'defense') { u.role = 'assault'; return; }
       /* v5.33 — 총대장 격파 규칙이 사라졌으니 군주·총대장도 본진에 웅크리지 않고 함께 나선다.
          (본진이 실제로 위급할 때만 aiGoalOf가 본진으로 돌려세운다) */
-      if (type === 'siege' || type === 'fortress') { u.role = u.leader ? 'assault' : 'guard'; return; }
+      if (isSiege || type === 'fortress') { u.role = u.leader ? 'assault' : 'guard'; return; }
       u.role = (i % 2 === 0 ? 'assault' : 'guard');
     });
     B.units.forEach((u) => { if (u.tier == null) u.tier = SK.tierForLv(u.lv); });
@@ -515,9 +575,9 @@
     paintSpeedBtn();
     SK.show('screen-battle');
     if (window.JojoBGM) {
-      try { JojoBGM.play(type === 'siege' || type === 'fortress' ? 'battle_siege' : 'battle_field'); } catch (e) { /* ignore */ }
+      try { JojoBGM.play(isSiege || type === 'fortress' ? 'battle_siege' : 'battle_field'); } catch (e) { /* ignore */ }
     }
-    if (window.SK && SK.bgm && !window.JojoBGM) SK.bgm(type === 'siege' || type === 'fortress' ? 'battle_siege' : 'battle_field');
+    if (window.SK && SK.bgm && !window.JojoBGM) SK.bgm(isSiege || type === 'fortress' ? 'battle_siege' : 'battle_field');
     /* v5.27 — 전투 중에 앱을 닫거나 새로고침해도 출진 병력이 허공으로 사라지지 않게
        '전투 중' 표식을 저장해 둔다. 복귀하면 SK.load가 병력을 출발 성으로 돌려준다. */
     try {
@@ -914,7 +974,8 @@
     });
   }
 
-  function passable(ch) { return ch !== 'C' && ch !== 'H'; }
+  /* v6.0 — 목책(N)도 통행 불가라 부대 자리로 쓰지 않는다 */
+  function passable(ch) { return ch !== 'C' && ch !== 'H' && ch !== 'N'; }
 
   /* v5.21 — 수성전 자리별 슬롯.
      · 외성: 가장 바깥 성벽(성문 줄) 안쪽 1~3칸 마당 — 성문 앞을 막는다
@@ -1645,7 +1706,7 @@
       }
     } else {
       if (img.complete && img.naturalWidth) sc.drawImage(img, 0, 0, S, S);
-      else { sc.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, S, S); }
+      else { sc.fillStyle = (SK.isSiegeType(B.type)) ? '#c9ab6c' : '#7d8a52'; sc.fillRect(0, 0, S, S); }
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
           const ch = B.tiles[y][x];
@@ -1690,9 +1751,14 @@
     /* 성문 */
     (B.gates || []).forEach((gate) => {
       gate.tiles.forEach((t) => {
-        c.fillStyle = gate.hp > 0 ? '#ffe08a' : 'rgba(120,180,110,0.9)';
+        c.fillStyle = gate.hp > 0 ? (gate.side ? '#ffd08a' : '#ffe08a') : 'rgba(120,180,110,0.9)';
         c.fillRect(t.x * sx, t.y * sy, sx + 0.4, sy + 0.4);
       });
+    });
+    /* v6.0 — 군량고·무기고 (점령 진영 색) */
+    (B.objs || []).forEach((o) => {
+      c.fillStyle = o.owner ? (o.owner === 'ally' ? '#6fb6ff' : '#ff7a5c') : '#ffe08a';
+      c.fillRect(o.x * sx, o.y * sy, Math.max(2, sx) + 0.4, Math.max(2, sy) + 0.4);
     });
     /* 부대 — v5.28 대형 전장 줌아웃에서도 점이 묻히지 않게 크게 + 어두운 테두리 */
     const tinyView = cam.s < 0.30;
@@ -1931,10 +1997,12 @@
       // v5.17 — 모든 전장이 칸 수에 맞는 그림을 쓴다 (공성·수성은 겹성벽 그림)
       const bg = loadImg(`assets/maps/v2/battle_${B.bgKey}.webp`);
       if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0, WORLD_W, WORLD_H);
-      else { ctx.fillStyle = (B.type === 'siege' || B.type === 'defense') ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
+      else { ctx.fillStyle = (SK.isSiegeType(B.type)) ? '#c9ab6c' : '#7d8a52'; ctx.fillRect(0, 0, WORLD_W, WORLD_H); }
     }
 
     drawTerrainTint();
+    drawStrategyTiles();      // v6.0 — 고지대·갈대밭·군량고·무기고·목책·부교·포구
+    drawObjMarkers();         // v6.0 — 군량고·무기고 표식(점령 진영 색)
     drawWaterWaves();
     drawBattleProps();
     drawBrokenGates();
@@ -1945,6 +2013,7 @@
     drawHighlights();
     drawBackFloats();
     drawTowers();
+    drawFires();              // v6.0 — 연소하는 갈대밭 불꽃
     drawUnits();
     drawFx();
     ctx.restore();
@@ -2085,7 +2154,7 @@
   SK.GATE_ART_OFF = GATE_ART_OFF;
   function drawBrokenGates() {
     if (!B || !B.tiles) return;
-    if (B.type !== 'siege' && B.type !== 'defense' && B.type !== 'fortress') return;
+    if (!SK.isSiegeType(B.type) && B.type !== 'fortress') return;
     const list = B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : []);
     const img = loadImg('assets/battle/gate_broken.webp');
     if (!img.complete || !img.naturalWidth) return;
@@ -2135,6 +2204,7 @@
     P: '#7b8c4e', R: '#c6a670', F: '#356b34', M: '#8a7c69', W: '#2f6a90', S: '#4f8fa4',
     B: '#9c6f43', G: '#c2a05e', C: '#8f8f86', D: '#c9b489', H: '#46506a', T: '#a49c8c',
     K: '#a49c8c', A: '#cbb98f', E: '#cbb98f', V: '#bda97e',
+    U: '#b3a678', J: '#8a9152', Q: '#d8b46a', Y: '#9aa0a8', N: '#8a6238', L: '#a97c4b', O: '#b08a58',
   };
 
   /* 칸 좌표로 정해지는 잡음 — 칠할 때마다 같은 자리에 같은 결이 남는다 */
@@ -2495,6 +2565,249 @@
     c.strokeRect(X + 0.7, Y + 0.7, TILE - 1.4, TILE - 1.4);
   }
 
+  /* ══════════ v6.0 — 신규 전략 지형 타일 그림 ══════════
+     고지대(U)·갈대밭(J)·군량고(Q)·무기고(Y)·목책(N)·부교(L)·포구(O)를
+     한 칸 도트 타일로 그린다. 통이미지(배경 그림) 전장에서는 이 함수들을
+     칸 위에 덧그려(drawStrategyTiles) 그림과 어우러지게 얹는다. */
+  const NT = {
+    high1: '#a89a6f', high2: '#8d7f57', high3: '#c4b78c', highEdge: '#6d6247',
+    reed1: '#6f7d4a', reed2: '#8a9152', reed3: '#b9ab63', reedHead: '#d8c98a',
+    granWall: '#8a6a44', granRoof: '#b08a4e', granSack: '#d9c48d',
+    armWall: '#8d8d84', armRoof: '#5f6c8a', armWood: '#9c6f43',
+    palWood: '#8a6238', palTip: '#c9a877', plank: '#a97c4b', plankDark: '#7d5832',
+    rope: '#d8c9a0', portDeck: '#b08a58',
+  };
+  /* 고지대 — 초록 평평한 꼭대기 + 남쪽에 깎아지른 흙벽. 한눈에 '높은 땅'으로 읽힌다 */
+  function ntHighland(c, X, Y, x, y) {
+    const T = TILE;
+    /* 아래쪽 절벽면 — 얇게 (28%). 위가 밝은 풀밭이라 '높은 땅'으로 읽힌다 */
+    c.fillStyle = '#8a7a56'; c.fillRect(X, Y + T * 0.72, T, T * 0.28);
+    c.fillStyle = '#756547';
+    for (let i = 0; i < 4; i++) c.fillRect(X + 4 + i * 15, Y + T * 0.74, 9, T * 0.26);
+    c.fillStyle = 'rgba(40,32,18,0.28)'; c.fillRect(X, Y + T - 5, T, 5);
+    /* 꼭대기(풀밭) */
+    c.fillStyle = '#8a9a58';
+    c.beginPath();
+    c.moveTo(X + 2, Y + T * 0.74); c.lineTo(X + T * 0.10, Y + T * 0.04);
+    c.lineTo(X + T * 0.92, Y + T * 0.02); c.lineTo(X + T - 2, Y + T * 0.74);
+    c.closePath(); c.fill();
+    c.fillStyle = '#98a962';
+    c.beginPath();
+    c.moveTo(X + T * 0.14, Y + T * 0.18); c.lineTo(X + T * 0.86, Y + T * 0.16);
+    c.lineTo(X + T * 0.82, Y + T * 0.52); c.lineTo(X + T * 0.18, Y + T * 0.54);
+    c.closePath(); c.fill();
+    /* 꼭대기 가장자리 밝은 선 — 단차가 도드라진다 */
+    c.strokeStyle = 'rgba(232,238,190,0.85)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(X + 2, Y + T * 0.74); c.lineTo(X + T - 2, Y + T * 0.74); c.stroke();
+    /* 풀잎 몇 가닥 */
+    c.strokeStyle = 'rgba(88,110,54,0.8)'; c.lineWidth = 1.6;
+    for (let i = 0; i < 4; i++) {
+      const hx = ctHash(x, y, 300 + i), hy = ctHash(x, y, 320 + i);
+      const px = X + 8 + hx * (T - 16), py = Y + T * 0.18 + hy * T * 0.3;
+      c.beginPath(); c.moveTo(px, py + 5); c.lineTo(px - 3, py - 3); c.moveTo(px, py + 5); c.lineTo(px + 3, py - 4); c.stroke();
+    }
+  }
+  /* 갈대밭 — 물기 어린 풀바닥에 갈대 줄기와 이삭 */
+  function ntReeds(c, X, Y, x, y) {
+    c.fillStyle = NT.reed1; c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = 'rgba(58,86,72,0.38)';
+    c.beginPath(); c.ellipse(X + TILE / 2, Y + TILE - 8, TILE * 0.52, 10, 0, 0, 6.283); c.fill();
+    c.strokeStyle = NT.reed2; c.lineWidth = 1.8; c.lineCap = 'round';
+    for (let i = 0; i < 9; i++) {
+      const h1 = ctHash(x, y, 400 + i), h2 = ctHash(x, y, 430 + i);
+      const bx = X + 6 + h1 * (TILE - 12), by = Y + TILE - 6;
+      const hh = 22 + h2 * 24;
+      c.strokeStyle = i % 3 === 0 ? NT.reed3 : NT.reed2;
+      c.beginPath(); c.moveTo(bx, by); c.quadraticCurveTo(bx + (h1 - 0.5) * 8, by - hh * 0.6, bx + (h1 - 0.5) * 14, by - hh); c.stroke();
+      c.fillStyle = NT.reedHead;
+      c.beginPath(); c.ellipse(bx + (h1 - 0.5) * 14, by - hh, 2.2, 5.2, (h1 - 0.5) * 0.5, 0, 6.283); c.fill();
+    }
+  }
+  /* 군량고 — 마당에 선 나무 창고와 곡식 자루 */
+  function ntGranary(c, X, Y, x, y) {
+    c.fillStyle = CT.yard; c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = 'rgba(150,126,86,0.35)'; c.fillRect(X, Y + TILE - 6, TILE, 6);
+    /* 창고 */
+    c.fillStyle = NT.granWall; c.fillRect(X + 10, Y + 22, TILE - 20, TILE - 30);
+    c.fillStyle = '#6b5233'; c.fillRect(X + 14, Y + 30, TILE - 28, 4);
+    c.fillStyle = NT.granRoof;
+    c.beginPath(); c.moveTo(X + 6, Y + 23); c.lineTo(X + TILE - 6, Y + 23); c.lineTo(X + TILE - 14, Y + 12); c.lineTo(X + 14, Y + 12); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(60,44,24,0.45)'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(X + 10, Y + 22); c.lineTo(X + 10, Y + TILE - 8); c.moveTo(X + TILE - 10, Y + 22); c.lineTo(X + TILE - 10, Y + TILE - 8); c.stroke();
+    /* 자루 */
+    c.fillStyle = NT.granSack;
+    c.beginPath(); c.ellipse(X + TILE - 14, Y + TILE - 12, 5, 6, 0, 0, 6.283); c.fill();
+    c.beginPath(); c.ellipse(X + TILE - 24, Y + TILE - 10, 4, 5, 0, 0, 6.283); c.fill();
+  }
+  /* 무기고 — 돌벽 창고와 세워 둔 창·방패 */
+  function ntArmory(c, X, Y, x, y) {
+    c.fillStyle = CT.yard; c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = 'rgba(120,116,104,0.4)'; c.fillRect(X, Y + TILE - 6, TILE, 6);
+    c.fillStyle = NT.armWall; c.fillRect(X + 12, Y + 20, TILE - 24, TILE - 26);
+    c.fillStyle = NT.armRoof; c.fillRect(X + 8, Y + 14, TILE - 16, 8);
+    c.strokeStyle = 'rgba(50,50,44,0.45)'; c.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) c.strokeRect(X + 14 + i * 10, Y + 26, 9, TILE - 34);
+    /* 창 걸이 */
+    c.strokeStyle = NT.armWood; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(X + 4, Y + TILE - 14); c.lineTo(X + 4, Y + 26); c.stroke();
+    c.strokeStyle = '#cfcfc4'; c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(X + 7, Y + TILE - 12); c.lineTo(X + 9, Y + 18); c.moveTo(X + 12, Y + TILE - 12); c.lineTo(X + 13, Y + 22); c.stroke();
+  }
+  /* 목책 — 뾰족한 말뚝을 세운 나무 울타리 */
+  function ntPalisade(c, X, Y, x, y) {
+    c.fillStyle = CT.grass; c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = 'rgba(40,32,18,0.28)'; c.fillRect(X, Y + TILE - 10, TILE, 10);
+    c.fillStyle = NT.palWood;
+    for (let i = 0; i < 6; i++) {
+      const bx = X + 3 + i * 10;
+      c.beginPath();
+      c.moveTo(bx, Y + TILE - 6); c.lineTo(bx, Y + 20); c.lineTo(bx + 4, Y + 10); c.lineTo(bx + 8, Y + 20); c.lineTo(bx + 8, Y + TILE - 6);
+      c.closePath(); c.fill();
+      c.fillStyle = NT.palTip; c.fillRect(bx + 3, Y + 12, 2, 6); c.fillStyle = NT.palWood;
+    }
+    c.strokeStyle = 'rgba(58,42,22,0.7)'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(X + 2, Y + TILE - 22); c.lineTo(X + TILE - 2, Y + TILE - 24); c.stroke();
+  }
+  /* 부교 — 물 위에 띄운 널빤지 다리 (양옆에 물이 비치고 통나무 부표가 뜬다) */
+  function ntPontoon(c, X, Y, x, y) {
+    const T = TILE;
+    c.fillStyle = CT.water; c.fillRect(X, Y, T, T);
+    /* 통나무 부표 — 널빤지 네 귀퉁이에 작은 통나무를 띄운다 */
+    [0.12, 0.88].forEach((kx) => {
+      [0.16, 0.84].forEach((ky) => {
+        c.fillStyle = '#8a6238';
+        c.beginPath(); c.ellipse(X + T * kx, Y + T * ky, 7, 4, 0, 0, 6.283); c.fill();
+        c.fillStyle = '#b0834f';
+        c.beginPath(); c.ellipse(X + T * kx, Y + T * ky, 4.5, 2.4, 0, 0, 6.283); c.fill();
+      });
+    });
+    /* 널빤지 — 가로로 놓인 판자 다섯 장, 사이로 물이 보인다 */
+    for (let i = 0; i < 5; i++) {
+      const py = Y + 4 + i * (T - 10) / 4;
+      c.fillStyle = i % 2 ? '#b0834f' : '#a07442';
+      c.fillRect(X + T * 0.18, py, T * 0.64, (T - 14) / 5);
+      c.fillStyle = 'rgba(90,62,32,0.5)';
+      c.fillRect(X + T * 0.18, py + (T - 14) / 5 - 1.5, T * 0.64, 1.5);
+    }
+    /* 밧줄 두 줄 */
+    c.strokeStyle = '#e2d3a6'; c.lineWidth = 1.8;
+    c.beginPath(); c.moveTo(X + T * 0.18, Y + 2); c.lineTo(X + T * 0.18, Y + T - 2);
+    c.moveTo(X + T * 0.82, Y + 2); c.lineTo(X + T * 0.82, Y + T - 2); c.stroke();
+    c.fillStyle = 'rgba(198,234,248,0.18)'; c.fillRect(X + T * 0.18, Y + T - 4, T * 0.64, 4);
+  }
+  /* 포구 — 물가에 놓인 나무 선착장 */
+  function ntPort(c, X, Y, x, y) {
+    c.fillStyle = CT.water; c.fillRect(X, Y, TILE, TILE);
+    c.fillStyle = NT.portDeck;
+    c.fillRect(X + 4, Y + TILE * 0.15, TILE - 8, TILE * 0.72);
+    c.fillStyle = NT.plankDark;
+    for (let i = 0; i < 5; i++) c.fillRect(X + 6, Y + TILE * 0.18 + i * 9, TILE - 12, 2);
+    c.fillStyle = '#6b4a2a';
+    c.fillRect(X + 6, Y + TILE * 0.14, 5, TILE * 0.74);
+    c.fillRect(X + TILE - 11, Y + TILE * 0.14, 5, TILE * 0.74);
+    c.strokeStyle = 'rgba(60,40,20,0.4)'; c.lineWidth = 1.2;
+    c.strokeRect(X + 4.5, Y + TILE * 0.15, TILE - 9, TILE * 0.72);
+  }
+  const NT_PAINT = { U: ntHighland, J: ntReeds, Q: ntGranary, Y: ntArmory, N: ntPalisade, L: ntPontoon, O: ntPort };
+  function drawNewTile(c, ch, X, Y, x, y) {
+    const f = NT_PAINT[ch];
+    if (f) f(c, X, Y, x, y);
+  }
+  /* 배경 그림 전장: 새 지형 칸만 위에 덧그린다 (군량고·무기고는 진영 색 테두리) */
+  function drawStrategyTiles() {
+    if (!B || !B.tiles || B.customTilesRender) return;
+    for (let y = 0; y < ROWS; y++) {
+      const row = B.tiles[y];
+      for (let x = 0; x < COLS; x++) {
+        const ch = row[x];
+        if (!NT_PAINT[ch]) continue;
+        const X = x * TILE, Y = y * TILE;
+        ctx.save();
+        ctx.globalAlpha = 0.97;
+        ctx.beginPath();
+        const r = 6;
+        ctx.moveTo(X + r, Y); ctx.lineTo(X + TILE - r, Y); ctx.quadraticCurveTo(X + TILE, Y, X + TILE, Y + r);
+        ctx.lineTo(X + TILE, Y + TILE - r); ctx.quadraticCurveTo(X + TILE, Y + TILE, X + TILE - r, Y + TILE);
+        ctx.lineTo(X + r, Y + TILE); ctx.quadraticCurveTo(X, Y + TILE, X, Y + TILE - r);
+        ctx.lineTo(X, Y + r); ctx.quadraticCurveTo(X, Y, X + r, Y);
+        ctx.closePath(); ctx.clip();
+        drawNewTile(ctx, ch, X, Y, x, y);
+        ctx.restore();
+      }
+    }
+  }
+  /* 군량고·무기고 표식 — 커스텀 전장·배경 그림 전장 모두에 그린다 */
+  function drawObjMarkers() {
+    if (!B || !B.objs) return;
+    B.objs.forEach((o) => {
+      if (!inViewBoard(o.x, o.y)) return;
+      drawObjMarker(o.x, o.y, o.x * TILE, o.y * TILE);
+    });
+  }
+  function drawObjMarker(x, y, X, Y) {
+    const o = objAt(x, y);
+    const col = o && o.owner ? (o.owner === 'ally' ? '90,160,255' : '255,90,60') : '236,206,120';
+    const t = performance.now() / 900;
+    ctx.save();
+    ctx.strokeStyle = `rgba(${col},${(0.55 + 0.25 * Math.sin(t * 3)).toFixed(3)})`;
+    ctx.lineWidth = 2.4;
+    ctx.strokeRect(X + 2.5, Y + 2.5, TILE - 5, TILE - 5);
+    ctx.fillStyle = `rgba(${col},0.10)`;
+    ctx.fillRect(X + 2.5, Y + 2.5, TILE - 5, TILE - 5);
+    /* 이름표 */
+    const k = clamp(1 / Math.max(0.5, cam.s), 0.9, 1.25);
+    ctx.font = `bold ${Math.round(9 * k)}px "Noto Sans CJK KR", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(28,22,12,0.72)';
+    const label = o ? o.name : '';
+    const w = ctx.measureText(label).width + 8;
+    ctx.fillRect(X + TILE / 2 - w / 2, Y + TILE - 14 * k, w, 12 * k);
+    ctx.fillStyle = `rgb(${col})`;
+    ctx.fillText(label, X + TILE / 2, Y + TILE - 13 * k);
+    ctx.restore();
+  }
+  /* 연소하는 갈대밭 — 흔들리는 불꽃과 그을음 */
+  function drawFlameTile(x, y, X, Y) {
+    const t = performance.now() / 130;
+    const f = (B.fire && B.fire[fireKey(x, y)]) || { t: 1 };
+    const k = clamp(f.t / 3, 0.35, 1);
+    ctx.save();
+    ctx.fillStyle = 'rgba(48,28,10,0.28)';
+    ctx.fillRect(X, Y, TILE, TILE);
+    for (let i = 0; i < 4; i++) {
+      const ph = t + i * 1.7 + x * 0.6 + y * 1.1;
+      const fx0 = X + 10 + ((i * 17 + x * 5 + y * 3) % (TILE - 20));
+      const fy0 = Y + TILE - 10;
+      const hh = (12 + 9 * (0.5 + 0.5 * Math.sin(ph))) * k;
+      const grd = ctx.createLinearGradient(fx0, fy0, fx0, fy0 - hh);
+      grd.addColorStop(0, 'rgba(255,120,40,0.92)');
+      grd.addColorStop(0.55, 'rgba(255,186,70,0.85)');
+      grd.addColorStop(1, 'rgba(255,240,190,0.15)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.moveTo(fx0 - 4, fy0);
+      ctx.quadraticCurveTo(fx0 - 5, fy0 - hh * 0.6, fx0, fy0 - hh);
+      ctx.quadraticCurveTo(fx0 + 5, fy0 - hh * 0.6, fx0 + 4, fy0);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  /* 커스텀 전장은 정적 레이어에 불이 이미 그려져 있으므로, 매 프레임 불꽃만 얹는다 */
+  function drawFires() {
+    if (!B || !B.fire) return;
+    Object.keys(B.fire).forEach((k) => {
+      const [x, y] = k.split(',').map(Number);
+      if (!inViewBoard(x, y)) return;
+      drawFlameTile(x, y, x * TILE, y * TILE);
+    });
+  }
+  function inViewBoard(x, y) {
+    if (!ctx) return true;
+    const w = canvas.width / dpr, h = canvas.height / dpr;
+    const sx = (x + 0.5) * TILE * cam.s + cam.x, sy = (y + 0.5) * TILE * cam.s + cam.y;
+    return sx > -TILE && sy > -TILE && sx < w + TILE && sy < h + TILE;
+  }
+
   /* 커스텀 전장 바탕 한 장 — 칸마다 자기 지형을 그린다 */
   function buildCustomTerrain() {
     const cv = document.createElement('canvas');
@@ -2521,6 +2834,7 @@
         else if (ch === 'D') ctYard(c, X, Y, x, y, CT.yard);
         else if (ch === 'V') ctYard(c, X, Y, x, y, '#bda97e');
         else if (ch === 'A' || ch === 'E') ctYard(c, X, Y, x, y, '#cbb98f');
+        else if (NT_PAINT[ch]) drawNewTile(c, ch, X, Y, x, y);   // v6.0 — 전략 지형
       }
     }
     return cv;
@@ -2587,7 +2901,7 @@
 
   function drawTerrainTint() {
     /* v5.17 — 겹성벽은 그림 위에 성벽·성문 칸을 옅게 덧칠해 "어디가 막힌 칸인지"를 보여 준다 */
-    if (B.type === 'siege' || B.type === 'defense') {
+    if (SK.isSiegeType(B.type)) {
       const t0 = B.tiles;
       ctx.save();
       for (let y = 0; y < ROWS; y++) {
@@ -2641,7 +2955,7 @@
   }
 
   function drawObjective() {
-    if (B.type !== 'siege' && B.type !== 'fortress') return;
+    if (!SK.isSiegeType(B.type) && B.type !== 'fortress') return;
     // gate marker
     const gates = [];
     B.tiles.forEach((row, y) => row.forEach((ch, x) => { if (ch === 'G') gates.push({ x, y }); }));
@@ -2879,7 +3193,139 @@
     if (ch === 'M') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 99 : 2);
     if (ch === 'F') return (cls === 'sanjeok' || cls === 'yasubyung') ? 1 : (cls === 'gibi' ? 3 : 2);
     if (ch === 'S') return 2;
+    /* v6.0 — 전략 지형 이동 비용 */
+    if (ch === 'N') return 99;                       // 목책은 막힌다
+    if (ch === 'L' || ch === 'O' || ch === 'Q' || ch === 'Y') return 1;   // 부교·포구·군량고·무기고
+    if (ch === 'J') return burningAt(x, y) ? 3 : 2;  // 갈대밭 — 불이 붙으면 더 느리다
+    if (ch === 'U') {
+      /* 고지대 — 산적·야수병은 능하고, 말탄 기병은 오르는 데 3칸을 쓴다 */
+      if (cls === 'sanjeok' || cls === 'yasubyung') return 1;
+      return cls === 'gibi' ? 3 : 2;
+    }
     return 1;
+  }
+
+  /* ══════════ v6.0 — 전략 지형: 갈대밭 연소 · 군량고 · 무기고 ══════════
+     · 갈대밭(J)에 화공·불·포격이 닿으면 그 칸이 3턴 동안 탄다(연소).
+       불탄 칸 위 부대는 턴마다 화상 피해를 받고, 그 칸으로 걸어가려면 3칸을 쓴다.
+     · 군량고(Q)를 차지하면 그 진영 **전 부대**가 최대 병력의 8%를 회복하고,
+       상대 진영은 사기 -15.
+     · 무기고(Y)를 차지하면 그 진영 전 부대가 공격 +10%(3턴)를 받는다.
+     ══════════════════════════════════════════════════════════════ */
+  const FIRE_SKILL_KEYS = { hwagye: 1, hwayeom: 1, tuseok: 1, pogyeok: 1, yeonpo: 1 };
+  /* 병과 책략은 'c_chaeksa_0' 같은 생성 키를 쓰므로, 이름으로도 불 기술을 알아본다 */
+  function isFireSkill(sk) {
+    if (!sk) return false;
+    if (sk.key && FIRE_SKILL_KEYS[sk.key]) return true;
+    return /화계|화염|화공|포격|투석|폭염|불바다|불꽃/.test(sk.name || '');
+  }
+  const BURN_TURNS = 3;
+  function tileAt(x, y) {
+    const row = B && B.tiles ? B.tiles[y] : null;
+    if (!row || x < 0 || y < 0 || x >= COLS || y >= ROWS) return 'P';
+    return row[x] || 'P';
+  }
+  function fireKey(x, y) { return x + ',' + y; }
+  function burningAt(x, y) {
+    if (!B || !B.fire) return false;
+    const f = B.fire[fireKey(x, y)];
+    return !!(f && f.t > 0);
+  }
+  function burningNear(x, y, r) {
+    const rr = r == null ? 1 : r;
+    for (let dy = -rr; dy <= rr; dy++) {
+      for (let dx = -rr; dx <= rr; dx++) if (burningAt(x + dx, y + dy)) return true;
+    }
+    return false;
+  }
+  /* 한 칸에 불을 붙인다 — 갈대밭이면 그 자리와 바로 옆 갈대밭으로 번진다 */
+  function igniteAt(x, y, bySide, depth) {
+    if (!B || !B.fire) return false;
+    if (tileAt(x, y) !== 'J') return false;
+    const k = fireKey(x, y);
+    B.fire[k] = { t: Math.max((B.fire[k] && B.fire[k].t) || 0, BURN_TURNS), side: bySide || null };
+    addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
+    if ((depth || 0) < 1) {
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        if (tileAt(x + dx, y + dy) === 'J' && Math.random() < 0.5) igniteAt(x + dx, y + dy, bySide, (depth || 0) + 1);
+      });
+    }
+    return true;
+  }
+  /* 화공·불·포격이 적에게 닿았을 때 — 그 적이 선 갈대밭(과 그 주변)에 불이 옮는다 */
+  function fireSpreadFrom(a, d, sk, kind) {
+    if (!B || !d) return;
+    const fire = (kind === 'rock') || isFireSkill(sk);
+    if (!fire) return;
+    const hit = igniteAt(d.x, d.y, a && a.side);
+    if (hit) {
+      feed(`갈대밭에 불이 옮었다 — ${d.x},${d.y} 연소 (3턴)`, 'info');
+      addFloat((d.x + 0.5) * TILE, (d.y + 0.1) * TILE, '갈대 연소!', '#ffb36a', { back: true });
+    }
+  }
+  function tickFires() {
+    if (!B || !B.fire) return;
+    Object.keys(B.fire).forEach((k) => {
+      const f = B.fire[k];
+      if (!f) return;
+      f.t -= 1;
+      if (f.t <= 0) delete B.fire[k];
+    });
+  }
+  /* ── 1×1 전략 오브젝트(군량고·무기고) ── */
+  function makeObjs() {
+    const out = [];
+    (B.tiles || []).forEach((row, y) => row.forEach((ch, x) => {
+      if (ch === 'Q') out.push({ x, y, kind: 'granary', owner: null, name: '군량고' });
+      else if (ch === 'Y') out.push({ x, y, kind: 'armory', owner: null, name: '무기고' });
+    }));
+    return out;
+  }
+  function objAt(x, y) {
+    if (!B || !B.objs) return null;
+    return B.objs.find((o) => o.x === x && o.y === y) || null;
+  }
+  function objValueOf(o, side) {
+    if (!o || !side) return 0;
+    return o.owner === side ? 0 : (o.kind === 'granary' ? 1 : 0.85);
+  }
+  /* 군량고·무기고 점령 — 부대가 그 칸에 서면 그 진영 것이 된다 */
+  function objPhase() {
+    if (!B || !B.objs || B.over) return;
+    B.units.forEach((u) => {
+      if (!u.alive) return;
+      const o = objAt(u.x, u.y);
+      if (!o || o.owner === u.side) return;
+      o.owner = u.side;
+      const mine = u.side === 'ally';
+      if (o.kind === 'granary') {
+        /* 군량고 — 그 진영 전 부대 병력 8% 회복 · 상대 진영 사기 -15 */
+        B.units.forEach((v) => {
+          if (!v.alive) return;
+          if (v.side === u.side) {
+            const hh = Math.max(1, Math.round(v.maxHp * 0.08));
+            v.hp = Math.min(v.maxHp, v.hp + hh);
+            addHeal(v, hh, u);
+            addFloat((rxOf(v) + 0.5) * TILE, (ryOf(v) + 0.34) * TILE, '+' + hh, '#a8f0b8');
+          } else {
+            moraleShift(v, -15);
+          }
+        });
+        feed(`${u.name} — 군량고 점령! 아군 병력 회복 · 적 사기 −15`, mine ? 'good' : 'bad');
+      } else {
+        /* 무기고 — 그 진영 전 부대 공격 +10% (3턴) */
+        B.units.forEach((v) => {
+          if (v.alive && v.side === u.side) v.buffs.atk = { v: 0.10, t: 3 };
+        });
+        feed(`${u.name} — 무기고 점령! ${mine ? '아군' : '적군'} 전체 공격 +10% (3턴)`, mine ? 'good' : 'bad');
+      }
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.15) * TILE, `${o.name} 점령!`, mine ? '#9ef0b8' : '#ffb0a0', { back: true });
+      addFx({ kind: 'ring', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 620, color: mine ? '150,240,180' : '255,150,120' });
+      SK.sfx.play('ui');
+      /* 요격전에서 차지한 보급은 이어지는 공성전까지 이어진다 (battle.js 승리 처리에서 사용) */
+      B.objTaken = B.objTaken || {};
+      B.objTaken[o.kind] = u.side;
+    });
   }
 
   function reachSet(u) {
@@ -4986,7 +5432,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=124'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=126'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
@@ -5814,6 +6260,17 @@
         if (u.hp <= 0) downUnit(u);
       });
       if (!u.alive) return;
+      /* v6.0 — 연소 중인 갈대밭 위에 서 있으면 턴마다 화상 피해 (추가 화상 4%) */
+      if (burningAt(u.x, u.y)) {
+        const fd = Math.max(6, Math.round(u.maxHp * 0.04));
+        u.hp = Math.max(0, u.hp - fd);
+        statOf(u).taken += fd;
+        u.ail = u.ail || {};
+        u.ail.burn = Math.max(u.ail.burn || 0, 2);
+        addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.4) * TILE, `불길 -${fd}`, 'rgb(255,154,92)');
+        addFx({ kind: 'fire', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.5) * TILE, life: 520 });
+        if (u.hp <= 0) { downUnit(u); return; }
+      }
       if (u.stunCd > 0) u.stunCd -= 1;
       if (u.ail.stun) {
         u.acted = true;
@@ -5928,7 +6385,7 @@
   }
   SK.skCdLeft = skCdLeft;
   function effAtk(u) {
-    const ch = B.tiles[u.y][u.x];
+    const ch = tileAt(u.x, u.y);
     const aff = SK.affinity(u.cls, ch);
     const tb = fxPct(u, 'atk');
     /* v5.31 — 사기·위축·조각배(수전) 보정 */
@@ -5938,7 +6395,7 @@
       * bondAllyMul(u) * moraleMul(u) * trainMul(u) * fear * boat;
   }
   function effDef(u) {
-    const ch = B.tiles[u.y][u.x];
+    const ch = tileAt(u.x, u.y);
     const aff = SK.affinity(u.cls, ch);
     /* 방어 강화·약화를 실제 피해 계산에 반영한다 (0 아래로는 내려가지 않는다) */
     const mul = Math.max(0.05, 1 + buffVal(u, 'def'));
@@ -5975,7 +6432,7 @@
      수성전 아군만 성문 그늘 +15%를 못 받았다 (QA 2-1). */
   function wallShadeOn(u) {
     if (!B || !u) return false;
-    if (B.type !== 'siege' && B.type !== 'defense') return false;
+    if (!SK.isSiegeType(B.type)) return false;
     const defSide = B.defense ? 'ally' : 'enemy';
     if (u.side !== defSide) return false;
     const g = activeGate();
@@ -5983,10 +6440,12 @@
     return u.y <= g.row - 1 && u.y >= g.row - 2;
   }
   function effRng(u) {
-    const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
+    const aff = SK.affinity(u.cls, tileAt(u.x, u.y));
     /* v5.58 — 보물 '사거리 +1'은 원거리 병과(기본 사거리 2 이상)에만 붙는다 */
     const rp = (u.tfx && u.tfx.rngPlus && (u.rng || 1) >= 2) ? 1 : 0;
-    return u.rng + Math.min(1, aff.rng + wallRngBonus(u)) + rp;
+    /* v6.0 — 고지대(U)에 선 원거리 병과는 사거리 +1 (산·성벽 보너스와 겹쳐도 최대 +1) */
+    const high = (tileAt(u.x, u.y) === 'U' && (u.rng || 1) >= 2) ? 1 : 0;
+    return u.rng + Math.min(1, aff.rng + wallRngBonus(u) + high) + rp;
   }
 
   /* v5.33 — 책사·풍수사·도사의 책략 사거리 +1 (사용자 '책사계 풍수 도사 책략사거리 1업').
@@ -6037,7 +6496,7 @@
     return (u.ji * 1.05 + u.lv * 3 + Math.min(400, u.hp * 0.02) * 0.25) * tp * (1 + buffVal(u, 'atk') * 0.6) * magicAtkMul(u) * tacticMul;
   }
   function magicDef(u) {
-    const ch = B.tiles[u.y][u.x];
+    const ch = tileAt(u.x, u.y);
     const mul = Math.max(0.05, 1 + buffVal(u, 'def') * 0.6);
     return (u.ji * 0.62 + u.tong * 0.34 + u.lv * 2) * troopGuard(u) * (1 + terr(u).def * 0.6) * mul * magicDefMul(u);
   }
@@ -6122,6 +6581,10 @@
     /* v5.81 — 기동 타격(고유 특기): 이번 턴 이동한 칸 1칸당 피해 +N% (최대 3칸) */
     const mvP = pasFx(a, 'moveDmg');
     if (mvP && !(opts && opts.counterHit)) base *= 1 + mvP * Math.min(3, (a.movedTiles || 0));
+    /* v6.0 — 고지대에서 내려치는 공격 +15% (위에서 아래로). 올라가는 쪽은 보정이 없다 */
+    const aCh = B.tiles[a.y] && B.tiles[a.y][a.x];
+    const dCh = B.tiles[d.y] && B.tiles[d.y][d.x];
+    if (aCh === 'U' && dCh !== 'U' && dCh !== 'M') base *= 1.15;
     /* v5.30 — 측면·배후 추가 피해(비도단검): 대상이 바라보는 쪽의 반대에서 치면 붙는다 */
     const flank = fxPct(a, 'flank');
     if (flank && attackKind(a, opts) === 'melee' && !(opts && opts.counterHit)) {
@@ -6404,6 +6867,8 @@
         return;
       }
       applyDamage(a, d, res.dmg, res.crit, bond);
+      /* v6.0 — 불·포격이 갈대밭 위의 적에게 닿으면 그 자리가 탄다 */
+      fireSpreadFrom(a, d, opts && opts.skill, kind);
       /* v5.31 — 보물의 적중 시 상태이상·사기 저하 */
       if (d.alive) onHitAil(a, d, kind, opts);
       /* v5.82 — 고유 특기 적중 효과 (독공·화공·위압·쾌검) */
@@ -6662,6 +7127,7 @@
       const t = SK.TERRAIN[B.tiles[u.y][u.x]];
       $('#battle-tip').textContent = `${u.name} 이동 완료 · ${t.name} · 공격하거나 [대기]를 누르세요`;
       sitePhase(false);      // v5.17 — 마을을 밟았으면 그 자리에서 점령
+      objPhase();            // v6.0 — 군량고·무기고도 밟으면 점령
       finishCheck();
     } });
   }
@@ -6884,9 +7350,13 @@
   }
 
   function doGateAttack(a, g, dmg) {
-    if (!a || !a.alive || !activeGate() || activeGate().hp <= 0 || busy) return;
+    if (!a || !a.alive || !gateIntact() || busy) return;
     if (!isGateAttacker(a)) return;
-    B.gate = activeGate();
+    /* v6.0 — 때린 칸이 속한 성문(정문·측면 샛문)을 그대로 깎는다.
+       예전에는 어느 문을 때려도 '가장 바깥에 남은 문' 하나만 깎여, 옆 문을 치면 피해가 엉뚱한 문으로 갔다. */
+    const hitGate = (B.gates || []).find((gt) => gt.hp > 0 && (gt.tiles || []).some((t) => t.x === g.x && t.y === g.y))
+      || activeGate();
+    B.gate = hitGate;
     busy = true;
     mode = 'idle';
     a.acted = true;
@@ -6897,16 +7367,16 @@
     const cx = (g.x + 0.5) * TILE, cy = (g.y + 0.5) * TILE;
     const land = () => {
       if (!B || B.over) { busy = false; return; }
-      B.gate.hp = Math.max(0, B.gate.hp - hit);
+      hitGate.hp = Math.max(0, hitGate.hp - hit);
       addFloat(cx, cy - 8, '-' + hit, '#ffd08a');
       addFx({ kind: 'burst', x: cx, y: cy, life: 420, color: '226,180,72' });
       SK.sfx.play('hit');
       feed(`${a.name} — 성문에 ${hit} 피해`, 'good');
-      if (B.gate.hp <= 0) {
+      if (hitGate.hp <= 0) {
         const next = activeGate();
-        const more = next && next !== B.gate && next.hp > 0;
+        const more = next && next !== hitGate && next.hp > 0;
         B.gate = next;
-        feed(more ? `${B.gate.ring}번째 성문이 무너졌습니다 — 안쪽 성문이 남아 있습니다.` : '성문이 무너졌습니다 — 근접 부대도 성안으로 들어갈 수 있습니다.', 'good');
+        feed(more ? `${hitGate.side ? '측면 샛문' : `${hitGate.ring}번째 성문`}이 무너졌습니다 — ${next.side ? '다른 문' : '안쪽 성문'}이 남아 있습니다.` : '성문이 무너졌습니다 — 근접 부대도 성안으로 들어갈 수 있습니다.', 'good');
         /* v5.97 — 피드와 중앙 토스트가 겹쳐 하단 정보창을 가리지 않게 토스트는 띄우지 않는다 */
         shakeScreen(7);
         SK.sfx.play('drum');
@@ -6929,8 +7399,8 @@
   /* v5.14 — 수성전: 문을 부수는 쪽(적군)이 성문 앞까지 붙어 문을 친다.
      성문을 칠 수 있는 자리(지금 서 있는 칸 + 이동 가능 칸) 중 가장 가까운 곳을 고른다. */
   function gateStrikePlan(u) {
-    const gate = gateIntact() ? activeGate() : null;
-    if (!gate || !isGateAttacker(u)) return null;
+    const gates = gateListIntact();
+    if (!gates.length || !isGateAttacker(u)) return null;
     const rng = effRng(u);
     const cands = [{ x: u.x, y: u.y }];
     reachSet(u).forEach((k) => {
@@ -6940,11 +7410,13 @@
     });
     let best = null;
     cands.forEach((t) => {
-      gate.tiles.forEach((g) => {
-        const d = manh(t.x, t.y, g.x, g.y);
-        if (d < 1 || d > rng) return;
-        const sc = -d + (t.x === u.x && t.y === u.y ? 0.5 : 0);
-        if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc };
+      gates.forEach((gate) => {
+        gate.tiles.forEach((g) => {
+          const d = manh(t.x, t.y, g.x, g.y);
+          if (d < 1 || d > rng) return;
+          const sc = -d + (t.x === u.x && t.y === u.y ? 0.5 : 0) + (gate.side ? 0.6 : 0);
+          if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc };
+        });
       });
     });
     return best;
@@ -6953,7 +7425,8 @@
   function enemyGateStrike(e, plan, done) {
     const go = () => {
       if (!B || B.over) { done(); return; }
-      const gate = activeGate();
+      const gate = (B.gates || []).find((gt) => gt.hp > 0 && (gt.tiles || []).some((t) => t.x === plan.gate.x && t.y === plan.gate.y))
+        || activeGate();
       if (!gate || gate.hp <= 0) { e.acted = true; finishCheck(); done(); return; }
       const res = calcGateDamage(e, {});
       const cx = (plan.gate.x + 0.5) * TILE, cy = (plan.gate.y + 0.5) * TILE;
@@ -7283,6 +7756,7 @@
   function finishCheck() {
     if (B.over) return;
     sitePhase(false);          // v5.17 — 밟고 선 마을 점령 반영
+    objPhase();                // v6.0 — 밟고 선 군량고·무기고 점령 반영
     if (B.over) return;
     const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
     const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
@@ -7743,6 +8217,12 @@
         if (!B || B.over) { finish(0); return; }
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 620, color: '255,150,80' });
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 760 });
+        /* v6.0 — 불붙은 돌(투석·화염투석)이 갈대밭에 떨어지면 그 일대가 탄다 */
+        if (isFireSkill(sk)) {
+          for (let dy = -rad; dy <= rad; dy++) {
+            for (let dx = -rad; dx <= rad; dx++) if (Math.abs(dx) + Math.abs(dy) <= rad) igniteAt(x + dx, y + dy, u.side, 1);
+          }
+        }
         B.units.forEach((t) => {
           if (t.alive && t.side !== u.side && manh(x, y, t.x, t.y) <= rad) {
             const dmg = Math.max(10, Math.round((sk.power * 0.70 + magicAtk(u) * 2.25 - magicDef(t) * 2.20) * sizeScale(t) * 0.8
@@ -7782,6 +8262,7 @@
         addMagicDamage(u, target, dmg);
         target.flash = 1; target.shake = 240;
         addFloat((x + 0.5) * TILE, (y + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
+        fireSpreadFrom(u, target, sk, 'magic');
         addFx({ kind: 'fire', x: (x + 0.5) * TILE, y: (y + 0.55) * TILE, life: 720 });
         addFx({ kind: 'burst', x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, life: 520, color: '255,150,80' });
         if (target.hp <= 0) downUnit(target);
@@ -9316,8 +9797,10 @@
               const hit = foes.filter((o) => manh(f.x, f.y, o.x, o.y) <= rad);
               let sum = 0, kill = false;
               hit.forEach((o) => { const e = estSkillDmg(u, o, sk); sum += e; if (e >= o.hp) kill = true; });
-              const sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) + (sk.allyBuff ? 40 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
-              if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
+              let sc = sum * (hit.length >= 2 ? 1.15 : 0.9) + (kill ? 200 : 0) + (sk.allyBuff ? 40 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
+              /* v6.0 — 화공 계열은 갈대밭 위의 적을 노릴 때 크게 가중한다 (불이 번져 더 탄다) */
+              if (isFireSkill(sk)) sc += hit.filter((o) => tileAt(o.x, o.y) === 'J' && !burningAt(o.x, o.y)).length * 150;
+              if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, fire: isFireSkill(sk), x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
             });
           });
         } else {
@@ -9331,8 +9814,12 @@
               if (sk.pattern === 'range2') nHit = Math.min(3, foes.filter((o) => manh(u.x, u.y, o.x, o.y) <= 2).length);
               else if (sk.pattern) nHit = Math.min(sk.maxTargets || 2, 2);
               const kill = e >= f.hp;
-              const sc = e * (sk.hits || 1) * Math.max(1, nHit * 0.75) + (kill ? 170 : 0) + (nHit >= 2 ? 90 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
-              if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
+              let sc = e * (sk.hits || 1) * Math.max(1, nHit * 0.75) + (kill ? 170 : 0) + (nHit >= 2 ? 90 : 0) - dTo(t, u.x, u.y) * 0.3 + vBoost(t, true);
+              /* v6.0 — 화계·포격은 갈대밭에 선 적에게 먼저 쓴다 */
+              const fireSk = isFireSkill(sk);
+              if (fireSk && tileAt(f.x, f.y) === 'J' && !burningAt(f.x, f.y)) sc += 160;
+              else if (fireSk && burningAt(f.x, f.y)) sc -= 40;
+              if (!best || sc > best.score) best = { kind: 'skill', mode: 'damage', key: sk.key, fire: isFireSkill(sk), x: t.x, y: t.y, tx: f.x, ty: f.y, target: f, score: sc };
             });
           });
         }
@@ -9382,7 +9869,8 @@
     if (!selfCentered && dist > skRange(u, sk)) return false;
     B.sel = u;
     mode = 'skillTarget';
-    pendingSkill = Object.assign({ key: sk.key }, sk);
+    /* v6.0 — AI 시전에도 기술 키를 붙인다 (예전엔 key가 비어 화공 판정·투사체 종류가 어긋났다) */
+    pendingSkill = Object.assign({}, sk, { key: sk.key || skillKeyOf(sk) });
     if (sk.kind === 'buffSelf' || sk.kind === 'buffAreaAllies' || sk.kind === 'healArea' || sk.kind === 'buffAllAllies' || sk.kind === 'healAll') { castInstant(u, sk); return true; }
     trySkillAt(x, y);
     return true;
@@ -9616,6 +10104,78 @@
   }
 
   /* 한 부대가 할 최선의 행동을 고른다 — 책략 > 사거리 안 적 공격 > (문을 부수는 진영만) 성문 타격 > 접근 */
+  /* ══════════ v6.0 — AI 지형 판단 ══════════
+     새 지형·기믹을 AI가 실제로 읽고 쓴다.
+     · 원거리·수비 AI는 고지대(U)를 먼저 잡고, 기병은 오르는 비용을 피해 돌아간다
+     · 불타는 갈대밭(J)은 이동 후보에서 크게 깎아 피한다
+     · 군량고(Q)·무기고(Y)·측면 샛문은 정면 성문과 함께 목표 값으로 계산한다
+     · 책사 AI는 갈대밭 위의 적에게 화계를 우선 시전한다 (planSupportSkill)
+     ══════════════════════════════════════════════════════════════ */
+  function gateListIntact() {
+    return (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : [])).filter((g) => g && g.hp > 0);
+  }
+  function nearestGateTo(x, y, list) {
+    let best = null, bd = 99;
+    (list || gateListIntact()).forEach((g) => (g.tiles || []).forEach((t) => {
+      const d = manh(x, y, t.x, t.y);
+      if (d < bd) { bd = d; best = { x: t.x, y: t.y }; }
+    }));
+    return best ? { tile: best, dist: bd } : null;
+  }
+  /* 우회 공성 — 부대마다 정문·동·서 샛문 중 하나를 맡는다(세 부대 중 하나가 측면).
+     성문이 하나뿐이거나 측면 문이 없으면 정문으로 돌아간다. */
+  function gatePlanFor(u) {
+    const gates = gateListIntact();
+    if (!gates.length) return [];
+    if (u._flank === undefined) {
+      /* id는 'a0'·'e3' 같은 문자열 — 숫자만 떼어 세 부대 중 하나를 측면에 붙인다 */
+      const nid = parseInt(String(u.id).replace(/\D+/g, ''), 10) || 0;
+      const m = nid % 6;
+      u._flank = m === 0 ? 'west' : (m === 1 ? 'east' : null);
+    }
+    if (!u._flank) return gates;
+    const cxm = Math.floor(COLS / 2);
+    const side = gates.filter((g) => {
+      const gx = g.tiles.reduce((a, t) => a + t.x, 0) / Math.max(1, g.tiles.length);
+      return u._flank === 'west' ? gx < cxm : gx > cxm;
+    });
+    return side.length ? side : gates;
+  }
+  /* 칸 하나의 AI 가치 — 고지대·불·오브젝트. 어째서 그 칸을 골랐는지도 함께 돌려준다 */
+  function terrainAiScore(u, x, y) {
+    const ch = tileAt(x, y);
+    let sc = 0, why = '';
+    if (ch === 'U') {
+      if ((u.rng || 1) >= 2) { sc += 11; why = 'highland-ranged'; }
+      else if (u.cls === 'gibi') { sc -= 4; why = 'highland-cav-slow'; }
+      else { sc += 4; why = 'highland'; }
+    }
+    if (burningAt(x, y)) { sc -= 60; why = 'fire-avoid'; }
+    else if (ch === 'J') {
+      sc -= 4;
+      if (burningNear(x, y, 1)) { sc -= 12; if (!why) why = 'reeds-near-fire'; }
+    }
+    if (ch === 'N') sc -= 40;
+    const o = objAt(x, y);
+    if (o && o.owner !== u.side) {
+      sc += o.kind === 'granary' ? 44 : 36;
+      why = 'objective-' + o.kind;
+    }
+    return { sc, why };
+  }
+  function aiNote(u, plan) {
+    if (!B || !plan) return plan;
+    const tile = tileAt(plan.x, plan.y);
+    const rec = { side: u.side, name: u.name, cls: u.cls, kind: plan.kind, x: plan.x, y: plan.y, tile, why: plan.why || '',
+      objective: objAt(plan.x, plan.y) ? (objAt(plan.x, plan.y).kind) : null, fire: burningAt(plan.x, plan.y),
+      gateSide: !!(plan.gate && (B.gates || []).some((g) => g.side && g.tiles.some((t) => t.x === plan.gate.x && t.y === plan.gate.y))) };
+    B.aiLog = B.aiLog || [];
+    B.aiLog.push(rec);
+    if (B.aiLog.length > 400) B.aiLog.shift();
+    u._aiPlan = rec;
+    return plan;
+  }
+
   function planAuto(u) {
     /* v5.17 — 책략보다 실제 공격·성문 공략을 먼저 본다.
        (예전엔 광역 버프가 늘 앞서서 성문 앞에서 버프만 되풀이하는 자동전투 교착이 있었다.
@@ -9672,6 +10232,7 @@
        · 문 너머(안쪽 성벽 뒤)의 먼 적을 쫓지 않고
        · 문 하나에 병력을 집결시켜 집중 돌파한다. 문이 뚫리면 다음 문으로 이어진다. */
     const stormGateObj = (stormGate && gateIntact()) ? activeGate() : null;
+    const strikeGates = (stormGate && gateIntact()) ? gatePlanFor(u) : [];
     const stormGateRow = stormGateObj ? stormGateObj.row : null;
     const stormGateX = stormGateObj ? stormGateObj.tiles.reduce((a, g) => a + g.x, 0) / stormGateObj.tiles.length : null;
     let best = null;
@@ -9687,6 +10248,8 @@
         if (wallBlocked({ x: t.x, y: t.y }, e) && !canShootOut({ x: t.x, y: t.y, cls: u.cls, side: u.side })) return;
         const est = calcDamage(u, e, {}).dmg;
         let score = (est / Math.max(1, e.maxHp)) * 100 + (1 - e.hp / Math.max(1, e.maxHp)) * 55 + (home ? 12 : 0);
+        /* v6.0 — 고지대에서 내려치는 자리를 더 높게 (피해 +15%가 실제로 붙는 자리) */
+        if (tileAt(t.x, t.y) === 'U' && tileAt(e.x, e.y) !== 'U' && tileAt(e.x, e.y) !== 'M') score += 9;
         /* v5.56 — 사기 20 밑으로 몰린 적을 한 대 더 때려 '사기 붕괴'를 유도한다 */
         if (e.morale != null && e.morale <= 32) score += (33 - e.morale) * 2.6;
         /* v5.56 — 우리 사기가 낮으면(붕괴 위험) 반격이 아픈 적은 피긴다 */
@@ -9704,29 +10267,44 @@
         if (!SUPPORT_CLS_SET[u.cls] && allies.some((a) => a !== u && SUPPORT_CLS_SET[a.cls] && manh(e.x, e.y, a.x, a.y) <= 3)) score += 24;
         if (!best || score > best.score) best = { x: t.x, y: t.y, target: e, score, kind: 'hit' };
       });
-      if (stormGate && gateIntact() && activeGate() && !skipGate) {
-        activeGate().tiles.forEach((g) => {
-          if (manh(t.x, t.y, g.x, g.y) > rng) return;
-          const sc = (kind === 'rock' ? 130 : kind === 'melee' ? 105 : 55) + (home ? 4 : 0);
-          if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc, kind: 'gate' };
+      if (stormGate && gateIntact() && !skipGate) {
+        /* v6.0 — 정면 문만 두드리지 않는다. 살아 있는 모든 성문(정문·동·서 샛문)을 후보로 두고,
+           가까운 문을 우선하되 측면 샛문에는 약간의 가중을 준다 (HP가 70%라 먼저 뚫린다). */
+        const ngx = nearestGateTo(t.x, t.y, strikeGates);
+        strikeGates.forEach((gate) => {
+          gate.tiles.forEach((g) => {
+            if (manh(t.x, t.y, g.x, g.y) > rng) return;
+            let sc = (kind === 'rock' ? 130 : kind === 'melee' ? 105 : 55) + (home ? 4 : 0);
+            if (gate.side) sc += 14;
+            if (ngx) sc -= Math.min(6, manh(t.x, t.y, ngx.tile.x, ngx.tile.y) * 0.4);
+            if (!best || sc > best.score) best = { x: t.x, y: t.y, gate: { x: g.x, y: g.y }, score: sc, kind: 'gate', why: gate.side ? 'side-gate' : 'main-gate' };
+          });
         });
       }
     });
-    if (best) return best;
-    if (sup) return sup;
+    /* v6.0 — 갈대밭 위의 적에게는 화공(화계·포격)을 먼저 쓴다. 불이 번져 피해가 크게 늘어난다. */
+    if (sup && sup.kind === 'skill' && sup.mode === 'damage' && sup.fire && sup.target
+      && tileAt(sup.target.x, sup.target.y) === 'J' && !burningAt(sup.target.x, sup.target.y)) {
+      sup.why = 'fire-on-reeds';
+      return aiNote(u, sup);
+    }
+    if (best) return aiNote(u, best);
+    if (sup) return aiNote(u, sup);
     /* v5.91 — 칠 적도 없고 성문도 사거리 밖이면, 사거리 안의 망루를 공략한다 */
     const twPlan = planTowerStrike(u);
     if (twPlan) return twPlan;
-    let pick = null;
+    let pick = null, pickWhy = '';
     tiles.forEach((t) => {
       const d = foes.length ? Math.min(...foes.map((f) => manh(t.x, t.y, f.x, f.y))) : 99;
-      const gy = (stormGate && gateIntact() && activeGate() && !skipGate)
-        ? Math.min(...activeGate().tiles.map((g) => manh(t.x, t.y, g.x, g.y))) - 1 : 99;
+      /* v6.0 — 문까지의 거리는 '가장 가까운 살아 있는 성문'(정문이든 측면 샛문이든)으로 잰다 */
+      const ng = (stormGate && gateIntact() && !skipGate) ? nearestGateTo(t.x, t.y, strikeGates) : null;
+      const gy = ng ? ng.dist - 1 : 99;
       /* v5.88 — 공성 공격수는 적과의 거리보다 '가장 바깥 문까지의 거리'로 움직인다 (문 앞 집결) */
       let score = (stormGateRow != null && !skipGate && gy < 99)
         ? (-gy * 1.6 - Math.min(d, 8) * 0.25)
         : -Math.min(d, gy);
-      if (stormGateRow != null && !skipGate && stormGateX != null) score -= Math.abs(t.x - stormGateX) * 0.35;
+      const gateX = ng ? ng.tile.x : stormGateX;
+      if (stormGateRow != null && !skipGate && gateX != null) score -= Math.abs(t.x - gateX) * 0.35;
       /* v5.33 — 보조 병과(풍수사·군악대·무희·도사·책사)는 공성·요격·들판에서도 전방으로 돌진하지 않는다.
          예전에는 home(수성전)이 없으면 점수가 '적과 가까울수록 높음'이라 풍수사가 1선으로 달려갔다.
          이제 아군 전투 부대에 지원이 닿는 자리 중 적과 4칸 이상 떨어진 칸을 고른다. */
@@ -9806,9 +10384,13 @@
       }
       /* v5.49 — 걸어갈 수 있는 마을은 밟고 지나간다. 그 칸에서 아직 적을 칠 수 있으면 더 크게. */
       score += vv(t, canStrikeFrom(u, t.x, t.y, foes, rng, minR));
-      if (!pick || score > pick.score) pick = { x: t.x, y: t.y, score, kind: 'move' };
+      /* v6.0 — 고지대·연소·군량고·무기고 값. 새 지형을 AI가 실제로 읽는다 */
+      const tz = terrainAiScore(u, t.x, t.y);
+      score += tz.sc;
+      if (!pick || score > pick.score) { pick = { x: t.x, y: t.y, score, kind: 'move' }; pickWhy = tz.why || ''; }
     });
-    return pick;
+    if (pick) pick.why = pickWhy;
+    return aiNote(u, pick);
   }
 
   function autoStep() {
@@ -9890,6 +10472,7 @@
     if (B.over) return;
     sitePhase(true);          // v5.17 — 적 턴 시작: 본진·점령 마을 위 부대 회복
     if (B.over) return;
+    objPhase();               // v6.0 — 군량고·무기고 위에 선 부대 점령
     ailPhase('enemy');        // v5.31 — 적의 중독·화상·사기 회복
     if (!B || B.over) return;
     finishCheck();
@@ -9948,6 +10531,8 @@
         B.phase = 'ally';
         sitePhase(true);       // v5.17 — 아군 턴 시작: 본진·점령 마을 위 부대 회복
         if (B.over) return;
+        objPhase();            // v6.0 — 군량고·무기고 점령 확인
+        tickFires();           // v6.0 — 연소 중인 갈대밭 한 턴 줄이기 (한 바퀴에 한 번)
         ailPhase('ally');      // v5.31 — 아군 중독·화상·기절·사기 회복
         if (!B || B.over) return;
         finishCheck();
@@ -9985,7 +10570,7 @@
      '가장 바깥에 남은 문 안쪽 병목'을 목표로 삼는다. 문이 다 뚫리면 본진으로 물러난다. */
   function enemySiegeDefense() {
     if (!B || B.defense) return null;
-    if (B.type !== 'siege' && B.type !== 'fortress') return null;
+    if (!SK.isSiegeType(B.type) && B.type !== 'fortress') return null;
     const gates = (B.gates && B.gates.length ? B.gates : (B.gate ? [B.gate] : [])).filter((g) => g && g.hp > 0);
     if (!gates.length) return null;
     const out = gates.slice().sort((a, b) => (b.row || 0) - (a.row || 0))[0];
@@ -10054,6 +10639,8 @@
       if (!SUPPORT_CLS_SET[e.cls] && B.units.some((o) => o.alive && o.side === e.side && SUPPORT_CLS_SET[o.cls] && manh(t.x, t.y, o.x, o.y) <= 3)) sc -= 2;
       /* v5.56 — 사기가 낮은 아군을 먼저 노려 붕괴를 만든다 */
       if (t.morale != null && t.morale <= 32) sc -= 2.5;
+      /* v6.0 — 적 책사는 갈대밭에 선 아군에게 화계를 우선 건다 (불이 붙으면 크게 탄다) */
+      if (e.cls === 'chaeksa' && tileAt(t.x, t.y) === 'J' && !burningAt(t.x, t.y)) sc -= 6;
       return !best || sc < best.sc ? { t, d, sc } : best;
     }, null).t;
     const aiGoal = aiGoalOf(e);
@@ -10127,6 +10714,7 @@
         addMagicDamage(e, target, dmg);
         addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.55) * TILE, life: 700 });
+        fireSpreadFrom(e, target, SK.SKILLS.hwagye, 'magic');
         impactAt(target, '255,150,90');
         SK.sfx.play('hit');
         if (target.hp <= 0) downUnit(target);
@@ -10168,8 +10756,10 @@
       const inRange = d >= minR && d <= rng;
       let score = inRange ? -100 + d : (d < minR ? 150 - d : d);
       /* v5.88 — 지금 문을 칠 수 없어도, 문이 살아 있으면 문 앞으로 집결한다 */
-      if (!already && isGateAttacker(e) && gateIntact() && activeGate()) {
-        const gd = Math.min(...activeGate().tiles.map((gg) => manh(t.x, t.y, gg.x, gg.y)));
+      if (!already && isGateAttacker(e) && gateIntact()) {
+        /* v6.0 — 적도 가장 가까운 성문(정문·측면 샛문)으로 붙는다 */
+        const gnear = nearestGateTo(t.x, t.y, gatePlanFor(e));
+        const gd = gnear ? gnear.dist : 99;
         score = gd * 1.6 + Math.min(d, 8) * 0.2;
       }
       /* v5.81 — 원거리 부대 카이팅: 붙으면 한 대 더 맞으므로 한 칸 물러나 쏘는 자리를 고른다 */
@@ -10191,6 +10781,10 @@
       /* v5.49 — 적군 AI도 마을을 밟고 차지한다 (적은 점수가 낮을수록 좋은 칸) */
       const vv = villageValueAt(e, t.x, t.y, { foes: targets, canStrike: inRange });
       if (vv > 0) score -= vv;
+      /* v6.0 — 새 지형도 적 AI가 읽는다 (고지대·불 회피·군량고/무기고) */
+      const etz = terrainAiScore(e, t.x, t.y);
+      score -= etz.sc;
+      if (etz.why) B._lastAiWhy = etz.why;
       if (!best || score < best.score) best = { t, score, inRange, vv };
     });
     let moveTo = already ? null : (best && best.t);
@@ -11014,6 +11608,14 @@
       const before = Math.round((ts && ts.troops) || 0);
       const cut = Math.max(0, Math.min(before, Math.round(fld.troops || 0)));
       if (ts) ts.troops = Math.max(0, before - cut);
+      /* v6.0 — 이 요격전에서 군량고·무기고를 차지했으면 이어지는 공성전에 보너스로 남긴다 */
+      const gotGoals = Object.keys(B.objTaken || {}).filter((k) => B.objTaken[k] === 'ally');
+      let gift = null;
+      if (gotGoals.length && s.cities[fld.cityId] && s.cities[fld.cityId].owner !== SK.playerFaction()) {
+        const hasG = gotGoals.indexOf('granary') >= 0;
+        gift = { cityId: fld.cityId, gate: hasG ? 0.72 : 0.82, morale: hasG ? 12 : 8, goals: gotGoals.slice() };
+        s.nextSiegeBonus = gift;
+      }
       SK.save();
       if (SK.refreshHud) SK.refreshHud();
       const after = ts ? Math.round(ts.troops || 0) : 0;
@@ -11029,6 +11631,7 @@
             <div><span>병력</span><b>${Math.round(survivors.reduce((a, u) => a + u.hp, 0)).toLocaleString('ko-KR')}</b></div>
             <div><span>적 수비병</span><b>${after.toLocaleString('ko-KR')}</b></div>
           </div>
+          ${gift ? `<p class="rm-village">요격전 성과 — ${gift.goals.indexOf('granary') >= 0 ? '군량고' : ''}${gift.goals.length > 1 ? '·' : ''}${gift.goals.indexOf('armory') >= 0 ? '무기고' : ''}를 끊었습니다. 이어지는 공성전에서 <b>성문 HP ${Math.round((1 - gift.gate) * 100)}% 감소 · 적 사기 −${gift.morale}</b>.</p>` : ''}
           ${ts ? `<p class="rm-note">성벽 ${Math.round(ts.def || 0)} · 성안에 남은 수비병으로 성을 지킬 것입니다.</p>` : ''}</div>`,
         actions: [{ label: '성으로 밀어넣는다', primary: true, onClick: () => {
           closeBattle();
@@ -11433,7 +12036,7 @@
        성벽·내성 시설 경험치·레벨·농업·상업·치안·인구가 함께 상한다.
        → 성 밖에서 [요격]해 미리 막는 쪽이 이득이라는 유인이 생긴다. */
     let siegeWreck = null;
-    if (B.type === 'siege' || B.type === 'fortress') {
+    if (SK.isSiegeType(B.type) || B.type === 'fortress') {
       const gatesBroken = (B.gates || []).filter((g) => g.hp <= 0).length;
       const longFight = clamp(((B.turn || 1) - 6) / 10, 0, 1);
       const sev = clamp(0.18 + longFight * 0.42 + gatesBroken * 0.08, 0.18, 0.86);
@@ -12092,7 +12695,7 @@
   function initTowers() {
     if (!B) return;
     B.towers = [];
-    if (B.type !== 'siege' && B.type !== 'defense') return;
+    if (!SK.isSiegeType(B.type)) return;
     const gates = (B.gates || []).slice().sort((a, b) => (b.row || 0) - (a.row || 0));
     if (!gates.length) return;
     const n = towerCountFor(B.rings || 1);
@@ -12674,6 +13277,69 @@
           allyDone: B.units.filter((u) => u.side === 'ally' && u.alive && u.acted).length,
           enemyDone: B.units.filter((u) => u.side === 'enemy' && u.alive && u.acted).length };
       },
+      /* v6.0 — 검수용: 새 전략 지형·기믹 상태와 AI 판단 로그 */
+      terrain() {
+        if (!B) return null;
+        const cnt = (ch) => { let n = 0; B.tiles.forEach((r) => r.forEach((c) => { if (c === ch) n += 1; })); return n; };
+        return {
+          type: B.type, mapKey: B.mapKey, cols: COLS, rows: ROWS,
+          tiles: { U: cnt('U'), J: cnt('J'), Q: cnt('Q'), Y: cnt('Y'), N: cnt('N'), L: cnt('L'), O: cnt('O'),
+            W: cnt('W'), S: cnt('S'), B: cnt('B'), C: cnt('C'), G: cnt('G') },
+          fire: Object.keys(B.fire || {}),
+          objs: (B.objs || []).map((o) => ({ x: o.x, y: o.y, kind: o.kind, owner: o.owner })),
+          gates: (B.gates || []).map((g) => ({ row: g.row, ring: g.ring, side: !!g.side, hp: Math.round(g.hp) })),
+          siegeGift: B.siegeGift || null,
+        };
+      },
+      /* v6.0 — 검수용: 지형·기믹을 실제 계산식으로 확인하는 훅 */
+      dmgOf(aName, dName) {
+        if (!B) return null;
+        const a = B.units.find((u) => u.name === aName && u.alive);
+        const d = B.units.find((u) => u.name === dName && u.alive);
+        if (!a || !d) return null;
+        const r = calcDamage(a, d, { noCrit: true });   // 치명타 난수를 빼고 지형 보정만 본다
+        return { a: a.name, d: d.name, aTile: tileAt(a.x, a.y), dTile: tileAt(d.x, d.y),
+          effAtk: Math.round(effAtk(a) * 10) / 10, effDef: Math.round(effDef(d) * 10) / 10,
+          rng: effRng(a), dmg: r.dmg };
+      },
+      place(name, x, y) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return false;
+        u.x = x; u.y = y; u.rx = x; u.ry = y;
+        return true;
+      },
+      castSkill(name, key, x, y) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        const sk = SK.SKILLS[key];
+        if (!u || !sk) return false;
+        return aiCast(u, sk, x, y);
+      },
+      ignite(x, y) { return igniteAt(x, y, 'ally'); },
+      support(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        B.reachCache = { uid: u.id, set: reachSet(u) };
+        const p = planSupportSkill(u);
+        return p ? { kind: p.kind, mode: p.mode, key: p.key, x: p.x, y: p.y, tx: p.tx, ty: p.ty,
+          score: Math.round(p.score), target: p.target ? p.target.name : null,
+          targetTile: p.target ? tileAt(p.target.x, p.target.y) : null } : null;
+      },
+      tileScore(name, x, y) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const t = terrainAiScore(u, x, y);
+        return { tile: tileAt(x, y), sc: t.sc, why: t.why, burning: burningAt(x, y) };
+      },
+      plan(name) {
+        const u = B && B.units.find((o) => o.name === name && o.alive);
+        if (!u) return null;
+        B.reachCache = { uid: u.id, set: reachSet(u) };
+        const p = planAuto(u);
+        return p ? { kind: p.kind, key: p.key || null, x: p.x, y: p.y, tile: tileAt(p.x, p.y), why: p.why || '',
+          target: p.target ? p.target.name : null, gate: p.gate || null } : null;
+      },
+      get aiLog() { return (B && B.aiLog) || []; },
+      aiOf(name) { return ((B && B.aiLog) || []).filter((r) => r.name === name).slice(-6); },
       get mode() { return mode; },
       get busy() { return busy; },
       get pending() { return pendingSkill; },
