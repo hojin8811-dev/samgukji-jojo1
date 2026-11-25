@@ -7777,7 +7777,7 @@
         ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'agri' })}
         ${devCard({ label: '민심', icon: 'loyal', val: Math.round(cs.loyalty), pct: cs.loyalty, color: 'linear-gradient(90deg,#a8443a,#d97a63)', help: 'loyal', warn: cs.loyalty < 40 })}
         ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm' })}
-        ${devCard({ label: (c.type === 'fortress' ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, delta: (c.type === 'fortress' ? '요새 2배' : ''), color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
+        ${devCard({ label: (c.type === 'fortress' ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
         ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
       </div>${transitStripHtml(cityId)}`;
     const info = $('#city-info');
