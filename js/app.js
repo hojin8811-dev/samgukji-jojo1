@@ -122,6 +122,18 @@
     return c ? owned(c.id) : null;
   }
   SK.purseCs = purseCs;
+  /* v5.95 — 지금 금·군량이 잡히는 성의 id (purseCs와 같은 순서: purseCity → lastCity → playerCapital → 아무 내 성) */
+  function purseIdOf(s) {
+    s = s || SK.state;
+    if (!s || !s.cities) return null;
+    const pf = s.playerFaction || PF();
+    const owned = (id) => { const cs = id ? s.cities[id] : null; return cs && cs.owner === pf ? cs : null; };
+    const want = [s.purseCity, s.lastCity, s.playerCapital];
+    for (let i = 0; i < want.length; i++) { if (owned(want[i])) return want[i]; }
+    const c = SK.CITY_LIST.find((x) => owned(x.id));
+    return c ? c.id : null;
+  }
+  SK.purseIdOf = purseIdOf;
   SK.setPurse = function (cityId) {
     const s = SK.state;
     if (!s || !cityId || !s.cities || !s.cities[cityId]) return;
@@ -133,7 +145,13 @@
       Object.defineProperty(st, k, {
         enumerable: false, configurable: true,
         get() { const cs = purseCs(st); return cs ? Math.max(0, Math.round(Number(cs[k]) || 0)) : 0; },
-        set(v) { const cs = purseCs(st); if (cs) cs[k] = Math.max(0, Math.round(Number(v) || 0)); },
+        set(v) {
+          const cs = purseCs(st);
+          if (cs) cs[k] = Math.max(0, Math.round(Number(v) || 0));
+          /* v5.95 — 금·군량이 바뀌는 순간 상단(지도·성 화면) 숫자를 다시 칠한다.
+             포상·승격·등용처럼 창을 다시 열지 않는 소비에서도 숫자가 바로 줄어들게. */
+          if (SK.purseHudPoke) SK.purseHudPoke();
+        },
       });
     });
   }
@@ -2998,6 +3016,47 @@
   SK.openEcon = openEcon;
 
   /* ───────────── HUD ───────────── */
+  /* ══════════════════════════════════════════════════════════════
+     v5.95 — 금·군량 숫자만 다시 칠하는 얇은 함수 (지도 HUD + 성 화면 머리)
+     · 수입·봉급·인구까지 다시 계산하는 refreshHud와 달리 DOM 8곳만 고쳐
+       금이 바뀌는 순간(금고 setter)마다 불러도 달 정산이 느려지지 않는다.
+     ══════════════════════════════════════════════════════════════ */
+  function paintMoney(s) {
+    s = s || SK.state;
+    if (!s || !s.cities) return;
+    /* v5.11 — 상단 HUD는 지금 성의 금고 + 세력 전체 합계를 함께 보여 준다
+       v5.95 — s.gold가 실제로 잡히는 성(purseCs와 같은 순서)을 그대로 쓴다. purseCity와
+         보고 있는 성(lastCity)이 어긋나도 상단 숫자와 실제 소비 금고가 서로 다르지 않게. */
+    const purseId = purseIdOf(s);
+    const pcs = purseId ? s.cities[purseId] : null;
+    const tg = SK.totalGold(s), tf = SK.totalFood(s);
+    const mg = $('#map-gold'), mf = $('#map-food');
+    if (mg) mg.textContent = fmt(pcs ? pcs.gold : 0);
+    if (mf) mf.textContent = fmt(pcs ? pcs.food : 0);
+    const gtot = $('#map-gold-total'), ftot = $('#map-food-total');
+    /* 성이 하나뿐이라 합계가 같으면 보조 표기는 감춘다 (좁은 상단 줄 보호) */
+    if (gtot) { const same = pcs && Math.round(tg) === Math.round(pcs.gold || 0); gtot.textContent = same ? '' : `/ ${fmt(tg)}`; gtot.title = '전체 성 금고 합계'; }
+    if (ftot) { const same = pcs && Math.round(tf) === Math.round(pcs.food || 0); ftot.textContent = same ? '' : `/ ${fmt(tf)}`; ftot.title = '전체 성 창고 합계'; }
+    const gcell = $('#map-gold-cell'), fcell = $('#map-food-cell');
+    if (gcell) gcell.title = `${purseId ? CITY[purseId].name : '현재 성'} 금고 ${fmt(pcs ? pcs.gold : 0)} · 전체 ${fmt(tg)}`;
+    if (fcell) fcell.title = `${purseId ? CITY[purseId].name : '현재 성'} 창고 ${fmt(pcs ? pcs.food : 0)} · 전체 ${fmt(tf)}`;
+    /* v5.95 — 성 화면(#city-gold·#city-gold-total·#city-food·#city-food-total)도 함께 갱신한다.
+       포상·성 승격·등용처럼 openCity를 다시 부르지 않는 금 소비에서도 성 화면 머리 숫자가
+       즉시 줄어들게 하려는 것 (사용자 요청 '금은 실시간으로 사용할 때마다'). */
+    const shownId = (SK.cityScreenId && s.cities[SK.cityScreenId] && s.cities[SK.cityScreenId].owner === PF())
+      ? SK.cityScreenId : purseId;
+    const scs = shownId ? s.cities[shownId] : null;
+    if (scs) {
+      const cg = $('#city-gold'), cf = $('#city-food');
+      if (cg) cg.textContent = fmt(scs.gold);
+      if (cf) cf.textContent = fmt(scs.food);
+      const cgt = $('#city-gold-total'), cft = $('#city-food-total');
+      if (cgt) { cgt.textContent = Math.round(tg) === Math.round(scs.gold || 0) ? '' : `/ ${fmt(tg)}`; cgt.title = '전체 성 금고 합계'; }
+      if (cft) { cft.textContent = Math.round(tf) === Math.round(scs.food || 0) ? '' : `/ ${fmt(tf)}`; cft.title = '전체 성 창고 합계'; }
+    }
+  }
+  SK.paintMoney = paintMoney;
+
   SK.refreshHud = function () {
     const s = SK.state;
     if (!s) return;
@@ -3024,19 +3083,7 @@
       capBtn.title = `수도로 — ${capName}`;
       capBtn.setAttribute('aria-label', `수도로 — ${capName}`);
     }
-    /* v5.11 — 상단 HUD는 지금 성의 금고 + 세력 전체 합계를 함께 보여 준다 */
-    const purseId = (s.lastCity && s.cities[s.lastCity] && s.cities[s.lastCity].owner === PF()) ? s.lastCity : s.playerCapital;
-    const pcs = purseId ? s.cities[purseId] : null;
-    const tg = SK.totalGold(s), tf = SK.totalFood(s);
-    $('#map-gold').textContent = fmt(pcs ? pcs.gold : 0);
-    $('#map-food').textContent = fmt(pcs ? pcs.food : 0);
-    const gtot = $('#map-gold-total'), ftot = $('#map-food-total');
-    /* 성이 하나뿐이라 합계가 같으면 보조 표기는 감춘다 (좁은 상단 줄 보호) */
-    if (gtot) { const same = pcs && Math.round(tg) === Math.round(pcs.gold || 0); gtot.textContent = same ? '' : `/ ${fmt(tg)}`; gtot.title = '전체 성 금고 합계'; }
-    if (ftot) { const same = pcs && Math.round(tf) === Math.round(pcs.food || 0); ftot.textContent = same ? '' : `/ ${fmt(tf)}`; ftot.title = '전체 성 창고 합계'; }
-    const gcell = $('#map-gold-cell'), fcell = $('#map-food-cell');
-    if (gcell) gcell.title = `${purseId ? CITY[purseId].name : '현재 성'} 금고 ${fmt(pcs ? pcs.gold : 0)} · 전체 ${fmt(tg)}`;
-    if (fcell) fcell.title = `${purseId ? CITY[purseId].name : '현재 성'} 창고 ${fmt(pcs ? pcs.food : 0)} · 전체 ${fmt(tf)}`;
+    paintMoney(s);
     /* v5.40 — 상단 병력은 주둔 + 행군을 합친 '총병력'. (예전에는 행군 부대가 빠져
        출진 직후 10,000 → 2,000처럼 보였다) */
     const gateT = totalTroops();
@@ -3113,6 +3160,16 @@
     }
     $('#map-hint').textContent = owned >= SK.CITY_LIST.length ? `천하통일! 모든 거점이 ${fname}의 깃발 아래 있습니다.` :
       `${fname} 거점 ${owned} / ${SK.CITY_LIST.length} · 다음 달에 세수·봉급·군량 유지비가 정산됩니다.`;
+  };
+  /* v5.95 — 금·군량이 바뀌는 '그 순간' 상단(지도·성 화면) 숫자를 다시 칠한다.
+     금고 setter가 부르므로 포상·성 승격·등용·건설·사건 등 어느 경로로 소비하든 빠짐없이 갱신된다.
+     refreshHud 안에서 다시 setter가 불려도 한 번만 돌게 막는다(무한 재귀 방지). */
+  let purseHudBusy = false;
+  SK.purseHudPoke = function () {
+    if (purseHudBusy || !SK.refreshHud || !SK.state) return;
+    purseHudBusy = true;
+    try { paintMoney(SK.state); } catch (e) { /* 화면이 아직 없으면 조용히 넘어간다 */ }
+    finally { purseHudBusy = false; }
   };
   function totalTroops() {
     return SK.CITY_LIST.reduce((sum, c) => sum + (SK.state.cities[c.id].owner === PF() ? SK.state.cities[c.id].troops : 0), 0);
@@ -3408,6 +3465,7 @@
     if (enforceLordGovernor(s)) SK.save();
     s.lastCity = id;
     s.purseCity = id;          // v5.11 — 이 성의 금고를 연다
+    SK.cityScreenId = id;      // v5.95 — 성 화면이 지금 그리는 성 (상단 금·군량 실시간 갱신용)
     SK.save();
     const f = SK.factionInfo(st.owner);
     /* v5.18 — 성 이름이 길어 헤더에서 잘리지 않게, 관문·요새는 종류를 뺀 짧은 이름을 쓴다
@@ -4459,14 +4517,17 @@
   SK.SLOT_DEFS = SLOT_DEFS;
   /* v5.17 — 도시 규모별 공터·시설 칸: 소도시 6 · 중도시 8 · 대도시 10
      v5.87b — 관문·요새도 4칸 (병영·성벽·시장·농장을 한 성에 같이 둘 수 있게) */
-  /* v5.93 — 요새 거점은 5칸 (고정 4 + 자유 1). 아래 enforceFortressSlots가 그 4칸을 지킨다 */
-  const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 4, fortress: 5 };
+  /* v5.93 — 요새 거점은 5칸 (고정 4 + 자유 1). 아래 enforceFortressSlots가 그 4칸을 지킨다
+     v5.95 — 관문도 요새와 똑같이 5칸(고정 4 + 자유 1) · 성벽 방어 ×2.
+       사용자 요청 2026-11-25 "관문도 요새처럼 바꾸고" */
+  const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 5, fortress: 5 };
   SK.SLOT_MAX = SLOT_MAX;
   const SLOT_DEFAULT = {
     capital: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
     mid: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
     town: ['market', 'farm', 'barracks'],
-    pass: ['wall'],
+    /* v5.95 — 관문: 요새와 같은 고정 4 + 자유 1 */
+    pass: ['barracks', 'wall', 'academy', 'training', null],
     /* v5.93 — 요새: 병영·성벽·수련관·연병장 고정 + 마지막 1칸 자유 */
     fortress: ['barracks', 'wall', 'academy', 'training', null],
   };
@@ -4482,6 +4543,10 @@
   SK.FORT_FIXED = FORT_FIXED;
   function isFortFixedKey(k) { return FORT_FIXED.indexOf(k) >= 0; }
   SK.isFortFixedKey = isFortFixedKey;
+  /* v5.95 — 요새와 '똑같은 규칙'을 쓰는 거점: 요새 + 관문(9곳).
+     시설 5칸(고정 4 + 자유 1) · 고정 시설 철거 불가 · 성벽 방어 ×2를 함께 쓴다. */
+  function isFortLike(c) { return !!c && (c.type === 'fortress' || c.type === 'pass'); }
+  SK.isFortLike = isFortLike;
   function enforceFortressSlots(cs) {
     if (!cs) return cs;
     if (!Array.isArray(cs.slots)) cs.slots = [];
@@ -4562,7 +4627,8 @@
       if (sl.exp == null) sl.exp = 0;
     });
     if (cs.order == null) cs.order = 55;
-    if (c && c.type === 'fortress') { enforceFortressSlots(cs); cs.wallMul = 2; }
+    /* v5.95 — 관문도 요새와 같이 5칸(고정 4 + 자유 1)·성벽 ×2 */
+    if (isFortLike(c)) { enforceFortressSlots(cs); cs.wallMul = 2; }
     else if (cs.wallMul) cs.wallMul = 1;
   }
   SK.ensureSlots = ensureSlots;
@@ -4832,7 +4898,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b>${extra}<em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${(c.type === 'fortress' && (sl.fixed || isFortFixedKey(sl.key))) ? '<i class="sc-demolish off" title="요새 고정 시설은 철거할 수 없습니다">고정</i>' : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key))) ? `<i class="sc-demolish off" title="${typeName(c.type)} 고정 시설은 철거할 수 없습니다">고정</i>` : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -4895,9 +4961,10 @@
     const sl = cs.slots[idx];
     if (!sl || !sl.key) { SK.toast('이미 비어 있는 공터입니다.'); return false; }
     const cityMeta = CITY[cityId];
-    /* v5.93 — 요새의 고정 시설(병영·성벽·수련관·연병장)은 허물 수 없다 */
-    if (cityMeta && cityMeta.type === 'fortress' && (sl.fixed || isFortFixedKey(sl.key))) {
-      SK.toast('요새의 고정 시설(병영·성벽·수련관·연병장)은 철거할 수 없습니다.');
+    /* v5.93 — 요새의 고정 시설(병영·성벽·수련관·연병장)은 허물 수 없다
+       v5.95 — 관문도 같은 규칙 */
+    if (cityMeta && isFortLike(cityMeta) && (sl.fixed || isFortFixedKey(sl.key))) {
+      SK.toast(`${typeName(cityMeta.type)}의 고정 시설(병영·성벽·수련관·연병장)은 철거할 수 없습니다.`);
       return false;
     }
     const def = SLOT_DEFS[sl.key] || { name: sl.key, icon: 'market' };
@@ -5183,8 +5250,8 @@
           ${g ? '<button data-a="free">주담당 해제 — 이번 달 자유 행동</button>' : ''}
           ${sl.key === 'academy' ? `<button data-a="crew">수련관 — 배속 장수 고르기 (${academyTraineesOf(sl).length}/${ACADEMY_MAX}명)</button>` : ''}
           ${sl.key === 'training' ? '<p class="talent-note slot-fixed-note">연병장은 주둔 병사의 훈련도·사기만 올립니다. 장수 육성은 <b>수련관</b>에서 합니다.</p>' : ''}
-          ${(c.type === 'fortress' && (sl.fixed || isFortFixedKey(sl.key)))
-            ? '<button data-a="demolish" class="slot-demolish" disabled>철거 불가 — 요새 고정 시설</button>'
+          ${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key)))
+            ? `<button data-a="demolish" class="slot-demolish" disabled>철거 불가 — ${typeName(c.type)} 고정 시설</button>`
             : '<button data-a="demolish" class="slot-demolish">철거 — 공터로 되돌리기</button>'}
         </div>
         ${targetRole && free.length ? `<p class="duty-pick-head">${targetRole === 'deputy' ? '부장' : '주담당'}으로 앉힐 장수 <em>카드를 누르면 바로 배속됩니다</em></p><div class="target-list">${opts}</div>` : ''}`,
@@ -7777,7 +7844,7 @@
         ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'agri' })}
         ${devCard({ label: '민심', icon: 'loyal', val: Math.round(cs.loyalty), pct: cs.loyalty, color: 'linear-gradient(90deg,#a8443a,#d97a63)', help: 'loyal', warn: cs.loyalty < 40 })}
         ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm' })}
-        ${devCard({ label: (c.type === 'fortress' ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
+        ${devCard({ label: (isFortLike(c) ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
         ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
       </div>${transitStripHtml(cityId)}`;
     const info = $('#city-info');
@@ -11240,7 +11307,7 @@
     const body = `<div class="deploy-wrap">
       <div class="deploy-banner" style="--fc:${f.color}">
         <span class="db-flag">${SK.markOf(f)}</span>
-        <div><b>${armyName(f)} 수비병 ${fmt(ts.troops)}</b><span>${fc ? `전장 적 총병력 <b class="df-total">${fmt(fc.total)}</b> (${fc.count}부대)${fc.supportMax ? ` · 원군 최대 +${fmt(fc.supportMax)}` : ''} · ` : ''}성벽 ${ts.def}${tc.type === 'fortress' ? ' <b class="df-total">×2 (요새)</b>' : ''} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
+        <div><b>${armyName(f)} 수비병 ${fmt(ts.troops)}</b><span>${fc ? `전장 적 총병력 <b class="df-total">${fmt(fc.total)}</b> (${fc.count}부대)${fc.supportMax ? ` · 원군 최대 +${fmt(fc.supportMax)}` : ''} · ` : ''}성벽 ${ts.def}${isFortLike(tc) ? ` <b class="df-total">×2 (${typeName(tc.type)})</b>` : ''} · ${SK.BATTLE_TYPES[bt].desc}</span></div>
       </div>
       ${deployQuote(pool, Object.keys(pick), s)}
       <p class="march-note"><b>행군 ${marchTurns(origin, targetId)}개월</b> · ${SK.CITY[origin].name} → ${tc.name}${viaTxt ? `<b class="mn-via">${viaTxt}</b>` : ''}${marchTurns(origin, targetId) >= 3 ? ' — 먼 원정입니다. 2개월째에 중도 야영·보급을 고릅니다' : (marchTurns(origin, targetId) >= 2 ? ' — 길에서 적 요격대를 만날 수 있습니다' : ' — 바로 이어진 길입니다. 다음 달 도착해 수비병 2,500 이상이면 80% 확률로 길목 요격전을 치르고 곧바로 공성전으로 이어집니다')}</p>
@@ -16070,7 +16137,7 @@
       body: `<div class="help-body">
         <div class="help-item"><b>지도</b><p>두 손가락으로 확대·축소하고, 한 손가락으로 끌어 이동합니다. 우리 성을 누르면 내정, 적성을 누르면 공격 정보가 열립니다. 아래 [내 본성 ▶]을 누르면 언제든 내 수도로 돌아갑니다.</p></div>
         <div class="help-item"><b>태수·군사와 자동 내정</b><p>관아에서 태수(정치·통솔)와 군사(지력·매력)를 앉힙니다. 태수가 앉은 성은 [다음 달]을 누를 때 대기 장수로 개간·징병·보수·민심·훈련을 스스로 마치고 월정산에 보고합니다. 본성과 태수가 없는 성은 자동으로 움직이지 않으며, 관아에서 자동 내정을 끄거나 언제든 직접 지시할 수 있습니다.</p></div>
-        <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·첩보소·공방을 직접 지을 수 있습니다(소도시 ${SK.SLOT_MAX.town}칸 · 중도시 ${SK.SLOT_MAX.mid}칸 · 대도시 ${SK.SLOT_MAX.capital}칸 · 관문 ${SK.SLOT_MAX.pass}칸 · 요새 ${SK.SLOT_MAX.fortress}칸). 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건물을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜹니다.</p></div>
+        <div class="help-item"><b>내성 시설과 담당 장수</b><p>성 안의 공터에 시장·농원·병영·연병장·순찰소·성벽·첩보소·공방을 직접 지을 수 있습니다(소도시 ${SK.SLOT_MAX.town}칸 · 중도시 ${SK.SLOT_MAX.mid}칸 · 대도시 ${SK.SLOT_MAX.capital}칸 · 관문 ${SK.SLOT_MAX.pass}칸 · 요새 ${SK.SLOT_MAX.fortress}칸). 관문·요새는 병영·성벽·수련관·연병장 4칸이 <b>고정 시설</b>(철거 불가)이고 마지막 1칸만 자유롭게 지을 수 있으며, 성벽 방어가 <b>×2</b>로 버팁니다. 담당 장수가 없어도 효과의 절반은 돌고, 정치·통솔·매력이 높은 장수를 앉히면 100~150%까지 오릅니다. 건물을 눌러 Lv.1→5로 증축하면 외형과 효과가 함께 자랍니다. 같은 건물을 한 채 더 지을 때는 확인 창이 뜹니다.</p></div>
         <div class="help-item"><b>공방 — 6개월에 보물 1개</b><p>공방에 담당 장수를 앉히면 매달 제작 게이지가 <b>1/6 → … → 6/6</b>으로 차고, 6개월째에 <b>보물 1개</b>가 완성됩니다(보관함). 공방 Lv과 담당의 정치·지력이 높을수록 희귀·영웅 등급이 잘 나오고 전설은 극히 드뭅니다. 담당이 없으면 제작이 멈춥니다. 진행도는 시설 카드와 상세 창, 월정산 <b>[공방 제작]</b>에 나옵니다.</p></div>
         <div class="help-item"><b>성벽 + 치안 — 적 첩보·계략 차단</b><p>성벽 시설 Lv과 담당 통솔이 높을수록 적의 첩보·이간·유언비어가 성문에서 막힙니다(성벽 <b>최대 55%</b>). 여기에 <b>치안</b>이 더해집니다 — 치안 50에서 100까지 <b>최대 +25%</b>. 둘을 합쳐도 <b>80%에서 막혀</b> 아무리 높여도 100% 차단은 없습니다. 막아 낸 달은 월정산 <b>[계략 방어]</b>에 성벽·치안 몫과 함께 한 줄로 보고됩니다. 성벽 카드·상세 창에 지금 차단률이 표시됩니다.</p></div>
         <div class="help-item"><b>치안 — 도적과 계략</b><p>치안은 순찰소 담당 배속으로 오릅니다(배속이 없으면 달마다 조금씩 풀립니다). <b>40 아래</b>면 계략 방어가 0%가 되고 도적이 들어 금·병력이 새어 나가며, 인구도 덜 늘어납니다. <b>50부터</b> 계략 방어가 붙기 시작해 100이면 +25%입니다.</p></div>

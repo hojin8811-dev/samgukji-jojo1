@@ -2893,9 +2893,10 @@ SK.siegeRingsOfCity = function (city) {
 };
 SK.siegeMapKey = function (rings) { return rings >= 3 ? 'siege3' : (rings === 2 ? 'siege2' : 'siege'); };
 /* v5.93 — 요새 거점의 성벽 방어 계수 (일반 성 1.0 · 요새 2.0).
-   공성·수성·거점 방어 계산과 요새전 수비측 방어력에 그대로 쓴다. */
+   공성·수성·거점 방어 계산과 요새전 수비측 방어력에 그대로 쓴다.
+   v5.95 — 관문도 요새와 같이 2.0 (사용자 요청 '관문도 요새처럼'). */
 SK.fortressWallMul = function (city) {
-  return (city && city.type === 'fortress') ? 2 : 1;
+  return (city && (city.type === 'fortress' || city.type === 'pass')) ? 2 : 1;
 };
 
 /* v5.17 — 전장 격자 크기. 요격전·소도시 24 / 중도시 28 / 대도시 32 */

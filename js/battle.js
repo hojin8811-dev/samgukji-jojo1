@@ -382,7 +382,7 @@
       enemyTotal, enemyPlanTotal: plan.total,
       /* v5.93 — 요새 성벽 방어 2배: 거점 주인이 서는 쪽을 '수비측'으로 두고
          그쪽 부대의 성벽 방어를 계수(요새 2.0)만큼 올린다 (공성·수성·요새전 공통) */
-      wallDefMul: (SK.fortressWallMul ? SK.fortressWallMul(target) : ((target && target.type === 'fortress') ? 2 : 1)),
+      wallDefMul: (SK.fortressWallMul ? SK.fortressWallMul(target) : ((target && (target.type === 'fortress' || target.type === 'pass')) ? 2 : 1)),
       wallDefSide: (((s.cities[opts.targetId] || {}).owner === SK.playerFaction()) ? 'ally' : 'enemy'),
       wallPct: Math.max(0, Math.min(100, Number((((s.cities[opts.targetId] || {}).def) == null ? 50 : s.cities[opts.targetId].def)))),
     };
@@ -4697,7 +4697,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=121'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=122'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
