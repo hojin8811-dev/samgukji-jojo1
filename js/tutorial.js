@@ -154,12 +154,29 @@
     document.body.appendChild(banner);
     return banner;
   }
+  /* 화면마다 실측한 하단 막대 위(전장은 상단 머리 아래)에 배너를 앉힌다.
+     · 성·지도: 명령줄(.city-commands / .map-bottom) 바로 위
+     · 전장: 아군 부대가 서는 아래쪽을 가리지 않게 상단 머리 바로 아래 한 줄 */
+  function placeBanner(el) {
+    el.classList.toggle('compact', document.body.classList.contains('tut-battle'));
+    if (!el.style) return;
+    if (document.body.classList.contains('tut-battle')) {
+      var head = document.querySelector('.battle-top');
+      el.style.top = ((head ? head.offsetHeight : 40) + 3) + 'px';
+      el.style.bottom = 'auto';
+      return;
+    }
+    el.style.top = 'auto';
+    var bar = document.querySelector('#screen-city.active .city-commands') ||
+      document.querySelector('#screen-map.active .map-bottom');
+    el.style.bottom = ((bar ? bar.offsetHeight : 62) + 6) + 'px';
+  }
   function hideBanner() { if (banner && banner.parentNode) banner.parentNode.removeChild(banner); banner = null; }
   function stepText() {
     if (T.step === 1 && T.sub === 'assign') return '지은 <b>시장</b>을 눌러 장수 1명을 <b>담당</b>으로 앉히세요';
     if (T.step === 4 && T.inBattle) {
       var s = null;
-      try { s = g.SKBattle && g.SKBattle.state ? g.SKBattle.state() : null; } catch (e) { s = null; }
+      try { s = (g.SKBattle && g.SKBattle.debug && g.SKBattle.debug.state) ? g.SKBattle.debug.state() : null; } catch (e) { s = null; }
       var fought = !!(s && (s.allyDone > 0 || s.turn > 1));
       return fought
         ? '<b>[⚡필살기]</b> 또는 <b>[⟳자동]</b>을 누르고 <b>[×3 배속]</b>으로 마무리하세요'
@@ -181,7 +198,14 @@
     el.innerHTML = html;
     var x = el.querySelector('.tm-exit');
     if (x) x.onclick = askExit;
+    placeBanner(el);
   }
+  /* 화면이 돌아가거나 커졌을 때 배너 자리를 다시 잡는다 */
+  if (g.addEventListener) {
+    g.addEventListener('resize', function () { if (T.active && banner) placeBanner(banner); });
+    g.addEventListener('orientationchange', function () { setTimeout(function () { if (T.active && banner) placeBanner(banner); }, 260); });
+  }
+
   function setStep(n, note) {
     if (!T.active || T.step === n) return;
     T.step = n; T.sub = '';

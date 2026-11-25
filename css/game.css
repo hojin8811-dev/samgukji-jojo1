@@ -655,15 +655,15 @@ b { font-weight: 700; }
 .tile-attack-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
 .tile-attack-target {
   position: absolute; box-sizing: border-box; border-radius: 5px;
-  border: 2.5px solid rgba(255, 86, 54, 0.96);
-  background: radial-gradient(circle at 50% 50%, rgba(255, 78, 44, 0.20), rgba(255, 78, 44, 0.04));
-  box-shadow: 0 0 10px rgba(255, 70, 36, 0.72), inset 0 0 12px rgba(255, 84, 48, 0.42);
-  animation: tileTargetBlink 0.92s ease-in-out infinite;
+  border: 2.5px solid rgba(255, 86, 54, 0.98);
+  background: radial-gradient(circle at 50% 50%, rgba(255, 120, 70, 0.34), rgba(255, 78, 44, 0.12) 62%, rgba(255, 78, 44, 0.03));
+  box-shadow: 0 0 12px rgba(255, 70, 36, 0.9), inset 0 0 14px rgba(255, 104, 60, 0.55);
+  animation: tileTargetBlink 0.78s ease-in-out infinite;
   will-change: opacity, transform;
 }
 @keyframes tileTargetBlink {
-  0%, 100% { opacity: 0.42; transform: scale(0.955); }
-  50% { opacity: 1; transform: scale(1); }
+  0%, 100% { opacity: 0.62; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.02); }
 }
 @media (prefers-reduced-motion: reduce) {
   .tile-attack-target { animation: none; opacity: 0.9; }
@@ -7752,7 +7752,11 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
   color: #f6e8c4; pointer-events: none;
 }
 .tut-mission .tm-exit { pointer-events: auto; }
-body.tut-battle .tut-mission { bottom: 154px; }
+body.tut-battle .tut-mission { bottom: auto; }
+.tut-mission.compact { padding: 4px 8px 5px; border-radius: 10px; }
+.tut-mission.compact .tm-text { margin-top: 3px; font-size: 10.5px; }
+.tut-mission.compact .tm-dots { display: none; }
+.tut-mission.compact .tm-kicker { font-size: 8.5px; padding: 0 5px; }
 .tut-mission .tm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tut-mission .tm-kicker {
   font-size: 9px; font-weight: 900; letter-spacing: 0.06em; color: #ffd97a;
