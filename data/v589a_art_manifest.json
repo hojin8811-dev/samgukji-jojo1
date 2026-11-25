@@ -650,5 +650,20 @@
  "초고왕": {
   "id": 586,
   "portrait": "assets/portraits/v589a/586.webp"
+ },
+ "엄백호": {
+  "id": 285,
+  "portrait": "assets/portraits/v589a/285.webp"
+ },
+ "유요": {
+  "id": 286,
+  "portrait": "assets/portraits/v589a/286.webp"
+ },
+ "왕랑": {
+  "id": 287,
+  "portrait": "assets/portraits/v589a/287.webp"
+ },
+ "남중 호족": {
+  "portrait": "assets/portraits/v589a/nanjung.webp"
  }
 }

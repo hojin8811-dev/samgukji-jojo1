@@ -7836,15 +7836,16 @@
     }
     const lvEl = $('#city-level');
     if (lvEl) { lvEl.textContent = `Lv.${lv}`; lvEl.dataset.lv = lv; }
-    /* v5.93 — 주점이 없으면 하단 [인사·탐색] 버튼을 회색으로 (누르면 '주점 건설 필요' 안내) */
+    /* v5.94 — 하단 [인사·탐색] 버튼은 주점 유무와 상관없이 늘 정상(색·라벨 그대로)이다.
+       v5.93에서 주점이 없으면 이 버튼까지 회색으로 잠갔는데, 사용자 요청대로 회색은
+       [인사·탐색] 창 안의 '주점 — 인재 등용' 줄(openGroupMenu)에만 남긴다. */
     const talentBtn = document.querySelector('.city-commands .cmd[data-grp="talent"]');
     if (talentBtn) {
-      const ok = hasTavernOf(cityId);
-      talentBtn.classList.toggle('disabled', !ok);
-      talentBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
-      talentBtn.title = ok ? '인사·탐색 — 주점에서 인재 등용' : '주점 건설 필요';
+      talentBtn.classList.remove('disabled');
+      talentBtn.setAttribute('aria-disabled', 'false');
+      talentBtn.title = '인사·탐색 — 주점에서 인재 등용';
       const sm = talentBtn.querySelector('small');
-      if (sm) sm.textContent = ok ? '등용·탐색' : '주점 필요';
+      if (sm) sm.textContent = '등용·탐색';
     }
   }
   SK.renderCityDev = renderCityDev;

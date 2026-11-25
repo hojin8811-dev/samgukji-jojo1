@@ -152,12 +152,12 @@
  },
  "공손강": {
   "id": 703,
-  "portrait": "assets/portraits/v520/gongsunkang.webp",
+  "portrait": "assets/portraits/v594/gongsunkang.webp",
   "unit": "assets/units/v520/gongsunkang.webp"
  },
  "한현": {
   "id": 596,
-  "portrait": "assets/portraits/v520/hanhyeon.webp",
+  "portrait": "assets/portraits/v594/hanhyeon.webp",
   "unit": "assets/units/v520/hanhyeon.webp"
  },
  "이각": {
@@ -182,7 +182,7 @@
  },
  "유언": {
   "id": 521,
-  "portrait": "assets/portraits/a_rank/521_liuyan.webp",
+  "portrait": "assets/portraits/v594/liuyan.webp",
   "unit": null
  },
  "마등": {
@@ -227,7 +227,7 @@
  },
  "유종": {
   "id": 499,
-  "portrait": "assets/portraits/a_rank/499_liucong.webp",
+  "portrait": "assets/portraits/v594/liucong.webp",
   "unit": null
  },
  "황진이": {
