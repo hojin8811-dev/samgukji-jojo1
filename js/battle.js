@@ -3521,7 +3521,7 @@
   /* v5.98 — 안내 말풍선: 부대/칸 위에 둥근 말풍선 한 줄을 띄운다.
      (빈 타일을 눌렀을 때 "거긴 아무도 없는데?!" 처럼 조작 안내를 숫자와 구분해 보여 준다) */
   function addSay(x, y, text, color) {
-    floats.push({ x, y, text, color: color || '#ffeec2', life: 1750, t: 0, say: true });
+    floats.push({ x, y, text, color: color || '#ffeec2', life: 2400, t: 0, say: true });
   }
 
   function updateFx(dt, fdt) {
