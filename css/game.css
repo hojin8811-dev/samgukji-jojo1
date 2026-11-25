@@ -4562,7 +4562,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 /* 두 장수 — v5.93 새 배경의 가운데 원 안 바닥에 세우고 서로 마주 보게 둔다.
    아군(왼쪽)은 원래 그림이 오른쪽을 향하므로 그대로, 적군(오른쪽)만 좌우를 뒤집어
    두 사람의 얼굴·무기·방패가 가운데를 향한다. (bottom: 35% = 원 안쪽 바닥) */
-.duel-sprite { position: absolute; bottom: 35%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.duel-sprite { position: absolute; bottom: 33%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
 .duel-sprite.ally { left: 10%; }
 .duel-sprite.enemy { right: 10%; }
 .duel-sprite img { width: 139px; height: auto; filter: drop-shadow(0 9px 12px rgba(0, 0, 0, 0.78)); }
@@ -4740,7 +4740,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 @media (max-height: 740px) {
   .duel-arena { gap: 5px; padding-top: 7px; padding-bottom: 8px; }
   .duel-sprite img { width: 119px; }
-  .duel-sprite { bottom: 33%; }
+  .duel-sprite { bottom: 31%; }
   .duel-sprite.ally { left: 10%; }
   .duel-sprite.enemy { right: 10%; }
   .duel-cmd { height: 46px; }
