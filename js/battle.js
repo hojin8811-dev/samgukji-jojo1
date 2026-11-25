@@ -11833,6 +11833,25 @@
     }
     /* v5.7 — 수성전에서 물러나면 성을 내주는 것과 같다 */
     if (B.defense) { defenseDefeat(); return; }
+    /* v5.98 — 튜토리얼 후퇴: 행군 없이 연 전장이라 병력을 잃지 않고 진류로 돌려보낸 뒤
+       다시 도전할 수 있게 한다 (입문에서 병력을 날리고 막혀 버리지 않게) */
+    if (typeof window !== 'undefined' && window.SKTUT && window.SKTUT.active) {
+      const st0 = SK.state && SK.state.cities ? SK.state.cities[B.origin] : null;
+      const surv = B.units.filter((u) => u.side === 'ally' && u.alive);
+      const left = surv.reduce((sum, u) => sum + Math.max(0, u.hp), 0);
+      if (st0) st0.troops = Math.min(20000, Math.round((st0.troops || 0) + left));
+      B.units.forEach((u) => {
+        if (u.side !== 'ally' || !u.uid) return;
+        const h = SK.state.heroes.find((x) => x.uid === u.uid);
+        if (h) { h.marchId = null; h.actedThisMonth = false; h.city = B.origin; h.hp = Math.max(1, Math.round(SK.maxHpOf(h.cls, h.lv) * 0.8)); }
+      });
+      SK.save();
+      B.over = true;
+      clearBattleProgress();
+      closeBattle();
+      window.SKTUT.onLose();
+      return;
+    }
     let headOnBack = false;
     if (B.intercept || B.marchId) {
       /* 행군 중 후퇴 — 남은 병력은 본성으로, 행군은 취소된다 */
