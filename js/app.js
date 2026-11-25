@@ -4777,6 +4777,9 @@
 
   /* 장수 상태 — 건물 담당(건물 이름) / 대기 / 완료 */
   function dutyOf(h, cityId) {
+    /* v5.97 — 기술 연구에 매인 장수는 장수 목록에서 '연구중 N개월'로 보인다 */
+    const res = SK.researchOf(h);
+    if (res) return `연구중 ${Math.max(0, Number(res.monthsLeft) || 0)}개월`;
     const cs = SK.state.cities[cityId || h.city];
     if (cs && Array.isArray(cs.trainCrew) && cs.trainCrew.indexOf(h.uid) >= 0) return '연병장 수련';
     const sl = cs && (cs.slots || []).find((x) => x.uid === h.uid);
@@ -8877,8 +8880,9 @@
       const sel = !done && !isDuty && g.uid === cityActorUid;
       const role = roleOf(g);
       const off = SK.officeOf ? SK.officeOf(g) : null;
-      const dutyText = done ? '완료' : duty === '대기' ? '대기' : (duty.indexOf('수련') >= 0 ? '수련' : '담당');
-      const dutyTone = done ? 'done' : dutyText === '대기' ? 'ready' : dutyText === '수련' ? 'train' : 'duty';
+      const isRes = duty.indexOf('연구중') === 0;
+      const dutyText = isRes ? duty : (done ? '완료' : duty === '대기' ? '대기' : (duty.indexOf('수련') >= 0 ? '수련' : '담당'));
+      const dutyTone = isRes ? 'duty' : (done ? 'done' : dutyText === '대기' ? 'ready' : dutyText === '수련' ? 'train' : 'duty');
       const cls = `${done ? 'done' : ''} ${isDuty ? 'duty' : ''} ${sel ? 'sel' : ''}`.trim();
       return `<div class="gen-card ${cls}" data-uid="${g.uid}" role="button" tabindex="0">
         <span class="gc-pt tf ${SK.tcls(g)}"><img src="${SK.ptSrc(g.portrait)}" alt=""></span>
