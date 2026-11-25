@@ -15,7 +15,7 @@
 - **③ 배경이 불투명하던 군주 초상 4장 투명화** (`assets/portraits/v594/`, `data/v58_art_manifest.json`): 군주 선택 화면에서 **공손강·한현·유언·유종**만 크림색 사각 배경이 남아 혼자 다른 카드처럼 보였습니다. 배경을 지운 판을 `v594/`에 새로 두고 목록 경로를 그쪽으로 옮겼습니다(같은 파일명 덮어쓰기 대신 새 경로 — 폰 캐시를 통째로 갈지 않으려고).
 - **④ 한국 재야 22인 초상도 같은 규칙으로** (`assets/portraits/v594/korea/`, `data/korea_v523_art.json`): v5.23 5×4 시트에서 잘라 낸 40장 중 지금 쓰이는 22장(김윤후·김방경·이지란·정기룡·알천·죽지랑·연남생·박지원·유금필·오연총·조광조·어재연·최윤덕·맹사성·홍대용·안용복·해구·목라근자·원측·정년·창조리·고연수)이 크림 배경 그대로여서 장수 목록에서 흰 사각형으로 보였습니다. 같은 방식으로 투명화했습니다. **이제 전용 초상 373장 전부 256×256 투명 WebP**입니다.
 - **캐시버스터**: `index.html`·`manifest.webmanifest`·`sw.js`(등록 쿼리)·`css/game.css`·`js/battle.js`의 `?v=120` → **`?v=121`**. `SAVE_KEY = 'samgukji-jojo-v4-save'`는 그대로입니다.
-- **검수**: `python3 tools/v594_verify.py` — ① `renderCityDev`가 하단 버튼에 `.disabled`를 넣지 않음·`<small>` 유지·`aria-disabled=false`, `openGroupMenu`의 `주점 — 인재 등용` 줄 잠금 유지 ② `historical_scenarios.json` 4개 시나리오 군주 33명 전원이 실재하는 전용 초상을 가짐 ③ 전용 초상 373장 모두 256×256 RGBA·모서리 알파 0 ④ 캐시버스터 ⑤ 저장 키 — **15항목 OK / 0 FAIL**. JS 17개 파일 tree-sitter 파싱 오류 0.
+- **검수**: `python3 tools/v594_verify.py` — ① `renderCityDev`가 하단 버튼에 `.disabled`를 넣지 않음·`<small>` 유지·`aria-disabled=false`, `openGroupMenu`의 `주점 — 인재 등용` 줄 잠금 유지 ② `historical_scenarios.json` 4개 시나리오 군주 33명 전원이 실재하는 전용 초상을 가짐 ③ 전용 초상 373장 모두 256×256 RGBA·모서리 알파 0 ④ 캐시버스터 ⑤ 저장 키 — **15항목 OK / 0 FAIL**. JS 17개 파일 tree-sitter 파싱 오류 0. 라이브(`?v=121`)에서 엄백호군으로 시작해 확인: 주점 없는 성 '오'의 하단 `[인사·탐색]`은 `class="cmd"`·`aria-disabled=false`·투명도 1·`등용·탐색`(시설 관리와 동일), 창을 열면 `주점 — 인재 등용` 줄만 `.grp-row.disabled`(‘주점 필요’) 하나, 28세력 카드 중 한현·유언·공손강·유요·엄백호·왕랑 모두 전용 초상으로 표시·깨진 이미지 0. 스샷 `preview/v594/`.
 
 ## v5.93 내정·시설 개편 — 주점 잠금·연병장 병사 전용·수련관·요새 5칸·요새 성벽 2배 + 일기토 새 배경 (2026-11-25)
 
