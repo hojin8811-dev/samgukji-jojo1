@@ -4658,7 +4658,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=127') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=128') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -5878,7 +5878,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=127') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=128') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6265,11 +6265,37 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .ex-chip.bond{border-color:#ff8fd0}
 #expRoot .ex-chip.bond em{color:#ffb8e6}
 #expRoot .ex-chip.off{border-color:#666;color:#aaa}
-#expRoot .ex-go{position:absolute;left:22px;right:22px;bottom:78px;height:64px;border-radius:32px;font-size:22px;font-weight:900;letter-spacing:1px;background:linear-gradient(#ff7a3d,#c4200f);border:2px solid #ffd76a;box-shadow:0 4px 14px #000a,inset 0 2px 0 #fff5;z-index:25;text-shadow:0 2px 3px #000a;animation:sxPulse 1.6s infinite}
+#expRoot .ex-go{position:absolute;left:22px;right:22px;bottom:78px;width:auto;height:64px;border-radius:32px;font-size:22px;font-weight:900;letter-spacing:1px;background:linear-gradient(#ff7a3d,#c4200f);border:2px solid #ffd76a;box-shadow:0 4px 14px #000a,inset 0 2px 0 #fff5;z-index:25;text-shadow:0 2px 3px #000a;animation:sxPulse 1.6s infinite}
 @keyframes sxPulse{50%{box-shadow:0 4px 22px #ff7a3daa,inset 0 2px 0 #fff5}}
 #expRoot .ex-dock{position:absolute;left:0;right:0;bottom:0;height:68px;display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(#1b140a,#0b0805);border-top:2px solid #c9a24d;z-index:30}
 #expRoot .ex-dock button{background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;gap:2px}
 #expRoot .ex-dock i{font-style:normal;font-size:22px}
+
+/* ---- v6.2 · 막 탭 · 랭킹전 · 장비 강화 ---- */
+#expRoot .ex-tabs{flex:1;display:flex;gap:4px;min-width:0}
+#expRoot .ex-tab{flex:1;min-width:0;height:34px;padding:2px 3px;border-radius:9px;background:#0009;border:1px solid #fff3;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;color:#cfc6b0}
+#expRoot .ex-tab b{font-size:11px;font-weight:800}
+#expRoot .ex-tab small{font-size:9px;opacity:.85}
+#expRoot .ex-tab.on{background:linear-gradient(#7a5a1c,#3a2a0c);border-color:#ffd76a;color:#ffe9a8;box-shadow:0 0 0 1px #ffd76a55}
+#expRoot .ex-tab.lock{opacity:.45}
+#expRoot .ex-stabs{display:flex;gap:6px;margin:2px 0 8px}
+#expRoot .ex-stabs .ex-tab{height:44px}
+#expRoot .ex-stabs .ex-tab b{font-size:13px}
+#expRoot .ex-stabs .ex-tab small{font-size:10px}
+#expRoot .ex-top .ex-pw,#expRoot .ex-top .ex-merit{padding:4px 6px;font-size:11px}
+#expRoot .ex-top .ex-back{padding:5px 7px;font-size:12px}
+#expRoot .ex-goal.lock{border-color:#777;filter:saturate(.65)}
+#expRoot .l-row.me{border-color:#9fe29f;background:rgba(159,226,159,.14)}
+#expRoot .l-row.boss{background:#3a1a0f66}
+#expRoot .ex-btn.danger{background:linear-gradient(#8a2b2b,#5a1414);border-color:#ff9a9a88}
+#expRoot .xt-fx.big{justify-content:center;margin:8px 0;font-size:12px}
+#expRoot .xt-fx.big b{color:#fff}
+#expRoot .gv-top{display:flex;align-items:center;gap:10px;margin:4px 0 10px}
+#expRoot .gv-ic{font-size:38px;line-height:1}
+#expRoot .gv-n{flex:1;min-width:0}
+#expRoot .gv-n b{font-size:17px}
+#expRoot .gv-n small{display:block;font-size:11px;color:#c9b98e}
+#expRoot .gv-enh{font-style:normal;color:#7cd8ff;font-weight:900}
 
 /* ---- 모달 공통 ---- */
 #expRoot .ex-modal{position:absolute;inset:0;background:#000b;z-index:200;display:flex;align-items:flex-end;justify-content:center}
@@ -6361,7 +6387,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=127) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=128) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}
