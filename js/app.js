@@ -1812,6 +1812,8 @@
         });
       }
       s.techs = s.techs || [];
+      /* v5.97 — 진행형 기술 연구 자리 (옛 저장에는 없음) */
+      s.techResearch = (s.techResearch && typeof s.techResearch === 'object') ? s.techResearch : null;
       s.truce = s.truce || {};
       /* v5.72 — AI끼리의 동맹·휴전 자리, 그리고 새 세력 색 팔레트 이관 */
       s.aiPacts = s.aiPacts || {};
@@ -1890,8 +1892,16 @@
           }
           const home = hid && s.cities ? s.cities[hid] : null;
           if (home && home.owner === s.playerFaction && bi.troops > 0) {
-            home.troops = Math.min(cityCap(home), Math.round((home.troops || 0) + bi.troops));
-            s.battleRecover = { city: hid, troops: Math.round(bi.troops), from: bi.origin };
+            /* v5.97 — 전투 스냅샷이 남아 있으면 병력을 바로 돌려보내지 않고
+               [이어하기 / 자동 결산 / 병력 회수]를 고르게 한다. 고르지 않으면
+               기존처럼 병력을 돌려보낸다(안전 장치 유지). */
+            const snap = (window.SKBattle && SK.battleSnap) ? SK.battleSnap() : null;
+            if (snap && snap.opts && snap.opts.targetId === bi.targetId) {
+              pendingBattleSnap = { snap: snap, homeId: hid, troops: Math.round(bi.troops), from: bi.origin };
+            } else {
+              home.troops = Math.min(cityCap(home), Math.round((home.troops || 0) + bi.troops));
+              s.battleRecover = { city: hid, troops: Math.round(bi.troops), from: bi.origin };
+            }
           }
         }
         s.battleInProgress = null;
@@ -2130,6 +2140,8 @@
   /* v5.25 — 달이 바뀐 뒤 꼭 열려야 할 사건(행군 도착·요격·적 침공)이 모달에 가려
      영영 안 뜨는 일이 없도록 몇 초 동안 다시 확인한다. */
   let pendingWatch = null;
+  /* v5.97 — 전투 중 이탈: 복구 스냅샷이 있으면 다음 실행에서 선택지를 띄운다 */
+  let pendingBattleSnap = null;
   function armPendingWatch() {
     if (pendingWatch) clearTimeout(pendingWatch);
     let left = 10;
@@ -2507,6 +2519,46 @@
   }
   SK.applyLordArt = applyLordArt;
 
+  /* v5.97 — 전투 중 이탈 복구 선택지: 이어하기 / 자동 결산 / 병력 회수 */
+  function showBattleResume(info) {
+    const s = SK.state;
+    if (!s || !info || !info.snap) return;
+    const snap = info.snap;
+    const cityName = CITY[snap.opts.targetId] ? CITY[snap.opts.targetId].name : '전장';
+    const tn = (SK.BATTLE_TYPES[snap.opts.type] || {}).name || '전투';
+    const giveBack = () => {
+      const home = s.cities && s.cities[info.homeId];
+      if (home && home.owner === PF() && info.troops > 0) {
+        home.troops = Math.min(cityCap(home), Math.round((home.troops || 0) + info.troops));
+        SK.save(); SK.refreshHud();
+        SK.toast(`출진했던 병력 ${fmt(info.troops)}명을 ${CITY[info.homeId] ? SK.josa(CITY[info.homeId].name, 'euro') : '성으로'} 돌려보냈습니다.`);
+      }
+    };
+    const go = (skip) => {
+      if (window.SKBattle && SK.resumeBattle) {
+        const ok = SK.resumeBattle(snap, { skip: !!skip });
+        if (ok) return;
+      }
+      giveBack();
+      SK.toast('전투를 다시 열지 못했습니다 — 병력을 성으로 돌려보냈습니다.');
+    };
+    const m = SK.modal({
+      kicker: '전투 중 이탈', title: '전장이 남아 있습니다',
+      body: `<div class="resume-card">
+        <div class="rc-top"><span class="rc-chip">${tn}</span><b>${cityName}</b><em>${Math.max(1, Math.round(Number(snap.turn) || 1))}턴째 · 멈춘 자리</em></div>
+        <p class="modal-p">전투가 끝나기 전에 앱을 닫거나 새로고침했습니다. <b>멈춘 그 자리에서 이어서</b> 싸우거나, <b>끝까지 자동으로 결산</b>할 수 있습니다.</p>
+        <p class="modal-sub">[병력 회수]를 고르면 지금까지처럼 이번 전투를 포기하고 출진 병력 ${fmt(info.troops)}명을 성으로 돌려보냅니다.</p>
+      </div>`,
+      actions: [
+        { label: '병력만 회수', onClick: () => { m.close(); giveBack(); } },
+        { label: '자동 결산', onClick: () => { m.close(); setTimeout(() => go(true), 120); } },
+        { label: '이어하기', primary: true, onClick: () => { m.close(); setTimeout(() => go(false), 120); } },
+      ],
+      dismissible: false,
+    });
+  }
+  SK.showBattleResume = showBattleResume;
+
   /* ───────────── 시작 ───────────── */
   async function startGame(fresh) {
     if (!SK.CITY_LIST.length) await loadCities();
@@ -2553,6 +2605,12 @@
       /* v5.27 — 전투 중에 나갔다 돌아왔으면 출진 병력이 성으로 돌아왔다는 것을 알린다
          v5.40 — 요격전이 중단됐으면 병력을 돌려보내지 않고 요격전부터 다시 연다 */
       const rec = SK.state && SK.state.battleRecover;
+      if (pendingBattleSnap) {
+        const info = pendingBattleSnap;
+        pendingBattleSnap = null;
+        setTimeout(() => showBattleResume(info), 420);
+        return;
+      }
       if (rec && rec.resume === 'intercept') {
         SK.state.battleRecover = null;
         const tgt = rec.target && CITY[rec.target] ? CITY[rec.target].name : '적성';
@@ -4748,6 +4806,9 @@
   }
   function dutyLabelOf(cityId, g) {
     if (!g) return '';
+    /* v5.97 — 기술 연구에 매인 장수는 그 자리에 묶여 있다는 것을 먼저 보여 준다 */
+    const res = SK.researchOf(g);
+    if (res) return `연구중 ${Math.max(0, Number(res.monthsLeft) || 0)}개월`;
     const sl = dutySlotOf(cityId, g.uid);
     if (sl) {
       const nm = (SLOT_DEFS[sl.key] || {}).name || '건물';
@@ -4776,8 +4837,9 @@
   SK.releaseDuty = releaseDuty;
   /* 파견 가능 명단 — 이번 달 일을 마친 장수는 빼고, 배속된 장수는 포함한다 */
   function dispatchPool(cityId) {
-    /* v5.11 — 아무것도 안 하는 '대기' 장수를 먼저, 건물 담당은 그 아래로 */
-    const list = cityGens(cityId).filter((g) => !g.actedThisMonth || !!dutyLabelOf(cityId, g));
+    /* v5.11 — 아무것도 안 하는 '대기' 장수를 먼저, 건물 담당은 그 아래로
+       v5.97 — 기술 연구에 매인 장수는 파견 후보에서 뺀다 (비전투 활동 금지)**/
+    const list = cityGens(cityId).filter((g) => !SK.researchOf(g) && (!g.actedThisMonth || !!dutyLabelOf(cityId, g)));
     return list.sort((a, b) => {
       const da = dutyLabelOf(cityId, a) ? 1 : 0;
       const db = dutyLabelOf(cityId, b) ? 1 : 0;
@@ -4856,8 +4918,9 @@
     const dutyN = gens.filter((g) => cs.slots.some((x) => x.uid === g.uid)).length;
     const doneN = gens.filter((g) => g.actedThisMonth && !cs.slots.some((x) => x.uid === g.uid)).length;
     const readyN = gens.length - dutyN - doneN;
-    /* v5.36 — 담당 없는 건물이 있으면 카드에 '배속' 표를 달고 위에 한 줄 안내를 둔다 */
-    const noOwnerN = cs.slots.filter((sl) => sl.key && !slotOwner(cityId, sl)).length;
+    /* v5.36 — 담당 없는 건물이 있으면 카드에 '배속' 표를 달고 위에 한 줄 안내를 둔다
+       v5.97 — 수련관은 배속(수련 등록)으로 운영되므로 '담당이 빈 건물' 집계에서 뺀다 */
+    const noOwnerN = cs.slots.filter((sl) => sl.key && sl.key !== 'academy' && !slotOwner(cityId, sl)).length;
     box.innerHTML = `<div class="slot-head">
         <b>내성 시설</b><span>${built}/${cs.slots.length}칸 · 공터 ${free}</span>
         ${upList.length ? `<button class="slot-upall" id="btn-up-all">모두 증축<em>${upList.length}곳 · 금 ${fmt(upCost)}</em></button>` : ''}
@@ -4905,7 +4968,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b>${extra}<em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN) ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key))) ? `<i class="sc-demolish off" title="${typeName(c.type)} 고정 시설은 철거할 수 없습니다">고정</i>` : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : (sl.key === 'academy' ? `<em class="sc-trainee">수련생 ${academyTraineesOf(sl).length}/${ACADEMY_MAX}명</em>` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`)}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN && sl.key !== 'academy') ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key))) ? `<i class="sc-demolish off" data-fixed="${i}" role="button" tabindex="0" title="${typeName(c.type)} 고정 시설은 철거할 수 없습니다">고정</i>` : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -4915,6 +4978,12 @@
         if (ev && ev.target && ev.target.closest && ev.target.closest('[data-demolish]')) {
           SK.sfx.play('ui');
           demolishSlot(cityId, Number(ev.target.closest('[data-demolish]').dataset.demolish));
+          return;
+        }
+        /* v5.97 — 고정 시설 칩: 모바일에는 title 툴팁이 없으니 탭하면 안내 토스트를 띄운다 */
+        if (ev && ev.target && ev.target.closest && ev.target.closest('[data-fixed]')) {
+          SK.sfx.play('deny');
+          SK.toast(`${typeName(c.type)}의 고정 시설(병영·성벽·수련관·연병장)은 철거할 수 없습니다 — 자유 칸 1곳에만 지을 수 있습니다.`);
           return;
         }
         openSlot(cityId, Number(b.dataset.slot));
@@ -5226,7 +5295,7 @@
       body: `<div class="slot-detail">
           <img class="sd-ico" src="${bldSrc(def.icon, sl.lv)}" onerror="${bldFallback(def.icon)}" alt="">
           <div><b>${def.desc}</b>
-            <span>효과 ${Math.round(slotMul(cs, sl, g) * 100)}% ${g ? `· 담당 ${g.name}` : '· 담당 없음'}${depG ? ` · 부장 ${depG.name}(+45%)` : ''}</span>
+            <span>효과 ${Math.round(slotMul(cs, sl, g) * 100)}% ${g ? `· 담당 ${g.name}` : (sl.key === 'academy' ? `· 수련생 ${academyTraineesOf(sl).length}/${ACADEMY_MAX}명` : '· 담당 없음')}${depG ? ` · 부장 ${depG.name}(+45%)` : ''}</span>
             <em>${sl.lv < 5 ? `증축 금 ${fmt(cost)}` : '최고 등급'}</em></div>
         </div>
         ${sl.key === 'workshop' ? `<div class="ws-craft">
@@ -5251,7 +5320,7 @@
         </div>` : ''}
         <div class="menu-list">
           ${sl.lv < 5 ? `<button data-a="up" ${(s.gold < cost || !epOk) ? 'disabled' : ''}>증축 — 금 ${fmt(cost)} (Lv.${sl.lv + 1})${epOk ? '' : ' · 경험 부족'}</button>` : ''}
-          ${!targetRole ? `<button data-a="assign">주담당 ${g ? '교체' : '임명'}</button>` : ''}
+          ${(!targetRole && sl.key !== 'academy') ? `<button data-a="assign">주담당 ${g ? '교체' : '임명'}</button>` : ''}
           ${(g && !targetRole) ? `<button data-a="assignDep">부장 교체 — 효과 +45%</button>` : ''}
           ${depG ? '<button data-a="freeDep">부장 해제</button>' : ''}
           ${g ? '<button data-a="free">주담당 해제 — 이번 달 자유 행동</button>' : ''}
@@ -5334,7 +5403,8 @@
     if (!sl || sl.key !== 'academy') sl = (cs.slots || []).find((x) => x.key === 'academy') || sl || { lv: 1 };
     const crew = academyTraineesOf(sl);
     const allHere = cityGens(cityId);
-    const gens = allHere.filter((g) => !onDuty(g, cityId) || crew.indexOf(g.uid) >= 0);
+    /* v5.97 — 기술 연구에 매인 장수는 수련관 후보에서도 빠진다 */
+    const gens = allHere.filter((g) => (!onDuty(g, cityId) || crew.indexOf(g.uid) >= 0) && (!SK.researchOf(g) || crew.indexOf(g.uid) >= 0));
     const slotHtml = [];
     for (let i = 0; i < ACADEMY_MAX; i += 1) {
       const uid = crew[i];
@@ -5420,7 +5490,7 @@
   const STAT_LABEL = { pol: '정치', cha: '매력', tong: '통솔', wu: '무력', ji: '지력' };
   function dutyCandidates(cityId, cs, def) {
     const stat = (def && def.stat) || 'pol';
-    const free = cityGens(cityId).filter((h) => !cs.slots.some((x) => x.uid === h.uid || x.deputy === h.uid));
+    const free = cityGens(cityId).filter((h) => !SK.researchOf(h) && !cs.slots.some((x) => x.uid === h.uid || x.deputy === h.uid));
     return free.slice().sort((a, b) => {
       const d = effStat(b, stat) - effStat(a, stat);
       return d || String(a.name).localeCompare(String(b.name));
@@ -5445,7 +5515,8 @@
     slots.forEach((sl) => { if (sl.uid) onDutyUids[sl.uid] = true; if (sl.deputy) onDutyUids[sl.deputy] = true; });
     const depUids = {};
     slots.forEach((sl) => { if (sl.deputy) depUids[sl.deputy] = true; });
-    const gens = cityGens(cityId).filter((g) => g.name !== lord && !depUids[g.uid] && (!g.actedThisMonth || onDutyUids[g.uid]));
+    /* v5.97 — 기술 연구에 매인 장수는 배속 후보에서 빠진다 */
+    const gens = cityGens(cityId).filter((g) => g.name !== lord && !depUids[g.uid] && !SK.researchOf(g) && (!g.actedThisMonth || onDutyUids[g.uid]));
     const pairs = [];
     slots.forEach((sl) => {
       const def = SLOT_DEFS[sl.key] || { stat: 'pol' };
@@ -6216,35 +6287,171 @@
   }
   SK.openTrain = openTrain;
 
-  /* ───────────── 기술 연구 트리 ───────────── */
+  /* ══════════════════════════════════════════════════════════════
+     v5.97 — 기술 연구 개편: 장수 1명 전담 · 3~6개월 진행형
+       · 노드를 누르면 확인 창(비용·효과·기간·담당 장수)이 먼저 열린다 (오탭 결제 방지)
+       · 1티어 3개월 → 2티어 4 → 3티어 5 → 4티어 6개월 (최대 6개월, 첫 연구는 3개월)
+       · 지력+정치가 높은 장수를 세우면 연구비(금)가 최대 30% 깎인다
+       · 연구 중인 장수는 비전투 활동(내정 명령·건물 배속·수련·탐색)에서 빠지고,
+         전쟁(출진·수성전)에는 나갈 수 있다 — 연구는 그대로 이어진다
+       · 연구는 한 번에 1건. 달이 바뀔 때마다 남은 개월이 1씩 줄고 0이 되면 완료
+     ══════════════════════════════════════════════════════════════ */
+  const TECH_TIER_MONTHS = { 1: 3, 2: 4, 3: 5, 4: 6 };
+  const TECH_MONTH_MIN = 3;
+  function techBaseMonths(t) { return TECH_TIER_MONTHS[clamp(Number(t && t.tier) || 1, 1, 4)] || 4; }
+  SK.techBaseMonths = techBaseMonths;
+  /* 지력·정치 가산점 — 합 120이 기준선, 320에서 금 30% 할인.
+     v5.97 — 사용자 지시 "지력, 정치 가산점 가격"에 맞춰 기간은 3~6개월 고정,
+     가산점은 연구비(금)를 깎는 쪽으로만 붙인다 (첫 단계 연구는 항상 3개월). */
+  function techGenBonus(h) {
+    const sum = (Number(h && h.ji) || 0) + (Number(h && h.pol) || 0);
+    const disc = clamp((sum - 120) * 0.0015, 0, 0.30);
+    return { sum: sum, disc: disc, cut: 0 };
+  }
+  SK.techGenBonus = techGenBonus;
+  function techRealmCut() { return Math.min(0.5, realmTfx('techCost', 50) / 100); }
+  /* 장수 한 명을 세웠을 때의 실제 견적 (금·개월) */
+  function techQuoteOf(t, h) {
+    const cut = techRealmCut();
+    const b = techGenBonus(h);
+    return {
+      baseCost: Math.max(1, Math.round(t.costGold * (1 - cut))),
+      baseMonths: techBaseMonths(t),
+      cost: Math.max(1, Math.round(t.costGold * (1 - cut) * (1 - b.disc))),
+      months: Math.max(TECH_MONTH_MIN, techBaseMonths(t) - b.cut),
+      disc: b.disc, cutMonths: b.cut, sum: b.sum,
+    };
+  }
+  SK.techQuoteOf = techQuoteOf;
+  function techResearching() { return (SK.state && SK.state.techResearch) || null; }
+  SK.techResearching = techResearching;
+  /* 이 장수가 지금 연구에 매인 장수인가 */
+  function researchOf(g) {
+    const r = techResearching();
+    return (r && g && r.genUid === g.uid) ? r : null;
+  }
+  SK.researchOf = researchOf;
+  function researchBadgeOf(g) {
+    const r = researchOf(g);
+    if (!r) return '';
+    return `연구중 ${Math.max(0, Number(r.monthsLeft) || 0)}개월`;
+  }
+  SK.researchBadgeOf = researchBadgeOf;
+  /* 담당 장수 후보 — 지력+정치가 높은 순, 수도 장수를 먼저 */
+  function techGenPool() {
+    const s = SK.state;
+    if (!s) return [];
+    const owned = (h) => h && !h.captured && h.city && s.cities[h.city] && s.cities[h.city].owner === PF();
+    return (s.heroes || []).filter(owned).slice().sort((a, b) => {
+      const ca = String(a.city) === String(s.playerCapital) ? 0 : 1;
+      const cb = String(b.city) === String(s.playerCapital) ? 0 : 1;
+      return (ca - cb) || ((b.ji + b.pol) - (a.ji + a.pol));
+    });
+  }
+  SK.techGenPool = techGenPool;
+
+  /* 연구 시작 — 금을 내고 장수를 그 자리에 묶는다 */
+  function startTechResearch(t, h) {
+    const s = SK.state;
+    if (!s || !t || !h) return { ok: false, msg: '연구할 기술이나 장수를 고르세요.' };
+    if (s.techs.includes(t.id)) return { ok: false, msg: '이미 연구가 끝난 기술입니다.' };
+    if (techResearching()) return { ok: false, msg: '이미 진행 중인 연구가 있습니다 — 한 번에 1건만 합니다.' };
+    if (t.prereq && !s.techs.includes(t.prereq)) return { ok: false, msg: '앞 단계 기술이 필요합니다.' };
+    if (s.heroes.indexOf(h) < 0) return { ok: false, msg: '그 장수는 지금 우리 편이 아닙니다.' };
+    const q = techQuoteOf(t, h);
+    if (s.gold < q.cost) return { ok: false, msg: `금이 부족합니다. (필요 금 ${fmt(q.cost)})` };
+    s.gold -= q.cost;
+    /* 연구에 매이면 건물 배속은 자동으로 풀린다 (수련 등록도 해제) */
+    const freed = h.city && s.cities[h.city] ? releaseDuty(h.city, h.uid) : '';
+    if (h.city && s.cities[h.city]) AcademyCrewRemove(h.city, h.uid);
+    s.techResearch = {
+      id: t.id, name: t.name, genUid: h.uid, genName: h.name, city: h.city || s.playerCapital,
+      monthsLeft: q.months, monthsTotal: q.months, cost: q.cost,
+      startedTurn: s.turn || 1, startedAt: `${s.eraYear || (195 + s.year)}년 ${s.month + 1}월`,
+      bonSum: q.sum, disc: q.disc,
+    };
+    s.techs = s.techs || [];
+    SK.save(); SK.refreshHud();
+    try { SK.sfx.play('levelup'); } catch (e) { /* ignore */ }
+    return { ok: true, q: q, freed: freed, tech: t, gen: h };
+  }
+  SK.startTechResearch = startTechResearch;
+  /* 수련관 등록 해제 (연구에 매일 때) */
+  function AcademyCrewRemove(cityId, uid) {
+    const cs = SK.state && SK.state.cities && SK.state.cities[cityId];
+    if (!cs || !Array.isArray(cs.slots)) return '';
+    for (let i = 0; i < cs.slots.length; i++) {
+      const sl = cs.slots[i];
+      if (!sl || sl.key !== 'academy') continue;
+      const crew = academyTraineesOf(sl);
+      const k = crew.indexOf(uid);
+      if (k >= 0) { crew.splice(k, 1); return '수련관'; }
+    }
+    return '';
+  }
+  /* 달이 바뀔 때 — 남은 개월 1 감소, 0이면 완료 */
+  function runTechResearch(s) {
+    const log = [];
+    const r = s && s.techResearch;
+    if (!r) return log;
+    const t = (SK.TECHS || []).find((x) => x.id === r.id);
+    const g = (s.heroes || []).find((h) => h.uid === r.genUid) || null;
+    const cityName = (CITY[r.city] || {}).name || '';
+    r.monthsLeft = Math.max(0, (Number(r.monthsLeft) || 0) - 1);
+    if (!t) { s.techResearch = null; return log; }
+    if (r.monthsLeft <= 0) {
+      s.techs = s.techs || [];
+      if (s.techs.indexOf(t.id) < 0) s.techs.push(t.id);
+      s.techResearch = null;
+      log.push({ done: true, id: t.id, name: t.name, summary: t.summary, gen: g ? g.name : r.genName, city: cityName, total: r.monthsTotal });
+      if (SK.noteTechDone) SK.noteTechDone(t);
+    } else {
+      log.push({ done: false, id: t.id, name: t.name, gen: g ? g.name : r.genName, city: cityName, left: r.monthsLeft, total: r.monthsTotal });
+    }
+    return log;
+  }
+  SK.runTechResearch = runTechResearch;
+
   function openTech() {
     if (SK.state) SK.setPurse(SK.state.playerCapital);
     const s = SK.state;
     s.techs = s.techs || [];
+    s.techResearch = s.techResearch || null;
     const list = SK.TECHS || [];
     if (!list.length) { SK.toast('기술 데이터를 불러오지 못했습니다.'); return; }
     const cats = [];
     list.forEach((t) => { if (cats.indexOf(t.category) < 0) cats.push(t.category); });
     const can = (t) => !s.techs.includes(t.id) && (!t.prereq || s.techs.includes(t.prereq));
-    /* v5.58 — 기술 연구 비용 -N% (팔만대장경·혼천 천문기 …) */
-    const techCut = Math.min(0.5, realmTfx('techCost', 50) / 100);
-    const techCost = (base) => Math.max(1, Math.round(base * (1 - techCut)));
+    const techCut = techRealmCut();
+    const flatCost = (base) => Math.max(1, Math.round(base * (1 - techCut)));
+    const run = techResearching();
     const rows = cats.map((cat) => {
       const items = list.filter((t) => t.category === cat).sort((a, b) => a.tier - b.tier);
       return `<div class="tech-branch"><p class="tb-name">${cat}</p>
         ${items.map((t) => {
           const done = s.techs.includes(t.id);
           const ok = can(t);
-          return `<button class="tech-node ${done ? 'done' : ok ? 'ready' : 'locked'}" data-t="${t.id}" ${done || !ok || s.gold < techCost(t.costGold) ? 'disabled' : ''}>
+          const running = !!(run && run.id === t.id);
+          return `<button class="tech-node ${done ? 'done' : running ? 'running' : ok ? 'ready' : 'locked'}" data-t="${t.id}" ${done || running || !ok || s.gold < flatCost(t.costGold) ? 'disabled' : ''}>
             <span class="tn-lv">${['I','II','III','IV'][Math.min(3, t.tier - 1)]}</span>
             <div><b>${t.name}</b><span>${t.summary}</span></div>
-            <em>${done ? '완료' : `금 ${fmt(techCost(t.costGold))}`}</em></button>`;
+            <em>${done ? '완료' : running ? `연구중 ${run.monthsLeft}개월` : `금 ${fmt(flatCost(t.costGold))} · ${techBaseMonths(t)}개월`}</em></button>`;
         }).join('')}
       </div>`;
     }).join('');
+    const runCard = run ? (() => {
+      const g = (s.heroes || []).find((h) => h.uid === run.genUid);
+      const pct = Math.round((1 - run.monthsLeft / Math.max(1, run.monthsTotal)) * 100);
+      return `<div class="tech-run">
+        <div class="tr-top"><span class="tr-chip">진행 중</span><b>${run.name}</b><em>${run.monthsLeft}개월 남음 / 총 ${run.monthsTotal}개월</em></div>
+        <div class="tr-bar"><i style="width:${Math.max(2, pct)}%"></i></div>
+        <div class="tr-sub">담당 ${g ? g.name : run.genName || '?'}${(CITY[run.city] || {}).name ? ` · ${(CITY[run.city] || {}).name}` : ''} — 연구가 끝날 때까지 내정·배속·수련에서 빠지고, 전쟁에는 나갈 수 있습니다.</div>
+      </div>`;
+    })() : '';
     const m = SK.modal({
-      kicker: '기술 연구', title: `연구 ${s.techs.length} / ${list.length}`,
-      body: `<p class="talent-note">기술은 여섯 계열 24종입니다. 앞 단계를 먼저 연구해야 다음 단계가 열리고, 연구하면 전군 공격·방어, 세수, 군량, 징병, 성벽 효과가 실제로 올라갑니다.</p>
+      kicker: '기술 연구 · 장수 1명 전담', title: `연구 ${s.techs.length} / ${list.length}`,
+      body: `<p class="talent-note">기술은 여섯 계열 24종입니다. 노드를 누르면 <b>비용·효과·기간·담당 장수</b>를 확인한 뒤 연구를 시작합니다. 연구는 <b>장수 1명이 전담</b>해 <b>3~6개월</b>이 걸리고(첫 단계 3개월 · 위 단계일수록 길어 최대 6개월), <b>지력·정치가 높은 장수</b>를 세우면 <b>연구비가 최대 30% 깎입니다</b>. 한 번에 <b>1건</b>만 진행합니다.</p>
+        ${runCard}
         <div class="tech-wrap">${rows}</div>`,
       wide: true, actions: [{ label: '닫기' }],
     });
@@ -6252,19 +6459,79 @@
       b.onclick = () => {
         const t = list.find((x) => x.id === b.dataset.t);
         if (!t) return;
-        const price = techCost(t.costGold);
-        if (s.gold < price) { SK.toast('금이 부족합니다.'); return; }
+        if (techResearching()) { SK.toast('이미 진행 중인 연구가 있습니다 — 끝난 뒤에 시작하세요.'); return; }
         if (t.prereq && !s.techs.includes(t.prereq)) { SK.toast('앞 단계 기술이 필요합니다.'); return; }
-        s.gold -= price;
-        s.techs.push(t.id);
-        SK.save(); SK.refreshHud(); m.close();
-        SK.sfx.play('levelup');
-        SK.toast(`${t.name} 연구 완료 — ${t.summary}`);
-        if (document.querySelector('#screen-city.active')) SK.openCity(s.lastCity);
+        ensureTechConfirm(t, m);
       };
     });
   }
   SK.openTech = openTech;
+
+  /* 확인 창 — 기본 견적과 장수별 보정을 나란히 보여 주고, 고른 장수로 시작한다 */
+  function ensureTechConfirm(t, parent) {
+    const s = SK.state;
+    const pool = techGenPool();
+    const best = pool[0] || null;
+    let pick = best ? best.uid : null;
+    const base = techQuoteOf(t, null);
+    const rowHtml = (h) => {
+      const q = techQuoteOf(t, h);
+      const on = pick === h.uid;
+      const sum = (Number(h.ji) || 0) + (Number(h.pol) || 0);
+      return `<button type="button" class="target-card tech-pick ${on ? 'on' : ''}" data-uid="${h.uid}">
+        <img class="tc-portrait ${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
+        <div class="tc-main"><b>${h.name}${h === best ? ' <em class="duty-reco">추천</em>' : ''}</b>
+          <span>${(CITY[h.city] || {}).name || ''} · ${SK.CLASSES[h.cls].name} · 지력 ${h.ji} 정치 ${h.pol} <i class="tp-sum">합 ${sum}</i></span></div>
+        <div class="tc-troops"><span>금 ${fmt(q.cost)}${q.disc > 0 ? ` <i class="tp-cut">−${Math.round(q.disc * 100)}%</i>` : ''}</span><b>${q.months}개월</b></div>
+      </button>`;
+    };
+    const wrap = SK.modal({
+      kicker: `기술 연구 · ${t.category}`, title: t.name,
+      body: `<div class="tech-confirm">
+        <div class="tc-effect"><span class="tce-lv">${['I','II','III','IV'][Math.min(3, t.tier - 1)]}단계</span><b>${t.summary}</b></div>
+        <div class="tc-quote">
+          <div><span>기본</span><b>금 ${fmt(base.baseCost)} · ${base.baseMonths}개월</b></div>
+          <div><span>보정</span><b class="hot">지력+정치로 금 할인 (최대 −30%)</b><em>장수를 고르면 아래에 실제 금액이 나옵니다</em></div>
+        </div>
+        <p class="talent-note">담당 장수를 고르세요 — <b>지력+정치</b>가 높을수록 연구비(금)가 깎입니다(최대 −30%). 기간은 표에 적힌 그대로이고, 고른 장수는 연구가 끝날 때까지 내정·배속·수련에서 빠지며 <b>전쟁에는 나갈 수 있습니다</b>.</p>
+        <div class="target-list pick-scroll tech-pick-list">${pool.map(rowHtml).join('') || '<p class="tr-empty">연구를 맡길 장수가 없습니다.</p>'}</div>
+        <div class="tc-sum" id="tc-sum"></div>
+      </div>`,
+      wide: true,
+      actions: [{ label: '뒤로' }, { label: '연구 시작', primary: true, onClick: () => {
+        const h = s.heroes.find((x) => x.uid === pick);
+        if (!h) { SK.toast('담당 장수를 고르세요.'); return; }
+        const res = startTechResearch(t, h);
+        if (!res.ok) { SK.toast(res.msg); SK.sfx.play('deny'); return; }
+        wrap.close();
+        if (parent) parent.close();
+        const q = res.q;
+        SK.toast(`${t.name} 연구를 시작했습니다 — ${h.name} 전담 · 금 ${fmt(q.cost)} · ${q.months}개월${res.freed ? ` · ${res.freed} 배속을 풀었습니다` : ''}`);
+        setTimeout(() => { if (document.querySelector('#screen-city.active')) SK.openCity(s.lastCity); }, 160);
+      } }],
+    });
+    const paint = () => {
+      const h = s.heroes.find((x) => x.uid === pick);
+      const q = h ? techQuoteOf(t, h) : base;
+      wrap.el.querySelectorAll('.tech-pick').forEach((b) => b.classList.toggle('on', b.dataset.uid === pick));
+      const box = wrap.el.querySelector('#tc-sum');
+      if (box) {
+        box.innerHTML = h
+          ? `<div class="tcs-row"><span>담당</span><b>${h.name}</b></div>
+             <div class="tcs-row"><span>금</span><b>${fmt(base.baseCost)} → <b class="hot">${fmt(q.cost)}</b>${q.disc > 0 ? ` <i class="tp-cut">−${Math.round(q.disc * 100)}%</i>` : ''}</b></div>
+             <div class="tcs-row"><span>기간</span><b class="hot">${q.months}개월</b> <i class="tcs-note">지력·정치와 무관하게 고정</i></div>
+             <div class="tcs-row"><span>금고</span><b class="${s.gold >= q.cost ? '' : 'minus'}">${fmt(s.gold)}${s.gold >= q.cost ? '' : ' — 부족'}</b></div>`
+          : '<p class="tr-empty">담당 장수를 고르세요.</p>';
+      }
+      const act = wrap.el.querySelector('.modal-actions .btn-primary');
+      if (act) { act.disabled = !h || s.gold < q.cost; act.textContent = h && s.gold >= q.cost ? `연구 시작 — 금 ${fmt(q.cost)} · ${q.months}개월` : (h ? '금이 부족합니다' : '장수를 고르세요'); }
+    };
+    wrap.el.querySelectorAll('.tech-pick').forEach((b) => {
+      b.onclick = () => { pick = b.dataset.uid; SK.sfx.play('ui'); paint(); };
+    });
+    paint();
+  }
+  SK.ensureTechConfirm = ensureTechConfirm;
   function techPct(key) {
     const s = SK.state;
     if (!s || !s.techs || !s.techs.length) return 0;
@@ -6315,8 +6582,8 @@
       ],
     },
     tech: {
-      name: '기술 연구', sub: `24종 트리 · 연구 ${(SK.state && (SK.state.techs || []).length) || 0}/24`,
-      items: [{ key: 'tech', label: '기술 트리 열기', desc: '군사·치안·경제·개발·정무·계략 6계열 24종' }],
+      name: '기술 연구', sub: `24종 트리 · 연구 ${(SK.state && (SK.state.techs || []).length) || 0}/24${(SK.state && SK.state.techResearch) ? ` · 진행 중 ${SK.state.techResearch.monthsLeft}개월` : ''}`,
+      items: [{ key: 'tech', label: '기술 트리 열기', desc: '군사·치안·경제·개발·정무·계략 6계열 24종 — 장수 1명이 전담해 3~6개월' }],
     },
     military: {
       name: '군사 출진·수송', sub: '출진·수송',
@@ -9740,8 +10007,8 @@
         <div class="rw-main"><b>${h.name} <em class="loyal-chip ${chip}">충성 ${l}</em></b>
           <span><em class="rw-where${here ? ' here' : ''}">${cname}${here ? ' · 이 성' : ''}</em> ${SK.classTitle(h.cls, h.lv)} · Lv.${h.lv}</span>
           <em class="rw-note ${chip}">${l < 40 ? '마음이 흔들림 · 이간에 약함' : l < 70 ? '아직 마음이 반즐' : '충심이 굳음'}</em></div>
-        <button data-gold="${h.uid}" ${s.gold < 100 || l >= 100 ? 'disabled' : ''}>금 100 +${gain}</button>
-        <button class="gift" data-gift="${h.uid}" ${inv.length && l < 100 ? '' : 'disabled'}>보물 +15</button>
+        <button data-gold="${h.uid}" ${s.gold < 100 || l >= 100 ? 'disabled' : ''}>${l >= 100 ? '충성 100 ✓' : `금 100 +${gain}`}</button>
+        <button class="gift" data-gift="${h.uid}" ${inv.length && l < 100 ? '' : 'disabled'}>${l >= 100 ? '완료' : '보물 +15'}</button>
       </div>`;
     }).join('');
     const m = SK.modal({
@@ -10754,7 +11021,7 @@
       }
       let guard = 0;
       while (guard++ < 8) {
-        const actor = cityGens(c.id).find((g) => !g.actedThisMonth);
+        const actor = cityGens(c.id).find((g) => !g.actedThisMonth && !SK.researchOf(g));
         if (!actor) { idle = '일할 장수가 남지 않았습니다'; break; }
         const key = chooseAutoAction(c.id, done);
         if (!key) {
@@ -10928,7 +11195,7 @@
     const done = {};
     let guard = 0;
     while (guard++ < DELEGATE_LIMIT) {
-      const actor = cityGens(cityId).find((g) => !g.actedThisMonth);
+      const actor = cityGens(cityId).find((g) => !g.actedThisMonth && !SK.researchOf(g));
       if (!actor) break;
       const key = chooseDelegatedAction(cityId, done);
       if (!key) break;
@@ -15704,6 +15971,8 @@
     });
     /* v5.93 — 수련관 배속 장수가 이번 달 수련 경험치·능력치를 얻는다 (행동력은 쓰지 않는다) */
     const academyLog = runAcademy(s);
+    /* v5.97 — 기술 연구: 달이 바뀔 때마다 남은 개월 1 감소, 0이면 완료·해금 */
+    const techLog = runTechResearch(s);
     /* v5.75 — 총도독 군단의 달 운영 (자동 내정·징병 → 후방 수송 → 자동 출진·점령) */
     const corpsRun = runCorpsTurn(s);
     /* v5.7 — AI 세력의 확장·공세 (플레이어 침공은 한 달 전 경고 뒤에 온다) */
@@ -15935,6 +16204,8 @@
         <div class="mr-row"><span>명성</span><b>+3</b></div>
         ${academyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">수련관 <em>수련 등록 장수 육성</em></p>
           ${academyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.name}</b><span>EXP +${l.gain}${l.up ? ` · <b class="plus">${l.up.label} +1 → ${l.up.val}</b>` : ''}<i> (수련 ${l.months}개월)</i></span></div>`).join('')}${academyLog.length > 6 ? `<p class="mr-note">${academyLog.length - 6}명 더 수련했습니다.</p>` : ''}</div>` : ''}
+        ${techLog.length ? `<div class="mr-auto mr-tech"><p class="mr-auto-title">기술 연구 <em>장수 1명 전담 · 3~6개월</em></p>
+          ${techLog.map((l) => `<div class="mr-auto-row"><b>${l.done ? '완료' : `진행 ${l.total - l.left}/${l.total}`}</b><span>${l.name} — ${l.gen}${l.city ? ` (${l.city})` : ''}${l.done ? ` · <b class="plus">${l.summary}</b>` : ` · <i>남은 ${l.left}개월</i>`}</span></div>`).join('')}</div>` : ''}
         ${corpsRun.lines.length ? `<div class="mr-auto"><p class="mr-auto-title">총도독 군단 <em>자동 내정·수송·출진</em></p>
           ${corpsRun.lines.slice(0, 8).map((l) => `<div class="mr-auto-row"><b>${l.corps}</b><span>${l.text}</span></div>`).join('')}${corpsRun.lines.length > 8 ? `<p class="mr-note">${corpsRun.lines.length - 8}개 군단 더 움직였습니다.</p>` : ''}</div>` : ''}
         ${aiNews.length ? `<div class="mr-ai"><p class="mr-ai-title">천하 소식 — 다른 세력의 움직임</p>
@@ -16592,7 +16863,7 @@
     const done = {};
     let guard = 0;
     while (guard++ < 8) {
-      const actor = cityGens(cityId).find((g) => !g.actedThisMonth);
+      const actor = cityGens(cityId).find((g) => !g.actedThisMonth && !SK.researchOf(g));
       if (!actor) break;
       const key = chooseDelegatedAction(cityId, done);
       if (!key) break;

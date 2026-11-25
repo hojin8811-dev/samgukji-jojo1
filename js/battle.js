@@ -187,6 +187,8 @@
     /* v5.66a — GA4: 전투 진입(공성·수성·요격·야전·관문) */
     try { if (window.skTrack) window.skTrack('battle_start', { battle_type: type }); } catch (e) { /* ignore */ }
     const def = SK.BATTLE_TYPES[type];
+    /* v5.97 — 이 전투를 다시 열 때 필요한 최소 정보만 남긴다 (이탈 복구용 스냅샷) */
+    const snapOpts = snapOptsOf(opts, type);
     /* v5.11 — 공성·수성 통일: 같은 성이면 공격/방어 모두 같은 성벽 맵을 쓴다.
        도시 등급이 높을수록 성벽이 1중 → 2중 → 3중으로 겹친다. */
     const isSiege = (type === 'siege' || type === 'defense');
@@ -366,6 +368,7 @@
       cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey, customTilesRender: customTilesRender,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings, towers: [],
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
+      _snapOpts: snapOpts,
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense, lastStand: !!opts.lastStand,
@@ -536,9 +539,14 @@
     initCanvas();
     const feedEl = document.querySelector('#battle-feed');
     if (feedEl) feedEl.innerHTML = '';
+    /* v5.97 — 저장된 스냅샷으로 다시 연 전장이면 턴·병력·좌표를 되살리고 인트로는 건너뛴다 */
+    const resumed = opts.snap ? applySnap(opts.snap) : false;
+    if (opts.snap) { try { clearSnap(); } catch (e) { /* ignore */ } }
+    if (resumed) { B.introDone = true; }
     SKBattle.refreshUI();
+    if (!resumed) { try { saveSnap(); } catch (e) { /* ignore */ } }
     /* v5.89 — [건너뛰기]는 인트로를 건너뛰고 바로 자동 결산으로 들어간다 */
-    if (skipMode) finishIntro(); else showIntro();
+    if (skipMode || resumed) finishIntro(); else showIntro();
     if (supportNames.length) {
       wait(() => SK.toast(`적 지원군 합류 — ${supportNames.join(' · ')}`), 260);
     }
@@ -546,6 +554,125 @@
       wait(() => SK.toast('기습 — 강행군으로 진을 치기 전에 닿았습니다 (적 사기 −8)'), 320);
     }
   };
+
+  /* ══════════ v5.97 — 전투 중 이탈 복구 (localStorage 스냅샷) ══════════
+     모바일에서 잠깐 다른 앱을 갔다 오거나 새로고침으로 전장이 사라져도,
+     다음 실행에서 [이어하기] 또는 [자동 결산]을 고를 수 있게 매 아군 턴 시작에
+     전투 상태(부대 위치·병력·행동·성문·턴)를 적어 둔다. 고르지 않고 [병력 회수]를
+     고르면 지금까지처럼 병력을 성으로 돌려보낸다 (기존 안전 장치 유지).
+     ══════════════════════════════════════════════════════════════════ */
+  const SNAP_KEY = 'samgukji-jojo-battle-snap-v1';
+  const SNAP_MAX_AGE = 24 * 3600 * 1000;
+  function clearSnap() {
+    try { localStorage.removeItem(SNAP_KEY); } catch (e) { /* ignore */ }
+  }
+  function peekSnap() {
+    try {
+      const raw = localStorage.getItem(SNAP_KEY);
+      if (!raw) return null;
+      const o = JSON.parse(raw);
+      if (!o || o.v !== 1 || !o.opts) return null;
+      if (Date.now() - (Number(o.at) || 0) > SNAP_MAX_AGE) { clearSnap(); return null; }
+      return o;
+    } catch (e) { return null; }
+  }
+  function snapOptsOf(opts, type) {
+    const units = (opts.units || []).map((u) => ({
+      kind: u.kind, uid: u.uid, cls: u.cls, name: u.name, troops: u.troops,
+      zone: u.zone, rfg: u.rfg ? 1 : 0, moraleBonus: u.moraleBonus || 0,
+    }));
+    const out = {
+      origin: opts.origin, targetId: opts.targetId, type: type,
+      units: units, marchId: opts.marchId || null, reserve: Math.max(0, Math.round(opts.reserve || 0)),
+      surprise: !!opts.surprise, lastStand: !!opts.lastStand,
+    };
+    if (opts.defense) {
+      out.defense = { faction: opts.defense.faction, troops: opts.defense.troops, from: opts.defense.from,
+        genIds: (opts.defense.genIds || []).slice(0, 8), survivingEnemies: opts.defense.survivingEnemies || null };
+    }
+    if (opts.intercept) {
+      out.intercept = { name: opts.intercept.name, troops: opts.intercept.troops, faction: opts.intercept.faction,
+        from: opts.intercept.from, genIds: (opts.intercept.genIds || []).slice(0, 8) };
+    }
+    if (opts.reinforce) {
+      out.reinforce = { from: opts.reinforce.from, arriveTurn: opts.reinforce.arriveTurn || 0,
+        units: (opts.reinforce.units || []).map((u) => ({ kind: u.kind, uid: u.uid, cls: u.cls, name: u.name, troops: u.troops })) };
+    }
+    return out;
+  }
+  /* 지금 전투 상태를 요약해 저장한다 (아군 턴 시작·첫 배치) */
+  function saveSnap() {
+    if (!B || B.over || !B._snapOpts) return;
+    try {
+      const data = {
+        v: 1, at: Date.now(),
+        opts: B._snapOpts,
+        turn: B.turn, phase: B.phase,
+        gates: (B.gates || []).map((g) => ({ row: g.row, hp: Math.round(g.hp), maxHp: Math.round(g.maxHp) })),
+        units: B.units.map((u) => ({
+          i: u.id, side: u.side, name: u.name, cls: u.cls,
+          hp: Math.round(u.hp), maxHp: Math.round(u.maxHp), mp: Math.round(u.mp || 0),
+          x: u.x, y: u.y, acted: !!u.acted, alive: !!u.alive, boss: !!u.boss,
+        })),
+      };
+      localStorage.setItem(SNAP_KEY, JSON.stringify(data));
+    } catch (e) { /* 저장 공간 부족·시크릿 모드 */ }
+  }
+  /* 스냅샷을 지금 새로 열린 전장에 되살린다 */
+  function applySnap(snap) {
+    if (!B || !snap || !Array.isArray(snap.units)) return false;
+    B.turn = Math.max(1, Math.round(Number(snap.turn) || 1));
+    B.phase = 'ally';
+    (snap.gates || []).forEach((sg, i) => {
+      const g = (B.gates || [])[i];
+      if (!g) return;
+      g.maxHp = Math.max(1, Math.round(Number(sg.maxHp) || g.maxHp));
+      g.hp = Math.max(0, Math.min(g.maxHp, Math.round(Number(sg.hp) || 0)));
+    });
+    B.gate = activeGate();
+    const used = [];
+    const take = (su) => {
+      let hit = B.units.find((x) => used.indexOf(x) < 0 && x.side === su.side && x.name === su.name && x.cls === su.cls);
+      if (!hit) hit = B.units.find((x) => used.indexOf(x) < 0 && x.side === su.side && x.id === su.i);
+      if (!hit) hit = B.units.find((x) => used.indexOf(x) < 0 && x.side === su.side);
+      return hit || null;
+    };
+    snap.units.forEach((su) => {
+      const u = take(su);
+      if (!u) return;
+      used.push(u);
+      u.maxHp = Math.max(1, Math.round(Number(su.maxHp) || u.maxHp));
+      u.hp = Math.max(0, Math.min(u.maxHp, Math.round(Number(su.hp) || 0)));
+      u.mp = Math.max(0, Math.round(Number(su.mp) || 0));
+      u.x = u.rx = clamp(Math.round(Number(su.x) || 0), 0, COLS - 1);
+      u.y = u.ry = clamp(Math.round(Number(su.y) || 0), 0, ROWS - 1);
+      u.turnStartX = u.x; u.turnStartY = u.y;
+      u.acted = !!su.acted; u.alive = su.alive !== false && u.hp > 0;
+      if (su.boss) u.boss = true;
+    });
+    B.reachCache = null;
+    B._home = null;
+    B._safeRing = null;
+    return true;
+  }
+  /* 저장된 스냅샷으로 전장을 다시 연다 (opt.skip 이면 자동 결산) */
+  function resumeBattle(snap, opt) {
+    const o = opt || {};
+    if (!snap || !snap.opts) return false;
+    const s = SK.state;
+    if (!s) return false;
+    try {
+      SK.startBattle(Object.assign({}, snap.opts, { snap: snap, skip: !!o.skip, spectate: !!o.skip }));
+      return true;
+    } catch (e) {
+      console.warn('[전투 복구] 실패', e);
+      clearSnap();
+      return false;
+    }
+  }
+  SK.clearBattleSnap = clearSnap;
+  SK.battleSnap = peekSnap;
+  SK.resumeBattle = resumeBattle;
 
   /* v5.33 — 레벨 성장 배율 (1레벨마다 공·방 +1.8%, 전직 구간은 +6%) */
   function growMul(lv) {
@@ -3159,7 +3286,7 @@
     /* v5.40 — 병과 배지를 HP 알약 '위 줄'에 따로 세운다.
        예전에는 알약 옆에 붙여, 부대가 나란히 서면(mid 부대) 옆 칸과 부딪혀 통째로 생략됐다.
        밀집·축소 시에는 한 글자(기·궁·창·군)로 줄여 언제나 병과가 보이게 한다. */
-    if (badge[1]) {
+    if (badge[1] && !veryDense) {
       const btxt = (dense || veryDense || tinyView) ? String(badge[1]).slice(0, 1) : badge[1];
       const bsz = Math.max(6.5, Math.round((dense || veryDense ? 6.6 : 7.2) * k));
       ctx.save();
@@ -4030,12 +4157,15 @@
     floats.forEach((f) => {
       if (f.back) return;
       const p = f.t / f.life;
-      const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38;
+      /* v5.97 — 난전에서 숫자가 서로 겹치지 않게 부대마다 높이를 조금씩 어긋나게 띄우고
+         글자를 조금 줄인다 (17px → 15px). 판독은 아래 부대 카드가 정확한 값을 맡는다. */
+      const jit = (((f.x * 7 + f.y * 13) % 5) - 2) * 5;
+      const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38 + jit;
       ctx.save();
       ctx.globalAlpha = 1 - p * 0.85;
       /* v5.26 — 고유 특기 이름(「…」)은 숫자보다 작게 그린다. 17px 고정이라 전장 한가운데를 크게 가렸다 */
       const isName = f.text.indexOf('「') >= 0;
-      ctx.font = isName ? 'bold 11.5px "Noto Serif CJK KR", serif' : 'bold 17px "Noto Serif CJK KR", serif';
+      ctx.font = isName ? 'bold 11.5px "Noto Serif CJK KR", serif' : 'bold 15px "Noto Serif CJK KR", serif';
       ctx.textAlign = 'center';
       ctx.lineWidth = 4.5;
       ctx.strokeStyle = 'rgba(24,18,8,0.92)';
@@ -4710,7 +4840,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=123'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=124'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
@@ -5694,10 +5824,14 @@
       /* v5.82 — 방진(인접 아군 있으면 방어 +)·문무겸전·지휘 오라 */
       * vpDefMul(u) * (1 + vpAura(u, 'def'));
   }
-  /* v5.96 — 성문 그늘(바깥 성문 안쪽 두 줄)에 선 공성 수비대인가 */
+  /* v5.96 — 성문 그늘(바깥 성문 안쪽 두 줄)에 선 수비 부대인가
+     v5.97 — 수성전(아군 수비)에도 똑같이 적용한다. 예전에는 공성전 적 수비대에만 붙어
+     수성전 아군만 성문 그늘 +15%를 못 받았다 (QA 2-1). */
   function wallShadeOn(u) {
-    if (!B || B.defense || !u || u.side !== 'enemy') return false;
-    if (B.type !== 'siege') return false;
+    if (!B || !u) return false;
+    if (B.type !== 'siege' && B.type !== 'defense') return false;
+    const defSide = B.defense ? 'ally' : 'enemy';
+    if (u.side !== defSide) return false;
     const g = activeGate();
     if (!g || g.hp <= 0) return false;
     return u.y <= g.row - 1 && u.y >= g.row - 2;
@@ -5771,7 +5905,13 @@
     if (attackKind(a) === 'melee') return false;
     const row = B.tiles[a.y];
     const ch = row && row[a.x];
-    return ch === 'T' || ch === 'K' || ch === 'G' || ch === 'C';
+    if (ch === 'T' || ch === 'K' || ch === 'G' || ch === 'C') return true;
+    /* v5.97 — 성벽 바로 안쪽 두 줄에 선 원거리 부대도 남은 성문 너머로 쏠 수 있게 한다.
+       (수성전에서 문이 버티는 동안 원거리 수비대가 사거리가 닿는데도 벽에 막혀
+        일방적으로 맞기만 하던 문제 — 망루 사거리 4칸과 같은 눈금) */
+    const g = activeGate();
+    if (g && g.hp > 0 && a.y >= g.row - 2 && a.y <= g.row - 1) return true;
+    return false;
   }
   function canHit(a, d, rng) {
     const dist = manh(a.x, a.y, d.x, d.y);
@@ -6594,7 +6734,7 @@
         const more = next && next !== B.gate && next.hp > 0;
         B.gate = next;
         feed(more ? `${B.gate.ring}번째 성문이 무너졌습니다 — 안쪽 성문이 남아 있습니다.` : '성문이 무너졌습니다 — 근접 부대도 성안으로 들어갈 수 있습니다.', 'good');
-        SK.toast(more ? `성문 파손! 안쪽 ${B.gate.ring}번째 성문이 남았습니다.` : '성문 파손! 성안으로 진입할 수 있습니다.');
+        /* v5.97 — 피드와 중앙 토스트가 겹쳐 하단 정보창을 가리지 않게 토스트는 띄우지 않는다 */
         shakeScreen(7);
         SK.sfx.play('drum');
       }
@@ -6656,7 +6796,7 @@
         const more = next && next !== gate && next.hp > 0;
         B.gate = next;
         feed(more ? `${B.gate.ring}번째 성문이 무너졌습니다 — 안쪽 성문이 남아 있습니다.` : '성문이 무너졌습니다 — 적이 성안으로 밀려들어옵니다.', 'bad');
-        SK.toast(more ? `성문 파손! 안쪽 ${B.gate.ring}번째 성문이 남았습니다.` : '성문 파손! 적이 성안으로 들어옵니다.');
+        /* v5.97 — 중앙 토스트 중복 제거 (전투 피드만 남긴다) */
         shakeScreen(7);
         SK.sfx.play('drum');
       }
@@ -9645,6 +9785,8 @@
         classAuraPhase('ally');
         banner('아군 페이즈', 'ally');
         SKBattle.refreshUI();
+        /* v5.97 — 아군 턴이 시작될 때마다 복구용 스냅샷을 갱신한다 */
+        if (!skipMode) saveSnap();
         const startAllyTurn = () => {
           if (!B || B.over) return;
           const first = B.units.find((u) => u.side === 'ally' && u.alive && !u.acted);
@@ -11544,11 +11686,12 @@
     }
   }
 
-  /* v5.27 — 전투 결과가 확정되면 복귀용 표식을 지운다 (앱을 닫았다 열어도 병력이 겹쳐 돌아오지 않게) */
+    /* v5.27 — 전투 결과가 확정되면 복귀용 표식을 지운다 (앱을 닫았다 열어도 병력이 겹쳐 돌아오지 않게) */
   function clearBattleProgress() {
     try {
       if (SK.state && SK.state.battleInProgress) { SK.state.battleInProgress = null; SK.save(); }
     } catch (e) { /* ignore */ }
+    clearSnap();
   }
   function closeBattle() {
     clearBattleProgress();
@@ -12130,7 +12273,8 @@
       const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
       const enemies = B.units.filter((u) => u.side === 'enemy' && u.alive);
       $('#battle-name').textContent = B.name;
-      $('#battle-kind').textContent = `${B.night ? '야간 · ' : ''}${B.def.name} · ${B.def.desc}`;
+      /* v5.97 — 부제가 잘리지 않게 전장 이름과 겹치는 유형 이름은 빼고 규칙만 적는다 */
+      $('#battle-kind').textContent = `${B.night ? '야간 · ' : ''}${B.def.desc}`;
       /* v5.2 — 성문 내구도는 화면 위 칩에 숫자로 크게 보인다 */
       const goalChip = $('#battle-objective');
       if (goalChip) {

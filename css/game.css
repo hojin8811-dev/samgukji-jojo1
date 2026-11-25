@@ -445,7 +445,21 @@ b { font-weight: 700; }
 .city-title-wrap { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ct-line1, .ct-line2 { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .ct-line1 { gap: 3px; overflow: visible; }
-.ct-line2 { flex-wrap: wrap; row-gap: 2px; }
+.ct-line1 .city-stepno { margin-left: 2px; }
+.ct-line2 { flex-wrap: nowrap; row-gap: 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; gap: 3px; }
+/* v5.97 — 성 2곳 이상·대상인 칩이 떠도 두 번째 줄이 4줄로 감기지 않게 한 줄 고정(가로 스크롤) */
+.ct-line2::-webkit-scrollbar { display: none; }
+.ct-line2 > * { white-space: nowrap; }
+.ct-line2 .city-date, .ct-line2 .city-stepno { flex: 0 0 auto; }
+/* v5.97 — 두 번째 줄 칩을 조금 줄여 390px에서도 한 줄에 다 들어가게 */
+.city-top .ct-line2 { gap: 2px; }
+.city-top .ct-line2 .rank-chip,
+.city-top .ct-line2 .city-level,
+.city-top .ct-line2 #city-hanja,
+.city-top .ct-line2 .faction-tag { padding: 0 4px; font-size: 8.5px; }
+/* v5.97 — 좁은 성 헤더: 1번째 줄에 이름·단계·날짜, 2번째 줄은 유형·레벨·관작만 */
+.ct-line1 .city-date { font-size: 8.5px; padding: 0 4px; margin-left: auto; }
+.ct-line1 .city-stepno { font-size: 8px; }
 .ct-line1 > *, .ct-line2 > * { flex: 0 0 auto; }
 .city-title-wrap h2 { margin: 0; font-family: var(--serif); font-size: 19px; letter-spacing: 0.01em; color: #2c2412; white-space: nowrap; cursor: pointer; }
 /* v5.50 — 2~4자 성 이름이 '영..'으로 잘리지 않게: 이름은 줄지 않고, 앞뒤 ◀▶만 작게 */
@@ -1813,6 +1827,58 @@ b { font-weight: 700; }
 .tech-node.done em { color: #3f7a3c; }
 .tech-node.locked { opacity: 0.45; }
 .tech-node[disabled] { opacity: 0.55; }
+/* v5.97 — 기술 연구 개편: 진행 카드 · 장수 선택 · 견적 */
+.tech-node.running { border-color: #c79a3a; background: #fdf3dc; box-shadow: inset 3px 0 0 #c79a3a; }
+.tech-node.running em { color: #8a5a12; }
+.tech-node .tn-lv { flex: 0 0 22px; }
+.tech-node > div { min-width: 0; flex: 1; }
+.tech-run { border: 1px solid #c79a3a; border-radius: 10px; padding: 8px 9px; margin: 0 0 8px;
+  background: linear-gradient(180deg, #fff6e2, #f6e7c4); }
+.tech-run .tr-top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.tech-run .tr-chip { font-size: 9px; font-weight: 900; letter-spacing: 0.04em; color: #fff6e2; background: #a8701c;
+  border-radius: 5px; padding: 2px 6px; }
+.tech-run .tr-top b { font-family: var(--serif); font-size: 13px; color: #33280f; }
+.tech-run .tr-top em { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 800; color: #8a5a12; }
+.tech-run .tr-bar { height: 7px; border-radius: 4px; background: #e6d3ab; overflow: hidden; margin: 6px 0 5px; }
+.tech-run .tr-bar i { display: block; height: 100%; background: linear-gradient(90deg, #b8862f, #e8c268); }
+.tech-run .tr-sub { font-size: 9.5px; line-height: 1.42; color: #6b5630; word-break: keep-all; }
+.tech-confirm { display: flex; flex-direction: column; gap: 7px; }
+.tc-effect { display: flex; align-items: flex-start; gap: 7px; border: 1px solid #d7c093; border-radius: 9px;
+  background: #fffaf0; padding: 7px 9px; }
+.tc-effect .tce-lv { flex: 0 0 auto; font-family: var(--serif); font-size: 9px; color: #fff6e2; background: #8a6a2a;
+  border-radius: 5px; padding: 2px 6px; }
+.tc-effect b { font-size: 11.5px; line-height: 1.45; color: #33280f; font-weight: 800; word-break: keep-all; }
+.tc-quote { display: flex; gap: 6px; }
+.tc-quote > div { flex: 1; min-width: 0; border: 1px solid #e0cfa9; border-radius: 9px; background: #fffdf7; padding: 6px 8px; }
+.tc-quote span { display: block; font-size: 9px; color: #8a7448; font-weight: 800; }
+.tc-quote b { display: block; font-size: 11.5px; color: #33280f; margin-top: 1px; }
+.tc-quote b.hot { color: #8a5a12; }
+.tc-quote em { display: block; font-style: normal; font-size: 8.5px; color: #8a7448; line-height: 1.35; margin-top: 2px; }
+.tech-pick-list { max-height: 40vh; }
+.tech-pick .tc-main b { font-size: 12px; }
+.tech-pick .tc-main span { font-size: 9px; }
+.tech-pick .tp-sum { font-style: normal; font-weight: 900; color: #8a5a12; }
+.tech-pick.on { border-color: #47673c; background: #f2f7e6; box-shadow: inset 0 0 0 1px #47673c; }
+.tech-pick .tc-troops span { font-size: 9px; color: #7d6538; }
+.tech-pick .tc-troops b { font-size: 11px; }
+.tp-cut { font-style: normal; font-weight: 900; color: #2f6f4a; }
+.tc-sum { border-top: 1px dashed #d7bd8c; padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.tcs-row { display: flex; align-items: baseline; gap: 8px; font-size: 10px; color: #5b4a27; }
+.tcs-row > span { flex: 0 0 34px; font-weight: 800; color: #8a7448; }
+.tcs-row b { font-size: 11px; color: #33280f; }
+.tcs-row b.hot { color: #8a5a12; }
+.tcs-row b.minus { color: #a8443a; }
+.tcs-row .tcs-note { font-style: normal; font-size: 9px; color: #8a7448; }
+/* v5.97 — 수련관 카드: 담당 없음 대신 수련생 수 */
+.sc-owner .sc-trainee { font-style: normal; font-weight: 800; color: #6b5a2e; font-size: 9px; }
+/* v5.97 — 전투 중 이탈 복구 카드 */
+.resume-card { border: 1px solid #d7c093; border-radius: 10px; background: linear-gradient(180deg,#fffaf0,#f7ecd7); padding: 9px 10px; }
+.resume-card .rc-top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.resume-card .rc-chip { font-size: 9px; font-weight: 900; color: #fff6e2; background: #8a5a12; border-radius: 5px; padding: 2px 6px; }
+.resume-card .rc-top b { font-family: var(--serif); font-size: 14px; color: #33280f; }
+.resume-card .rc-top em { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 800; color: #8a7448; }
+.resume-card .modal-p { margin: 0 0 4px; font-size: 11px; line-height: 1.5; color: #4a3a1a; }
+.resume-card .modal-sub { margin: 0; font-size: 9.5px; line-height: 1.45; color: #7d6538; }
 
 /* 관작 */
 .rank-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -2556,7 +2622,7 @@ b { font-weight: 700; }
 
 /* ── 출진 준비 — 행군 안내 · 등용 확률 ── */
 .march-note {
-  display: flex; align-items: center; gap: 6px; margin: 6px 0 2px;
+  display: block; margin: 6px 0 2px;
   padding: 6px 8px; border-radius: 7px;
   background: rgba(255, 248, 230, 0.85); border: 1px solid #d7bd8c;
   font-size: 10px; line-height: 1.45; color: #5b4a27;
@@ -4204,6 +4270,9 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 }
 /* v5.41 — 좁은 화면은 미니맵이 접힌 채 시작한다 (우측 상단 적 부대·HP를 덮지 않게) */
 .battle-stage.mm-collapsed .battle-minimap { opacity: 0.94; }
+/* v5.97 — 접힌 미니맵에서는 쓸모없는 [⤢ 확대] 버튼을 숨긴다 */
+.battle-stage.mm-collapsed .mm-size,
+.mm-collapsed .mm-size { display: none !important; }
 .mm-toggle:active { transform: scale(0.94); }
 /* 미니맵이 목표 띠와 겹치지 않게 목표 띠를 살짝 아래로 */
 .battle-objective { top: 42px; }
@@ -4562,7 +4631,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=123') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=124') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -5782,7 +5851,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=123') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=124') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6265,7 +6334,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=123) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=124) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}
@@ -7059,6 +7128,10 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .city-res .res { color: #fff3cc; }
 .city-res .res b { color: #fff6dd; }
 .city-res .res small { color: #f0dcb0; opacity: 0.9; }
+/* v5.97 — 성 헤더가 좁아도 이름·날짜·단계가 한 줄에 들어가게, 성 화면 머리의 전 세력 합계(작은 숫자)는 숨긴다
+   (합계는 지도 머리와 성 요약에 그대로 있다) */
+.city-top .city-res small { display: none; }
+.city-top .city-res { padding: 2px 5px; }
 
 .faction-tag {
   background: linear-gradient(180deg, #8a2c22, #5e1912);
@@ -7636,4 +7709,4 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 .train-academy-note { margin-top: 6px; font-size: 9.5px; }
 /* v5.93 — 요새 고정 시설 카드의 철거 자리 (잠금 표시) */
 .sc-demolish.off { color: #9a8b6c !important; background: #efe6d2 !important; border-color: #cbbfa2 !important; cursor: default; }
-.academy-list .cw-main span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.academy-list .cw-main span { white-space: normal; overflow: visible; text-overflow: clip; display: block; line-height: 1.4; word-break: keep-all; }
