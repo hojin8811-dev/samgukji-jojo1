@@ -385,7 +385,7 @@
       title: '입문 완료! 이제 본편을 시작할까요?',
       body: '<div class="tut-done">' +
         '<div class="td-seal">완</div>' +
-        '<p class="modal-p"><b>' + ((info && info.cityName) || '허창') + '</b>을(를) 함락했습니다. ' +
+        '<p class="modal-p"><b>' + ((SK.josa && info && info.cityName) ? SK.josa(info.cityName, 'eul') : (((info && info.cityName) || '허창') + '을(를)')) + '</b> 함락했습니다. ' +
         '시장으로 돈을 벌고, 달을 넘겨 정산하고, 장수와 병종을 편성해 성을 치는 — 본편의 한 바퀴를 모두 해 봤습니다.</p>' +
         '<ul class="tut-sl done">' +
         '<li><b>내정</b> 공터에 건물을 짓고 장수를 배속하면 효과가 커집니다</li>' +

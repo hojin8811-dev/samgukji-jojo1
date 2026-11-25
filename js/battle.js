@@ -3521,7 +3521,7 @@
   /* v5.98 — 안내 말풍선: 부대/칸 위에 둥근 말풍선 한 줄을 띄운다.
      (빈 타일을 눌렀을 때 "거긴 아무도 없는데?!" 처럼 조작 안내를 숫자와 구분해 보여 준다) */
   function addSay(x, y, text, color) {
-    floats.push({ x, y, text, color: color || '#ffeec2', life: 2400, t: 0, say: true });
+    floats.push({ x, y, text, color: color || '#ffeec2', life: 3000, t: 0, say: true });
   }
 
   function updateFx(dt, fdt) {
@@ -4282,7 +4282,8 @@
       const jit = (((f.x * 7 + f.y * 13) % 5) - 2) * 5;
       const sx = f.x * cam.s + cam.x, sy = f.y * cam.s + cam.y - p * 38 + jit;
       ctx.save();
-      ctx.globalAlpha = 1 - p * 0.85;
+      /* v5.98 — 말풍선(조작 안내)은 읽을 시간을 준다: 75%까지 그대로 있다가 짧게 사라진다 */
+      ctx.globalAlpha = f.say ? (p < 0.75 ? 1 : Math.max(0, 1 - (p - 0.75) / 0.25)) : 1 - p * 0.85;
       /* v5.98 — 말풍선(조작 안내): 숫자와 구분되는 둥근 말풍선 + 작은 꼬리 */
       if (f.say) {
         ctx.font = 'bold 11.5px "Noto Serif CJK KR", serif';
