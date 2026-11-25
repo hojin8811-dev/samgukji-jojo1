@@ -125,6 +125,11 @@ b { font-weight: 700; }
   margin: 12px 0 0; color: #b9a780; font-size: 10.5px; letter-spacing: 0.09em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
+/* v5.90 — 검은망고 공식 추천 배지: 표지 맨 아래, 시작 버튼·버전 문구를 가리지 않게 여백만 두고 앉힌다.
+   배지 원본(200×52)은 비율 그대로 줄이기만 한다(href·target·rel·src·alt 는 그대로). */
+.title-badge { display: flex; justify-content: center; align-items: center; margin: 10px 0 0; line-height: 0; }
+.title-badge img { height: 42px; width: auto; }
+.title-badge a { display: inline-flex; line-height: 0; }
 
 /* ═══════════════ 1단계 지도 ═══════════════ */
 #screen-map { background: #241d10; }
