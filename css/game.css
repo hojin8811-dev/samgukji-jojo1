@@ -933,6 +933,26 @@ b { font-weight: 700; }
 .deploy-count b { color: #a8443a; }
 
 .month-report { display: flex; flex-direction: column; gap: 6px; }
+/* v5.96 — 월정산 맨 위 핵심 요약(금·군량·병력) 한 줄 */
+.mr-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 7px 8px; border-radius: 10px;
+  border: 1px solid #c3aa74; background: linear-gradient(100deg, #fdf3dc, #f6e7c6); }
+.mr-sum .mrs { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mr-sum .mrs span { font-size: 8.5px; font-weight: 800; letter-spacing: 0.04em; color: #7a6234; white-space: nowrap; }
+.mr-sum .mrs b { font-family: var(--serif); font-size: 15px; line-height: 1.15; color: #33280f; white-space: nowrap; }
+.mr-sum .mrs b.plus { color: #2f6d34; }
+.mr-sum .mrs b.minus { color: #a8443a; }
+.mr-sum .mrs em { font-style: normal; font-size: 8px; color: #8a7448; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* v5.96 — 반복되는 내정 로그는 <details>로 접어 두고 제목·건수만 보인다 */
+.mr-fold { border-radius: 9px; border: 1px dashed #cfc09a; background: rgba(253, 250, 241, 0.75); }
+.mr-fold > summary { display: flex; align-items: baseline; gap: 5px; padding: 7px 9px; cursor: pointer; list-style: none; }
+.mr-fold > summary::-webkit-details-marker { display: none; }
+.mr-fold > summary span { flex: 0 0 auto; font-size: 9.5px; font-weight: 800; letter-spacing: 0.04em; color: #47673c; }
+.mr-fold > summary em { flex: 1; min-width: 0; font-style: normal; font-size: 8.5px; color: #7d6a44;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-fold > summary i { flex: 0 0 auto; font-style: normal; font-size: 8.5px; font-weight: 700; color: #8a7448; }
+.mr-fold > summary::after { flex: 0 0 auto; content: '▸'; font-size: 9px; color: #8a7448; }
+.mr-fold[open] > summary::after { content: '▾'; }
+.mr-fold-body { display: flex; flex-direction: column; gap: 3px; padding: 0 9px 7px; }
 .mr-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: rgba(255, 251, 240, 0.7); border: 1px solid #dcc9a0; border-radius: 8px; font-size: 12px; color: #4a3d20; }
 .mr-row b { font-family: var(--serif); font-size: 14px; color: #33280f; }
 .mr-row b.plus { color: #3f7a3c; }
@@ -4542,7 +4562,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=122') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=123') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -5762,7 +5782,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=122') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=123') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6245,7 +6265,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=122) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=123) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}

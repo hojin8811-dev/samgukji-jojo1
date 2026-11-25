@@ -405,13 +405,21 @@
         { k: 'siege_tower', x: 4, y: 14, s: 0.9 }, { k: 'siege_tower', x: 13, y: 14, s: 0.9 },
       ];
     }
+    /* v5.96 — 부대가 마을·본진 칸 위에 겹쳐 서지 않게, 사이트 자리를 배치 전에 모아 둔다.
+       B.sites는 배치가 끝난 뒤에 세우므로 여기서는 지도 meta의 좌표를 그대로 쓴다. */
+    const spawnTaken = new Set();
+    if (meta) {
+      [meta.allyBase, meta.enemyBase].forEach((b) => { if (b) spawnTaken.add(b.x + ',' + b.y); });
+      (meta.villages || []).forEach((v) => { if (v) spawnTaken.add(v.x + ',' + v.y); });
+    }
     /* v5.90 — 배치 도우미에도 가로·세로를 함께 넘긴다 (직사각형 지도 대응) */
-    placeSide(allies, SK.allySlots(type, rings, cols, rows), 'ally', type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null);
+    placeSide(allies, SK.allySlots(type, rings, cols, rows), 'ally',
+      Object.assign({ blocked: spawnTaken }, type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null));
     /* v5.81 — AI 진형: 탱커(검병·창병·등갑병)를 전열에, 원거리·보조를 후열에 세운다 */
     const DEPLOY_RANK = { geombyung: 0, changbyung: 1, deunggabyung: 0, mudoga: 2, yasubyung: 2, sanjeok: 2, sujeok: 2, gibi: 2, gunwoong: 3,
       gungsu: 4, gunggi: 4, yeonnobyung: 4, pocha: 5, balseokcha: 5, chaeksa: 6, dosa: 6, pungsusa: 7, muhui: 7, gunakdae: 7 };
     enemies.sort((a, b) => (DEPLOY_RANK[a.cls] == null ? 3 : DEPLOY_RANK[a.cls]) - (DEPLOY_RANK[b.cls] == null ? 3 : DEPLOY_RANK[b.cls]));
-    placeSide(enemies, SK.enemySlots(type, rings, cols, rows), 'enemy');
+    placeSide(enemies, SK.enemySlots(type, rings, cols, rows), 'enemy', { blocked: spawnTaken });
     /* v5.31 — 사기·상태이상 초기화 (보물의 사기 +N·상태이상 저항이 여기서 붙는다) */
     B.units.forEach(initStatus);
     /* v5.32 — 행군 중도 야영(사기 +N)과 강행군 기습(적 사기 −8)을 전장으로 넘긴다 */
@@ -739,6 +747,8 @@
 
   function placeSide(list, slots, side, opts) {
     const zmap = (opts && opts.zones) || null;
+    /* v5.96 — 마을·본진 좌표는 부대 자리로 쓰지 않는다 */
+    const avoid = (opts && opts.blocked) || null;
     const taken = new Set();
     const zused = { wall: 0, tower: 0, keep: 0, rear: 0 };
     list.forEach((u, i) => {
@@ -753,6 +763,7 @@
         for (let k = zused[place]; k < zs.length; k++) {
           const [zx, zy] = zs[k];
           if (taken.has(zx + ',' + zy)) continue;
+          if (avoid && avoid.has(zx + ',' + zy)) continue;
           if (!B.tiles[zy] || !passable(B.tiles[zy][zx])) continue;
           if (B.units.some((o) => o.x === zx && o.y === zy)) continue;
           x = zx; y = zy; zused[place] = k + 1;
@@ -760,8 +771,9 @@
         }
       }
       if (x == null) [x, y] = slots[i % slots.length];
-      if (x == null || !B.tiles[y] || !passable(B.tiles[y][x]) || B.units.some((o) => o.x === x && o.y === y)) {
-        const alt = findFree(B.tiles, x == null ? 1 : x, y == null ? 1 : y);
+      if (x == null || !B.tiles[y] || !passable(B.tiles[y][x]) || B.units.some((o) => o.x === x && o.y === y)
+        || (avoid && avoid.has(x + ',' + y))) {
+        const alt = findFree(B.tiles, x == null ? 1 : x, y == null ? 1 : y, avoid);
         x = alt.x; y = alt.y;
       }
       taken.add(x + ',' + y);
@@ -831,7 +843,7 @@
     return { wall, tower, keep, rear };
   }
   SK.defenseZoneSlots = defenseZoneSlots;
-  function findFree(tiles, cx, cy) {
+  function findFree(tiles, cx, cy, avoid) {
     for (let r = 0; r < Math.max(COLS, ROWS); r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
@@ -839,6 +851,7 @@
           if (x < 0 || y < 0 || x >= COLS || y >= ROWS) continue;
           if (!passable(tiles[y][x])) continue;
           if (B.units.some((o) => o.x === x && o.y === y)) continue;
+          if (avoid && avoid.has(x + ',' + y)) continue;
           return { x, y };
         }
       }
@@ -4697,7 +4710,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=122'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=123'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
@@ -5672,11 +5685,22 @@
       const holdAdd = onWallTile ? (hold - 1) : 0;
       fortWall = (1 + 0.25 * pct * (B.wallDefMul - 1)) * (1 + holdAdd * (B.wallDefMul - 1));
     }
+    /* v5.96 — 공성 수비대의 성벽 활용: 아직 남은 바깥 성문 바로 안쪽 두 줄에 선 수비 부대는
+       성벽 그늘에서 방어 +15%. 문이 뚫리면 사라지므로 공방이 문 앞에서 길어진다. */
+    const shade = wallShadeOn(u) ? 1.15 : 1;
     /* v5.56 — 사기·훈련도는 방어에도 그대로 붙는다 (낮은 사기는 공·방을 함께 깎는다) */
     return u.def * troopGuard(u) * (1 - terr(u).def * 1.0 + aff.def * 1.25 + typeBonus(u) * 0.6 + tdef)
-      * mul * hold * sit * boat * fortWall * moraleMul(u) * trainMul(u)
+      * mul * hold * sit * boat * fortWall * shade * moraleMul(u) * trainMul(u)
       /* v5.82 — 방진(인접 아군 있으면 방어 +)·문무겸전·지휘 오라 */
       * vpDefMul(u) * (1 + vpAura(u, 'def'));
+  }
+  /* v5.96 — 성문 그늘(바깥 성문 안쪽 두 줄)에 선 공성 수비대인가 */
+  function wallShadeOn(u) {
+    if (!B || B.defense || !u || u.side !== 'enemy') return false;
+    if (B.type !== 'siege') return false;
+    const g = activeGate();
+    if (!g || g.hp <= 0) return false;
+    return u.y <= g.row - 1 && u.y >= g.row - 2;
   }
   function effRng(u) {
     const aff = SK.affinity(u.cls, B.tiles[u.y][u.x]);
@@ -11678,8 +11702,10 @@
      · 기존 망루(T) 지형 효과(방어 +45% · 사거리 +1 · 회복)는 그대로 둔다.
      ════════════════════════════════════════════════════════════════════════ */
   const TOWER = {
-    HP: 500, RNG: 3,
-    DMG_MIN: 130, DMG_MAX: 180, DMG_FLOOR: 40, DEF_CUT: 0.6,
+    /* v5.96 — 초반 공성전 보강: 성문 좌우 망루의 사거리 3→4칸, 화살 150~200(최소 45).
+       성문을 두드리는 동안 성벽 안쪽에서 계속 포격이 들어와 4턴 일방전이 줄어든다. */
+    HP: 500, RNG: 4,
+    DMG_MIN: 150, DMG_MAX: 200, DMG_FLOOR: 45, DEF_CUT: 0.6,
     SIEGE_MUL: 1.5, SIEGE_CLS: { pocha: 1, balseokcha: 1 },
     ATK_K: 5.0,                 // 공격 측 부대가 망루에 주는 피해 계수
     ARROW_MS: 380, FIRE_GAP: 240,

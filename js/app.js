@@ -4439,6 +4439,13 @@
     return cs.slots.some((sl) => sl && sl.key === 'tavern');
   }
   SK.hasTavernOf = hasTavernOf;
+  /* v5.96 — 이 성에 수련관이 있는가. 주점과 같은 방식으로 [인사·탐색] 안의 수련관 줄을 잠근다 */
+  function hasAcademyOf(cityId) {
+    const cs = SK.state && SK.state.cities && SK.state.cities[cityId];
+    if (!cs || !Array.isArray(cs.slots)) return false;
+    return cs.slots.some((sl) => sl && sl.key === 'academy');
+  }
+  SK.hasAcademyOf = hasAcademyOf;
 
   /* 세력 이름 뒤에 '군'을 한 번만 붙인다 (공융군군 → 공융군) */
   function armyName(f) {
@@ -4499,7 +4506,7 @@
     barracks: { name: '병영', icon: 'barracks', stat: 'tong', res: 'troops', desc: '매달 수비병을 모읍니다' },
     /* v5.93 — 연병장은 병사 전용(훈련도·사기). 장수 육성은 새로 지은 수련관(academy)이 맡는다 */
     training: { name: '연병장', icon: 'training', stat: 'tong', res: 'train', desc: '거점에 주둔한 병사의 훈련도와 사기를 올립니다 (장수 육성은 수련관)' },
-    academy: { name: '수련관', icon: 'academy', stat: 'tong', res: 'train', desc: '장수를 최대 4명 배속해 매달 수련 경험치와 5대 능력치(무·지·통·정·매)를 키웁니다' },
+    academy: { name: '수련관', icon: 'academy', stat: 'tong', res: 'train', desc: '장수를 최대 4명 수련 등록해 매달 수련 경험치와 5대 능력치(무·지·통·정·매)를 키웁니다' },
     patrol: { name: '순찰소', icon: 'patrol', stat: 'cha', res: 'loyalty', desc: '민심과 치안을 다스립니다' },
     tavern: { name: '주점', icon: 'tavern', stat: 'cha', res: 'talent', desc: '재야 인재가 모여듭니다' },
     wall: { name: '성벽', icon: 'wall', stat: 'tong', res: 'def', desc: '성벽을 손보고 적 첩보·계략을 막습니다' },
@@ -5248,7 +5255,7 @@
           ${(g && !targetRole) ? `<button data-a="assignDep">부장 교체 — 효과 +45%</button>` : ''}
           ${depG ? '<button data-a="freeDep">부장 해제</button>' : ''}
           ${g ? '<button data-a="free">주담당 해제 — 이번 달 자유 행동</button>' : ''}
-          ${sl.key === 'academy' ? `<button data-a="crew">수련관 — 배속 장수 고르기 (${academyTraineesOf(sl).length}/${ACADEMY_MAX}명)</button>` : ''}
+          ${sl.key === 'academy' ? `<button data-a="crew">수련관 — 수련생 고르기 (${academyTraineesOf(sl).length}/${ACADEMY_MAX}명)</button>` : ''}
           ${sl.key === 'training' ? '<p class="talent-note slot-fixed-note">연병장은 주둔 병사의 훈련도·사기만 올립니다. 장수 육성은 <b>수련관</b>에서 합니다.</p>' : ''}
           ${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key)))
             ? `<button data-a="demolish" class="slot-demolish" disabled>철거 불가 — ${typeName(c.type)} 고정 시설</button>`
@@ -5350,7 +5357,7 @@
     }).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 수련관`, title: `장수 수련 — Lv.${sl.lv || 1} · ${crew.length}/${ACADEMY_MAX}명`,
-      body: `<p class="talent-note">배속한 장수는 <b>달이 바뀔 때 수련 경험치</b>를 얻고, 가끔 <b>5대 능력치(무·지·통·정·매)</b> 중 하나가 +1 오릅니다(상한 100, 1년이면 대략 +2).</p>
+      body: `<p class="talent-note">수련 등록한 장수는 <b>달이 바뀔 때 수련 경험치</b>를 얻고, 가끔 <b>5대 능력치(무·지·통·정·매)</b> 중 하나가 +1 오릅니다(상한 100, 1년이면 대략 +2).</p>
         <div class="academy-trainee-wrap">${slotHtml.join('')}</div>
         <p class="talent-note"><b>수련 중에도 출진과 다른 내정 명령을 그대로 할 수 있습니다.</b> 연병장은 이제 병사 훈련만 맡습니다.</p>
         <div class="crew-list academy-list">${rows || '<p class="tr-empty">수련에 넣을 수 있는 장수가 없습니다. (건물 담당 장수는 뺄 수 없습니다)</p>'}</div>
@@ -5367,10 +5374,10 @@
           const h0 = s.heroes.find((x) => x.uid === uid);
           SK.toast(`${josa(h0 ? h0.name : '', 'eul')} 수련관에서 뺐습니다.`);
         } else {
-          if (cur.length >= ACADEMY_MAX) { SK.toast(`수련관 한 곳에는 ${ACADEMY_MAX}명까지 배속할 수 있습니다.`); return; }
+          if (cur.length >= ACADEMY_MAX) { SK.toast(`수련관 한 곳에는 ${ACADEMY_MAX}명까지 수련 등록할 수 있습니다.`); return; }
           cur.push(uid);
           const h0 = s.heroes.find((x) => x.uid === uid);
-          SK.toast(`${josa(h0 ? h0.name : '', 'i')} 수련관에 들어갔습니다 — 달이 바뀌면 수련이 시작됩니다.`);
+          SK.toast(`${josa(h0 ? h0.name : '', 'eul')} 수련생으로 등록했습니다 — 달이 바뀌면 수련이 시작됩니다.`);
         }
         SK.save();
         m.close();
@@ -6285,8 +6292,8 @@
       items: [
         { key: 'talent', label: '주점 — 인재 등용', desc: '사신을 골라 보냅니다 — 매력이 높으면 값이 줄고 성공률이 오릅니다' },
         { key: 'explore', label: '탐색 — 보물·은거 인재', desc: '금 0 · 장수의 이번 달 행동으로 산야를 뒤져 보물·인재·의용병·산적 퇴치를 찾습니다' },
-        /* v5.93 — 연병장의 장수 육성은 수련관으로 옮겼다 (최대 4명 배속·5대 능력치 성장) */
-        { key: 'academy', label: '수련관 — 장수 최대 4명 배속 육성', desc: '배속한 장수는 달마다 수련 경험치를 얻고, 가끔 5대 능력치가 +1 오릅니다 (출진은 그대로)' },
+        /* v5.93 — 연병장의 장수 육성은 수련관으로 옮겼다 (최대 4명 수련 등록·5대 능력치 성장) */
+        { key: 'academy', label: '수련관 — 장수 최대 4명 수련 등록', desc: '수련 등록한 장수는 달마다 수련 경험치를 얻고, 가끔 5대 능력치가 +1 오릅니다 (출진은 그대로)' },
         { key: 'transfer', label: '장수 전출 — 다른 내 성으로 이동', desc: '장수 한 명을 골라 다른 아군 성으로 옮깁니다' },
         /* v5.89 — 반대 방향: 다른 성의 장수를 이 성으로 데려온다 */
         { key: 'summon', label: '장수 데려오기 — 다른 내 성에서 소환', desc: '다른 아군 성의 장수를 이 성으로 불러옵니다 (1칸 = 1개월)' },
@@ -6329,11 +6336,24 @@
     if (!g) return;
     const cityId = SK.state.lastCity;
     /* v5.93 — 주점이 없는 성은 [주점 — 인재 등용] 줄을 회색으로 잠근다 */
-    const tavernOk = hasTavernOf(cityId);
+    /* v5.96 — 수련관도 같은 모양으로 잠근다 (없는 시설은 회색 + 'OO 필요' 배지 + 건설 안내) */
+    const LOCK = {
+      talent: hasTavernOf(cityId) ? null : {
+        badge: '주점 필요',
+        hint: '주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 열립니다',
+        toast: '주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 인재를 등용할 수 있습니다.',
+      },
+      academy: hasAcademyOf(cityId) ? null : {
+        badge: '수련관 필요',
+        hint: '수련관 건설 필요 — [시설 관리]에서 공터에 수련관을 지으면 열립니다',
+        toast: '수련관 건설 필요 — [시설 관리]에서 공터에 수련관을 지으면 장수를 수련시킬 수 있습니다.',
+      },
+    };
     const rows = g.items.map((it) => {
-      const off = (it.key === 'talent' && !tavernOk);
-      return `<button class="grp-row${off ? ' disabled' : ''}" data-k="${it.key}"${off ? ' data-off="1"' : ''}>
-      <div><b>${it.label}</b><span>${off ? '주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 열립니다' : it.desc}</span></div><span class="grp-go">${off ? '주점 필요' : '▸'}</span></button>`;
+      const lock = LOCK[it.key] || null;
+      const off = !!lock;
+      return `<button class="grp-row${off ? ' disabled' : ''}" data-k="${it.key}"${off ? ` data-off="${it.key}"` : ''}>
+      <div><b>${it.label}</b><span>${off ? lock.hint : it.desc}</span></div><span class="grp-go">${off ? lock.badge : '▸'}</span></button>`;
     }).join('');
     const m = SK.modal({
       kicker: `${CITY[cityId].name} · ${g.name}`, title: g.sub,
@@ -6341,12 +6361,13 @@
     });
     m.el.querySelectorAll('.grp-row').forEach((b) => {
       b.onclick = () => {
-        if (b.dataset.off) { SK.sfx.play('deny'); SK.toast('주점 건설 필요 — [시설 관리]에서 공터에 주점을 지으면 인재를 등용할 수 있습니다.'); return; }
+        const lock = b.dataset.off ? (LOCK[b.dataset.k] || null) : null;
+        if (lock) { SK.sfx.play('deny'); SK.toast(lock.toast); return; }
         const k = b.dataset.k; m.close(); setTimeout(() => groupAction(k, cityId), 30);
       };
     });
     /* 주점이 없으면 열자마자 한 번 안내한다 */
-    if (grp === 'talent' && !tavernOk) setTimeout(() => SK.toast('주점 건설 필요 — 이 성에는 주점이 없어 인재 등용이 잠겨 있습니다.'), 120);
+    if (grp === 'talent' && LOCK.talent) setTimeout(() => SK.toast('주점 건설 필요 — 이 성에는 주점이 없어 인재 등용이 잠겨 있습니다.'), 120);
   }
   SK.openGroupMenu = openGroupMenu;
 
@@ -6401,7 +6422,11 @@
       const ci = SK.state.cities[cityId];
       ensureSlots(ci, CITY[cityId]);
       const ti = (ci.slots || []).findIndex((sl) => sl.key === 'academy');
-      if (ti < 0) { SK.toast('이 성에 수련관이 없습니다. [시설 관리]에서 공터에 수련관을 먼저 지으세요.'); return; }
+      if (ti < 0) {
+        SK.sfx.play('deny');
+        SK.toast('수련관 건설 필요 — [시설 관리]에서 공터에 수련관을 지으면 열립니다.');
+        return;
+      }
       openAcademy(cityId, ti);
       return;
     }
@@ -8935,7 +8960,7 @@
               <p class="tb-note">${trainGain > 0 ? `이 성에서 출진하는 부대의 전장 훈련도가 함께 올라갑니다 — 공·방 <b>${trainPctTxt(cs.train)}</b> (50 기준).` : '이미 최고 훈련도입니다.'}</p>
             </div>
             <div class="train-list">${rows}</div>
-            <p class="talent-note train-academy-note">연병장은 <b>병사 훈련</b>만 맡습니다. 장수 경험치와 능력치 육성은 <b>수련관</b>(최대 4명 배속)에서 하세요.</p>`,
+            <p class="talent-note train-academy-note">연병장은 <b>병사 훈련</b>만 맡습니다. 장수 경험치와 능력치 육성은 <b>수련관</b>(최대 4명 수련 등록)에서 하세요.</p>`,
           actions: [{ label: '확인', primary: true }] }),
       };
     } },
@@ -15557,6 +15582,8 @@
     if (!s || s.over) return;
     /* v5.26 — 월정산의 '세수−봉급'과 '실제 금고 증감'이 다를 때 이유를 보여 주려고 시직값을 잡아 둔다 */
     const goldStart = SK.totalGold(s), foodStart = SK.totalFood(s);
+    /* v5.96 — 월정산 맨 위 요약(금·군량·병력)을 위한 달 시작 병력 */
+    const troopsStart = totalTroops() + marchTroopsOf(s);
     const prevYear = s.eraYear || (195 + s.year);
     s.month += 1;
     if (s.month >= 12) { s.month = 0; s.year += 1; if (s.eraYear) s.eraYear += 1; }
@@ -15787,6 +15814,8 @@
     const prisonNews = SK.prisonTick(s);
     const foodAfter = SK.totalFood(s);
     const troopsNow = totalTroops() + marchTroopsOf(s);
+    /* v5.96 — 요약 줄의 병력 증감(달 시작 → 달 끝, 행군 병력 포함) */
+    const troopDelta = Math.round(troopsNow - troopsStart);
     // 해가 바뀌면 새로 성년이 된 명장이 주점에 나타난다
     let debuted = [];
     if (s.month === 0 && (s.eraYear || 0) !== prevYear) debuted = SK.refreshDebut(s);
@@ -15844,12 +15873,19 @@
     }
     SK.sfx.play('month');
     showMonthBanner(SK.dateLabel(s.eraYear || (195 + s.year), s.month));
+    /* v5.96 — 월정산 세부 내정 로그 접기: 제목·건수만 보이고 본문은 <details>로 접는다 */
+    const mrFold = (title, sub, chip, inner) => `<details class="mr-fold"><summary><span>${title}</span>${sub ? `<em>${sub}</em>` : ''}${chip ? `<i>${chip}</i>` : ''}</summary><div class="mr-fold-body">${inner}</div></details>`;
     const showReport = () => SK.modal({
       delay: 900,
       dismissible: false,   // v5.25 — 바깥을 잘못 눌러 월정산이 닫혀도 뒤이을 사건(요격·침공·선택지)이 사라지지 않게
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
+        <div class="mr-sum">
+          <div class="mrs"><span>금 순수지</span><b class="${goldNet >= 0 ? 'plus' : 'minus'}">${goldNet >= 0 ? '+' : '−'}${fmt(Math.abs(goldNet))}</b><em>금고 ${fmt(SK.totalGold(s))}</em></div>
+          <div class="mrs"><span>군량 순수지</span><b class="${foodNet >= 0 ? 'plus' : 'minus'}">${foodNet >= 0 ? '+' : '−'}${fmt(Math.abs(foodNet))}</b><em>창고 ${fmt(SK.totalFood(s))}</em></div>
+          <div class="mrs"><span>병력 증감</span><b class="${troopDelta >= 0 ? 'plus' : 'minus'}">${troopDelta >= 0 ? '+' : '−'}${fmt(Math.abs(troopDelta))}</b><em>${fmt(troopsNow)}명</em></div>
+        </div>
         ${govReportHtml(autoLog)}
         ${transitLog.length ? `<div class="mr-auto"><p class="mr-auto-title">수송·장수 이동 <em>1칸 = 1개월</em></p>
           ${transitLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.kind === 'lost' ? '되돌림' : '도착'}</b><span>${l.text}</span></div>`).join('')}${transitLog.length > 6 ? `<p class="mr-note">${transitLog.length - 6}건 더 있습니다.</p>` : ''}</div>` : ''}
@@ -15897,7 +15933,7 @@
           <div class="mr-auto-row"><b>${gmVisit.city}</b><span>먼 길을 걸어온 대상인이 2개월 머뭅니다 — 군량 특가 · 보물 판매</span></div></div>` : ''}
         ${unrest ? `<div class="mr-row"><span>민심 흔들리는 성</span><b class="minus">${unrest}곳</b></div>` : ''}
         <div class="mr-row"><span>명성</span><b>+3</b></div>
-        ${academyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">수련관 <em>배속 장수 육성</em></p>
+        ${academyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">수련관 <em>수련 등록 장수 육성</em></p>
           ${academyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} ${l.name}</b><span>EXP +${l.gain}${l.up ? ` · <b class="plus">${l.up.label} +1 → ${l.up.val}</b>` : ''}<i> (수련 ${l.months}개월)</i></span></div>`).join('')}${academyLog.length > 6 ? `<p class="mr-note">${academyLog.length - 6}명 더 수련했습니다.</p>` : ''}</div>` : ''}
         ${corpsRun.lines.length ? `<div class="mr-auto"><p class="mr-auto-title">총도독 군단 <em>자동 내정·수송·출진</em></p>
           ${corpsRun.lines.slice(0, 8).map((l) => `<div class="mr-auto-row"><b>${l.corps}</b><span>${l.text}</span></div>`).join('')}${corpsRun.lines.length > 8 ? `<p class="mr-note">${corpsRun.lines.length - 8}개 군단 더 움직였습니다.</p>` : ''}</div>` : ''}
@@ -15905,22 +15941,22 @@
           ${aiNews.map((n) => `<div class="mr-ai-row"><em>${n.kind === 'warn' ? '❗' : n.kind === 'invasion' ? '⚔' : n.kind === 'capture' ? '◈' : n.kind === 'pact' ? '⚑' : n.kind === 'pactEnd' ? '⌛' : '·'}</em><span>${n.text}</span></div>`).join('')}</div>` : ''}
         ${ev ? `<div class="mr-event ${ev.type === '위기' ? 'crisis' : ''}"><span class="me-seal">${ev.hanja}</span>
           <div class="me-main"><b>${ev.title} <em class="me-season">${ev.type || ''} · ${ev.season || ''}</em></b><span>${ev.text}</span><em>${ev.gain}</em></div></div>` : ''}
-        ${slotLog.some((l) => l.troops) ? `<div class="mr-auto"><p class="mr-auto-title">병영 징집</p>
-          ${slotLog.filter((l) => l.troops).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>수비병 +${fmt(l.troops)}</span></div>`).join('')}</div>` : ''}
-        ${slotLog.some((l) => l.agri || l.comm) ? `<div class="mr-auto"><p class="mr-auto-title">농업·상업 성장 <em>배속 장수가 밀어 올렸습니다</em></p>
-          ${slotLog.filter((l) => l.agri || l.comm).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.agri ? `농업 +${l.agri}` : ''}${l.agri && l.comm ? ' · ' : ''}${l.comm ? `상업 +${l.comm}` : ''}</span></div>`).join('')}</div>` : ''}
-        ${tavernLog.length ? `<div class="mr-auto"><p class="mr-auto-title">주점 배속 <em>반값 등용 · 소문 탐색</em></p>
-          ${tavernLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text}${l.gain ? ` · ${l.gain}` : ''}</span></div>`).join('')}</div>` : ''}
-        ${craftLog.length ? `<div class="mr-auto"><p class="mr-auto-title">공방 제작 <em>담당이 앉은 공방은 6개월에 보물 1개</em></p>
-          ${craftLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 공방 ${l.hero || ''}</b><span>${l.full ? '보물을 모두 모아 더 만들 것이 없습니다' : l.done ? `${l.treasure} (${l.grade}) 완성!` : `제작 ${l.progress}/${l.need}개월`}</span></div>`).join('')}
-          ${craftLog.length > 6 ? `<p class="mr-note">${craftLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
-        ${wallLog.length ? `<div class="mr-auto"><p class="mr-auto-title">계략 방어 <em>성벽 + 치안 + 관아가 적 첩자를 막았습니다</em></p>
-          ${wallLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text} (차단 ${Math.round(l.block * 100)}% = 성벽 ${Math.round((l.wallBlock || 0) * 100)}% + 치안 ${Math.round((l.orderBlock || 0) * 100)}%${l.officeBlock ? ` + 관아 ${Math.round(l.officeBlock * 100)}%` : ''}${l.capped ? ' · 80% 상한' : ''}${l.hero ? ` · ${l.hero}` : ''})</span></div>`).join('')}</div>` : ''}
+        ${slotLog.some((l) => l.troops) ? mrFold('병영 징집', '성마다 실제로 늘어난 수비병', `${slotLog.filter((l) => l.troops).length}곳`,
+          slotLog.filter((l) => l.troops).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>수비병 +${fmt(l.troops)}</span></div>`).join('')) : ''}
+        ${slotLog.some((l) => l.agri || l.comm) ? mrFold('농업·상업 성장', '담당 장수가 밀어 올렸습니다', `${slotLog.filter((l) => l.agri || l.comm).length}곳`,
+          slotLog.filter((l) => l.agri || l.comm).slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.agri ? `농업 +${l.agri}` : ''}${l.agri && l.comm ? ' · ' : ''}${l.comm ? `상업 +${l.comm}` : ''}</span></div>`).join('')) : ''}
+        ${tavernLog.length ? mrFold('주점 배속', '반값 등용 · 소문 탐색', `${tavernLog.length}곳`,
+          tavernLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text}${l.gain ? ` · ${l.gain}` : ''}</span></div>`).join('')) : ''}
+        ${craftLog.length ? mrFold('공방 제작', '담당이 앉은 공방은 6개월에 보물 1개', `${craftLog.length}곳`,
+          craftLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 공방 ${l.hero || ''}</b><span>${l.full ? '보물을 모두 모아 더 만들 것이 없습니다' : l.done ? `${l.treasure} (${l.grade}) 완성!` : `제작 ${l.progress}/${l.need}개월`}</span></div>`).join('')
+          + (craftLog.length > 6 ? `<p class="mr-note">${craftLog.length - 6}곳 더 있습니다.</p>` : '')) : ''}
+        ${wallLog.length ? mrFold('계략 방어', '성벽 + 치안 + 관아가 적 첩자를 막았습니다', `${wallLog.length}곳`,
+          wallLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>${l.text} (차단 ${Math.round(l.block * 100)}% = 성벽 ${Math.round((l.wallBlock || 0) * 100)}% + 치안 ${Math.round((l.orderBlock || 0) * 100)}%${l.officeBlock ? ` + 관아 ${Math.round(l.officeBlock * 100)}%` : ''}${l.capped ? ' · 80% 상한' : ''}${l.hero ? ` · ${l.hero}` : ''})</span></div>`).join('')) : ''}
         ${banditLog.length ? `<div class="mr-auto"><p class="mr-auto-title">도적 출몰 <em>치안 40 아래 — 순찰소로 올리세요</em></p>
           ${banditLog.slice(0, 4).map((l) => `<div class="mr-auto-row"><b>${l.city}</b><span>치안 ${l.order} — 도적이 들어 금 −${fmt(l.gold)} · 병력 −${fmt(l.troops)}</span></div>`).join('')}</div>` : ''}
-        ${spyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">첩보소 첩보 <em>자동 첩보 · 이간 · 유언비어</em></p>
-          ${spyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 첩보소</b><span>${l.note ? l.note : `${l.hero} — ${l.acts.map((a) => a.text).join(' · ')}${l.fail ? `${l.acts.length ? ' · ' : ''}첩보 ${l.fail}건은 들통` : ''}`}</span></div>`).join('')}
-          ${spyLog.length > 6 ? `<p class="mr-note">${spyLog.length - 6}곳 더 있습니다.</p>` : ''}</div>` : ''}
+        ${spyLog.length ? mrFold('첩보소 첩보', '자동 첩보 · 이간 · 유언비어', `${spyLog.length}곳`,
+          spyLog.slice(0, 6).map((l) => `<div class="mr-auto-row"><b>${l.city} 첩보소</b><span>${l.note ? l.note : `${l.hero} — ${l.acts.map((a) => a.text).join(' · ')}${l.fail ? `${l.acts.length ? ' · ' : ''}첩보 ${l.fail}건은 들통` : ''}`}</span></div>`).join('')
+          + (spyLog.length > 6 ? `<p class="mr-note">${spyLog.length - 6}곳 더 있습니다.</p>` : '')) : ''}
         ${debuted.length ? `<div class="mr-event"><span class="me-seal">영</span><div class="me-main"><b>새 명장이 세상에 나왔습니다</b><span>${debuted.slice(0, 6).map((g) => g.name).join(' · ')}${debuted.length > 6 ? ' 외' : ''} — 각지 주점에 소문이 돕니다.</span></div></div>` : ''}
         <p class="mr-note">주둔 장수의 체력이 회복되고, 이번 달 행동력이 모두 돌아왔습니다. 태수가 앉은 성은 달이 바뀔 때 대기 장수로 내정을 마칩니다(수도는 [수도 자동 내정]을 켰을 때만). 건물 담당 장수는 건물 일을 맡은 것으로 칩니다.</p>
       </div>`,
