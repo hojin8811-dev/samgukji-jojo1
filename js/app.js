@@ -2421,6 +2421,12 @@
         const r8 = await fetch('data/v64b_art_manifest.json', { cache: 'no-cache' });
         if (r8.ok) SK.addTopArt(await r8.json());
       } catch (e8) { console.warn('v6.4b 50명 초상 목록을 불러오지 못했습니다.', e8); }
+      /* v6.4c — 5×2 시트 2장에서 잘라 낸 20명(세력 군주 10 + 이지란·주창 재제작·B급 8) 초상.
+         이지란·주창은 v64b 파일을 덮어썼고, 나머지 18명은 v64c 폴더에 새로 넣었다. 맨 마지막에 얹어 이 그림이 이긴다. */
+      try {
+        const r9 = await fetch('data/v64c_art_manifest.json', { cache: 'no-cache' });
+        if (r9.ok) SK.addTopArt(await r9.json());
+      } catch (e9) { console.warn('v6.4c 20명 초상 목록을 불러오지 못했습니다.', e9); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }
