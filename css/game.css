@@ -4079,8 +4079,8 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 }
 .cdx-qinfo { margin: -2px 0 6px; font-size: 10.5px; font-weight: 800; color: #8a6a2c; }
 .cdx-qinfo[hidden] { display: none; }
-.cdx-cell[disabled] { opacity: 0.55; }
-.cdx-cell[disabled] .cdx-name { color: #7c6636; }
+.cdx-cell[disabled] { opacity: 1; }
+.cdx-cell[disabled] .cdx-name { color: #3a2c10; }
 .cdx-prog { margin: 6px 0 8px; }
 .cdx-prog-top { display: flex; align-items: baseline; gap: 6px; font-size: 10px; color: #7c6636; }
 .cdx-prog-top b { font-family: var(--serif); font-size: 11.5px; color: #4a3410; }
@@ -4113,7 +4113,15 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   text-align: center; min-width: 0;
 }
 .cdx-cell.got { border-color: #cfa95e; background: linear-gradient(180deg, #fffaf0, #f4e6c6); }
-.cdx-cell:disabled { opacity: 0.62; }
+/* v6.4e — 도감 전체 열람: 미보유 셀도 초상 원본 색감을 그대로 보여 준다(회색·투명 처리 없음).
+   보유 여부는 금테+✓ 배지로만 구분하고, 미보유는 점선 테두리로 살짝만 다르게 둔다. */
+.cdx-cell:not(.got) { border-style: dashed; border-color: #d3bd90; background: rgba(255, 252, 242, 0.72); }
+.cdx-cell:disabled { opacity: 1; }
+.cdx-own {
+  position: absolute; bottom: -1px; left: -2px; font-style: normal; font-size: 8px; font-weight: 900;
+  color: #fff8e8; background: #3f7a5a; border-radius: 6px; padding: 0 4px; line-height: 12px;
+  border: 1px solid rgba(255, 255, 255, .55);
+}
 .cdx-face { position: relative; width: 44px; height: 50px; display: flex; align-items: flex-end; justify-content: center; }
 .cdx-face img { width: 44px; height: 50px; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 1px 1px rgba(60, 44, 16, 0.3)); }
 .cdx-face em { font-style: normal; font-size: 17px; font-weight: 900; color: #c3b28a; }
@@ -4138,7 +4146,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
   display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 9px;
   border: 1px solid #d9c396; background: rgba(255, 252, 242, 0.88);
 }
-.cdx-row:not(.got) { opacity: 0.6; }
+.cdx-row:not(.got) { border-style: dashed; }
 .cdx-gd { flex: 0 0 auto; font-size: 8px; font-weight: 900; color: #fff8e8; border-radius: 7px; padding: 2px 6px; background: var(--gc, #9a8a66); }
 .cdx-row div { flex: 1; min-width: 0; }
 .cdx-row b { display: block; font-size: 11.5px; color: #3a2c10; }
@@ -4161,6 +4169,8 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .cdx-row[data-tid] { cursor: pointer; }
 .cdx-row[data-tid]:active { transform: scale(0.99); }
 .cdx-hint { display: block; margin-top: 2px; font-style: normal; font-size: 8px; line-height: 1.35; color: #a4601e; opacity: 0.9; }
+/* v6.4e — 보물 목록에 능력치 보너스 한 줄 */
+.cdx-stat-line { display: block; margin-top: 1px; font-style: normal; font-size: 8px; line-height: 1.35; color: #3f6a4c; }
 .cdx-tre-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cdx-tre-top b { font-size: 11.5px; color: #3a2c10; }
 .cdx-tre-top em { font-style: normal; margin-left: auto; font-size: 9px; font-weight: 800; color: #7a5a1c; }

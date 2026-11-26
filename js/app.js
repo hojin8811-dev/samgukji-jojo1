@@ -10491,6 +10491,8 @@
   const TRE_TYPES = ['전체', '무기', '방어구', '명마', '병법서·보물', '병법서', '문물', '비보'];
   const TRE_GRADES = ['전체', '전설', '영웅', '희귀', '일반'];
   const CDX_PAGE = 120;
+  /* v6.4e — 보물 능력치 표기 순서 (도감 목록·상세가 같은 순서를 쓴다) */
+  const TRE_STAT_MAP = [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['charm', '매력'], ['politics', '정치'], ['move', '이동'], ['rng', '사거리']];
 
   function codexRead() {
     try {
@@ -10588,10 +10590,12 @@
       const got = !!store.g[String(g.id)];
       const cls = SK.genClass(g);
       const cname = (SK.CLASSES[cls] && SK.CLASSES[cls].name) || g.job || '';
-      const name = (got || q) ? g.name : '？？？';
-      const sub = got ? cname : (q ? '미수집 · ' + String(g.faction || '재야') : String(g.faction || '재야'));
-      return `<button class="cdx-cell ${got ? 'got' : ''} t${g.tier}" data-gid="${g.id}" ${got ? '' : 'disabled'} aria-label="${name}${got ? '' : ' 미수집'}">
-        <span class="cdx-face">${got ? `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="" loading="lazy">` : '<em>?</em>'}<i class="cdx-tier">${g.tier}</i></span>
+      /* v6.4e — 도감 전체 열람: 미수집 장수도 실제 초상·이름·병과·세력을 그대로 보여 주고,
+         누르면 openCodexGen 상세가 열린다. 보유 여부는 초상 위 작은 ✓ 배지로만 구분한다. */
+      const name = g.name;
+      const sub = `${cname} · ${String(g.faction || '재야')}`;
+      return `<button class="cdx-cell ${got ? 'got' : ''} t${g.tier}" data-gid="${g.id}" aria-label="${name} · ${sub}${got ? ' · 보유' : ''}">
+        <span class="cdx-face"><img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="" loading="lazy"><i class="cdx-tier">${g.tier}</i>${got ? '<i class="cdx-own">✓</i>' : ''}</span>
         <b class="cdx-name">${name}</b>
         <small>${sub}</small>
       </button>`;
@@ -10623,14 +10627,17 @@
       /* v5.32 — 얻지 못한 보물도 획득 경로(dropHint)를 보여 준다. 예전에는 도감에
          이름·효과만 있고 '어디서 나오는지'가 어디에도 적히지 않았다.
          v5.33 — 검색으로 찾아낸 보물은 이름을 그대로 보여 준다. */
-      const hint = t.dropHint ? `${got ? '획득' : '힌트'} — ${t.dropHint}` : '';
-      const where = SK.treasurePathText ? SK.treasurePathText(t) : '';
       /* v5.33 — 힌트가 '지역·사건'만 말하던 72종도 어느 성·지역에서 노릴지 보인다 */
-      const name = (got || q) ? t.name : '？？？';
+      /* v6.4e — 보물 도감 전체 열람: 미수집 보물도 이름·종류·효과·능력치·획득 경로를 그대로 보여 준다 */
+      const name = t.name;
+      const hint = t.dropHint ? `획득 경로 — ${t.dropHint}` : '';
+      const where = SK.treasurePathText ? SK.treasurePathText(t) : '';
+      const tst = SK.treasureStats ? (SK.treasureStats(t) || {}) : {};
+      const statTxt = TRE_STAT_MAP.filter(([k]) => tst[k]).map(([k, n]) => `${n} ${tst[k] > 0 ? '+' : ''}${tst[k]}`).join(' · ');
       return `<div class="cdx-row ${got ? 'got' : ''}" data-tid="${t.id}" role="button" tabindex="0" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">
         <span class="cdx-gd">${t.grade}</span>
-        <div><b>${name}</b><small>${t.type}${got ? ` · ${t.effect || ''}` : ' · 아직 얻지 못했습니다'}</small>${hint ? `<em class="cdx-hint">${hint}</em>` : ''}${where ? `<em class="cdx-where">노릴 곳 — ${where}</em>` : ''}</div>
-        <em class="cdx-check">${got ? '✓' : '—'}</em>
+        <div><b>${name}</b><small>${t.type}${t.effect ? ` · ${t.effect}` : ''}</small>${statTxt ? `<em class="cdx-stat-line">능력치 ${statTxt}</em>` : ''}${hint ? `<em class="cdx-hint">${hint}</em>` : ''}${where ? `<em class="cdx-where">노릴 곳 — ${where}</em>` : ''}</div>
+        <em class="cdx-check" title="${got ? '보유' : '미보유'}">${got ? '✓' : '·'}</em>
       </div>`;
     }).join('');
     const more = list.length > shown.length
@@ -10761,6 +10768,8 @@
     const hero = (s && s.heroes || []).find((h) => h.genId === gid) || null;
     const mine = !!hero;
     const jailed = (s && s.prisoners || []).some((r) => r.gid === gid);
+    /* v6.4e — 도감 전체 열람으로 미보유 장수도 상세가 열리므로, 기록도 '미보유'로 정직하게 적는다 */
+    const got = !!codexRead().g[String(gid)];
     const stat = (k, v) => `<span class="cdx-stat"><i>${k}</i><b>${v == null ? '-' : v}</b></span>`;
     /* v5.32 — 전원 열전: 이름 전용 대사가 없어도 병종·등급 대사로 697명 모두 한 줄이 남는다 */
     const gag = SK.gagOf ? SK.gagOf(g.name, cls, g.tier) : '';
@@ -10776,7 +10785,7 @@
       body: `<div class="cdx-detail">
         <img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
         <div class="cdx-detail-main">
-          <p class="cdx-detail-tag">${String(g.faction || '재야')} · ${cname}${mine ? ' · <b>내 장수</b>' : jailed ? ' · <b>억류 중</b>' : ' · 조우 기록'}</p>
+          <p class="cdx-detail-tag">${String(g.faction || '재야')} · ${cname}${mine ? ' · <b>내 장수</b>' : jailed ? ' · <b>억류 중</b>' : got ? ' · 조우 기록' : ' · 미보유'}</p>
           <div class="cdx-stats">${stat('통솔', g.leadership)}${stat('무력', g.war)}${stat('지력', g.intel)}${stat('정치', g.politics)}${stat('매력', g.charm)}</div>
           <p class="cdx-detail-skill">${g.skill ? `고유특기 — <b>${g.skill}</b>` : '고유특기 없음'}</p>
           ${gag ? `<p class="cdx-detail-story">“${gag}”</p>` : ''}
@@ -10794,20 +10803,20 @@
     const s = SK.state;
     const got = !!codexRead().t[String(tid)];
     const slot = SK.SLOT_NAMES[SK.treasureSlot(t)] || '병법서';
-    const statMap = [['war', '무력'], ['intel', '지력'], ['leadership', '통솔'], ['charm', '매력'], ['politics', '정치'], ['move', '이동'], ['rng', '사거리']];
     const st = SK.treasureStats(t);
-    const statTxt = statMap.filter(([k]) => st[k]).map(([k, n]) => `${n} ${st[k] > 0 ? '+' : ''}${st[k]}`).join(' · ');
+    const statTxt = TRE_STAT_MAP.filter(([k]) => st[k]).map(([k, n]) => `${n} ${st[k] > 0 ? '+' : ''}${st[k]}`).join(' · ');
     const owners = ((s && s.heroes) || []).filter((h) => Object.values(h.equip || {}).includes(tid)).map((h) => h.name);
     const inStore = ((s && s.treasures) || []).includes(tid);
     const hold = owners.length ? `${owners.join(' · ')} 장착` : inStore ? '보물고에 보관 중' : (got ? '이전에 손에 넣었던 보물' : '아직 얻지 못했습니다');
     SK.modal({
       kicker: `보물 도감 · ${t.grade} ${slot} · ${t.originName || (t.origin === 'korea' ? '한국' : '삼국지')}`,
-      title: got ? t.name : '？？？',
+      /* v6.4e — 도감 전체 열람: 미수집 보물도 이름·효과·능력치를 그대로 보여 준다 */
+      title: t.name,
       body: `<div class="cdx-tre">
         <div class="cdx-tre-top"><span class="cdx-gd" style="--gc:${SK.GRADE_COLOR[t.grade] || '#9a8a66'}">${t.grade}</span>
           <b>${t.type}</b><em>${hold}</em><em class="cdx-origin-tag">${t.origin === 'korea' ? '한국' : '삼국지'}</em></div>
-        <p class="cdx-tre-effect">${got ? (t.effect || '효과 없음') : '아직 얻지 못해 효과를 알 수 없습니다.'}</p>
-        ${got && statTxt ? `<p class="cdx-tre-stat">능력치 ${statTxt}</p>` : ''}
+        <p class="cdx-tre-effect">${t.effect || '효과 없음'}</p>
+        <p class="cdx-tre-stat">${statTxt ? `능력치 ${statTxt}` : '능력치 보너스 없음'}</p>
         <p class="cdx-tre-hint"><b>획득 경로</b> ${t.dropHint || '어디서 나오는지 알려지지 않았습니다.'}</p>
         <p class="cdx-tre-where"><b>노릴 곳</b> ${SK.treasurePathText ? SK.treasurePathText(t, true) : '전투·탐색'}<br><small>${((SK.treasureWhere ? SK.treasureWhere(t) : { regions: [], cities: [] }).regions.length || (SK.treasureWhere ? SK.treasureWhere(t) : { cities: [] }).cities.length)
           ? '그 지역 성에서 [탐색]을 돌리거나 그곳 성을 공격해 이기면 나올 확률이 오릅니다(지역 일치 4~8배).'
