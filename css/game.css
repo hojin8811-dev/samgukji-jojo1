@@ -8780,3 +8780,362 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
   .city-top .ct-line2 #city-hanja { padding: 0 3px; font-size: 8px; }
   .city-top .faction-tag { width: 20px; height: 20px; font-size: 11px; }
 }
+/* ══════════════════════════════════════════════════════════════════════
+   v6.7 (?v=141) — 원정 《삼국이분다》 UI 톤 통일: 왕조 목판 · 비단 · 금테
+   · v6.4d 전투 HUD · v6.6c 성내 내정과 같은 결로 맞춘다.
+     위(머리줄·탭·창 머리)는 짙은 목판(#3a2315 → #24150c)과 금테,
+     창 본문·목록·카드는 비단(#fbf2dd → #eedcba)과 금갈색 테두리, 글자는 먹빛(#3a2410).
+     어두운 네온 블루(#4a6a9a·#335d99·#6ec6ff·시안 게이지)를 금·목판으로 바꾼다.
+   · 추가형 오버라이드만 쓴다. 기존 규칙·DOM·이벤트·전투 애니메이션(키프레임)은
+     손대지 않고 색·테두리·배경만 위에서 덮는다. 비밀 입장(?exp=1 · 표지 제목 5연타)은 그대로.
+   · 390×844 터치 예산: 뒤로·머리 배지·닫기·필터 칩·미니 버튼을 32~36px 위로 올린다.
+   ══════════════════════════════════════════════════════════════════════ */
+#expRoot {
+  --ex-wood-1: #3a2315; --ex-wood-2: #2e1b0f; --ex-wood-3: #24150c;
+  --ex-wood-btn-1: #53341d; --ex-wood-btn-2: #2c1a0d;
+  --ex-gold: #c5954b; --ex-gold-hi: #e3bd63; --ex-gold-pale: #ffe9a8;
+  --ex-silk-1: #fbf2dd; --ex-silk-2: #f2e2c2; --ex-silk-3: #eedcba;
+  --ex-ink: #3a2410; --ex-ink-soft: #7a5a2c; --ex-line: #c9a76a;
+  --ex-wood-grain: repeating-linear-gradient(90deg, rgba(255, 214, 150, 0.035) 0 2px, rgba(0, 0, 0, 0.06) 2px 4px, transparent 4px 26px);
+  --ex-silk-weave: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0 1px, rgba(190, 150, 90, 0.05) 1px 3px, transparent 3px 6px);
+}
+
+/* ── ① 바탕 ─────────────────────────────────────────────────────────── */
+#expRoot.ex-root { background: #140b06; }
+#expRoot .ex-stage { background: #2c1810; color: #f6ead2; }
+
+/* ── ② 머리줄 — 짙은 목판 + 금테 (성 헤더·전투 HUD와 같은 결) ───────── */
+#expRoot .ex-top {
+  gap: 5px; padding: 0 7px;
+  background: var(--ex-wood-grain), linear-gradient(180deg, #3a2315 0%, #2e1b0f 58%, #24150c 100%);
+  border-bottom: 2px solid var(--ex-gold);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22), 0 3px 10px rgba(0, 0, 0, 0.42);
+}
+#expRoot .ex-back {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 34px; min-width: 34px; padding: 0 9px;
+  background: linear-gradient(180deg, var(--ex-wood-btn-1), var(--ex-wood-btn-2));
+  border: 1px solid rgba(197, 149, 75, 0.9); border-radius: 10px;
+  color: #f6e4bb; font-size: 12px; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22), 0 2px 0 #140b05;
+}
+#expRoot .ex-back:active { transform: translateY(1px); filter: brightness(1.08); }
+#expRoot .ex-act { color: var(--ex-gold-pale); text-shadow: 0 1px 3px #000; }
+#expRoot .ex-pw, #expRoot .ex-merit {
+  display: inline-flex; align-items: center; gap: 3px;
+  min-height: 32px; padding: 0 8px;
+  background: linear-gradient(180deg, #1a0f07, #100903);
+  border: 1px solid rgba(197, 149, 75, 0.7); border-radius: 10px;
+  color: #ffd76a;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.72), 0 1px 0 rgba(255, 226, 170, 0.12);
+}
+
+/* 막 탭 — 목판 레일 위 비단 명패(고른 탭)
+   .ex-tabs는 본편 다른 화면과 공유하는 클래스라 크림색 판(border·padding)이 깔린다.
+   원정 머리줄 안에서는 판을 지워 탭만 목판 위에 놓는다. */
+#expRoot .ex-tabs { background: none; border: 0; padding: 0; gap: 5px; margin: 0; }
+#expRoot .ex-stabs { background: none; border: 0; padding: 0; gap: 6px; margin: 2px 0 8px; }
+#expRoot .ex-tab {
+  height: 38px; border-radius: 9px;
+  background: linear-gradient(180deg, #4a2c16, #331d0e);
+  border: 1px solid #a9752f; color: #f0d9a8;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.16), 0 2px 0 #140b05;
+}
+#expRoot .ex-tab.on {
+  background: linear-gradient(180deg, #fffaf0 0%, #f6e9cd 55%, #e8d3a9 100%);
+  border-color: var(--ex-gold-hi); color: #3a2410; text-shadow: none;
+  box-shadow: inset 0 1px 0 #fffdf6, 0 2px 0 #8a6420, 0 0 9px rgba(255, 206, 120, 0.22);
+}
+#expRoot .ex-tab.on small { color: #6b4a18; }
+#expRoot .ex-tab.lock { opacity: 0.5; }
+
+/* ── ③ 대기실 — 목판 명패 · 금테 칩 ─────────────────────────────────── */
+#expRoot .ex-goal {
+  background: var(--ex-wood-grain), linear-gradient(180deg, #3a2315, #24150c);
+  border: 1.5px solid var(--ex-gold); border-radius: 11px;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.16), 0 3px 10px rgba(0, 0, 0, 0.42);
+}
+#expRoot .ex-sbtn {
+  background: var(--ex-wood-grain), linear-gradient(180deg, #4a2c16, #2c1a0d);
+  border: 1.5px solid var(--ex-gold); color: #f6e4bb;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.16), 0 2px 0 #140b05, 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+#expRoot .ex-sbtn:active { transform: scale(0.95); filter: brightness(1.06); }
+#expRoot .ex-badge {
+  background: linear-gradient(180deg, rgba(51, 29, 14, 0.92), rgba(22, 12, 5, 0.92));
+  border: 1px solid rgba(255, 215, 106, 0.55); color: #f6e4bb;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.16);
+}
+#expRoot .ex-chip {
+  background: linear-gradient(180deg, rgba(42, 24, 13, 0.92), rgba(22, 12, 5, 0.92));
+  border: 1px solid var(--ex-gold); color: #f6e4bb;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.14);
+}
+#expRoot .ex-chip em { color: #ffd76a; }
+#expRoot .ex-chip.bond { border-color: #e0a8c8; }
+#expRoot .ex-chip.bond em { color: #ffb8e6; }
+#expRoot .ex-chip.off { border-color: #7a6a52; color: #b9ad91; }
+/* 출진 버튼 — 붉은 주홍은 그대로 두고 금테만 한 겹 두른다(애니메이션 box-shadow와 겹치지 않게 outline) */
+#expRoot .ex-go { outline: 2px solid rgba(255, 233, 168, 0.5); outline-offset: -6px; }
+#expRoot .ex-dock {
+  background: var(--ex-wood-grain), linear-gradient(180deg, #2e1b0f, #1a0f07);
+  border-top: 2px solid var(--ex-gold);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.18);
+}
+#expRoot .ex-dock button { color: #f0dcb0; min-height: 56px; }
+#expRoot .ex-dock button:active { filter: brightness(1.18); }
+
+/* ── ④ 창(모달) — 목판 머리 + 비단 본문 ─────────────────────────────── */
+#expRoot .ex-modal { background: rgba(18, 10, 5, 0.8); }
+#expRoot .ex-mbox {
+  background: var(--ex-silk-weave), linear-gradient(180deg, #fbf2dd 0%, #f4e6c8 52%, #eedcba 100%);
+  border-top: 3px solid var(--ex-gold);
+  color: var(--ex-ink);
+  box-shadow: inset 0 2px 0 rgba(255, 253, 246, 0.9), inset 0 -2px 0 rgba(201, 167, 106, 0.5), 0 -8px 26px rgba(0, 0, 0, 0.5);
+}
+#expRoot .ex-mbox.res { border: 2px solid var(--ex-gold); border-radius: 16px; }
+#expRoot .ex-mh {
+  background: var(--ex-wood-grain), linear-gradient(180deg, #4a2c16, #331d0e);
+  color: var(--ex-gold-pale); border-bottom: 2px solid var(--ex-gold);
+  text-shadow: 0 1px 0 #180d06;
+}
+#expRoot .ex-mx {
+  width: 34px; height: 34px; min-width: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--ex-wood-btn-1), var(--ex-wood-btn-2));
+  border: 1px solid rgba(197, 149, 75, 0.9); border-radius: 50%;
+  color: #f6e4bb; font-size: 15px; line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22);
+}
+#expRoot .ex-mx:active { transform: scale(0.94); filter: brightness(1.1); }
+#expRoot .ex-list, #expRoot .ex-unit, #expRoot .ex-form, #expRoot .ex-result { color: var(--ex-ink); }
+
+/* 버튼 — 네온 블루 → 목판·금 */
+#expRoot .ex-btn {
+  background: linear-gradient(180deg, var(--ex-wood-btn-1), var(--ex-wood-btn-2));
+  border: 1.5px solid var(--ex-gold); color: var(--ex-gold-pale);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.2), 0 2px 0 #140b05;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+}
+#expRoot .ex-btn:active { transform: translateY(1px); filter: brightness(1.08); }
+#expRoot .ex-btn.gold {
+  background: linear-gradient(180deg, #f0cb6e, #c18d2f);
+  border-color: #ffeec4; color: #3a1707; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 253, 232, 0.85), 0 2px 0 #7a5312;
+}
+#expRoot .ex-btn.danger {
+  background: linear-gradient(180deg, #8f2f22, #5a1410);
+  border-color: #e0a090; color: #ffe6dc; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+#expRoot .ex-mini {
+  width: 44px; height: 34px;
+  background: linear-gradient(180deg, var(--ex-wood-btn-1), var(--ex-wood-btn-2));
+  border: 1px solid var(--ex-gold); color: var(--ex-gold-pale); font-size: 12px;
+}
+#expRoot .ex-mini.gold { background: linear-gradient(180deg, #f0cb6e, #c18d2f); border-color: #ffeec4; color: #3a1707; }
+
+/* ── ⑤ 스테이지·랭킹 목록 — 비단 카드 ───────────────────────────────── */
+#expRoot .l-hd { color: var(--ex-ink-soft); font-weight: 800; }
+#expRoot .l-row {
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  border: 1px solid var(--ex-line); color: var(--ex-ink);
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+#expRoot .l-row.in {
+  border-color: #b8862f; background: linear-gradient(180deg, #fff3cf, #f2dfae);
+  box-shadow: inset 0 1px 0 #fffdf6, 0 0 0 2px rgba(184, 134, 47, 0.25);
+}
+#expRoot .l-row.lock { opacity: 0.58; }
+#expRoot .l-row.me { border-color: #5f9a5a; background: linear-gradient(180deg, #f3f9e9, #e2efd2); }
+#expRoot .l-row.boss { background: linear-gradient(180deg, #fdf0e6, #f4ddcc); border-color: #c08060; }
+#expRoot .l-mid { color: var(--ex-ink); }
+#expRoot .l-mid small { color: var(--ex-ink-soft); }
+#expRoot .s-no {
+  background: linear-gradient(180deg, #f0cb6e, #c18d2f); color: #3a1707;
+  box-shadow: inset 0 1px 0 #fff8e2, 0 1px 0 #8a6420;
+}
+#expRoot .s-st { color: #8a4a12; }
+#expRoot .l-row.clr .s-st { color: #2f6b36; }
+
+/* ── ⑥ 장수 상세 — 비단 카드 안 먹빛 글자 ───────────────────────────── */
+#expRoot .u-n { color: #2c1810; }
+#expRoot .u-n small { color: var(--ex-ink-soft); }
+#expRoot .u-s { color: #8a4a12; }
+#expRoot .u-bar { background: #d9c49a; box-shadow: inset 0 1px 2px rgba(90, 70, 30, 0.35); }
+#expRoot .u-bar i { background: linear-gradient(90deg, #e8b45a, #b8862f); }
+#expRoot .u-x { color: #8a7448; }
+#expRoot .u-stats div {
+  background: linear-gradient(180deg, #fffdf6, #f3e6c9);
+  border: 1px solid #dcc59a; box-shadow: inset 0 1px 0 #fffdf6;
+}
+#expRoot .u-stats span { color: var(--ex-ink-soft); }
+#expRoot .u-stats b { color: var(--ex-ink); }
+#expRoot .u-skill {
+  background: linear-gradient(180deg, #fffdf6, #f5e9cf);
+  border: 1px solid #dcc59a; color: var(--ex-ink);
+}
+#expRoot .u-skill b { color: #8a4a12; }
+#expRoot .u-skill small { color: var(--ex-ink-soft); }
+#expRoot .u-equip { gap: 7px; }
+#expRoot .u-eq {
+  background: linear-gradient(180deg, #fbf3df, #f0e2c4);
+  border: 1px dashed #bfa171; color: #8a7448;
+}
+#expRoot .u-eq.on {
+  border-style: solid; border-color: #b8862f; color: #3a2410;
+  background: linear-gradient(180deg, #fff3cf, #f2dfae);
+}
+#expRoot .u-eq small { color: #8a4a12; }
+#expRoot .u-note { color: var(--ex-ink-soft); }
+#expRoot .u-note.big { color: #8a3a12; }
+
+/* 필살기 설명 — 비단 카드 */
+#expRoot .xs-skill {
+  background: linear-gradient(180deg, #fffdf6, #f5e9cf);
+  border: 1px solid #dcc59a; color: var(--ex-ink);
+}
+#expRoot .xs-hd b { color: #8a4a12; }
+#expRoot .xs-hd em { background: #f2dfae; border: 1px solid #c9a76a; color: #6b4a18; }
+#expRoot .xs-ds { color: var(--ex-ink); }
+#expRoot .xs-ft { color: #8a7448; }
+#expRoot .xs-skill[data-type="heal"] .xs-hd b,
+#expRoot .xs-skill[data-type="buff"] .xs-hd b { color: #1f6b3a; }
+#expRoot .xs-skill[data-type="fire"] .xs-hd b { color: #a8443a; }
+#expRoot .xs-skill[data-type="bolt"] .xs-hd b,
+#expRoot .xs-skill[data-type="control"] .xs-hd b { color: #2a4a7a; }
+
+/* ── ⑦ 장비(강화·분해) 카드 ─────────────────────────────────────────── */
+#expRoot .gv-n b { color: #2c1810; }
+#expRoot .gv-n small { color: var(--ex-ink-soft); }
+#expRoot .gv-enh { color: #8a4a12; }
+#expRoot .xt-card {
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+#expRoot .xt-top b { color: #2c1810; }
+#expRoot .xt-top em { color: #fff; }
+#expRoot .xt-slot { color: var(--ex-ink-soft); }
+#expRoot .xt-fx span { background: #f3e4c3; border: 1px solid #ddc59a; color: #4a3410; }
+#expRoot .xt-fx b { color: #8a4a12; }
+#expRoot .xt-fx.big b { color: #3a2410; }
+#expRoot .sx-tg { color: #fff; }
+
+/* ── ⑧ 뽑기 — 비단 카드 ─────────────────────────────────────────────── */
+#expRoot .sx-rate { color: var(--ex-ink-soft); }
+#expRoot .sx-rate em { color: #8a4a12; }
+#expRoot .sx-wallet { color: #5a3f14; }
+#expRoot .sx-wallet b { color: #8a4a12; }
+#expRoot .sx-card { background: rgba(255, 252, 242, 0.86); border-color: #d3bd90; color: var(--ex-ink); }
+#expRoot .sx-card b { color: #2c1810; }
+#expRoot .sx-card em { color: #8a4a12; }
+#expRoot .sx-gear {
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  border: 1px solid var(--ex-line); color: var(--ex-ink);
+}
+#expRoot .sx-gear.on { border-color: #b8862f; background: linear-gradient(180deg, #fff3cf, #f2dfae); }
+#expRoot .sx-gmid b { color: #2c1810; }
+#expRoot .sx-gmid small { color: var(--ex-ink-soft); }
+#expRoot .sx-gs { color: #8a4a12; }
+
+/* ── ⑨ 인연 도감 ────────────────────────────────────────────────────── */
+#expRoot .xb-sum { color: var(--ex-ink-soft); }
+#expRoot .xb-sum b { color: #8a4a12; }
+#expRoot .xb-card {
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.92), rgba(246, 234, 210, 0.92));
+  border: 1px solid #d3bd90; opacity: 1;
+}
+#expRoot .xb-card.done {
+  background: linear-gradient(180deg, #fff3cf, #f2dfae);
+  border: 2px solid #b8862f; box-shadow: 0 0 10px rgba(184, 134, 47, 0.25);
+}
+#expRoot .xb-card.live { border-color: #5f9a5a; }
+#expRoot .xb-card.done.live { border-color: #b8862f; }
+#expRoot .xb-hd b { color: #2c1810; }
+#expRoot .xb-hd small { color: var(--ex-ink-soft); border: 1px solid #d3bd90; }
+#expRoot .xb-st { color: #8a7448; }
+#expRoot .xb-card.done .xb-st { color: #8a4a12; }
+#expRoot .xb-ds { color: var(--ex-ink-soft); }
+#expRoot .xb-fx span { background: #f3e4c3; border: 1px solid #ddc59a; color: #4a3410; }
+#expRoot .xb-fx b { color: #8a4a12; }
+#expRoot .xb-fx .xb-need { color: var(--ex-ink-soft); }
+#expRoot .xb-fx .xb-live { background: #2f6b36; color: #f3f9e9; }
+#expRoot .xb-m { background: #f3e6c9; border: 1px solid #d3bd90; color: #8a7448; }
+#expRoot .xb-m.own { background: #e2efd2; border-color: #5f9a5a; color: #244a20; }
+
+/* ── ⑩ 편성 ─────────────────────────────────────────────────────────── */
+#expRoot .f-slot {
+  background: linear-gradient(180deg, #fbf3df, #f0e2c4);
+  border: 2px dashed #bfa171; color: #8a7448;
+}
+#expRoot .f-slot.sel { border-style: solid; border-color: #b8862f; background: linear-gradient(180deg, #fff3cf, #f2dfae); color: #3a2410; }
+#expRoot .f-slot em { color: #a08b5e; }
+#expRoot .f-card {
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  border: 1px solid var(--ex-line); color: var(--ex-ink);
+}
+#expRoot .f-card.in { border-color: #b8862f; background: linear-gradient(180deg, #fff3cf, #f2dfae); }
+
+/* ── ⑪ 결과 ─────────────────────────────────────────────────────────── */
+#expRoot .r-t.win { color: #8a4a12; }
+#expRoot .r-t.lose { color: #a83232; }
+#expRoot .r-l { color: var(--ex-ink-soft); }
+#expRoot .r-h { color: #8a4a12; }
+#expRoot .r-row { border-bottom: 1px solid #ddc9a2; color: var(--ex-ink); }
+#expRoot .r-row b { color: #8a4a12; }
+
+/* 토스트 — 창 위에서도 읽히게 목판 칩 */
+#expRoot .ex-toast {
+  background: linear-gradient(180deg, rgba(58, 35, 21, 0.97), rgba(26, 15, 7, 0.97));
+  border: 1px solid var(--ex-gold-hi); color: var(--ex-gold-pale);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* ── ⑫ 원정 전투 HUD · 하단 카드 — 목판·비단·금테 ───────────────────── */
+#expRoot .bt-hud {
+  background: var(--ex-wood-grain), linear-gradient(180deg, rgba(58, 35, 21, 0.96), rgba(26, 15, 7, 0.86));
+  border-bottom: 2px solid var(--ex-gold);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.2), 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+#expRoot .bt-side small { color: #f0dcb0; }
+#expRoot .bt-time { color: var(--ex-gold-pale); }
+#expRoot .bt-bar { background: #180d06; border: 1px solid rgba(197, 149, 75, 0.75); }
+#expRoot .bt-ctl button {
+  min-height: 34px; padding: 0 13px;
+  background: linear-gradient(180deg, rgba(58, 35, 21, 0.94), rgba(26, 15, 7, 0.94));
+  border: 1px solid rgba(197, 149, 75, 0.8); color: #f6e4bb;
+}
+#expRoot .bt-ctl .spd.hot { background: linear-gradient(180deg, #e0a93a, #9a6a12); border-color: #ffe08a; color: #3a1707; }
+#expRoot .bt-ctl .auto.on { background: linear-gradient(180deg, #3f8a4a, #235c2c); border-color: #a9e0b0; }
+#expRoot .bt-ctl .out { background: linear-gradient(180deg, #7a2a22, #4a120e); border-color: #e0a090; }
+#expRoot .bt-card {
+  background: linear-gradient(180deg, rgba(58, 35, 21, 0.94), rgba(26, 15, 7, 0.94));
+  border: 2px solid #a9752f;
+}
+#expRoot .bt-card .c-nm { color: var(--ex-gold-pale); }
+#expRoot .bt-cards { background: linear-gradient(rgba(0, 0, 0, 0), rgba(24, 13, 6, 0.9) 30%); }
+#expRoot .bt-banner {
+  background: linear-gradient(180deg, rgba(58, 35, 21, 0.96), rgba(26, 15, 7, 0.96));
+  border: 1px solid var(--ex-gold-hi); color: var(--ex-gold-pale);
+}
+#expRoot .bt.paused::after {
+  background: linear-gradient(180deg, rgba(58, 35, 21, 0.96), rgba(26, 15, 7, 0.96));
+  border: 1px solid var(--ex-gold-hi); color: var(--ex-gold-pale);
+}
+#expRoot .ex-cutin .cutin-pt { background: rgba(58, 35, 21, 0.62); border: 1px solid rgba(197, 149, 75, 0.7); }
+#expRoot .cu-tx small { color: #f0e2c4; }
+
+/* ── ⑬ 도감 필터 칩 — 손가락 터치 영역 (390×844) ───────────────────── */
+.cdx-filters { gap: 6px; }
+.cdx-filters > div { gap: 6px; padding-bottom: 2px; }
+.cdx-chip {
+  padding: 7px 12px; min-height: 32px;
+  display: inline-flex; align-items: center;
+  font-size: 11.5px; border-radius: 999px;
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 0 rgba(140, 108, 50, 0.35);
+}
+.cdx-chip.on { box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.2), 0 1px 0 rgba(0, 0, 0, 0.35); }
+.cdx-tab { padding: 8px 4px; }
+.cdx-search { padding: 6px 9px; }
+.cdx-search #cdx-q-clear { width: 24px; height: 24px; font-size: 11px; }
+.cdx-more { min-height: 40px; }

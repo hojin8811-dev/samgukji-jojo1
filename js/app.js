@@ -10588,7 +10588,17 @@
     const hit = (g) => !q || String(g.name).toLowerCase().indexOf(q) >= 0
       || String(g.faction || '').toLowerCase().indexOf(q) >= 0;
     let list = st.gens.filter((g) => {
-      if (cdx.fac !== '전체' && String(g.faction || '재야') !== cdx.fac) return false;
+      /* v6.7 — '한국' 필터는 세력(faction)이 아니라 지역(SK.generalGroup)으로 거른다.
+         연남생·유금필처럼 세력이 '재야'인데 region만 '한국'인 45명이 한국 필터에서
+         통째로 빠져 있었다(올돌골은 남만 맹획군 소속이라 한국 인물이 아니다 — 그대로 제외).
+         같은 사람이 두 칩에 겹쳐 보이지 않게 '재야' 칩에서는 한국 인물을 뺀다. */
+      if (cdx.fac !== '전체') {
+        const fac = String(g.faction || '재야');
+        const kr = SK.generalGroup(g) === '한국';
+        if (cdx.fac === '한국') { if (!kr) return false; }
+        else if (cdx.fac === '재야') { if (fac !== '재야' || kr) return false; }
+        else if (fac !== cdx.fac) return false;
+      }
       if (cdx.tier !== '전체' && String(g.tier) !== cdx.tier) return false;
       return hit(g);
     });

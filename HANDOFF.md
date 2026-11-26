@@ -1120,7 +1120,9 @@ js/app.js       (3,944줄) # 시작/저장/지도HUD/성 내정/인사/외교/�
 js/map.js       (1,376줄) # 지도 4레이어 캔버스 렌더러 (지형/영토/숲·산·강/길) + 팬·줌·탭
 js/battle.js    (2,406줄) # 18×18 전장 (배치·이동·공격·책략·AI·연출·HUD)
 data/*.json               # 아래 4장 표 참고
-assets/portraits/top100/  # 상위 100명 전용 초상 100장 (webp, 투명 배경)
+assets/portraits/top100/  # v6.7 — 지금 화면에 쓰는 1장만 남김(나머지 99장은 v58·v579 초상이 덮어써 미사용이었다)
+assets/portraits/v579/·v589a/·v64b/·v64c/·v650/·v660/·korea_v523/  # v6.7 — 각 매니페스트에서 뒤 매니페스트에 덮인 구버전은 정리(885장 → 449장, 20.57MB → 11.06MB)
+assets/portraits/a_rank/  # v6.7 — v58 A급 초상 중 v579·v589a가 덮어쓴 241장 정리(남은 1장은 실제 사용)
 assets/units/top100/      # 상위 100명 전용 SD 100장 (webp)
 assets/portraits/v2/      # 기본 초상 28장 (gen_* 병과별 + 주요 군주)
 assets/units/, units/v2/  # 병과 공용 SD 18장(job_*.webp) + 옛 v2 SD 21장
