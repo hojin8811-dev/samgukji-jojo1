@@ -6219,6 +6219,14 @@
   let duelEls = null;
 
   function namedUnit(u) { return !!u && (!!u.uid || !!u.genId || (!!u.boss && !/대장$/.test(String(u.name || '')))); }
+  /* v6.8 — S/A급 네임드 판정. 이 등급이 낀 일기토만 자동전투를 잠깐 멈추고 직접 고르게 한다.
+     등급은 원래 초상 테두리에 쓰는 unitTier를 그대로 본다(아군=장수 원본 등급 · 적=장수 등급). */
+  const DUEL_NAMED_TIER = { S: 1, A: 1 };
+  function duelNamedTier(u) {
+    if (!u || !namedUnit(u)) return '';
+    const t = unitTier(u);
+    return DUEL_NAMED_TIER[t] ? t : '';
+  }
 
   function duelAtkStat(u) {
     if (!u) return 60;
@@ -6453,6 +6461,11 @@
         <span class="duel-dmg d" id="duel-dmg-d"></span>
       </div>
       <div class="duel-panel">
+        <div class="duel-named" id="duel-named" hidden>
+          <b class="dn-tag" id="duel-named-tag">S급</b>
+          <span class="dn-txt" id="duel-named-txt">네임드 일기토 — 직접 지휘합니다</span>
+          <button type="button" class="dn-go" id="duel-named-auto">⏭ 자동 진행</button>
+        </div>
         <div class="duel-hint" id="duel-hint">
           <span class="dh-war" id="duel-war">무 50</span>
           <span class="div-dots" id="duel-dots" aria-hidden="true"></span>
@@ -6477,9 +6490,12 @@
       bubA: q('#duel-bub-a'), bubD: q('#duel-bub-d'),
       fx: q('#duel-fx'), dmgA: q('#duel-dmg-a'), dmgD: q('#duel-dmg-d'),
       cmds: q('#duel-cmds'), dots: q('#duel-dots'), war: q('#duel-war'), deckTxt: q('#duel-deck'),
+      named: q('#duel-named'), namedTag: q('#duel-named-tag'), namedTxt: q('#duel-named-txt'), namedBtn: q('#duel-named-auto'),
     };
     /* 커맨드 카드는 일기토를 열 때 그 장수의 무력에 맞춰 다시 그린다 (renderDuelDeck) */
     duelEls.auto.onclick = () => duelToggleAuto();
+    /* v6.8 — 네임드 일기토의 [⏭ 자동 진행]: 원탭으로 나머지를 자동에 맡긴다 */
+    duelEls.namedBtn.onclick = (e) => { e.stopPropagation(); duelNamedSkip(); };
     root.addEventListener('click', (e) => {
       if (duel && duel.over) { e.preventDefault(); e.stopPropagation(); closeDuel(); }
     });
@@ -6694,9 +6710,17 @@
     B.duels.seen[[a.name, d.name].sort().join('|')] = 1;
     B.duels.n = (B.duels.n || 0) + 1;
     B.duels.last = performance.now();
+    /* v6.8 — S/A급 네임드가 낀 일기토는 자동전투(autoOn) 중에도 손으로 고르게 잠깐 멈춘다.
+       · B.auto(autoOn)는 건드리지 않는다 → 일기토가 끝나면 그대로 자동전투가 이어진다.
+       · 일기토 안의 auto(duel.auto)만 false로 열어 커맨드 5개 + 초필살기를 기다린다. */
+    const ntA = duelNamedTier(a), ntD = duelNamedTier(d);
+    const namedTop = (ntA === 'S' || ntD === 'S') ? 'S' : ((ntA || ntD) ? 'A' : '');
+    const namedDuel = !!namedTop;
+    const heldAuto = namedDuel && !!autoOn;
     duel = {
       a, d, hpA: DUEL_MAX_HP, hpD: DUEL_MAX_HP, turn: 1, over: false, busy: false,
-      auto: !!autoOn, done: done || null, last: null, ended: null,
+      auto: !!autoOn && !namedDuel, done: done || null, last: null, ended: null,
+      named: namedDuel ? { a: ntA, d: ntD, top: namedTop, held: heldAuto } : null,
       /* v5.92 — 두 장수의 무력 덱(해금 커맨드) · 초필살기 사용 여부 */
       deckA: duelDeckFor(a), deckD: duelDeckFor(d), ultA: false, ultD: false,
       bond: SK.bondBetween ? SK.bondBetween(a.name, d.name) : null,
@@ -6731,6 +6755,7 @@
     e.cmds.classList.remove('busy', 'done');
     renderDuelDeck();
     updateDuelHp();
+    paintDuelNamed();
     e.root.hidden = false;
     e.root.classList.remove('out');
     e.root.classList.add('show');
@@ -6740,7 +6765,8 @@
     shakeScreen(5);
     showDuelBubble('a', duelTalk(a, 'start'), 1900);
     dwait(() => showDuelBubble('d', duelTalk(d, 'start'), 1900), 340);
-    feed(`${a.name} ↔ ${d.name} — 일기토! (HP 100 · 5합)`, 'rival');
+    feed(`${a.name} ↔ ${d.name} — 일기토! (HP 100 · 5합)${namedDuel ? ` · ${namedTop}급 네임드 — 직접 지휘` : ''}`, 'rival');
+    /* heldAuto 면 여기서 아무 수를 고르지 않는다 — 플레이어가 커맨드를 누를 때까지 기다린다. */
     if (duel.auto) dwait(() => { if (duel && !duel.over && !duel.busy) duelPick(duelAiPick(duel.a)); }, 950);
     return true;
   }
@@ -6880,6 +6906,7 @@
     duel.over = true;
     duel.busy = false;
     duel.ended = winner;
+    paintDuelNamed();
     if (duelEls) {
       duelEls.cmds.classList.add('done', 'busy');
       duelEls.cmds.querySelectorAll('.duel-cmd').forEach((b) => b.classList.remove('on'));
@@ -6987,7 +7014,31 @@
       duelEls.auto.textContent = duel.auto ? '⚡ 자동 중' : '⚡ 자동';
     }
     SK.sfx.play('ui');
+    paintDuelNamed();
     if (duel.auto && !duel.busy) dwait(() => { if (duel && duel.auto && !duel.over && !duel.busy) duelPick(duelAiPick(duel.a)); }, 280);
+  }
+
+  /* v6.8 — 네임드 일기토 안내띠: 자동을 멈춘 채(player 차례)일 때만 보인다.
+     [⏭ 자동 진행]을 누르면 duelToggleAuto가 켜져 남은 합을 AI가 마저 둔다. */
+  function paintDuelNamed() {
+    const e = duelEls;
+    if (!e || !e.named) return;
+    const on = !!(duel && !duel.over && duel.named && !duel.auto);
+    e.named.hidden = !on;
+    if (!on) return;
+    const tier = duel.named.top || 'A';
+    e.namedTag.textContent = `${tier}급`;
+    e.namedTag.classList.toggle('s', tier === 'S');
+    e.namedTxt.textContent = duel.named.held
+      ? '네임드 일기토 — 자동을 멈추고 직접 지휘'
+      : '네임드 일기토 — 직접 지휘';
+  }
+
+  /* v6.8 — [⏭ 자동 진행]: 원탭으로 나머지 합을 자동에 넘긴다 (전투 자동 B.auto는 그대로) */
+  function duelNamedSkip() {
+    if (!duel || duel.over) return;
+    if (duel.auto) return;
+    duelToggleAuto();
   }
 
   function rivalClash(bond, a, d) {
@@ -13341,6 +13392,11 @@
     SK.save();
     SKBattle.refreshUI();
     const owned = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
+    /* v6.8 — 결산창의 '명성 +12'는 v5.87b에서 가산이 350~500으로 오른 뒤로 사실과 달랐다.
+       실제로 들어간 값(fameGainOf)을 그대로 적는다. */
+    const fameGain = (SK.fameGainOf ? SK.fameGainOf('cityCapture', { cityId: B.targetId, type: c && c.type }) : 0) || 12;
+    /* v6.8 — 방금 점령한 거점의 역할·특전 배지 (거점특전 강조) */
+    const traitHtml = SK.cityTraitHtml ? SK.cityTraitHtml(c, { facilities: true, tax: true }) : '';
     /* v5.78 — 플레이어 공성으로 세력이 멸망했으면 승전 창을 넘길 때 코믹 속보를 먼저 띄우고
        [포로 N명 처리하러 가기 →] 로 포로 처리 창에 잇는다. */
     let fallItem = null;
@@ -13358,13 +13414,14 @@
         <div class="rm-seal">승</div>
         ${B.winReason ? `<p class="rm-reason">승리 사유: ${B.winReason}</p>` : ''}
         <p class="rm-line">${SK.josa(prevOwnerName, 'eul')} 무찌르고 <b>${SK.josa(c.name, 'eul')}</b> 차지했습니다.</p>
+        ${traitHtml}
         ${fallenFaction ? `<div class="rm-fall-banner"><b>🏆 ${fallenFaction} 멸망!</b><span>마지막 성을 잃고 천하에서 사라졌습니다 · 남은 세력 ${factionsLeft}곳${freedCaptives.length ? ` · 해방된 아군 포로 ${freedCaptives.join(' · ')}` : ''}</span></div>` : ''}
         ${freedCaptives.length && !fallenFaction ? `<p class="rm-release">사로잡혀 있던 ${freedCaptives.join(' · ')} — 풀려나 ${c.name}으로 돌아왔습니다.</p>` : ''}
         ${genRetreat.count ? `<p class="rm-release">${prevOwnerName} 장수 ${genRetreat.count}명은 ${SK.josa(genRetreat.cityName, 'euro')} 퇴각했습니다.</p>` : ''}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
-          <div><span>명성</span><b>+12</b></div>
+          <div><span>명성</span><b>+${Math.round(fameGain).toLocaleString('ko-KR')}</b></div>
           <div><span>영토</span><b>${owned} / ${SK.CITY_LIST.length}</b></div>
           ${woundedAdd ? `<div class="rm-wound"><span>부상병</span><b>${woundedAdd.toLocaleString('ko-KR')}</b><em>회복중</em></div>` : ''}
         </div>
@@ -13525,10 +13582,11 @@
       title: `${SK.josa(c.name, 'eul')} 지켰습니다`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
         <p class="rm-line">${SK.factionName(B.defense.faction)}의 침공을 막아냈습니다. 성은 우리 것입니다.</p>
+        ${SK.cityTraitHtml ? SK.cityTraitHtml(c, { facilities: true, tax: true }) : ''}
         <div class="rm-rewards">
           <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
           <div><span>군량</span><b>+${Math.round(B.rewards.food).toLocaleString('ko-KR')}</b></div>
-          <div><span>명성</span><b>+10</b></div>
+          <div><span>명성</span><b>+${Math.round((SK.fameGainOf ? SK.fameGainOf('defendWin') : 0) || 10).toLocaleString('ko-KR')}</b></div>
           <div><span>남은 수비병</span><b>${Math.round(troopsLeft).toLocaleString('ko-KR')}</b></div>
         </div>
         ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
@@ -15118,6 +15176,10 @@
           turn: duel.turn, over: !!duel.over, busy: !!duel.busy, auto: !!duel.auto,
           last: duel.last, ended: duel.ended, war: duel.a.alive && duel.d.alive,
           ultA: !!duel.ultA, ultD: !!duel.ultD,
+          /* v6.8 — 네임드 수동 개입 검수용 */
+          named: duel.named ? Object.assign({}, duel.named) : null,
+          namedRibbon: !!(duelEls && duelEls.named && !duelEls.named.hidden),
+          battleAuto: !!autoOn,
           levelA: duel.deckA ? duel.deckA.level : null, levelD: duel.deckD ? duel.deckD.level : null };
       },
       duelChoose(k) { return duelPick(k); },

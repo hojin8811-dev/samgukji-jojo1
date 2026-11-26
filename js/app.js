@@ -3364,6 +3364,7 @@
         <div><span>민심</span><b>${scouted ? Math.round(st.loyalty) : hidden}</b></div>
         <div><span>장수</span><b>${scouted ? generals.length : hidden}</b></div>
       </div>
+      ${cityTraitHtml(c, { facilities: scouted, tax: mine })}
       ${generals.length ? `<div class="sheet-gens">${generals.slice(0, 6).map((g) => {
         const cls = SK.genClass(g);
         const cdef = SK.CLASSES[cls] || { name: '무장' };
@@ -3416,6 +3417,52 @@
     return { capital: '대도시', mid: '중도시', town: '소도시', pass: '관문', fortress: '요새' }[t] || '거점';
   }
   SK.typeName = typeName;
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.8 — 거점 특전 배지
+     방금 점령한(또는 지금 서 있는) 거점이 무슨 역할을 하는 곳인지
+     한눈에 보이게 한다. 숫자는 모두 이 코드가 실제로 쓰는 값이다.
+       · 세수 배율   = ECON_MUL (cityTaxOf·slotMonthlyYield 가 쓰는 값)
+       · 성벽 겹수   = siegeRingsOfCity (대도시 3중 · 중도시 2중 · 그 밖 1중)
+       · 시설 칸수   = SLOT_MAX (대도시 10 · 중도시 8 · 소도시 6 · 관문/요새 5)
+       · 성벽 방어 ×2 = fortressWallMul (관문·요새)
+     ══════════════════════════════════════════════════════════════ */
+  const CITY_TRAIT = {
+    capital: { icon: '🏛️', role: '고수입 · 대규모 내정', chips: ['세수 ×1.5', '성벽 3중', '시설 10칸'] },
+    mid: { icon: '🏯', role: '중규모 내정 거점', chips: ['세수 ×1.22', '성벽 2중', '시설 8칸'] },
+    town: { icon: '🏘️', role: '기본 내정 거점', chips: ['세수 ×1', '성벽 1중', '시설 6칸'] },
+    pass: { icon: '🏰', role: '길목을 막는 방어 거점', chips: ['성벽 방어 ×2', '시설 5칸', '세수 ×0.42'] },
+    fortress: { icon: '🏰', role: '요충을 지키는 방어 거점', chips: ['성벽 방어 ×2', '시설 5칸', '세수 ×0.45'] },
+  };
+  SK.CITY_TRAIT = CITY_TRAIT;
+  /* opts.facilities — 지어진 시설을 적는다(미정찰 적성에서는 감춘다)
+     opts.tax — 이번 달 세수를 붙인다(내 성일 때만 의미가 있다)
+     opts.maxFac — 시설을 몇 개까지 적을지 (기본 6) */
+  function cityTraitHtml(c, opts) {
+    if (!c) return '';
+    const t = CITY_TRAIT[c.type] || CITY_TRAIT.town;
+    const o = opts || {};
+    const st = (SK.state && SK.state.cities) ? SK.state.cities[c.id] : null;
+    const chips = t.chips.slice();
+    if (o.tax && st) {
+      let tax = 0;
+      try { tax = SK.cityTaxOf ? SK.cityTaxOf(c) : 0; } catch (e) { tax = 0; }
+      if (tax > 0) chips.push(`월 세수 +${fmt(tax)}`);
+    }
+    let facs = [];
+    if (o.facilities && st && Array.isArray(st.slots)) {
+      facs = st.slots.filter((sl) => sl && sl.key)
+        .map((sl) => `${((SLOT_DEFS[sl.key] || {}).name) || sl.key} Lv.${sl.lv || 1}`);
+    }
+    const maxFac = o.maxFac || 6;
+    const facTxt = facs.slice(0, maxFac).join(' · ') + (facs.length > maxFac ? ` 외 ${facs.length - maxFac}` : '');
+    return `<div class="city-trait tone-${c.type}${o.compact ? ' compact' : ''}">
+      <div class="ct-head"><span class="ct-ico" aria-hidden="true">${t.icon}</span><b class="ct-name">${typeName(c.type)}</b><em class="ct-role">${t.role}</em></div>
+      <div class="ct-chips">${chips.map((x) => `<i>${x}</i>`).join('')}</div>
+      ${facs.length ? `<div class="ct-fac"><span class="ct-fac-lb">보유 시설</span><span class="ct-fac-list">${facTxt}</span></div>` : ''}
+    </div>`;
+  }
+  SK.cityTraitHtml = cityTraitHtml;
 
   /* ───────────── 내정 화면 — 6개 시설 ───────────── */
   /* v5.0.1 — 성 마당의 실제 건물·공터 자리 (성 그림 위 %).
@@ -8229,7 +8276,7 @@
       const defWarnHtml = (frontFoeNames.length && gensHere <= 1)
         ? `<div class="ci-defwarn">⚠ 방어 장수 부족 — ${frontFoeNames.slice(0, 2).join('·')}${frontFoeNames.length > 2 ? ' 외' : ''} 방면 적성과 맞닿았는데 주둔 장수가 <b>${gensHere}명</b>입니다. [장수] 탭에서 태수·장수를 앉히세요.</div>`
         : '';
-      info.innerHTML = `<div class="ci-head"><b>성 요약</b><span>${c.name} · ${typeName(c.type)}</span></div>${defWarnHtml}
+      info.innerHTML = `<div class="ci-head"><b>성 요약</b><span>${c.name} · ${typeName(c.type)}</span></div>${cityTraitHtml(c, { facilities: true, compact: true, maxFac: 5 })}${defWarnHtml}
         <div class="ci-grid">
           <div class="ci-cell"><span>최대 병력</span><b>${fmt(cap)}</b><em>인구 17%</em></div>
           <div class="ci-cell"><span>주둔병</span><b class="${pct >= 100 ? 'full' : ''}">${fmt(cs.troops)}</b><em>${pct}%${pct >= 100 ? ` · 가득 ${fullTxt}` : ''}</em></div>
