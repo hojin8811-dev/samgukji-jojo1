@@ -2432,6 +2432,13 @@
         const r10 = await fetch('data/v650_art_manifest.json', { cache: 'no-cache' });
         if (r10.ok) SK.addTopArt(await r10.json());
       } catch (e10) { console.warn('v6.5 초상 8명 목록을 불러오지 못했습니다.', e10); }
+      /* v6.6 — 한국 삼국 왕 10명(중국 구슬 면류관·깃털 추장 → 한국 금관·곤룡포) 전용 초상.
+         구수왕·벌휴이사금·내해이사금은 병과 공용 얼굴이던 것을 이때 처음 전용으로 그렸다.
+         맨 마지막에 얹어 이 그림이 이긴다. */
+      try {
+        const r11 = await fetch('data/v660_art_manifest.json', { cache: 'no-cache' });
+        if (r11.ok) SK.addTopArt(await r11.json());
+      } catch (e11) { console.warn('v6.6 한국 왕 10명 초상 목록을 불러오지 못했습니다.', e11); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }

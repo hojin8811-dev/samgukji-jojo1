@@ -40,6 +40,10 @@
   let busy = false;
   const floats = [];
   const fx = [];
+  /* v6.6 — 쓰러진 부대의 '몸'(쓰러짐·페이드아웃). 부대 목록(B.units)에서 alive를
+     끄면 즉시 사라지던 것을, 마지막 0.6초 동안 눕혀 가며 흐려지는 그림으로 남긴다.
+     DOM을 만들지 않고 캔버스에만 그리므로 배속·자동에서도 쌓이지 않는다. */
+  const falls = [];
   const imgs = {};
   const pointers = new Map();
   let drag = { on: false, moved: 0, sx: 0, sy: 0, lx: 0, ly: 0 };
@@ -553,6 +557,7 @@
     anims.length = 0;
     fx.length = 0;
     floats.length = 0;
+    falls.length = 0;
     shakeT = 0;
     /* v5.51 — 새 전장을 열 때 연출 잠금을 푼다. 예전엔 앞 전투의 애니메이션이
        도중에 끊기면(anims만 비우고 done을 부르지 않음) busy가 true로 남아
@@ -1393,6 +1398,7 @@
     updateAnims(sdt);
     updateUnits(sdt);
     updateBonds(sdt);
+    updateFalls(sdt);
     if (shakeT > 0) shakeT = Math.max(0, shakeT - sdt);
     if (B) draw();
     raf = requestAnimationFrame(loop);
@@ -4408,6 +4414,8 @@
 
   function drawUnits() {
     drawBondLinks();
+    /* v6.6 — 쓰러지는 부대를 살아 있는 부대보다 먼저 깔아 겹친 자리에서도 자연스럽게 */
+    if (falls.length) falls.slice().sort((a, b) => a.u.y - b.u.y).forEach((f) => drawFall(f));
     const sorted = B.units.filter((u) => u.alive).sort((a, b) => a.y - b.y);
     sorted.forEach((u) => drawUnit(u));
   }
@@ -4496,6 +4504,53 @@
     ally: 'rgba(30,52,92,0.9)', enemy: 'rgba(74,26,20,0.9)',
   };
 
+  /* v6.6 — 부대 스프라이트의 화면 배치 (drawUnit 과 쓰러짐 그림이 같은 값을 쓴다) */
+  function unitSpriteGeo(u) {
+    const img = unitImgFor(u);
+    const ready = img.complete && img.naturalWidth;
+    const box = ready ? unitBox(img) : { x: 0, y: 0, w: 3, h: 4 };
+    const tier = clamp(Number(u.tier) || 0, 0, 3);
+    const targetH = TILE * (0.9 + 0.022 * tier);
+    let sc = targetH / Math.max(1, box.h);
+    const ar = box.w / Math.max(1, box.h);
+    if (ar > 0.82) sc *= Math.max(0.76, 0.82 / ar);
+    const dh = box.h * sc, dw = box.w * sc;
+    const bx = ((u.rx == null ? u.x : u.rx) + 0.5) * TILE;
+    const by = ((u.ry == null ? u.y : u.ry) + 1) * TILE - 4;
+    return { img, ready, box, dw, dh, bx, by };
+  }
+
+  /* v6.6 — 쓰러짐·패이드아웃: 발밑을 축으로 몸이 넘어가고(±64°) 서서히 흐려진다.
+     alive 를 끄는 순간 사라지던 부대가 '쓰러지는 그림'으로 마지막 0.6초를 남긴다. */
+  function pushFall(u) {
+    if (!u) return;
+    falls.push({ u, t: 0, life: 620, dir: (u.kbx || 0) < 0 ? -1 : 1 });
+    while (falls.length > 6) falls.shift();
+  }
+  function updateFalls(dt) {
+    for (let i = falls.length - 1; i >= 0; i--) {
+      falls[i].t += dt;
+      if (falls[i].t >= falls[i].life) falls.splice(i, 1);
+    }
+  }
+  function drawFall(f) {
+    const g = unitSpriteGeo(f.u);
+    if (!g.ready) return;
+    const k = clamp(f.t / f.life, 0, 1);
+    const fall = 1 - Math.pow(1 - Math.min(1, k * 1.9), 2);   // 처음에 빠르게 넘어가고 끝에 멎는다
+    ctx.save();
+    ctx.globalAlpha = 1 - Math.pow(k, 1.6) * 0.94;
+    ctx.fillStyle = 'rgba(22,18,10,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(g.bx, g.by - 1, TILE * 0.24, TILE * 0.10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.translate(g.bx, g.by);
+    ctx.rotate(f.dir * fall * 1.12);
+    if ('filter' in ctx) ctx.filter = 'grayscale(' + (0.4 * k).toFixed(2) + ') brightness(' + (1 - 0.25 * k).toFixed(2) + ')';
+    ctx.drawImage(g.img, g.box.x, g.box.y, g.box.w, g.box.h, -g.dw / 2, -g.dh, g.dw, g.dh);
+    ctx.restore();
+  }
+
   function drawUnit(u) {
     const ux = u.rx == null ? u.x : u.rx;
     const uy = u.ry == null ? u.y : u.ry;
@@ -4520,6 +4575,8 @@
     const topY = by - dh;   // 라벨은 흔들리지 않게 원래 높이 기준
     ctx.save();
     if (u.shake > 0) ctx.translate(rnd(-3, 3) * Math.min(1, u.shake / 240), rnd(-2, 2) * Math.min(1, u.shake / 240));
+    /* v6.6 — 피격 넉백: 밀린 자리에서 그린다 (updateUnits 가 스프링처럼 되돌린다) */
+    if (u.kbx || u.kby) ctx.translate(u.kbx || 0, u.kby || 0);
     /* v6.1 — 숲·갈대밭에 선 부대는 발밑에 빈터를 깔아 '나무 위에 뜬' 느낌을 지운다 */
     const hideKind = u.aboard ? null : coverAt(Math.round(ux), Math.round(uy));
     if (hideKind) drawHideGround(hideKind, bx, by);
@@ -4585,9 +4642,15 @@
       }
       ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
       if (u.flash > 0) {
+        /* v6.6 — 히트 플래시: 첫 순간은 하얗게 번쩍이고, 곧바로 붉은 실루엣으로 꺼진다 */
         ctx.save();
-        ctx.globalAlpha = Math.min(0.85, u.flash);
-        if ('filter' in ctx) ctx.filter = 'brightness(0.5) sepia(1) saturate(8) hue-rotate(-18deg)';
+        const ff = Math.min(1, u.flash);
+        ctx.globalAlpha = Math.min(0.8, 0.26 + ff * 0.54);
+        if ('filter' in ctx) {
+          ctx.filter = ff > 0.66
+            ? 'brightness(0.12) invert(1) saturate(0)'
+            : 'brightness(0.5) sepia(1) saturate(8) hue-rotate(-18deg)';
+        }
         ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
         ctx.restore();
       }
@@ -5762,6 +5825,13 @@
       if (u.rx == null) { u.rx = u.x; u.ry = u.y; }
       if (u.flash > 0) u.flash = Math.max(0, u.flash - dt / 280);
       if (u.shake > 0) u.shake = Math.max(0, u.shake - dt);
+      /* v6.6 — 넉백은 프레임 시간에 맞춰 스프링처럼 원위치로 (배속이 높으면 빨리 돌아온다) */
+      if (u.kbx || u.kby) {
+        const k = Math.pow(0.83, Math.min(3, dt / 16.7));
+        u.kbx *= k; u.kby *= k;
+        if (Math.abs(u.kbx) < 0.25) u.kbx = 0;
+        if (Math.abs(u.kby) < 0.25) u.kby = 0;
+      }
     });
   }
 
@@ -5819,6 +5889,8 @@
     if (!SK.bondsOf) return;
     B.bondSeen = B.bondSeen || {};
     const alive = B.units.filter((u) => u.alive);
+    /* v6.6 — 같은 부대에 '공격 +15%' 말풍선이 여러 장 겹치지 않게 한 부대당 한 번만 */
+    const floated = new Set();
     for (let i = 0; i < alive.length; i++) {
       for (let j = i + 1; j < alive.length; j++) {
         const a = alive[i], b = alive[j];
@@ -5829,8 +5901,11 @@
         const key = bond.id + ':' + a.side;
         if (B.bondSeen[key]) continue;
         B.bondSeen[key] = true;
-        feed(`인연 · ${bond.title} — ${a.name} · ${b.name}`, 'friend');
-        addFloat((a.rx + 0.5) * TILE, (a.ry + 0.1) * TILE, '공격 +15%', '#ffe6a0');
+        feed(`인연 · ${bond.title} — ${a.name} · ${b.name}` + (floated.has(a.id) ? '' : ' (공격 +15%)'), 'friend');
+        if (!floated.has(a.id)) {
+          floated.add(a.id);
+          addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.1) * TILE, '공격 +15%', '#ffe6a0');
+        }
       }
     }
   }
@@ -5841,11 +5916,13 @@
     const d = document.createElement('div');
     d.className = 'feed-pill ' + (kind || '');
     d.textContent = text;
+    /* v6.6 — 전장 위에 쌓이는 알림은 한 줄짜리 2개까지. 예전엔 전장을 열자마자
+       인연 3~4줄이 적 부대 위를 덮었다. 넘치는 줄은 바로 걷어 낸다. */
     el.appendChild(d);
+    while (el.children.length > 2) el.firstChild.remove();
     requestAnimationFrame(() => d.classList.add('in'));
     /* v5.51 — 피드 글자는 배속이 높아도 읽을 수 있게 최소 1.2초는 남긴다 */
-    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, Math.max(1200, paceMs(3800)));
-    while (el.children.length > 3) el.firstChild.remove();
+    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, Math.max(1200, paceMs(3200)));
   }
 
   /* v5.0.1 — [공격]·[책략]을 누르면 사거리 안의 대상을 버튼으로 보여 준다 */
@@ -7743,13 +7820,32 @@
     return 'melee';
   }
 
-  function impactAt(d, color) {
+  /* v6.6 — 넉백·피격 방향. 공격자 → 피격자 방향으로 민다 (같은 칸이면 좌우 무작위) */
+  function hitDirOf(d, from) {
+    if (!from || (rxOf(from) === rxOf(d) && ryOf(from) === ryOf(d))) {
+      return { x: Math.random() < 0.5 ? -1 : 1, y: 0 };
+    }
+    const dx = rxOf(d) - rxOf(from), dy = ryOf(d) - ryOf(from);
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: dx / len, y: dy / len };
+  }
+  /* v6.6 — 피격 넉백: 3~5px 밀렸다가 스프링처럼 제자리로 (원정 v6.3 과 같은 손맛) */
+  function knockback(u, dir, mul) {
+    if (!u || !dir) return;
+    const kb = 4.2 * (mul || 1);
+    u.kbx = clamp((u.kbx || 0) + dir.x * kb, -8, 8);
+    u.kby = clamp((u.kby || 0) + dir.y * kb * 0.65, -6, 6);
+  }
+
+  function impactAt(d, color, from, crit) {
     addFx({ kind: 'burst', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.5) * TILE, life: 430, color });
-    /* v5.30 — 타격감: 맞은 자리에서 튀는 불티와 짧은 화면 진동 */
-    addFx({ kind: 'spark', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.42) * TILE, life: 260, color });
+    /* v5.30 — 타격감: 맞은 자리에서 튀는 불티와 짧은 화면 진동
+       v6.6 — 크리티컬은 불티를 한 번 더 크게, 넉백도 세게 */
+    addFx({ kind: 'spark', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.42) * TILE, life: crit ? 320 : 260, color });
+    knockback(d, hitDirOf(d, from), crit ? 1.45 : 1);
     d.flash = 1;
-    d.shake = 240;
-    shakeScreen(2.6);
+    d.shake = crit ? 300 : 240;
+    shakeScreen(crit ? 3.4 : 2.6);
   }
 
   /* v5.30 — 크리티컬 한 방: 화면 가장자리 금빛 번쩍임 + 더 큰 진동 */
@@ -7785,6 +7881,9 @@
     u.hp = 0;
     u.alive = false;
     u.fate = Math.random() < 0.15 ? '생포' : '퇴각';
+    /* v6.6 — 즉시 사라지지 않게: 쓰러지는 그림과 발밑 흙먼지를 남긴다 */
+    pushFall(u);
+    addFx({ kind: 'dust', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.92) * TILE, life: 460 });
   }
 
   function applyDamage(a, d, dmg, crit, bond) {
@@ -7960,7 +8059,7 @@
       if (d.alive) onHitAil(a, d, kind, opts);
       /* v5.82 — 고유 특기 적중 효과 (독공·화공·위압·쾌검) */
       if (d.alive) vpOnHit(a, d, res.crit, opts);
-      impactAt(d, bond ? '255,140,110' : '255,214,120');
+      impactAt(d, bond ? '255,140,110' : '255,214,120', a, res.crit);
       if (kind !== 'melee') addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.55) * TILE, life: 350 });
       if (opts && opts.onDamage) opts.onDamage(res.dmg, res.crit);
       SK.sfx.play('hit');
@@ -13602,6 +13701,7 @@
     /* v5.52 — 일기토 창이 떠 있는 채로 전장을 닫지 않는다 */
     if (duel) { duel.done = null; duel = null; }
     if (duelEls) { duelEls.root.hidden = true; duelEls.root.classList.remove('show', 'out'); }
+    falls.length = 0;
     B = null;
     mode = 'idle';
     pendingSkill = null;
@@ -13619,7 +13719,7 @@
     if (!el) return;
     el.textContent = text;
     el.className = 'turn-banner show ' + side;
-    wait(() => { el.className = 'turn-banner ' + side; }, 1200);
+    wait(() => { el.className = 'turn-banner ' + side; }, 1000);
   }
 
   /* v5.89 — 인트로 종료 처리를 한 함수로 모은다 (관전·자동결산은 인트로 없이 바로 시작) */
@@ -13628,6 +13728,13 @@
     if (ov) { ov.innerHTML = ''; ov.hidden = true; ov.onclick = null; }
     if (!B) return;
     B.introDone = true;
+    /* v6.6 — [화면을 끌어 이동] 안내는 전장을 열 때만 필요한 말이다.
+       7초 뒤 스스로 사라져 아군 뒤발치를 계속 가리지 않는다. */
+    const tip = $('#battle-tip');
+    if (tip) {
+      tip.classList.remove('off');
+      wait(() => { const t2 = $('#battle-tip'); if (t2) t2.classList.add('off'); }, 7000);
+    }
     classAuraPhase('ally');
     /* v5.82 — 첫 아군 턴 시작 특기 */
     B.units.forEach((u) => { if (u.side === 'ally' && u.alive) vpTurnStart(u); });
@@ -14437,6 +14544,8 @@
       get enemies() { return B ? B.units.filter((u) => u.side === 'enemy' && u.alive).map((u) => u.name) : []; },
       get anims() { return anims.map((a) => a.kind); },
       get fx() { return fx.map((f) => f.kind); },
+      /* v6.6 — 쓰러짐 연출 검수용 */
+      get falls() { return falls.map((f) => ({ name: f.u.name, t: Math.round(f.t), life: f.life, dir: f.dir })); },
       get floats() { return floats.map((f) => f.text); },
       get anims() { return anims.map((a) => a.kind); },
       /* v5.33 — 실시간 경험치 검증: 아군 부대별 레벨·경험치·이번 전투 획득량 */

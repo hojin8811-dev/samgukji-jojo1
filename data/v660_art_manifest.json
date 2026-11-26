@@ -1,0 +1,32 @@
+{
+ "광개토대왕": {
+  "portrait": "assets/portraits/v660/66_gwanggaeto.webp"
+ },
+ "근초고왕": {
+  "portrait": "assets/portraits/v660/73_geunchogo.webp"
+ },
+ "김수로": {
+  "portrait": "assets/portraits/v660/81_suro.webp"
+ },
+ "장수왕": {
+  "portrait": "assets/portraits/v660/184_jangsu.webp"
+ },
+ "의자왕": {
+  "portrait": "assets/portraits/v660/193_uija.webp"
+ },
+ "진흥왕": {
+  "portrait": "assets/portraits/v660/195_jinheung.webp"
+ },
+ "문무왕": {
+  "portrait": "assets/portraits/v660/197_munmu.webp"
+ },
+ "구수왕": {
+  "portrait": "assets/portraits/v660/587_gusu.webp"
+ },
+ "벌휴이사금": {
+  "portrait": "assets/portraits/v660/588_beolhyu.webp"
+ },
+ "내해이사금": {
+  "portrait": "assets/portraits/v660/589_naehae.webp"
+ }
+}
