@@ -4658,7 +4658,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=130') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=131') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -6058,7 +6058,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=130') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=131') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6567,7 +6567,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=130) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=131) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}

@@ -6318,7 +6318,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=130'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=131'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
