@@ -491,6 +491,11 @@ SK.FALL_LINE_ALIAS = {
   '근초고왕': 'baekje', '진흥왕': 'silla', '왕건': 'goryeo', '이성계': 'joseon',
 };
 SK.fallLineOf = function (fid, shortName, lord) {
+  /* v6.4b — 코믹 개그 멸망 한마디를 일정 확률로 섞는다 (js/comedy_v64b.js) */
+  const com = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.fall) || [];
+  if (com.length && Math.random() < 0.4) {
+    return com[Math.floor(Math.random() * com.length)];
+  }
   const line = SK.FALL_LINES[fid]
     || SK.FALL_LINES[SK.FALL_LINE_ALIAS[String(shortName || '').replace(/군$/, '')]]
     || SK.FALL_LINES[SK.FALL_LINE_ALIAS[lord]];
@@ -1389,7 +1394,7 @@ SK.addTopArt = function (manifest) {
   });
 };
 SK.artFor = function (name) { return SK.ART[name] || null; };
-SK.ASSET_V = '114';   /* 초상 파일을 덮어써도 폰이 옛 그림을 들고 있지 않게 — 파일 경로에도 붙인다 */
+SK.ASSET_V = '132';   /* 초상 파일을 덮어써도 폰이 옛 그림을 들고 있지 않게 — 파일 경로에도 붙인다 */
 SK.ptSrc = function (p) {
   if (!p) return 'assets/portraits/v2/gen_bobyung.webp?v=' + SK.ASSET_V;
   /* v5.89b — 전용 초상(v579·a_rank 등)도 같은 파일명으로 덮어썼으므로 경로 끝에 ?v= 를 붙여
@@ -1435,10 +1440,13 @@ SK.nextRank = function (fame) {
   const f = fame || 0;
   return SK.RANKS.find((r) => r.minRenown > f) || null;
 };
+/* v6.4b — 한 칸에 문장 하나(문자열)든 여러 줄(배열)이든 받는다. 배열이면 그중 한 줄을 고른다 */
 SK.quoteOf = function (name, kind) {
   const q = SK.QUOTES[name];
   if (!q) return '';
-  return q[kind] || '';
+  const v = q[kind];
+  if (Array.isArray(v)) return v.length ? v[Math.floor(Math.random() * v.length)] : '';
+  return v || '';
 };
 
 /* ───────────── 인연 · 숙적 (data/bonds.json) ──────────── */

@@ -2416,6 +2416,11 @@
         const r7 = await fetch('data/v589a_art_manifest.json', { cache: 'no-cache' });
         if (r7.ok) SK.addTopArt(await r7.json());
       } catch (e7) { console.warn('v5.89a A급 163명 초상 목록을 불러오지 못했습니다.', e7); }
+      /* v6.4b — 5×2 시트 5장에서 잘라 낸 50명(한국 재야 19 + A·B급 31) 초상. 맨 마지막에 얹어 이 그림이 이긴다. */
+      try {
+        const r8 = await fetch('data/v64b_art_manifest.json', { cache: 'no-cache' });
+        if (r8.ok) SK.addTopArt(await r8.json());
+      } catch (e8) { console.warn('v6.4b 50명 초상 목록을 불러오지 못했습니다.', e8); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }
@@ -4499,6 +4504,14 @@
     talent: ['재야의 인재가 우리를 찾아왔습니다!', '천하의 인재를 얻었습니다!', '이 사람, 쓸 만합니다.'],
     repair: ['성벽을 다시 세웠습니다!', '이제 성문은 굳건합니다!', '돌 하나까지 손보았습니다.'],
   };
+  /* v6.4b — 코믹 개그 대사(내정)를 여섯 갈래 모두에 덧붙인다 */
+  (function () {
+    const C = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.extra && window.SK_COMEDY.extra.domestic) || [];
+    Object.keys(CUTIN_LINES).forEach((k) => {
+      C.forEach((s) => { if (CUTIN_LINES[k].indexOf(s) < 0) CUTIN_LINES[k].push(s); });
+    });
+    if (typeof window !== 'undefined') { window.SK_QA = window.SK_QA || {}; window.SK_QA.cutinLines = CUTIN_LINES; }
+  })();
 
   function fail(msg) { SK.toast(msg); return null; }
   function roll(p) { return Math.random() < p; }
@@ -8315,6 +8328,15 @@
       farmer: ['올해도 풍년이겠소!', '밭이 기름집니다~'],
       scholar: ['책 읽기 좋은 날이군요', '민심이 아주 좋습니다'],
     };
+    /* v6.4b — 코믹 개그 대사(js/comedy_v64b.js)를 역할별로 덧붙인다 */
+    (function () {
+      const C = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.citizen) || {};
+      Object.keys(C).forEach((k) => {
+        if (!LINES[k]) return;
+        C[k].forEach((s) => { if (LINES[k].indexOf(s) < 0) LINES[k].push(s); });
+      });
+      if (typeof window !== 'undefined') { window.SK_QA = window.SK_QA || {}; window.SK_QA.cityLines = LINES; }
+    })();
     const LINE_WINTER = ['눈길 조심하세요!'];
     const LINE_LOW = ['먹고살기 팍팍하네요...'];
     const LINE_HIGH = ['태평성대가 따로 없네!'];
@@ -9472,6 +9494,30 @@
     '“세상이 아직 저를 부르지 않는군요.”',
     '“한 번 더 생각할 시간을 주십시오.”',
   ];
+  /* v6.4b — 코믹 개그 대사(등용 거절) — 기존 대사와 같은 모양으로 앞뒤에 따옴표를 붙인다 */
+  (function () {
+    const C = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.extra && window.SK_COMEDY.extra.recruit_refuse) || [];
+    C.forEach((s) => {
+      const line = '“' + String(s).replace(/^["“'']|["”'']$/g, '') + '”';
+      if (REFUSE_LINES.indexOf(line) < 0) REFUSE_LINES.push(line);
+    });
+    if (typeof window !== 'undefined') { window.SK_QA = window.SK_QA || {}; window.SK_QA.refuseLines = REFUSE_LINES; }
+  })();
+
+  /* v6.4b — 주점·포상 코믹 한마디 (js/comedy_v64b.js) */
+  function comedyPick(list) { return (list && list.length) ? list[Math.floor(Math.random() * list.length)] : ''; }
+  function comedyExtra(key) {
+    const ex = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.extra) || {};
+    return comedyPick(ex[key] || []);
+  }
+  function tavernQuip() {
+    const q = comedyExtra('tavern');
+    return q ? `“${q}”` : '';
+  }
+  function rewardQuip() {
+    const q = comedyExtra('reward');
+    return q ? ` · “${q}”` : '';
+  }
 
   function openTavern(cityId, actor) {
     SK.setPurse(cityId);
@@ -9517,7 +9563,7 @@
     const m = SK.modal({
       kicker: `${c.name} 주점`,
       title: '어떤 인재가 있나',
-      body: `<p class="talent-note">${actor ? `${josa(actor.name, 'i')} 이번 달 주점을 찾았습니다. ` : ''}이 성에서 ${hereN}명, 길로 이어진 옆 성에서 ${pool.length - hereN}명을 만났습니다. 등용하면 ${actor ? actor.name + ' 님의 행동력과 ' : ''}새로 온 장수의 이번 달 행동이 끝납니다. 매력이 높은 장수가 사신으로 나서면 값이 줄고 성공률이 오릅니다.${actor && dutyLabelOf(cityId, actor) ? ` 사신 <b>${josa(actor.name, 'i')}</b> ${dutyLabelOf(cityId, actor)} 중이라 시도하는 순간 배속이 풀립니다.` : ''}<br><b>보통 인재(B·C급)가 흔하고, S·A급은 좀처럼 모습을 드러내지 않습니다.</b> 이 성 깃발에 맞는 동네 인물만 찾아옵니다.<br>늦게 합류하는 장수는 이 시대 AI 장수들의 평균 레벨에 맞춰 <b>합류 Lv.</b>로 옵니다 — 이미 그보다 높은 장수는 그대로입니다.</p>
+      body: `<p class="talent-note tavern-quip">${tavernQuip()}</p><p class="talent-note">${actor ? `${josa(actor.name, 'i')} 이번 달 주점을 찾았습니다. ` : ''}이 성에서 ${hereN}명, 길로 이어진 옆 성에서 ${pool.length - hereN}명을 만났습니다. 등용하면 ${actor ? actor.name + ' 님의 행동력과 ' : ''}새로 온 장수의 이번 달 행동이 끝납니다. 매력이 높은 장수가 사신으로 나서면 값이 줄고 성공률이 오릅니다.${actor && dutyLabelOf(cityId, actor) ? ` 사신 <b>${josa(actor.name, 'i')}</b> ${dutyLabelOf(cityId, actor)} 중이라 시도하는 순간 배속이 풀립니다.` : ''}<br><b>보통 인재(B·C급)가 흔하고, S·A급은 좀처럼 모습을 드러내지 않습니다.</b> 이 성 깃발에 맞는 동네 인물만 찾아옵니다.<br>늦게 합류하는 장수는 이 시대 AI 장수들의 평균 레벨에 맞춰 <b>합류 Lv.</b>로 옵니다 — 이미 그보다 높은 장수는 그대로입니다.</p>
         ${envoyRow}
         <div class="gen-pick-list">${rows}</div>`,
       wide: true,
@@ -10050,7 +10096,7 @@
         SK.save(); SK.refreshHud(); m.close();
         SK.sfx.play('coin');
         openReward(cityId);
-        SK.toast(`${h.name}(${CITY[h.city] ? CITY[h.city].name : ''})에게 금 100을 내렸습니다 — 충성 +${gain} (${h.loyal})`);
+        SK.toast(`${h.name}(${CITY[h.city] ? CITY[h.city].name : ''})에게 금 100을 내렸습니다 — 충성 +${gain} (${h.loyal})${rewardQuip()}`);
         return;
       }
       m.close();

@@ -6054,6 +6054,31 @@
     군웅: ['이 난세, 내가 주인이다!', '목숨을 걸고 붙자!'],
     한국: ['이 땅의 기개를 보여 주마!', '이름을 걸고 싸운다!'],
   };
+  /* v6.4b — 코믹 개그 대사(js/comedy_v64b.js) 병합.
+     자료의 attack·crit·dodge·hit·win·lose 를 엔진이 쓰는 순간(start·clashWin·clashLose·
+     victory·defeat)으로 옮겨 담았다. 성격(호장·지장·명장) 어느 풀에도 같은 줄을 넣어,
+     B·C급 꼬마 장수도 코믹 대사를 고루 말한다. */
+  (function () {
+    const C = (typeof window !== 'undefined' && window.SK_COMEDY) || {};
+    const D = C.duel || {};
+    Object.keys(DUEL_TALK).forEach((arch) => {
+      Object.keys(D).forEach((m) => {
+        const pool = DUEL_TALK[arch][m] || (DUEL_TALK[arch][m] = []);
+        (D[m] || []).forEach((s) => { if (pool.indexOf(s) < 0) pool.push(s); });
+      });
+    });
+    const F = C.factionStart || {};
+    Object.keys(F).forEach((k) => {
+      if (!DUEL_FACTION_START[k]) DUEL_FACTION_START[k] = [];
+      F[k].forEach((s) => { if (DUEL_FACTION_START[k].indexOf(s) < 0) DUEL_FACTION_START[k].push(s); });
+    });
+    /* 검수·관리자 화면에서 실제 풀을 볼 수 있게 참조만 노출한다 */
+    if (typeof window !== 'undefined') {
+      window.SK_QA = window.SK_QA || {};
+      window.SK_QA.duelTalk = DUEL_TALK;
+      window.SK_QA.duelFactionStart = DUEL_FACTION_START;
+    }
+  })();
   /* 수마다 다른 타격 연출 — CSS(.duel-fx-item.fx-*)가 움직인다 */
   const DUEL_FX_SVG = {
     strike: `<svg viewBox="0 0 200 200" aria-hidden="true">
@@ -6318,7 +6343,7 @@
 
   function ensureDuelDom() {
     if (duelEls && document.body.contains(duelEls.root)) return duelEls;
-    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=131'; } catch (e) { /* ignore */ }
+    try { const pre = new Image(); pre.src = 'assets/duel_arena_bg.webp?v=132'; } catch (e) { /* ignore */ }
     const root = document.createElement('div');
     root.id = 'duel-arena';
     root.className = 'duel-arena';
