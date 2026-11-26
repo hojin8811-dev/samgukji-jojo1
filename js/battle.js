@@ -9709,7 +9709,7 @@
     if (tgt) {
       wait(() => {
         if (!B || B.over) return;
-        impactAt(tgt, c);
+        impactAt(tgt, c, u);
         shakeScreen(6);
       }, 320);
     }
@@ -11901,7 +11901,7 @@
         addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.4) * TILE, '화계 ' + dmg, '#ffb36a');
         addFx({ kind: 'fire', x: (rxOf(target) + 0.5) * TILE, y: (ryOf(target) + 0.55) * TILE, life: 700 });
         fireSpreadFrom(e, target, SK.SKILLS.hwagye, 'magic');
-        impactAt(target, '255,150,90');
+        impactAt(target, '255,150,90', e);
         SK.sfx.play('hit');
         if (target.hp <= 0) downUnit(target);
         finishCheck();
