@@ -4658,7 +4658,7 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 
 .duel-stage {
   position: relative; flex: 1; min-height: 0; margin: 1px 0; border-radius: 16px; border: 2px solid #c59b4f;
-  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=133') center 58% / cover no-repeat;
+  overflow: hidden; background: #2a1a0b url('../assets/duel_arena_bg.webp?v=134') center 58% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .duel-banner {
@@ -6058,7 +6058,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
     radial-gradient(112% 52% at 50% 44%, rgba(255, 216, 148, 0.28), rgba(120, 74, 26, 0) 66%),
     linear-gradient(180deg, rgba(6, 3, 1, 0.92) 0%, rgba(14, 9, 4, 0.58) 9%, rgba(30, 19, 9, 0.16) 24%,
       rgba(30, 19, 9, 0) 48%, rgba(30, 19, 9, 0.14) 72%, rgba(12, 7, 3, 0.52) 92%, rgba(4, 2, 1, 0.9) 100%),
-    url('../assets/duel_arena_bg.webp?v=133') center 62% / auto 150% no-repeat;
+    url('../assets/duel_arena_bg.webp?v=134') center 62% / auto 150% no-repeat;
 }
 .eb-ground::after {
   content: ''; position: absolute; inset: 0;
@@ -6567,7 +6567,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 #expRoot .sx-gs{font-size:11px;color:#ffd76a;white-space:nowrap}
 
 /* ---- 전투 ---- */
-#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=133) center/cover no-repeat,#352a1c}
+#expRoot .bt-bg{position:absolute;inset:0;background:url(../assets/duel_arena_bg.webp?v=134) center/cover no-repeat,#352a1c}
 #expRoot .bt-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(#0000 45%,#000a 100%)}
 #expRoot .bt-hud{position:absolute;left:0;right:0;top:0;height:64px;padding:8px 8px 0;display:grid;grid-template-columns:1fr 54px 1fr;gap:6px;align-items:start;background:linear-gradient(#000d,#0000);z-index:300}
 #expRoot .bt-side small{font-size:10px;color:#ddd}
@@ -8093,3 +8093,196 @@ body.tut-battle .tut-mission { bottom: auto; }
 /* v5.98 — 튜토리얼 미션 배너가 성 화면 맨 아래 줄을 가리지 않게 스크롤 여백을 준다 */
 body.tut-on .city-mid { padding-bottom: 58px; }
 body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.4d — 전투 HUD: 왕조 목판 · 비단 (시안 ②)
+   · index.html 400~495줄의 DOM·ID·이벤트는 그대로 두고 겉모습만 다듬는다.
+   · 위쪽은 짙은 목판(#3a2315→#24150c)과 금테, 아래쪽은 비단(#f2e2c2)과 금테.
+   · 높이 예산: 아래 판이 두꺼워지면 전장이 줄어드니 패딩·간격에서 되돌린다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 상단 목판 머리줄 ─────────────────────────────────────────────── */
+.battle-top {
+  padding: 4px 10px;
+  padding-top: calc(4px + env(safe-area-inset-top));
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 214, 150, 0.035) 0 2px, rgba(0, 0, 0, 0.06) 2px 4px, transparent 4px 26px),
+    linear-gradient(180deg, #3a2315 0%, #2e1b0f 58%, #24150c 100%);
+  border-bottom: 2px solid #c5954b;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.55), 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+.battle-title b { color: #f8e9c8; text-shadow: 0 1px 0 #180d06, 0 0 10px rgba(255, 206, 120, 0.18); }
+.battle-title small { color: #d9bd8d; }
+/* 머리줄 아이콘 버튼·배속도 같은 목판 톤으로 (혼자 크림색이면 뜬다) */
+.battle-top .icon-btn,
+.battle-top .js-sound,
+.battle-speed {
+  background: linear-gradient(180deg, #53341d, #2c1a0d);
+  border: 1px solid rgba(197, 149, 75, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22), 0 2px 0 #140b05, 0 3px 7px rgba(0, 0, 0, 0.35);
+  color: #f6e4bb;
+}
+.battle-speed span { color: #ffeec4; text-shadow: 0 1px 0 #1a0e06; }
+.battle-speed em { color: #d3b183; }
+.battle-speed.fast {
+  background: linear-gradient(180deg, #b8862f, #7d5a1d);
+  border-color: #ffe0a0;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 214, 0.55), 0 2px 0 #3d2a08, 0 0 10px rgba(255, 196, 74, 0.45);
+}
+.battle-speed.fast span { color: #fff8e2; }
+.battle-speed.fast em { color: #fff0cd; }
+.battle-top .icon-btn:active, .battle-speed:active { transform: translateY(1px); filter: brightness(1.08); }
+
+/* 턴 뱃지 — 알약형, 금테 */
+.battle-turnbox {
+  padding: 6px 14px 6px;
+  border-radius: 999px;
+  background: radial-gradient(120% 130% at 50% -10%, #6a4423 0%, #3d2411 62%, #281607 100%);
+  border: 1.5px solid #e3bd63;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65), 0 2px 9px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 236, 176, 0.32);
+}
+.battle-turnbox span { font-size: 19px; color: #fff6dd; text-shadow: 0 0 9px rgba(255, 198, 88, 0.6), 0 1px 0 #3a2408; }
+.battle-turnbox em { padding: 1px 10px; border-radius: 999px; font-size: 9.5px; line-height: 1;
+  background: linear-gradient(180deg, #4c8ce0, #2757a8); box-shadow: 0 0 0 1px rgba(170, 210, 255, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.battle-turnbox.enemy em { background: linear-gradient(180deg, #d4513c, #95271a); }
+
+/* ── ② 병력 비율 게이지 ─────────────────────────────────────────────── */
+.battle-armies {
+  padding: 4px 10px 5px;
+  background: linear-gradient(180deg, #24150c, #1a0f07);
+  border-bottom: 1px solid rgba(197, 149, 75, 0.35);
+  gap: 8px;
+}
+.army { gap: 6px; min-width: 0; }
+.army b { font-size: 11px; font-weight: 900; color: #f7e4b6; min-width: 44px; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 #0f0803; }
+.army-flag { height: 19px; border-radius: 999px; font-size: 10px; letter-spacing: 0.01em; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 0 rgba(0, 0, 0, 0.5); }
+.army.ally .army-flag { background: linear-gradient(180deg, #4c8ce0, #2757a8); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 1px rgba(180, 214, 255, 0.75), 0 1px 0 rgba(0, 0, 0, 0.5); }
+.army.enemy .army-flag { background: linear-gradient(180deg, #d4513c, #95271a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(255, 186, 166, 0.7), 0 1px 0 rgba(0, 0, 0, 0.5); }
+.army-bar {
+  height: 12px; border-radius: 7px;
+  background: linear-gradient(180deg, #0b0703, #1d1309);
+  box-shadow: inset 0 0 0 1.5px #c5954b, inset 0 2px 4px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(255, 226, 170, 0.18);
+}
+.army-bar i { transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+.ally .army-bar i { background: linear-gradient(180deg, #a8ceff 0%, #4c8ce0 45%, #1f52a4 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 8px rgba(90, 160, 255, 0.55); }
+.enemy .army-bar i { background: linear-gradient(180deg, #ffb59f 0%, #d4513c 45%, #8f1f12 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 8px rgba(255, 100, 70, 0.5); }
+
+/* ── ③ 하단 비단 정보판 + 금테 상단선 ───────────────────────────────── */
+.battle-bottom {
+  padding: 6px 9px calc(6px + env(safe-area-inset-bottom));
+  gap: 5px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0 1px, rgba(190, 150, 90, 0.05) 1px 3px, transparent 3px 6px),
+    linear-gradient(180deg, #f8ecd4 0%, #f2e2c2 52%, #e6d0a6 100%);
+  border-top: 3px solid #c5954b;
+  box-shadow: inset 0 1px 0 rgba(255, 250, 232, 0.9), inset 0 8px 12px -10px rgba(120, 88, 40, 0.5), 0 -3px 12px rgba(40, 26, 8, 0.28);
+}
+.unit-card {
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.72), rgba(248, 236, 212, 0.45));
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 47, 0.35);
+  padding: 1px 6px;
+  margin: 0 -1px;
+  gap: 8px;
+}
+.uc-portrait {
+  width: 56px; height: 56px; border-radius: 10px;
+  border: 2px solid #e3bd63; background: #d9c39a;
+  box-shadow: 0 0 0 1px rgba(90, 62, 20, 0.45), inset 0 0 10px rgba(80, 52, 16, 0.35);
+}
+.uc-portrait img { object-position: 50% 18%; }
+.uc-portrait span { background: linear-gradient(180deg, rgba(60, 42, 16, 0.5), rgba(30, 20, 6, 0.88)); color: #ffe9b0; font-size: 8.5px; font-weight: 900; padding: 1px 0; letter-spacing: 0.02em; }
+.uc-row { gap: 5px; }
+.uc-row b { font-size: 15.5px; color: #241a06; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6); }
+#uc-cls { font-size: 9px; font-weight: 800; color: #6f5522; background: rgba(184, 134, 47, 0.16); border: 1px solid rgba(184, 134, 47, 0.4); border-radius: 5px; padding: 0 5px 0.5px; }
+#uc-side { font-size: 8.5px; font-weight: 900; padding: 0 5px 0.5px; border-radius: 5px; }
+#uc-terrain { font-size: 8.5px; font-weight: 700; color: #3f5c33; }
+
+/* HP·MP·필살기(EXP) 게이지 — 시인성 */
+.uc-bars { gap: 2px; margin: 3px 0 2px; }
+.hpbar { height: 12px; border-radius: 5px; background: linear-gradient(180deg, #b7a075, #d9c59c);
+  box-shadow: inset 0 0 0 1px rgba(92, 64, 22, 0.5), inset 0 1px 3px rgba(0, 0, 0, 0.22); }
+.hpbar i { background: linear-gradient(180deg, #9be08f 0%, #4fa24a 55%, #357c34 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.hpbar em { font-size: 8px; font-weight: 900; line-height: 1; color: #10200c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
+.mpbar { height: 8px; border-radius: 4px; background: linear-gradient(180deg, #b7a075, #d9c59c);
+  box-shadow: inset 0 0 0 1px rgba(92, 64, 22, 0.5); }
+.mpbar i { background: linear-gradient(180deg, #b6dcff 0%, #5c96d4 55%, #35679f 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.mpbar em { font-size: 6.5px; font-weight: 900; line-height: 1; color: #14243a; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.expbar { height: 9px; border-radius: 4px; background: linear-gradient(180deg, #b7a075, #d9c59c);
+  box-shadow: inset 0 0 0 1px rgba(92, 64, 22, 0.5); }
+.expbar i { background: linear-gradient(180deg, #ffe6a0 0%, #d9a63e 55%, #a87b22 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+.expbar em { font-size: 7px; font-weight: 900; line-height: 1; color: #33240a; }
+.uc-meta { font-size: 9px; color: #6a5732; gap: 9px; }
+.uc-meta b { color: #2f2408; }
+.uc-stats { font-size: 9px; color: #6a5732; gap: 7px; }
+.uc-stats b { color: #2f2408; }
+/* 강화·약화 알약 — 비단 바탕에서도 읽히게 진한 글씨로 */
+.uc-buffs .bf { font-size: 8.5px; color: #1f4a78; background: rgba(86, 140, 196, 0.18); border: 1px solid rgba(60, 110, 170, 0.45); }
+.uc-buffs .bf.good { color: #21603a; background: rgba(96, 170, 110, 0.2); border-color: rgba(46, 120, 66, 0.45); }
+.uc-buffs .bf.bad { color: #8c2418; background: rgba(196, 90, 80, 0.18); border-color: rgba(160, 60, 48, 0.45); }
+.uc-buffs .bf.exp { color: #7a5508; background: rgba(214, 168, 70, 0.22); border-color: rgba(160, 118, 30, 0.45); }
+
+/* ── ④ 명령 타일 — 큼직한 목판, 색 대비·눌림감 ──────────────────────── */
+.battle-actions { gap: 4px; }
+.act {
+  min-height: 48px;
+  padding: 5px 1px 5px;
+  border-radius: 9px;
+  border: 1px solid #b07f36;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 214, 150, 0.055) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #6a4325 0%, #4a2c16 58%, #331d0e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 178, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 2px 3px rgba(52, 32, 10, 0.35);
+  color: #f6e6c2;
+}
+.act b { font-size: 10.5px; font-weight: 800; color: #f9ebc9; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); letter-spacing: -0.04em; }
+.act span { color: #ffe2a6; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
+.act-ic { width: 18px; height: 18px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45)); }
+.act:active { transform: translateY(1.5px); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.2); filter: brightness(1.12) saturate(1.05); }
+
+/* 공격 — 붉은 옻칠 목판 */
+.act.atk { border-color: #e0a163; background: repeating-linear-gradient(90deg, rgba(255, 200, 150, 0.06) 0 1px, transparent 1px 7px), linear-gradient(180deg, #93412a 0%, #64261a 58%, #43150f 100%); }
+.act.atk b { color: #ffe9d2; }
+/* 책략 — 쪽빛 목판 */
+.act.skill { border-color: #9db3e0; background: repeating-linear-gradient(90deg, rgba(200, 220, 255, 0.06) 0 1px, transparent 1px 7px), linear-gradient(180deg, #46568a 0%, #2d3860 58%, #1d2442 100%); }
+.act.skill b { color: #e8f0ff; }
+/* 필살기 — 금빛 목판 (준비되면 더 밝게 빛난다) */
+.act.ult { border-color: #d9a63e; background: repeating-linear-gradient(90deg, rgba(255, 226, 160, 0.07) 0 1px, transparent 1px 7px), linear-gradient(180deg, #8a6620 0%, #5f4413 58%, #402c09 100%); }
+.act.ult b { color: #fff0cd; }
+.act.ult em { color: #f0d9a2; }
+.act.ult.ready { border-color: #ffe6a8; background: linear-gradient(180deg, #ffd873 0%, #e0a63a 52%, #a9761a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 220, 0.8), inset 0 -2px 0 rgba(90, 54, 4, 0.4), 0 0 0 1px rgba(255, 236, 160, 0.6), 0 0 14px rgba(255, 196, 74, 0.65); }
+.act.ult.ready b { color: #4a2a02; text-shadow: 0 1px 0 rgba(255, 250, 210, 0.4); }
+.act.ult.ready span { color: #7a2c05; }
+.act.ult.ready em { color: #5f3404; }
+.act.ult.locked, .act.ult.off.locked { background: linear-gradient(180deg, #6d6455, #4c4639); border-color: #9c927e; opacity: 0.85; filter: grayscale(0.9); }
+.act.ult.locked b, .act.ult.locked em, .act.ult.locked span { color: #cfc8b6; }
+/* 군량 */
+.act.item { border-color: #b9a35f; background: repeating-linear-gradient(90deg, rgba(255, 226, 160, 0.055) 0 1px, transparent 1px 7px), linear-gradient(180deg, #6f5a2a 0%, #4f4019 58%, #342a0d 100%); }
+.act.item.empty { opacity: 0.5; background: linear-gradient(180deg, #554e3d, #3b362a); }
+.act.item.empty b { color: #b6ac95; }
+/* 자동 */
+.act.auto { border-color: #8fb0a8; background: repeating-linear-gradient(90deg, rgba(210, 245, 235, 0.055) 0 1px, transparent 1px 7px), linear-gradient(180deg, #3f5f5a, #2b443f 58%, #1d302c); }
+.act.auto b { color: #e4f6f0; }
+.act.auto span { color: #d4f0e6; }
+.act.auto.active { background: linear-gradient(180deg, #7fc08a, #43804f 58%, #2b5b36); border-color: #b8f0c2; box-shadow: inset 0 1px 0 rgba(240, 255, 240, 0.5), 0 0 10px rgba(120, 220, 140, 0.5); }
+.act.auto.active b, .act.auto.active span { color: #f6fff4; }
+/* 턴 종료 — 짙은 숲빛, 금테 */
+.act.endturn { border-color: #e3bd63; background: repeating-linear-gradient(90deg, rgba(230, 255, 200, 0.05) 0 1px, transparent 1px 7px), linear-gradient(180deg, #5d8046 0%, #3b5a2d 58%, #26401d 100%);
+  box-shadow: inset 0 1px 0 rgba(240, 255, 220, 0.32), inset 0 -2px 0 rgba(0, 0, 0, 0.4), 0 2px 4px rgba(20, 40, 10, 0.4); }
+.act.endturn b { color: #fff5d8; font-size: 10.5px; }
+.act.endturn span { color: #ffe9a8; }
+/* 지금 고른 명령(공격·책략·필살기 대상 고르는 중)은 테두리로만 알린다 */
+.act.active { background-color: transparent; box-shadow: inset 0 0 0 2px #ffe6a8, inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 12px rgba(255, 210, 110, 0.6); border-color: #fff0c4; }
+
+/* 사거리 대상 줄도 같은 목판 톤으로 이어 붙인다 */
+.battle-targets { background: linear-gradient(180deg, #2a1a0e, #1a0f07); border-top: 1px solid rgba(197, 149, 75, 0.45); }
+.battle-targets .bt-hint { color: #f0d9a4; }
+
+@media (max-height: 700px) {
+  .battle-bottom { padding: 5px 8px calc(5px + env(safe-area-inset-bottom)); }
+  .act { min-height: 44px; }
+  .uc-portrait { width: 48px; height: 48px; }
+  .hpbar { height: 11px; }
+}
