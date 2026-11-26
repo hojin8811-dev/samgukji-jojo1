@@ -13020,9 +13020,12 @@
     const lead = (picked || []).map((uid) => s.heroes.find((h) => h.uid === uid)).find((h) => h && SK.quoteOf(h.name, 'deploy'))
       || (pool || []).find((h) => SK.quoteOf(h.name, 'deploy'));
     const lordName = SK.factionInfo(PF()).lord || '조조';
+    const leadHero = lead || null;
     const q = lead ? SK.quoteOf(lead.name, 'deploy') : (SK.quoteOf(lordName, 'deploy') || SK.quoteOf('조조', 'deploy'));
     if (!q) return '';
-    return `<p class="deploy-quote">“${q}” — ${lead ? lead.name : '조조'}</p>`;
+    /* v6.4b — 군주 대사인데 이름표가 늘 '조조'로 박혔던 것을 실제 화자로 고친다 */
+    const who = leadHero ? leadHero.name : lordName;
+    return `<p class="deploy-quote">“${q}” — ${who}</p>`;
   }
   SK.deployQuote = deployQuote;
 
