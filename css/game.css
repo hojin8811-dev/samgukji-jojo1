@@ -8363,3 +8363,420 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
   word-break: keep-all;
   overflow-wrap: break-word;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.6c — 성내 내정 UI: 왕조 목판 · 비단 (시안 ① · 사용자 컨펌 2026-11-26)
+   · v6.4d 전투 HUD와 같은 결. 위(성 헤더·탭)는 짙은 목판(#3a2315 → #24150c)과
+     금테, 본문은 비단(#f8ecd4 → #e6d0a6)과 금테 카드.
+   · index.html·js의 DOM·ID·이벤트는 건드리지 않고 겉모습만 덧씌운다(추가형 오버라이드).
+     다른 규칙을 지우지 않으므로 이전 규칙이 남아 있어도 위에서 덮어쓴다.
+   ══════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   v6.6c — 성내 내정 UI: 왕조 목판 · 비단 (시안 ①)
+   · v6.4d 전투 HUD와 같은 결로 맞춘다. 위(성 헤더·탭)는 짙은 목판
+     (#3a2315 → #24150c)과 금테, 본문은 비단(#f8ecd4 → #e6d0a6)과 금테.
+   · index.html·js의 DOM·ID·이벤트는 건드리지 않고 겉모습만 다듬는다.
+   · 높이 예산: 헤더·탭은 v5.87과 같은 높이로 두고, 카드는 여백·글자만
+     키워 390×844에서 성 그림이 줄지 않게 한다(본문은 city-mid 스크롤).
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 성 헤더 — 짙은 목판 + 금테 (전투 HUD 상단과 같은 톤) ─────────── */
+.city-top {
+  gap: 7px;
+  padding: 7px 9px;
+  padding-top: calc(7px + env(safe-area-inset-top));
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 214, 150, 0.035) 0 2px, rgba(0, 0, 0, 0.06) 2px 4px, transparent 4px 26px),
+    linear-gradient(180deg, #3a2315 0%, #2e1b0f 58%, #24150c 100%);
+  border-bottom: 2px solid #c5954b;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.55), 0 3px 10px rgba(0, 0, 0, 0.38);
+}
+.city-top .icon-btn,
+.city-top .js-sound {
+  background: linear-gradient(180deg, #53341d, #2c1a0d);
+  border: 1px solid rgba(197, 149, 75, 0.9);
+  border-radius: 9px;
+  color: #f6e4bb;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.22), 0 2px 0 #140b05, 0 3px 7px rgba(0, 0, 0, 0.3);
+}
+.city-top .icon-btn:active,
+.city-top .js-sound:active { transform: translateY(1px); filter: brightness(1.08); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5); }
+.city-top .city-lord {
+  border: 1.5px solid #e3bd63;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 236, 176, 0.25), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+#city-name {
+  color: #f8e9c8;
+  text-shadow: 0 1px 0 #180d06, 0 0 12px rgba(255, 206, 120, 0.2);
+}
+#city-name:active { color: #ffe6ac; }
+.city-top .city-step {
+  background: linear-gradient(180deg, #53341d, #2c1a0d);
+  border: 1px solid rgba(197, 149, 75, 0.85);
+  color: #f0d09a;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.2), 0 1px 0 #140b05;
+}
+.city-top .city-step:active { background: linear-gradient(180deg, #633f22, #39200f); }
+.city-top .city-step:disabled { opacity: 0.3; }
+.city-top .city-date { color: #d9bd8d; }
+.city-top .city-stepno { color: #c9a878; }
+.city-top #city-hanja {
+  color: #f0dcb0;
+  background: rgba(255, 226, 170, 0.08);
+  border: 1px solid rgba(197, 149, 75, 0.55);
+  border-radius: 7px;
+}
+.city-top .city-level {
+  background: linear-gradient(180deg, #5a3a1c, #33200e);
+  border: 1px solid #d9a63e;
+  color: #ffe9b0;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 176, 0.22), 0 1px 0 #140b05;
+}
+.city-top .city-level[data-lv="5"] { background: linear-gradient(180deg, #b8862f, #8a5f1d); color: #fff8e2; }
+.city-top .rank-chip {
+  background: linear-gradient(180deg, #f0cb6e, #c18d2f);
+  border: 1px solid #ffeec4;
+  color: #3a1707;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+.city-top .faction-tag { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 0 rgba(0, 0, 0, 0.4); }
+
+/* 자원 바 — 목판에 박은 어두운 명패, 세 줄을 금실로 나눈다 */
+.city-top .city-res {
+  gap: 0;
+  padding: 3px 7px 3px 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(197, 149, 75, 0.7);
+  background: linear-gradient(180deg, #1a0f07, #100903);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(255, 226, 170, 0.12);
+}
+.city-top .city-res .res {
+  gap: 4px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #f2dcb2;
+}
+.city-top .city-res .res + .res { border-top: 1px solid rgba(197, 149, 75, 0.18); padding-top: 1px; }
+.city-top .city-res .res b {
+  color: #ffeec4;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 #0b0502;
+}
+.city-top .city-res .res small { color: #c9a878; opacity: 1; }
+.city-top .city-res .res-ic { width: 13px; height: 13px; opacity: 0.95; }
+
+/* ── ② 성내 탭 — 목판 레일 위에 비단 명패(고른 탭) ──────────────────── */
+.city-tabs {
+  gap: 4px;
+  padding: 5px 8px 6px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 214, 150, 0.03) 0 2px, rgba(0, 0, 0, 0.05) 2px 4px, transparent 4px 22px),
+    linear-gradient(180deg, #3a2315, #24150c);
+  border-bottom: 2px solid #c5954b;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.16), 0 3px 8px rgba(40, 26, 8, 0.3);
+}
+.ct-tab {
+  padding: 6px 0 5px;
+  border: 1.5px solid #a9752f;
+  border-left-width: 1.5px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  background: linear-gradient(180deg, #4a2c16, #331d0e);
+  color: #f0d9a8;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, 0.16), 0 2px 0 #140b05;
+}
+.ct-tab:first-child, .ct-tab:last-child { border-left-width: 1.5px; border-radius: 9px; }
+.ct-tab em {
+  font-size: 8.5px;
+  line-height: 13px;
+  color: #ffe3ab;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(197, 149, 75, 0.45);
+  border-radius: 7px;
+}
+.ct-tab.on {
+  background: linear-gradient(180deg, #fffaf0 0%, #f6e9cd 55%, #e8d3a9 100%);
+  border-color: #e3bd63;
+  color: #3a2410;
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 #fffdf6, 0 2px 0 #8a6420, 0 0 10px rgba(255, 206, 120, 0.22);
+}
+.ct-tab.on em {
+  color: #5a3a0c;
+  background: linear-gradient(180deg, #f7dc9c, #dfb45f);
+  border: 1px solid #a97c28;
+}
+.ct-tab:active { filter: brightness(0.96); }
+
+/* ── ③ 본문 — 비단 바탕 위의 금테 카드 ─────────────────────────────── */
+#screen-city { background: linear-gradient(180deg, #efe0bf, #e7d5ac); }
+.city-panes {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0 1px, rgba(190, 150, 90, 0.05) 1px 3px, transparent 3px 6px),
+    linear-gradient(180deg, #f8ecd4 0%, #f2e2c2 52%, #e6d0a6 100%);
+  box-shadow: inset 0 2px 0 rgba(255, 250, 232, 0.75), inset 0 -1px 0 rgba(150, 112, 44, 0.25);
+}
+/* 구역 머리말 — 금실 밑줄로 단을 나눈다 */
+.city-dev .dev-head,
+.city-slots .slot-head,
+.city-info .ci-head,
+.city-ap .ap-head,
+.city-general-strip .gl-head {
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(197, 149, 75, 0.42);
+}
+.city-dev .dev-name { font-size: 12px; color: #3a2410; }
+.city-dev .dev-lv {
+  background: linear-gradient(180deg, #5a3a1c, #33200e);
+  border: 1px solid #d9a63e;
+  color: #ffe9b0;
+  box-shadow: 0 1px 0 #140b05, inset 0 1px 0 rgba(255, 236, 176, 0.22);
+}
+.dev-note { color: #8a7448; }
+
+/* 내정 카드 — 큰 숫자·또렷한 눈금 */
+.city-dev .dev-card {
+  gap: 7px;
+  padding: 6px 8px 7px 6px;
+  border: 1px solid #c9a76a;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+.city-dev .dev-card.warn { border-color: #c07a62; background: linear-gradient(180deg, #fdf1ea, #f5ded2); }
+.city-dev .dc-ic {
+  width: 23px; height: 23px;
+  border: 1px solid rgba(184, 134, 47, 0.55);
+  background: radial-gradient(circle at 50% 34%, #fffdf4, #f1e3c4);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.city-dev .dc-label { font-size: 9.5px; font-weight: 800; color: #6f5522; }
+.city-dev .dc-label .help-dot { color: #8a6a2e; }
+.city-dev .dc-val { font-size: 15px; color: #241a06; }
+.city-dev .dc-delta { font-size: 8px; }
+.city-dev .dc-bar {
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #d9c49c, #ecdcbb);
+  box-shadow: inset 0 0 0 1px rgba(150, 112, 44, 0.35), inset 0 1px 2px rgba(90, 70, 30, 0.18);
+}
+.city-dev .dc-bar em { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38); }
+
+/* 성 요약 — 값과 이름을 한 단계 크게 */
+.city-info .ci-grid {
+  border: 1px solid #c9a76a;
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+.city-info .ci-cell > span { font-size: 9px; color: #6f5522; }
+.city-info .ci-cell > b { font-size: 13px; color: #241a06; }
+.city-info .ci-cell > em { font-size: 7.5px; color: #977f52; }
+
+/* 시설 카드 — 아이콘을 금테 명패에 얹고 이름·단계·담당을 또렷하게 */
+.city-slots .slot-card,
+.city-slots .slot-grid .slot-card {
+  gap: 7px;
+  padding: 6px 7px 7px 6px;
+  border: 1px solid #c9a76a;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+.city-slots .slot-card.ready { border-color: #d9a63e; box-shadow: inset 0 1px 0 #fffdf6, 0 0 0 1px rgba(217, 166, 62, 0.35), 0 1px 3px rgba(90, 62, 20, 0.16); }
+.city-slots .sc-ico {
+  width: 36px; height: 36px;
+  padding: 2px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 36%, #fffdf4, #f0e2c2);
+  border: 1px solid rgba(184, 134, 47, 0.5);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+  filter: none;
+}
+.city-slots .sc-top b { font-size: 12px; color: #241a06; }
+.city-slots .sc-top em {
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #5a3a0c;
+  background: linear-gradient(180deg, #f7dc9c, #e2c078);
+  border: 1px solid #c9a24e;
+}
+.city-slots .sc-exp {
+  height: 5px;
+  margin: 4px 0 3px;
+  background: linear-gradient(180deg, #dcc9a2, #eddfc0);
+  box-shadow: inset 0 0 0 1px rgba(150, 112, 44, 0.3);
+}
+.city-slots .sc-owner { gap: 3px; }
+.city-slots .sc-owner em { font-size: 8px; color: #8a7448; }
+.city-slots .sc-need {
+  padding: 0 4px;
+  font-size: 8px;
+  color: #6b3a22;
+  background: linear-gradient(180deg, #fbe6cf, #f0d0b0);
+  border: 1px solid #cd9a68;
+}
+.city-slots .sc-demolish {
+  padding: 1px 6px;
+  font-size: 8px;
+  color: #8a3a2a;
+  background: rgba(255, 243, 232, 0.9);
+  border: 1px solid rgba(168, 68, 58, 0.5);
+}
+.city-slots .slot-card.empty {
+  border: 1.5px dashed #bb9750;
+  background: rgba(255, 250, 238, 0.5);
+}
+.city-slots .slot-card.empty .sc-plus,
+.city-slots .sc-plus { color: #b08a44; }
+.city-slots .slot-card.empty .sc-empty-main b { color: #7d6739; }
+.city-slots .slot-card.empty .sc-empty-main small { color: #9a8759; }
+.city-slots .slot-hint { color: #7d5c22; }
+.city-slots .slot-hint b { color: #5a3f0e; }
+
+/* 관아 카드 — 성의 본부다운 금테 */
+.city-slots .hq-card {
+  border: 1px solid #d9a63e;
+  border-left: 4px solid #b8862f;
+  background: linear-gradient(180deg, #fffaf0, #f7ecd4);
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 3px rgba(90, 62, 20, 0.18);
+}
+.city-slots .hq-card .hq-main b { font-size: 11.5px; color: #2f240e; }
+.city-slots .hq-title { background: linear-gradient(180deg, #6d4a14, #4a2f08); color: #ffeaba; border: 1px solid #c9a24e; }
+.city-slots .hq-card .hq-sub { font-size: 8px; color: #8a7448; }
+.city-slots .hq-card .hq-face { border: 1.5px solid #e3bd63; box-shadow: 0 0 0 1px rgba(90, 62, 20, 0.25); }
+
+/* 시설 탭 편의 버튼 — 비단 위 작은 목판 단추 */
+.city-slots .st-btn {
+  border: 1px solid #b1823c;
+  background: linear-gradient(180deg, #fff8e6, #ecdcb8);
+  color: #6b4a12;
+  box-shadow: 0 1px 0 rgba(150, 112, 44, 0.35);
+}
+.city-slots .st-btn span { background: linear-gradient(180deg, #3f7a4c, #26552f); }
+.city-slots .st-btn.best { color: #7a6538; background: linear-gradient(180deg, #fdf6e4, #ebd9b3); }
+
+/* 장수 카드 — 초상 금테, 이름·수치 대비 */
+.city-general-strip .gen-card {
+  padding: 6px 8px 6px 6px;
+  border: 1px solid #c9a76a;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+.city-general-strip .gen-card.duty { border-color: #bf9a52; }
+.city-general-strip .gen-card.sel { border-color: #3f6fb5; box-shadow: 0 0 0 2px rgba(63, 111, 181, 0.2), 0 1px 3px rgba(90, 62, 20, 0.16); }
+.city-general-strip .gc-pt {
+  width: 42px; height: 48px;
+  border: 1.5px solid #e3bd63;
+  box-shadow: 0 0 0 1px rgba(90, 62, 20, 0.3), inset 0 0 8px rgba(80, 52, 16, 0.25);
+}
+.city-general-strip .gc-lv {
+  border: 1px solid #e3bd63;
+  background: linear-gradient(180deg, rgba(62, 42, 16, 0.94), rgba(32, 20, 6, 0.96));
+  color: #ffe9b0;
+}
+.city-general-strip .gc-name { font-size: 13.5px; color: #241a06; }
+.city-general-strip .gc-line2 { font-size: 8.5px; color: #7d6739; }
+.city-general-strip .gc-nums i { color: #8a7448; }
+.city-general-strip .gc-nums i b { color: #3a2a0c; font-size: 10px; }
+.city-general-strip .gc-flag {
+  font-size: 8px;
+  line-height: 15px;
+  color: #6b4a12;
+  background: linear-gradient(180deg, #fdf3dc, #efdfba);
+  border: 1px solid #dcc79b;
+}
+.city-general-strip .gc-flag.duty { color: #2e6a2c; background: #eef6e2; border-color: #b7c49a; }
+.city-general-strip .gc-flag.train { color: #245a7d; background: #e6f0f7; border-color: #a9c4d6; }
+.city-general-strip .gc-flag.done { color: #8a7448; background: #efe6d2; border-color: #c3ab7c; }
+.city-general-strip .gl-head b { color: #3a2410; }
+.city-general-strip .gl-all {
+  border: 1px solid #b1823c;
+  background: linear-gradient(180deg, #fff8e6, #ecdcb8);
+  color: #6b4a12;
+}
+.city-general-strip .ap-best {
+  border: 1px solid #b1823c;
+  background: rgba(255, 248, 230, 0.9);
+  color: #6b4a12;
+}
+
+/* ── ④ 성 그림 위 작은 명패 — 목판 톤으로 (민심·날씨 칩) ─────────────── */
+.city-scene .city-weather {
+  border: 1px solid rgba(197, 149, 75, 0.75);
+  background: linear-gradient(180deg, rgba(58, 35, 21, 0.92), rgba(26, 15, 7, 0.94));
+  color: #f4e2bb;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 226, 170, 0.18);
+}
+.city-scene .sb-wall-badge {
+  border-color: rgba(227, 189, 99, 0.75);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 226, 170, 0.18);
+}
+
+/* ── ⑤ 좁은 화면(≤380px)·낮은 화면 보정 ───────────────────────────── */
+@media (max-width: 380px) {
+  .city-top { gap: 6px; padding-left: 7px; padding-right: 7px; }
+  .ct-tab { font-size: 12px; }
+  .city-dev .dc-val { font-size: 14px; }
+  .city-slots .sc-ico { width: 32px; height: 32px; }
+  .city-general-strip .gc-pt { width: 38px; height: 44px; }
+}
+@media (max-height: 700px) {
+  .city-tabs { padding: 4px 8px 5px; }
+  .ct-tab { padding: 5px 0 4px; }
+  .city-dev .dev-card { padding: 5px 7px 6px 5px; }
+}
+
+/* ── ⑥ v6.6c 보정 — 성 요약 긴 설명 줄바꿈 · 시설 카드 단추 한 줄 ──────── */
+/* '이 성 병력 기준 · 1,000당 19' 같은 긴 설명이 옆 칸을 침범하지 않게 자기 줄로 내린다 */
+.city-info .ci-cell { flex-wrap: wrap; row-gap: 0; }
+.city-info .ci-cell > em {
+  flex: 1 1 100%;
+  margin-top: -1px;
+  text-align: right;
+  white-space: normal;
+  line-height: 1.3;
+}
+/* 이 성의 한 달 — 같은 비단 카드 결로 */
+.city-info .ci-month {
+  border: 1px solid #c9a76a;
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(246, 234, 210, 0.98));
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 2px rgba(90, 62, 20, 0.16);
+}
+.city-info .ci-mon-head {
+  border-bottom: 1px solid rgba(197, 149, 75, 0.42);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+.city-info .ci-mon-head b { font-size: 11.5px; color: #3a2410; }
+.city-info .cm-lb { color: #6f5522; }
+.city-info .cm-val { font-size: 14.5px; }
+.city-info .cm-sub { color: #977f52; }
+.city-info .ci-up {
+  border: 1px solid #c9a76a;
+  background: linear-gradient(180deg, rgba(255, 252, 243, 0.92), rgba(246, 234, 210, 0.92));
+}
+.city-info .ci-up.ready { border-color: #6f8f52; background: linear-gradient(180deg, #f2f8e8, #dcecc9); }
+.city-info .ci-up-lb { color: #6f4a10; }
+/* 시설 카드 — '담당 없음 · 수입 50%'는 윗줄, [배속][철거]는 아랫줄에 나란히 */
+.city-slots .sc-owner { gap: 3px 4px; }
+.city-slots .sc-owner > em { flex: 1 0 100%; }
+.city-slots .sc-owner .sc-need { margin-left: 0; }
+.city-slots .sc-owner .sc-demolish { margin-left: 0; }
+/* v6.6c — 자원 명패 높이를 조금 줄여 헤더가 v5.87보다 두꺼워지지 않게 */
+.city-top .city-res { padding: 2px 7px 2px 6px; }
+.city-top .city-res .res { line-height: 1.4; }
+/* v6.6c — 360px 폰에서도 성 헤더 2째 줄(유형·Lv·관작)이 자원 명패에 가리지 않게 */
+@media (max-width: 380px) {
+  .city-top .ct-line2 { gap: 1px; }
+  .city-top .ct-line2 .rank-chip,
+  .city-top .ct-line2 .city-level,
+  .city-top .ct-line2 #city-hanja { padding: 0 3px; font-size: 8px; }
+  .city-top .faction-tag { width: 20px; height: 20px; font-size: 11px; }
+}
