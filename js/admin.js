@@ -428,8 +428,10 @@
     fab.innerHTML = '🛠️ 관리자';
     fab.title = '관리자 모드';
     fab.onclick = openPanel;
-    /* #app 안에 넣어야 모달(#modal-root z=50) 아래, 화면 위에 놓인다 */
-    (document.getElementById('app') || document.body).appendChild(fab);
+    /* v6.5 — #app 안에 두면 #app(position:fixed; z-index:1)의 쌓임 문맥에 갇혀
+       원정 화면(#expRoot z=9000)이 늘 덮었다. body 로 옮겨 z-index 9500이면
+       원정 화면 안에서도 누를 수 있다. 모달이 뜨면 CSS(:has)가 잠시 숨긴다. */
+    document.body.appendChild(fab);
 
     $('#adm-close', el).onclick = closePanel;
     $('#adm-copy-top', el).onclick = copyDiff;

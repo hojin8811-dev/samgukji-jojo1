@@ -2427,6 +2427,11 @@
         const r9 = await fetch('data/v64c_art_manifest.json', { cache: 'no-cache' });
         if (r9.ok) SK.addTopArt(await r9.json());
       } catch (e9) { console.warn('v6.4c 20명 초상 목록을 불러오지 못했습니다.', e9); }
+      /* v6.5 — 고증·오류 초상 8명(무령왕·연남생·율돌골·온조왕·세종대왕·설총·조층 + 남성 알천). */
+      try {
+        const r10 = await fetch('data/v650_art_manifest.json', { cache: 'no-cache' });
+        if (r10.ok) SK.addTopArt(await r10.json());
+      } catch (e10) { console.warn('v6.5 초상 8명 목록을 불러오지 못했습니다.', e10); }
       applyLordArt();
       return true;
     } catch (e) { console.warn('전용 일러스트 목록을 불러오지 못했습니다.', e); return false; }
@@ -10773,12 +10778,9 @@
     const stat = (k, v) => `<span class="cdx-stat"><i>${k}</i><b>${v == null ? '-' : v}</b></span>`;
     /* v5.32 — 전원 열전: 이름 전용 대사가 없어도 병종·등급 대사로 697명 모두 한 줄이 남는다 */
     const gag = SK.gagOf ? SK.gagOf(g.name, cls, g.tier) : '';
-    const year = (s && (s.eraYear || (195 + s.year))) || 190;
-    const age = SK.ageOf ? SK.ageOf(g, year) : 0;
-    const born = g.birthYear ? `${g.birthYear}년생${age ? ` · ${year}년 ${age}세` : ''}` : '';
-    const debut = g.debutYear ? `${g.debutYear}년 등장` : '';
+    /* v6.5 — 도감에는 생년월일·나이·등장연도를 적지 않는다. 지금 어디에 있는지만 한 줄로 남긴다 */
     const where = mine && hero.city && SK.CITY[hero.city] ? `${SK.CITY[hero.city].name} 주둔` : '';
-    const meta = [born, debut, where].filter(Boolean).join(' · ');
+    const meta = where;
     SK.modal({
       kicker: `인물 도감 · ${g.tier}급 ${cname}`,
       title: g.name,

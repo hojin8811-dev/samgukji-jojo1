@@ -1394,7 +1394,7 @@ SK.addTopArt = function (manifest) {
   });
 };
 SK.artFor = function (name) { return SK.ART[name] || null; };
-SK.ASSET_V = '134';   /* 초상 파일을 덮어써도 폰이 옛 그림을 들고 있지 않게 — 파일 경로에도 붙인다 */
+SK.ASSET_V = '136';   /* 초상 파일을 덮어써도 폰이 옛 그림을 들고 있지 않게 — 파일 경로에도 붙인다 */
 SK.ptSrc = function (p) {
   if (!p) return 'assets/portraits/v2/gen_bobyung.webp?v=' + SK.ASSET_V;
   /* v5.89b — 전용 초상(v579·a_rank 등)도 같은 파일명으로 덮어썼으므로 경로 끝에 ?v= 를 붙여

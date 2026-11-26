@@ -1789,7 +1789,9 @@ b { font-weight: 700; }
 .build-row b { font-size: 12px; color: #33280f; }
 .build-row b em { font-style: normal; font-size: 8px; color: #9a7b34; }
 .build-row span { display: block; font-size: 9.5px; color: #7d6538; }
-.build-row .br-cost { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 800; color: #8a5a12; }
+.build-row .br-cost { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 800; color: #8a5a12;
+  /* v6.5 — 「금」과 「220」 사이에서 줄이 끊기지 않게 통째로 한 줄로 둔다 */
+  flex: 0 0 auto; white-space: nowrap; }
 .build-row[disabled] { opacity: 0.5; }
 /* v5.65 — 건설 확인 창 */
 .build-confirm { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
@@ -4202,14 +4204,9 @@ input[type="range"].rp-range { width: 100%; height: 22px; }
 .rm-dmg tfoot .rm-sum td { border-top: 1.5px solid #c9a86a; font-weight: 900; color: #6b4a12; background: #fbf1da; }
 /* v5.25 — 결산표가 길어도 합계줄은 항상 보이게 */
 .rm-dmg tfoot { position: sticky; bottom: 0; z-index: 1; }
-.rm-sum-bar { display: grid; grid-template-columns: 1fr repeat(4, minmax(0, auto)); gap: 6px; align-items: center;
-  padding: 4px 4px 5px; border-top: 1.5px solid #c9a86a; background: #fbf1da;
-  font-size: 9px; font-weight: 900; color: #6b4a12; border-radius: 0 0 8px 8px; }
-.rm-sum-bar span { text-align: left; }
-.rm-sum-bar b { text-align: right; font-size: 9px; }
-.rm-sum-bar b:nth-of-type(1) { min-width: 46px; }
-.rm-sum-bar b:nth-of-type(2) { min-width: 40px; }
-.rm-sum-bar b:nth-of-type(3) { min-width: 32px; }
+/* v6.5 — 표 밖 그리드(.rm-sum-bar) 대신 표 안 <tfoot> 행으로 합계를 옮겨 열을 정확히 맞춘다 */
+.rm-dmg tfoot .rm-sum td { padding: 4px; font-size: 9px; }
+.rm-dmg tfoot .rm-sum td:first-child { white-space: nowrap; }
 
 /* ══════════════════════════════════════════════════════════════
    v5.17 — 성곽 겹수(1중·2중·3중) 내정 화면 차별화 + 전직 연출 + 결산 표기
@@ -7085,7 +7082,9 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
    게임 화면 위에 얹히는 '도구 서랍'처럼 보이게 한다.
    ═══════════════════════════════════════════════════════════════════════════ */
 .adm-fab {
-  position: fixed; z-index: 40;   /* 모달(#modal-root z=50) 아래 — 창을 가리지 않는다 */
+  /* v6.5 — 원정(#expRoot z=9000) 위. body 직속으로 옮겼으므로 이 값이 그대로 먹는다.
+     (v5.83~6.4는 #app 안 40이라 모달(z=50) 아래였다 — 모달이 뜨면 아래 :has 규칙이 숨긴다) */
+  position: fixed; z-index: 9500;
   top: calc(env(safe-area-inset-top, 0px) + 92px); right: 7px;
   min-width: 38px; height: 30px; padding: 0 9px;
   display: flex; align-items: center; justify-content: center;
@@ -7095,9 +7094,15 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 235, 180, 0.25);
 }
 .adm-fab:active { transform: translateY(1px); }
+/* v6.5 — 모달 창이 떠 있는 동안에는 관리자 버튼을 비켜 둔다(창을 가리지 않는다) */
+body:has(#modal-root .modal-layer.in) .adm-fab,
+body:has(#expRoot .ex-modal) .adm-fab { opacity: 0; pointer-events: none; }
+/* v6.5 — 원정 화면에서는 오른쪽 위 원정 버튼줄·아래 출진줄을 피해 그 사이에 둔다 */
+body:has(#expRoot) .adm-fab { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 196px); }
 
 .adm {
-  position: fixed; inset: 0; z-index: 1200;
+  /* v6.5 — #expRoot(z=9000) 위. 원정 전장·원정 화면을 덮고 편집기가 뜬다 */
+  position: fixed; inset: 0; z-index: 9600;
   display: flex; align-items: stretch; justify-content: center;
   background: rgba(10, 8, 4, 0.55);
   font-family: var(--sans); color: #f0e3c4;
@@ -8142,6 +8147,8 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 .battle-speed.fast span { color: #fff8e2; }
 .battle-speed.fast em { color: #fff0cd; }
 .battle-top .icon-btn:active, .battle-speed:active { transform: translateY(1px); filter: brightness(1.08); }
+/* v6.5 — ×1 배속 버튼 터치 영역을 옆 아이콘 버튼(38px)과 같은 크기로 넓힌다 */
+.battle-top .battle-speed { min-width: 46px; min-height: 38px; padding: 3px 8px; }
 
 /* 턴 뱃지 — 알약형, 금테 */
 .battle-turnbox {
@@ -8158,14 +8165,27 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 
 /* ── ② 병력 비율 게이지 ─────────────────────────────────────────────── */
 .battle-armies {
+  position: relative;
   padding: 4px 10px 5px;
   background: linear-gradient(180deg, #24150c, #1a0f07);
   border-bottom: 1px solid rgba(197, 149, 75, 0.35);
-  gap: 8px;
+  gap: 10px;
+}
+/* v6.5 — 가운데에 붙어 있던 아군·적군 병력 숫자 사이에 금빛 구분선을 세운다 */
+.battle-armies::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 1px; height: 16px; margin: -8px 0 0 -0.5px;
+  background: linear-gradient(180deg, rgba(197, 149, 75, 0), rgba(197, 149, 75, 0.85), rgba(197, 149, 75, 0));
+  pointer-events: none;
 }
 .army { gap: 6px; min-width: 0; }
+/* v6.5 — 숫자를 작은 알약에 담아 양쪽 병력을 눈으로 가른다 */
 .army b { font-size: 11px; font-weight: 900; color: #f7e4b6; min-width: 44px; letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 #0f0803; }
+  font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 #0f0803;
+  padding: 1px 5px; border-radius: 6px; background: rgba(255, 235, 190, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(197, 149, 75, 0.32); text-align: center; }
+.army.ally b { margin-right: 3px; }
+.army.enemy b { margin-left: 3px; }
 .army-flag { height: 19px; border-radius: 999px; font-size: 10px; letter-spacing: 0.01em; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 0 rgba(0, 0, 0, 0.5); }
 .army.ally .army-flag { background: linear-gradient(180deg, #4c8ce0, #2757a8); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 1px rgba(180, 214, 255, 0.75), 0 1px 0 rgba(0, 0, 0, 0.5); }
 .army.enemy .army-flag { background: linear-gradient(180deg, #d4513c, #95271a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(255, 186, 166, 0.7), 0 1px 0 rgba(0, 0, 0, 0.5); }
@@ -8210,19 +8230,20 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 #uc-terrain { font-size: 8.5px; font-weight: 700; color: #3f5c33; }
 
 /* HP·MP·필살기(EXP) 게이지 — 시인성 */
+/* v6.5 — 막대 안 수치가 6.5~8px이라 읽히지 않았다. 막대를 조금 키우고 글씨를 9.5~10px로 올린다 */
 .uc-bars { gap: 2px; margin: 3px 0 2px; }
-.hpbar { height: 12px; border-radius: 5px; background: linear-gradient(180deg, #b7a075, #d9c59c);
+.hpbar { height: 15px; border-radius: 5px; background: linear-gradient(180deg, #b7a075, #d9c59c);
   box-shadow: inset 0 0 0 1px rgba(92, 64, 22, 0.5), inset 0 1px 3px rgba(0, 0, 0, 0.22); }
 .hpbar i { background: linear-gradient(180deg, #9be08f 0%, #4fa24a 55%, #357c34 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
-.hpbar em { font-size: 8px; font-weight: 900; line-height: 1; color: #10200c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
-.mpbar { height: 8px; border-radius: 4px; background: linear-gradient(180deg, #b7a075, #d9c59c);
+.hpbar em { font-size: 10px; font-weight: 900; line-height: 1; color: #10200c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
+.mpbar { height: 12px; border-radius: 4px; background: linear-gradient(180deg, #b7a075, #d9c59c);
   box-shadow: inset 0 0 0 1px rgba(92, 64, 22, 0.5); }
 .mpbar i { background: linear-gradient(180deg, #b6dcff 0%, #5c96d4 55%, #35679f 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
-.mpbar em { font-size: 6.5px; font-weight: 900; line-height: 1; color: #14243a; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
-.expbar { height: 9px; border-radius: 4px; background: linear-gradient(180deg, #b7a075, #d9c59c);
+.mpbar em { font-size: 9.5px; font-weight: 900; line-height: 1; color: #14243a; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.expbar { height: 12px; border-radius: 4px; background: linear-gradient(180deg, #b7a075, #d9c59c);
   box-shadow: inset 0 0 0 1px rgba(92, 64, 22, 0.5); }
 .expbar i { background: linear-gradient(180deg, #ffe6a0 0%, #d9a63e 55%, #a87b22 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5); }
-.expbar em { font-size: 7px; font-weight: 900; line-height: 1; color: #33240a; }
+.expbar em { font-size: 9.5px; font-weight: 900; line-height: 1; color: #33240a; }
 .uc-meta { font-size: 9px; color: #6a5732; gap: 9px; }
 .uc-meta b { color: #2f2408; }
 .uc-stats { font-size: 9px; color: #6a5732; gap: 7px; }
@@ -8294,5 +8315,40 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
   .battle-bottom { padding: 5px 8px calc(5px + env(safe-area-inset-bottom)); }
   .act { min-height: 44px; }
   .uc-portrait { width: 48px; height: 48px; }
-  .hpbar { height: 11px; }
+  .hpbar { height: 14px; }
+  .mpbar, .expbar { height: 11px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.5 — 한글 단어 중간 줄바꿈 제거
+   · 390px 폰에서 '2채/째' '금/220' '주점 필/요'처럼 낱말이 쪼개지던 자리.
+   · keep-all = 띄어쓰기에서만 줄을 바꾼다. 한 낱말이 한 줄보다 길 때만
+     overflow-wrap: break-word 가 받아 넘긴다.
+   ══════════════════════════════════════════════════════════════════════ */
+.build-row .br-cost,
+.grp-row .grp-go,
+.toast,
+.modal-p,
+.cp-empty,
+.tr-note,
+.ec-note,
+.cdx-hint,
+.cdx-where,
+.bt-empty,
+.cdx-detail-meta,
+.cdx-detail-tag,
+.rm-note,
+.unify-note,
+.slot-fixed-note,
+.demolish-card span,
+.talent-note,
+.resume-card .modal-p,
+.academy-list .cw-main span,
+/* 모달·원정 창 안쪽 문구는 한 번에 — 짧은 한 줄부터 긴 설명까지 같은 규칙을 쓴다 */
+.modal-body, .modal-body *,
+#expRoot .ex-mbox, #expRoot .ex-mbox *,
+.tut-mission, .tut-mission *,
+.battle-tip, .rm-report-head span {
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
