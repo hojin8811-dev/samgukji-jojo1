@@ -1,5 +1,6 @@
 /* =====================================================================
    삼국지-꼬마영웅 난타전 — 원정 시나리오 《삼국이분다》 통합판
+   v7.0 · 정식 오픈 — 표지 공식 진입 버튼 · 주간 보스전(주차 로테이션·기믹·주간 기록)
    v6.3 · 전투씬 애니메이션·타격감 개편 (모션 타임라인 · 반달 칼바람 · 넉백/화면 흔들림)
    v6.2 · 1~3막(30관문) · 랭킹전 실전투 · 장비 분해·강화 · 보스 토벌전
    v5.74 (?v=92) · 대기실 · 레벨(Lv.1~99) · 대각선 실시간 난투 전투
@@ -14,8 +15,8 @@
      (기절·화상·감속·치유·버프) · 장비 재정립(무기 공격력%+치명타%, 갑옷 최대HP%+피해감소%,
      보물 공격속도%+초기 게이지%) · 공훈 보상 하향 · 인연 24종 도감.
 
-   · 입장은 두 갈래뿐 — 주소의 ?exp=1, 또는 표지 제목 5연타.
-     일반 접속(?v=92)에서는 원정 버튼도 문구도 화면에 나오지 않는다.
+   · 입장은 세 갈래 — ① 표지의 [⚔️ 원정 · 삼국이분다] 버튼(v7.0 정식 오픈)
+     ② 주소의 ?exp=1 ③ 표지 제목 5연타. 어느 쪽이든 같은 대기실로 들어간다.
    · 저장: localStorage['sk_expedition_v1'] (본편 공유 공훈은 'sk_meta_merit')
      v5.69 이하 저장(roster/formation/stars/gear/equip/progress/cleared)을 그대로 읽어
      lv·exp 기본값을 채워 새 구조(owned/squad)로 옮긴다. 저장할 때는 옛 구조도 함께 써 두어
@@ -382,6 +383,117 @@
   ];
   function bossRushOf(id) { return BOSS_RUSH.find((b) => b.id === id) || null; }
 
+  /* ── 주간 보스전 (v7.0) ────────────────────────────────────────────────
+     KST 기준 ISO 주차로 6종이 매주 월요일 0시에 돌아가며 바뀐다. 기믹은 전투 수치로
+     그대로 적용되고(적 공격·방어·HP·공격속도, 제한 시간, 아군 공격), 매 도전의 피해량을
+     재어 그 주의 최고 피해를 남긴다. 한 주에 한 번 첫 격파 보상을 준다.
+       · 판정: 적을 모두 쓰러뜨리면 '격파', 90초가 지나면 '시간 종료'(피해 기록은 남는다)
+       · 저장: sk_expedition_v1.weekly (없는 옛 세이브는 기본값으로 채운다) */
+  const WEEKLY_TIME = 90;                // 주간 보스전 기본 제한 시간(초)
+  const WEEKLY_FOE_RATE = 1.12;          // 같은 관문 보스 토벌전(1.05)보다 조금 두껍게
+  const WEEKLY = [
+    { id: 'w_jangak', short: '장각', stage: 10, name: '태평도 교주 · 장각', sub: '창천의 요술이 다시 하늘을 덮는다',
+      merit: 520, stone: 12, gim: { id: 'sulbeop', icon: '☯️', name: '창천의 요술', desc: '적 전체 공격력 +20%', enemyAtk: 0.20 },
+      groups: [
+        { name: '장각', boss: true, job: '도사', L: 122, W: 78, I: 122, c: 1, scale: 1.65 },
+        { name: '황건 정예', job: '창병', L: 100, W: 104, I: 34, c: 3 }] },
+    { id: 'w_hwamong', short: '화웅', stage: 15, name: '서량의 선봉 · 화웅', sub: '관문을 부순 창끝이 다시 겨눠진다',
+      merit: 620, stone: 14, gim: { id: 'cheolbyeok', icon: '🛡️', name: '철벽의 진', desc: '적 전체 방어력 +40%', enemyDef: 0.40 },
+      groups: [
+        { name: '화웅', boss: true, job: '기병', L: 132, W: 152, I: 54, c: 1, scale: 1.6 },
+        { name: '서량 철기', job: '기병', L: 114, W: 120, I: 32, c: 2 },
+        { name: '서량 궁병', job: '궁수', L: 110, W: 102, I: 38, c: 2 }] },
+    { id: 'w_yeopo', short: '여포', stage: 18, name: '천하무쌍 · 여포', sub: '방천화극이 45초 안에 결판을 낸다',
+      merit: 720, stone: 16, gim: { id: 'sokjeon', icon: '⏱', name: '천하무쌍', desc: '제한 시간 45초 — 속전속결', time: 45 },
+      groups: [
+        { name: '여포', boss: true, job: '기병', L: 142, W: 174, I: 42, c: 1, scale: 1.75 },
+        { name: '고순', job: '등갑병', L: 124, W: 132, I: 52, c: 1, scale: 1.2 },
+        { name: '서량 철기', job: '기병', L: 122, W: 128, I: 34, c: 2 }] },
+    { id: 'w_dongtak', short: '동탁', stage: 20, name: '서량의 폭군 · 동탁', sub: '장안성에 다시 드리운 폭정',
+      merit: 820, stone: 18, gim: { id: 'pokjeong', icon: '🐘', name: '폭정의 군세', desc: '적 전체 최대 HP +25%', enemyHp: 0.25 },
+      groups: [
+        { name: '동탁', boss: true, job: '군주', L: 148, W: 158, I: 106, c: 1, scale: 1.7 },
+        { name: '이유', job: '도사', L: 126, W: 66, I: 132, c: 1, scale: 1.2 },
+        { name: '서량 친위대', job: '창병', L: 130, W: 136, I: 42, c: 3 }] },
+    { id: 'w_gamnyeong', short: '감녕', stage: 28, name: '백기장군 · 감녕', sub: '강동 수군의 야습이 밤을 가른다',
+      merit: 900, stone: 20, gim: { id: 'yaseup', icon: '🌊', name: '강동의 야습', desc: '적 전체 공격속도 +30%', enemyAspd: 0.30 },
+      groups: [
+        { name: '감녕', boss: true, job: '수적', L: 138, W: 156, I: 102, c: 1, scale: 1.6 },
+        { name: '주유', boss: true, job: '책사', L: 134, W: 102, I: 150, c: 1, scale: 1.55 },
+        { name: '강동 수군', job: '수적', L: 128, W: 132, I: 50, c: 2 }] },
+    { id: 'w_jojo', short: '조조', stage: 30, name: '적벽의 결전 · 조조', sub: '천하를 건 마지막 결전',
+      merit: 1000, stone: 24, gim: { id: 'gyeoljeon', icon: '🔥', name: '결전의 포진', desc: '적 전체 공격력 +15% · 아군 전체 공격력 +15%', enemyAtk: 0.15, allyAtk: 0.15 },
+      groups: [
+        { name: '조조', boss: true, job: '군주', L: 150, W: 146, I: 154, c: 1, scale: 1.8 },
+        { name: '제갈량', boss: true, job: '책사', L: 144, W: 96, I: 164, c: 1, scale: 1.7 },
+        { name: '호위 친위대', job: '검병', L: 138, W: 144, I: 52, c: 3 }] }
+  ];
+  function weeklyBossOf(id) { return WEEKLY.find((b) => b.id === id) || null; }
+
+  /* 주차 계산 — 기기 시간대와 상관없이 KST 벽시계로 센다 */
+  function kstClock(now) { return new Date((now == null ? Date.now() : now) + 9 * 3600000); }
+  function isoWeekOf(d) {                       // d = KST 벽시계를 UTC 필드에 담은 Date
+    const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);     // 그 주 목요일 → ISO 연도가 정해진다
+    const year = t.getUTCFullYear();
+    return { year: year, week: Math.ceil(((t - Date.UTC(year, 0, 1)) / 86400000 + 1) / 7) };
+  }
+  function weekStartMs(year, week) {            // 1주차 월요일 00:00 KST → 실제 epoch ms
+    const jan4 = Date.UTC(year, 0, 4);          // 1월 4일은 언제나 1주차
+    const day = new Date(jan4).getUTCDay() || 7;
+    return jan4 - (day - 1) * 86400000 + (week - 1) * 7 * 86400000 - 9 * 3600000;
+  }
+  function weekInfo(now) {
+    const iso = isoWeekOf(kstClock(now));
+    const start = weekStartMs(iso.year, iso.week), end = start + 7 * 86400000;
+    const idx = ((iso.year * 53 + iso.week) % WEEKLY.length + WEEKLY.length) % WEEKLY.length;
+    return { key: iso.year + '-W' + (iso.week < 10 ? '0' : '') + iso.week,
+      year: iso.year, week: iso.week, start: start, end: end, idx: idx, boss: WEEKLY[idx] };
+  }
+  function wkDate(ms) { const d = kstClock(ms); return (d.getUTCMonth() + 1) + '/' + d.getUTCDate(); }
+  function wkLeft(ms) {
+    const left = Math.max(0, ms - Date.now());
+    const d = Math.floor(left / 86400000), h = Math.floor(left % 86400000 / 3600000), m = Math.floor(left % 3600000 / 60000);
+    return d > 0 ? d + '일 ' + h + '시간' : (h > 0 ? h + '시간 ' + m + '분' : m + '분');
+  }
+  /* 옛 세이브에 weekly 가 없거나 깨졌어도 기본값으로 채운다 (세이브 이관 가드) */
+  function normWeekly(raw, wk) {
+    const o = { key: wk.key, boss: wk.boss.id, best: 0, clears: 0, plays: 0, first: false, bestAt: 0 };
+    if (!raw || typeof raw !== 'object') return o;
+    const key = String(raw.key || '');
+    if (!/^\d{4}-W\d{2}$/.test(key)) return o;                 // 형식이 깨진 기록은 이번 주 것으로 새로 시작
+    o.key = key;
+    o.boss = weeklyBossOf(raw.boss) ? String(raw.boss) : o.boss;
+    o.best = clamp(Math.round(Number(raw.best) || 0), 0, 99999999);
+    o.clears = clamp(Math.round(Number(raw.clears) || 0), 0, 9999);
+    o.plays = clamp(Math.round(Number(raw.plays) || 0), 0, 99999);
+    o.first = !!raw.first;
+    o.bestAt = Math.max(0, Math.round(Number(raw.bestAt) || 0));
+    return o;
+  }
+  const normHist = (raw) => (Array.isArray(raw) ? raw : []).filter((h) => h && /^\d{4}-W\d{2}$/.test(String(h.key || '')))
+    .map((h) => ({ key: String(h.key), boss: weeklyBossOf(h.boss) ? String(h.boss) : '',
+      best: clamp(Math.round(Number(h.best) || 0), 0, 99999999), clears: clamp(Math.round(Number(h.clears) || 0), 0, 9999) }))
+    .slice(-8);
+  /* 주가 바뀌면 지난 주 기록을 보관하고 이번 주 기록을 새로 연다 */
+  function refreshWeekly() {
+    const wk = weekInfo();
+    if (!S) return wk;
+    if (!S.weekly || S.weekly.key !== wk.key) {
+      const old = S.weekly;
+      if (old && old.key && old.key < wk.key && (old.best || old.clears)) {
+        S.weeklyHist = normHist((S.weeklyHist || []).concat([{ key: old.key, boss: old.boss, best: old.best, clears: old.clears }]));
+      }
+      S.weekly = { key: wk.key, boss: wk.boss.id, best: 0, clears: 0, plays: 0, first: false, bestAt: 0 };
+      save();
+    } else if (S.weekly.boss !== wk.boss.id) {
+      S.weekly.boss = wk.boss.id;                                // 로테이션 정의가 바뀐 경우
+      save();
+    }
+    return wk;
+  }
+
   /* ── 작은 도우미 ─────────────────────────────────────────── */
   const $ = (s, r) => (r || document).querySelector(s);
   const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
@@ -479,7 +591,7 @@
     let raw = null;
     try { raw = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { raw = null; }
     const st = (raw && typeof raw === 'object') ? raw : {};
-    const out = { v: 3, owned: {}, squad: [], gear: [], cleared: [], progress: 1, credit: {}, stone: 0, rank: 12, rankTop: false, rankWins: 0, bossWins: {} };
+    const out = { v: 4, owned: {}, squad: [], gear: [], cleared: [], progress: 1, credit: {}, stone: 0, rank: 12, rankTop: false, rankWins: 0, bossWins: {}, weekly: null, weeklyHist: [] };
 
     /* ① v5.70 구조가 이미 있으면 그대로 읽는다 */
     if (st.owned && typeof st.owned === 'object' && Object.keys(st.owned).length) {
@@ -560,6 +672,10 @@
     if (st.bossWins && typeof st.bossWins === 'object') {
       Object.keys(st.bossWins).forEach((k) => { const v = Math.round(Number(st.bossWins[k]) || 0); if (v > 0 && bossRushOf(k)) out.bossWins[k] = v; });
     }
+    /* v7.0 — 주간 보스전 기록 (옛 저장은 이번 주 기본값으로 채운다) */
+    const wk = weekInfo();
+    out.weekly = normWeekly(st.weekly, wk);
+    out.weeklyHist = normHist(st.weeklyHist);
     return out;
   }
 
@@ -572,7 +688,7 @@
     if (!S) return;
     try {
       const dump = {
-        v: 3,
+        v: 4,
         owned: S.owned,
         squad: S.squad,
         gear: S.gear,
@@ -584,6 +700,8 @@
         rankTop: !!S.rankTop,
         rankWins: S.rankWins || 0,
         bossWins: S.bossWins || {},
+        weekly: S.weekly || null,
+        weeklyHist: S.weeklyHist || [],
         /* ── 옛 구조도 함께 써 둔다 (v5.69 빌드 호환) ── */
         roster: Object.keys(S.owned),
         stars: (function () { const o = {}; Object.keys(S.owned).forEach((id) => { o[id] = S.owned[id].star; }); return o; })(),
@@ -1048,6 +1166,15 @@
       .forEach(([t, ic, fn]) => { const b = el('button', 'ex-sbtn', '<i>' + ic + '</i><span>' + t + '</span>'); b.onclick = fn; side.appendChild(b); });
     room.appendChild(side);
 
+    /* v7.0 — 주간 보스전 명패: 이번 주 보스·최고 피해를 대기실에서 바로 보여 준다 */
+    const wk = refreshWeekly(), wkb = weeklyBossOf(S.weekly.boss) || wk.boss;
+    const wkCard = el('button', 'ex-week' + (S.weekly.first ? ' done' : ''),
+      '<span class="wk-t">👹 주간 보스전 · ' + wk.week + '주차</span>' +
+      '<b>' + esc(wkb.short) + '</b>' +
+      '<small>' + (S.weekly.first ? '✔ 격파 · 최고 ' + fmt(S.weekly.best) : '최고 피해 ' + fmt(S.weekly.best)) + '</small>');
+    wkCard.onclick = openWeekly;
+    room.appendChild(wkCard);
+
     const yard = el('div', 'ex-yard');
     ids.forEach((id, i) => {
       const d = def(id), r = S.owned[id], p = YARD_SLOTS[i];
@@ -1075,8 +1202,11 @@
     room.appendChild(go);
 
     const dock = el('nav', 'ex-dock');
-    [['장수', '🛡️', openRoster], ['보물', '💎', openTreasure], ['소환', '🔮', openSummon], ['랭킹', '🏆', openRanking]]
-      .forEach(([t, ic, fn]) => { const b = el('button', '', '<i>' + ic + '</i><span>' + t + '</span>'); b.onclick = fn; dock.appendChild(b); });
+    [['장수', '🛡️', openRoster], ['보물', '💎', openTreasure], ['소환', '🔮', openSummon], ['랭킹', '🏆', openRanking], ['주간보스', '👹', openWeekly]]
+      .forEach(([t, ic, fn]) => {
+        const b = el('button', t === '주간보스' && !S.weekly.first ? 'hot' : '', '<i>' + ic + '</i><span>' + t + '</span>');
+        b.onclick = fn; dock.appendChild(b);
+      });
     room.appendChild(dock);
     stage.appendChild(room);
   }
@@ -1328,6 +1458,79 @@
     });
     body.appendChild(el('div', 'u-note', '보스는 본편 장수의 실제 능력치에 토벌전 배율이 붙습니다 — 호위 부대와 함께 6명이 나옵니다.'));
     const m = modal('👑 보스 토벌전', body, { cls: 'tall' });
+  }
+
+  /* ---------- 주간 보스전 (v7.0) ---------- */
+  function openWeekly() {
+    const wk = refreshWeekly();
+    const b = weeklyBossOf(S.weekly.boss) || wk.boss;
+    const rec = S.weekly;
+    const body = el('div', 'ex-list ex-weekly');
+    let m = null;
+    body.appendChild(el('div', 'u-note big', wk.year + '년 ' + wk.week + '주차 · ' + wkDate(wk.start) + '~' + wkDate(wk.end - 1) +
+      '<br>마감까지 ' + wkLeft(wk.end)));
+
+    const hero = el('div', 'wk-boss');
+    hero.appendChild(portrait(def(b.short), 'wk-pt'));
+    hero.appendChild(el('div', 'wk-bn', '<b>' + esc(b.name) + '</b><small>' + esc(b.sub) + '</small>' +
+      '<span class="wk-gim"><em>' + b.gim.icon + ' ' + esc(b.gim.name) + '</em> ' + esc(b.gim.desc) + '</span>' +
+      (b.gim.time ? '' : '<span class="wk-gim time"><em>⏱ 제한 시간</em> ' + WEEKLY_TIME + '초 안에 최대 피해</span>')));
+    body.appendChild(hero);
+
+    const foes = [];
+    (b.groups || []).forEach((g) => { foes.push(esc(g.name) + (g.c > 1 ? ' ×' + g.c : '')); });
+    body.appendChild(el('div', 'u-note', '출전 — ' + foes.join(' · ')));
+
+    body.appendChild(el('div', 'wk-rec',
+      '<div><span>이번 주 최고 피해</span><b>' + fmt(rec.best) + '</b></div>' +
+      '<div><span>격파</span><b>' + (rec.first ? '✔ 완료' : rec.clears ? rec.clears + '회' : '—') + '</b></div>' +
+      '<div><span>도전</span><b>' + rec.plays + '회</b></div>'));
+
+    const go = el('button', 'ex-btn gold wk-go', (rec.first ? '👹 주간 보스 재도전' : '👹 주간 보스 도전') +
+      '<small>' + (rec.first ? '재도전 🏅' + fmt(Math.max(80, Math.round(b.merit * 0.2))) + ' · ' + STONE_NAME + ' +2'
+        : '첫 격파 🏅' + fmt(b.merit) + ' · ' + STONE_NAME + ' +' + b.stone) + '</small>');
+    go.onclick = () => { if (m) m.kill(); startWeeklyBattle(); };
+    body.appendChild(go);
+
+    const mine = power(S.squad), theirs = Math.round(weeklyTarget(b));
+    body.appendChild(el('div', 'u-note', '내 원정단 ⚔️' + fmt(mine) + ' · 이번 주 보스 ⚔️' + fmt(theirs) +
+      '<br>적을 모두 쓰러뜨리면 격파, 시간이 끝나도 그때까지 넣은 피해가 기록에 남습니다.' +
+      '<br>주간 첫 격파 보상은 한 주에 한 번, 매주 월요일 0시에 보스가 바뀝니다.'));
+
+    if (S.weeklyHist.length) {
+      body.appendChild(el('div', 'l-hd', '지난 주 기록'));
+      S.weeklyHist.slice().reverse().forEach((h) => {
+        const hb = weeklyBossOf(h.boss);
+        body.appendChild(el('div', 'wk-hrow', '<b>' + esc(h.key) + '</b><span>' + esc(hb ? hb.short : '—') + '</span>' +
+          '<em>피해 ' + fmt(h.best) + (h.clears ? ' · 격파 ' + h.clears + '회' : ' · 미격파') + '</em>'));
+      });
+    }
+    m = modal('👹 주간 보스전', body, { cls: S.weeklyHist.length ? 'tall' : '', onClose: renderRoom });
+  }
+
+  /* 적 편성에 기믹 수치를 입힌다 — 표기한 그대로만 바꾼다 */
+  function weeklyTarget(b) {
+    const mine = power(S ? S.squad : []);
+    const curve = expectedPartyPower(b.stage) * WEEKLY_FOE_RATE * TUNE_POWER_MULT;
+    /* 관문·토벌전과 같은 원칙 — 곡선보다 강한 사람에게는 같이 올라가고, 새로 시작한 사람도
+       아예 긁지도 못하는 일은 없게 내 원정단 ×1.15 을 넘지 않는다 */
+    return Math.min(curve, Math.max(600, mine * 1.15));
+  }
+  function weeklyFoes(b) {
+    const g = b.gim || {};
+    return unitsFrom(b.groups, weeklyTarget(b)).map((f) => Object.assign({}, f, {
+      hp: Math.round(f.hp * (1 + (g.enemyHp || 0))),
+      atk: Math.round(f.atk * (1 + (g.enemyAtk || 0))),
+      def: Math.round(f.def * (1 + (g.enemyDef || 0)))
+    }));
+  }
+  function startWeeklyBattle() {
+    const wk = refreshWeekly();
+    const b = weeklyBossOf(S.weekly.boss) || wk.boss;
+    const g = b.gim || {};
+    startArena({ mode: 'weekly', n: 0, sd: null, title: '👹 주간 보스 — ' + b.short + '!',
+      foeLabel: '주간 보스 · ' + b.short, foes: weeklyFoes(b),
+      time: g.time || WEEKLY_TIME, gim: g, meta: { boss: b.id, key: wk.key } });
   }
 
   /* ---------- 진형편집 ---------- */
@@ -1841,23 +2044,27 @@
     const ids = S.squad.slice(0, MAX_SQUAD).filter((id) => S.owned[id]);
     if (!ids.length) { toast('출진할 장수가 없어요'); return; }
     const g = sumSyn(synergies(ids));
+    const arenaTime = clamp(Math.round(Number(cfg.time) || ARENA_TIME), 20, 180);
     stage.innerHTML = '';
     const bt = el('div', 'bt');
     bt.appendChild(el('div', 'bt-bg'));
     bt.appendChild(el('div', 'bt-hud',
       '<div class="bt-side"><div class="bt-bar a"><i></i></div><small>아군 ' + ids.length + '명</small></div>' +
-      '<div class="bt-time">' + ARENA_TIME + '</div>' +
+      '<div class="bt-time">' + arenaTime + '</div>' +
       '<div class="bt-side r"><div class="bt-bar e"><i></i></div><small>' + esc(cfg.foeLabel || '적군') + '</small></div>'));
     const field = el('div', 'bt-field'); bt.appendChild(field);
     const ctl = el('div', 'bt-ctl', '<button class="spd">1× 배속</button><button class="pause">⏸</button><button class="auto on">⚡ 자동스킬 ON</button><button class="out">도주</button>');
     bt.appendChild(ctl);
     bt.appendChild(el('div', 'bt-cards'));
     if (cfg.mode !== 'stage') bt.classList.add('mode-' + cfg.mode);
+    /* 주간 보스전 — 누적 피해를 전장 위에 실시간으로 보여 준다 */
+    if (cfg.mode === 'weekly') bt.appendChild(el('div', 'bt-week', '👹 주간 보스 · 누적 피해 <b>0</b>'));
     stage.appendChild(bt);
 
     B = { n: cfg.n || 0, sd: cfg.sd, mode: cfg.mode || 'stage', meta: cfg.meta || {},
-      field: field, root: bt, units: [], proj: [], speed: 1, auto: true, time: ARENA_TIME, end: false, raf: 0,
-      last: performance.now(), clock: 0, timers: [], paused: false, shakeLv: 0, shakeUntil: 0, quiet: false };
+      field: field, root: bt, units: [], proj: [], speed: 1, auto: true, time: arenaTime, end: false, raf: 0,
+      last: performance.now(), clock: 0, timers: [], paused: false, shakeLv: 0, shakeUntil: 0, quiet: false,
+      dmg: 0, weekEl: $('.bt-week', bt), gim: cfg.gim || null };
 
     ids.forEach((id, i) => {
       const k = i - (ids.length - 1) / 2;
@@ -1870,6 +2077,10 @@
       const k = i - (en.length - 1) / 2;
       B.units.push(mkUnit(1, e, { hp: e.hp, atk: e.atk, def: e.def }, 272 + k * 36, 250 + k * 36, i));
     });
+    /* 기믹 — 표기한 수치만큼만 (아군 공격·적 공격속도) */
+    const gim = cfg.gim || {};
+    if (gim.allyAtk) B.units.forEach((u) => { if (u.team === 0) u.atk = Math.max(1, Math.round(u.atk * (1 + gim.allyAtk))); });
+    if (gim.enemyAspd) B.units.forEach((u) => { if (u.team === 1) u.aspd = (u.aspd || 0) + gim.enemyAspd; });
 
     const cards = $('.bt-cards', bt);
     B.units.filter((u) => u.team === 0).forEach((u) => {
@@ -1978,7 +2189,9 @@
     if (u.slowT > 0) { u.slowT -= dt; if (u.slowT <= 0) { u.slowT = 0; u.slowPct = 0; } }
     if (u.burnT > 0) {
       u.burnT -= dt;
-      u.hp -= Math.max(1, Math.round((u.burnDps || 0) * dt));
+      const bd = Math.max(1, Math.round((u.burnDps || 0) * dt));
+      u.hp -= bd;
+      if (B && B.mode === 'weekly' && u.team === 1) B.dmg = (B.dmg || 0) + bd;
       u.burnAcc = (u.burnAcc || 0) + dt;
       if (u.burnAcc >= 0.5) {
         u.burnAcc = 0;
@@ -2092,6 +2305,7 @@
     if (!t.alive) return 0;
     const r = calc(s, t, m), dmg = r.dmg;
     t.hp -= dmg;
+    if (B && B.mode === 'weekly' && s.team === 0 && t.team === 1) B.dmg = (B.dmg || 0) + dmg;
     s.gauge = Math.min(100, s.gauge + 4);
     t.gauge = Math.min(100, t.gauge + 7);
     /* 피격 넉백 — 공격자 반대 방향으로 살짝 밀렸다가 부드럽게 복귀 */
@@ -2333,8 +2547,7 @@
     bTimer(1180, function () { try { b.remove(); } catch (e) { /* ignore */ } });
   }
   function hud() {
-    const A = B.units.filter((u) => u.team === 0), E = B.units.filter((u) => u.team === 1);
-    const ratio = (L) => {
+    const A = B.units.filter((u) => u.team === 0), E = B.units.filter((u) => u.team === 1);    const ratio = (L) => {
       const m = L.reduce((s, u) => s + u.max, 0), h = L.reduce((s, u) => s + Math.max(0, u.hp), 0);
       return m ? h / m * 100 : 0;
     };
@@ -2343,6 +2556,7 @@
     if (be) be.style.width = ratio(E) + '%';
     const tm = $('.bt-time', B.root);
     if (tm) tm.textContent = Math.max(0, Math.ceil(B.time));
+    if (B.weekEl) { const d = $('b', B.weekEl); if (d) d.textContent = fmt(B.dmg || 0); }
     B.units.forEach((u) => {
       if (u.hpEl) u.hpEl.style.width = clamp(u.hp / u.max * 100, 0, 100) + '%';
       if (u.card) {
@@ -2367,11 +2581,13 @@
     });
     const mode = B.mode || 'stage';
     const n = B.n || 0, meta = B.meta || {};
+    const dealt = Math.round(B.dmg || 0);
     const first = win && mode === 'stage' && S.cleared.indexOf(n) < 0;
     const rw = mode === 'stage' ? rewardOf(n) : { merit: 0, hero: null, stone: 0 };
-    let baseExp, merit = 0, stone = 0, heroTxt = '', extraTxt = '';
+    let baseExp, merit = 0, stone = 0, heroTxt = '', extraTxt = '', wkBest = false;
     if (mode === 'stage') baseExp = 40 + n * 30;
     else if (mode === 'rank') baseExp = 120 + (meta.idx + 1) * 12;
+    else if (mode === 'weekly') { const wb = weeklyBossOf(meta.boss); baseExp = wb ? Math.round(wb.merit * 0.5) : 220; }
     else { const b = bossRushOf(meta.boss); baseExp = b ? Math.round(b.merit * 0.45) : 150; }
     const exp = win ? baseExp : Math.round(baseExp * 0.25);
 
@@ -2381,6 +2597,14 @@
       const r = S.owned[id], before = r.lv, up = addExp(id, exp);
       res.push({ id: id, before: before, after: r.lv, up: up });
     });
+
+    /* 주간 보스전 — 이기든 지든 이번 주 피해·도전 기록은 남긴다 */
+    if (mode === 'weekly' && S.weekly && S.weekly.key === meta.key) {
+      const rec = S.weekly;
+      rec.plays = (rec.plays || 0) + 1;
+      if (dealt > (rec.best || 0)) { rec.best = dealt; rec.bestAt = Date.now(); wkBest = true; }
+      /* 도중에 주가 바뀌었으면 이번 주(새 보스) 기록으로 옮겨 적지 않는다 */
+    }
 
     if (win) {
       if (mode === 'stage') {
@@ -2417,16 +2641,27 @@
           addMerit(merit); addStone(stone);
           heroTxt = b.name + ' 토벌 ' + (wins + 1) + '회';
         }
+      } else if (mode === 'weekly') {
+        const b = weeklyBossOf(meta.boss);
+        const rec = S.weekly;
+        if (b && rec && rec.key === meta.key) {
+          rec.clears = (rec.clears || 0) + 1;
+          if (!rec.first) { rec.first = true; merit = b.merit; stone = b.stone; extraTxt = '👹 주간 첫 격파 보상!'; }
+          else { merit = Math.max(80, Math.round(b.merit * 0.2)); stone = 2; extraTxt = '👹 이번 주 재격파'; }
+          addMerit(merit); addStone(stone);
+        }
       }
     }
     save();
     sfx(win ? 'victory' : 'defeat');
-    const title = win ? (first ? '첫 클리어!' : mode === 'rank' ? '랭킹전 승리!' : mode === 'boss' ? '토벌 성공!' : '승리!')
-      : (flee ? '퇴각' : '패배');
+    const title = win ? (mode === 'weekly' ? (extraTxt.indexOf('첫 격파') >= 0 ? '주간 첫 격파!' : '주간 보스 격파!')
+      : first ? '첫 클리어!' : mode === 'rank' ? '랭킹전 승리!' : mode === 'boss' ? '토벌 성공!' : '승리!')
+      : (flee ? '퇴각' : (mode === 'weekly' ? '격파 실패' : '패배'));
     const body = el('div', 'ex-result');
-    body.innerHTML = '<div class="r-t ' + (win ? 'win' : 'lose') + '">' + title + '</div>' +
+    body.innerHTML = '<div class="r-t ' + (win || mode === 'weekly' ? 'win' : 'lose') + '">' + title + '</div>' +
       '<div class="r-l">경험치 +' + fmt(exp) + ' (출진 장수 전원)' +
       (win ? (merit ? ' · 🏅 +' + fmt(merit) : '') + (stone ? ' · ' + STONE_NAME + ' +' + stone : '') : ' · 잃은 것은 없어요') + '</div>' +
+      (mode === 'weekly' ? '<div class="r-h">이번 전투 피해 ' + fmt(dealt) + ' · 이번 주 최고 ' + fmt(S.weekly ? S.weekly.best : dealt) + (wkBest ? ' — 기록 갱신!' : '') + '</div>' : '') +
       (heroTxt ? '<div class="r-h">' + esc(heroTxt) + '</div>' : '') +
       (extraTxt ? '<div class="r-h">' + esc(extraTxt) + '</div>' : '');
     res.forEach((r) => {
@@ -2437,13 +2672,14 @@
     const nextStage = (win && mode === 'stage' && n < MAX_ACT && n === maxCleared()) ? n + 1 : n;
     const againLabel = mode === 'stage'
       ? (win && n < MAX_ACT && n === maxCleared() ? '다음 관문' : '다시 도전')
-      : mode === 'rank' ? '랭킹전' : '보스 토벌전';
+      : mode === 'rank' ? '랭킹전' : mode === 'weekly' ? '주간 보스전' : '보스 토벌전';
     const again = el('button', 'ex-btn', againLabel);
     const home = el('button', 'ex-btn gold', '대기실');
     again.onclick = () => {
       stopBattle();
       if (mode === 'rank') { m.kill(); openRanking(); return; }
       if (mode === 'boss') { m.kill(); openBossRush(); return; }
+      if (mode === 'weekly') { m.kill(); openWeekly(); return; }
       startBattle(nextStage);
     };
     home.onclick = () => { m.kill(); stopBattle(); renderRoom(); };
@@ -2454,14 +2690,17 @@
   }
 
   /* =====================================================================
-     비밀 입장 · 공개 API
+     입장 · 공개 API
      ===================================================================== */
+  /* v7.0 — 정식 오픈. 표지의 [⚔️ 원정 · 삼국이분다] 버튼(항상 보임)이 기본 입장이고,
+     ?exp=1 즉시 입장과 표지 제목 5연타 입장도 예전 그대로 호환한다. */
   function bindEntry() {
     let dev = false;
     try { dev = new URLSearchParams(location.search).get('exp') === '1'; } catch (e) { dev = false; }
     const btn = document.getElementById('btn-expedition');
     if (btn) {
-      if (dev) btn.hidden = false;
+      btn.hidden = false;
+      btn.removeAttribute('hidden');
       btn.onclick = (e) => { if (e) e.preventDefault(); open(); };
     }
     const logo = document.querySelector('#screen-title .title-logo') || document.querySelector('.title-logo');
@@ -2476,8 +2715,7 @@
         taps = [];
         if (btn) btn.hidden = false;
         if (root) { renderRoom(); return; }
-        open();
-      });
+        open();      });
     }
     if (dev) open();
   }
@@ -2514,6 +2752,8 @@
         /* v6.2 */
         stone: readStone(), rank: rankPos(), rankWins: S.rankWins || 0, rankTop: !!S.rankTop,
         bossWins: JSON.parse(JSON.stringify(S.bossWins || {})),
+        weekly: S.weekly ? JSON.parse(JSON.stringify(S.weekly)) : null,
+        weeklyHist: JSON.parse(JSON.stringify(S.weeklyHist || [])),
         gearItems: S.gear.map((it) => ({ iid: it.iid, tid: it.tid, enh: it.enh || 0 }))
       };
     },
@@ -2540,6 +2780,7 @@
     speed: (s) => { if (B) B.speed = clamp(Number(s) || 1, 1, 12); },
     battleState: () => (B ? {
       stage: B.n, mode: B.mode, meta: B.meta, over: B.end, time: Math.round(B.time * 10) / 10, speed: B.speed,
+      dmg: Math.round(B.dmg || 0), gim: B.gim || null,
       ally: B.units.filter((u) => u.team === 0).map((u) => ({ name: u.name, hp: Math.round(u.hp), max: u.max, alive: u.alive, gauge: Math.round(u.gauge) })),
       enemy: B.units.filter((u) => u.team === 1).map((u) => ({ name: u.name, hp: Math.round(u.hp), max: u.max, alive: u.alive, hero: !!u.hero }))
     } : null),
@@ -2583,6 +2824,23 @@
     setRank: (pos) => { S.rank = clamp(Math.round(pos) || RANK_MAX, 1, RANK_MAX); save(); renderRoom(); return S.rank; },
     bossRush: () => BOSS_RUSH.map((b) => ({ id: b.id, stage: b.stage, name: b.name, merit: b.merit, stone: b.stone, open: maxCleared() >= b.stage, wins: (S.bossWins[b.id] || 0) })),
     bossBattle: (id) => startBossBattle(id),
+    /* v7.0 — 주간 보스전 점검용 */
+    weekly: () => {
+      const wk = refreshWeekly();
+      const b = weeklyBossOf(S.weekly.boss) || wk.boss;
+      return { key: wk.key, year: wk.year, week: wk.week, start: wk.start, end: wk.end, left: wkLeft(wk.end),
+        boss: { id: b.id, short: b.short, name: b.name, stage: b.stage, merit: b.merit, stone: b.stone,
+          gim: { id: b.gim.id, name: b.gim.name, desc: b.gim.desc, time: b.gim.time || WEEKLY_TIME } },
+        best: S.weekly.best, clears: S.weekly.clears, plays: S.weekly.plays, first: S.weekly.first,
+        hist: JSON.parse(JSON.stringify(S.weeklyHist || [])),
+        foePower: Math.round(weeklyTarget(b)),
+        myPower: power(S.squad) };
+    },
+    weeklyRoster: () => WEEKLY.map((b) => ({ id: b.id, short: b.short, name: b.name, stage: b.stage, gim: b.gim.name, merit: b.merit, stone: b.stone })),
+    weekAt: (ts) => { const w = weekInfo(ts); return { key: w.key, year: w.year, week: w.week, boss: w.boss.id, name: w.boss.name, start: w.start, end: w.end }; },
+    weeklyOpen: () => openWeekly(),
+    weeklyBattle: () => startWeeklyBattle(),
+    weeklyReset: () => { S.weekly = null; refreshWeekly(); save(); renderRoom(); return SK.expedition.weekly(); },
     enhance: (iid) => { const r = enhanceItem(gearItem(iid)); return r; },
     dismantle: (iid) => { const r = dismantleItem(gearItem(iid)); renderRoom(); return r; },
     equipAt: (id) => { const box = (S.owned[id] || {}).equip || {}; return { weapon: box.weapon || null, armor: box.armor || null, treasure: box.treasure || null }; },
