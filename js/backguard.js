@@ -97,7 +97,7 @@
   /* 'modal' | 'locked' | 'battle' | 'city' | 'sub' | 'exit' */
   function backAction() {
     if (exitOpen || battleExitOpen) return 'exit-ask';   // 종료 확인 창 위에서는 아무 것도 하지 않는다
-    /* v5.70 — 원정 《삼국이분다》 오버레이: 전투 중이면 대기실로, 대기실이면 본편으로 */
+    /* v5.70 — 원정 《꼬마영웅 원정대》 오버레이: 전투 중이면 대기실로, 대기실이면 본편으로 */
     if (window.Expedition && typeof window.Expedition.isOpen === 'function' && window.Expedition.isOpen()) {
       window.Expedition.back();
       return 'sub';

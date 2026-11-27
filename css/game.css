@@ -5495,7 +5495,7 @@ img.tier-S, img.tier-A, img.tier-B, img.tier-C {
 
 /* ══════════════════════════════════════════════════════════════════════════
    v5.67 (?v=85) — 원정 시나리오 대기실 (옛 화면 · v5.70부터 js/expedition.js 오버레이가 대신함)
-   · v7.0부터 표지 [⚔️ 원정 · 삼국이분다] 버튼으로 정식 공개. ?exp=1 · 제목 5연타도 그대로.
+   · v7.0부터 표지 [⚔️ 원정 · 꼬마영웅 원정대] 버튼으로 정식 공개. ?exp=1 · 제목 5연타도 그대로.
    · 3×3 출진 진형(최대 5명) · 공훈 연동 · 하단 4메뉴 + 출진 버튼
    ══════════════════════════════════════════════════════════════════════════ */
 #screen-expedition {
@@ -9221,7 +9221,7 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 .cdx-more { min-height: 40px; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   v7.0 — 원정 《삼국이분다》 정식 오픈 · 주간 보스전 (390×844)
+   v7.0 — 원정 《꼬마영웅 원정대》 정식 오픈 · 주간 보스전 (390×844)
    대기실 명패 · 주간 보스 창 · 주간 전투 피해 띠 · 표지 진입 버튼.
    기존 클래스는 건드리지 않고 새 클래스만 덧붙인다.
    ══════════════════════════════════════════════════════════════════════════ */
@@ -9314,3 +9314,62 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 #expRoot .ex-mx { width: 44px; height: 44px; min-width: 44px; font-size: 16px; }
 #expRoot .ex-mini { width: 48px; height: 44px; }
 #expRoot .ex-mh { padding: 8px 12px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v7.1 (?v=147) — 원정 《꼬마영웅 원정대》 · 제4막 하북 제패전(31~40관문)
+   ① 대기실 이름표(꼬마영웅 원정대) — 현재 목표 카드 맨 위 한 줄
+   ② 관문 입장 한 줄 시나리오 띠(.bt-story) · 승리 한 줄(.r-story)
+   ③ 머리줄 막 탭 4개(1~4막)가 390px에서 잘리지 않게 압축
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 대기실 — 원정 이름표 ─────────────────────────────────────────── */
+#expRoot .ex-goal .g0 {
+  font-size: 10px; font-weight: 900; letter-spacing: 0.02em;
+  color: #ffd76a; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  padding-bottom: 4px; margin-bottom: 4px;
+  border-bottom: 1px solid rgba(197, 149, 75, 0.45);
+  white-space: nowrap;
+}
+
+/* ── ② 관문 입장 시나리오 띠 — 전장 위 목판 띠 (4.6초) ──────────────── */
+#expRoot .bt-story {
+  position: absolute; left: 10px; right: 10px; top: 124px; z-index: 330;
+  padding: 9px 12px 10px; border-radius: 11px; pointer-events: none;
+  background: var(--ex-wood-grain), linear-gradient(180deg, rgba(58, 35, 21, 0.96), rgba(26, 15, 7, 0.94));
+  border: 1.5px solid var(--ex-gold); color: var(--ex-gold-pale);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 226, 170, 0.18);
+  animation: exStoryIn 0.42s ease-out both;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+#expRoot .bt-story b {
+  display: block; font-size: 11px; font-weight: 900; color: #ffd76a; margin-bottom: 3px;
+  letter-spacing: 0.01em;
+}
+#expRoot .bt-story p {
+  margin: 0; font-size: 12.5px; line-height: 1.45; font-weight: 700; color: #f6e4bb;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+#expRoot .bt-story.out { opacity: 0; transform: translateY(-6px); }
+@keyframes exStoryIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── ② 승리 한 줄 — 결과 창 스토리 줄 ──────────────────────────────── */
+#expRoot .r-story {
+  margin-top: 8px; padding: 8px 10px; border-radius: 9px;
+  border-left: 3px solid #b8862f;
+  background: rgba(255, 247, 228, 0.9);
+  font-size: 12px; line-height: 1.45; font-weight: 700; color: #6b4a18;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+
+/* ── ③ 머리줄 — 1~4막 탭 4개 · 전투력/공훈 칩 압축 (390px) ──────────── */
+#expRoot .ex-top { gap: 4px; padding: 0 6px; }
+#expRoot .ex-top .ex-tabs { gap: 4px; }
+#expRoot .ex-top .ex-tab { height: 44px; padding: 1px 2px; border-radius: 8px; }
+#expRoot .ex-top .ex-tab b { font-size: 10.5px; letter-spacing: -0.02em; white-space: nowrap; }
+#expRoot .ex-top .ex-tab small { font-size: 8.5px; letter-spacing: -0.03em; white-space: nowrap; }
+#expRoot .ex-top .ex-pw, #expRoot .ex-top .ex-merit {
+  padding: 0 5px; font-size: 10.5px; letter-spacing: -0.02em; min-height: 30px;
+}

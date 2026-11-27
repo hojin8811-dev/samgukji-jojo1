@@ -1,5 +1,6 @@
 /* =====================================================================
-   삼국지-꼬마영웅 난타전 — 원정 시나리오 《삼국이분다》 통합판
+   삼국지-꼬마영웅 난타전 — 원정 시나리오 《꼬마영웅 원정대》 통합판
+   v7.1 · 제4막 하북 제패전(31~40관문) · 관문마다 입장/승리 한 줄 시나리오
    v7.0 · 정식 오픈 — 표지 공식 진입 버튼 · 주간 보스전(주차 로테이션·기믹·주간 기록)
    v6.3 · 전투씬 애니메이션·타격감 개편 (모션 타임라인 · 반달 칼바람 · 넉백/화면 흔들림)
    v6.2 · 1~3막(30관문) · 랭킹전 실전투 · 장비 분해·강화 · 보스 토벌전
@@ -15,7 +16,7 @@
      (기절·화상·감속·치유·버프) · 장비 재정립(무기 공격력%+치명타%, 갑옷 최대HP%+피해감소%,
      보물 공격속도%+초기 게이지%) · 공훈 보상 하향 · 인연 24종 도감.
 
-   · 입장은 세 갈래 — ① 표지의 [⚔️ 원정 · 삼국이분다] 버튼(v7.0 정식 오픈)
+   · 입장은 세 갈래 — ① 표지의 [⚔️ 꼬마영웅 원정대] 버튼(v7.0 정식 오픈)
      ② 주소의 ?exp=1 ③ 표지 제목 5연타. 어느 쪽이든 같은 대기실로 들어간다.
    · 저장: localStorage['sk_expedition_v1'] (본편 공유 공훈은 'sk_meta_merit')
      v5.69 이하 저장(roster/formation/stars/gear/equip/progress/cleared)을 그대로 읽어
@@ -34,7 +35,7 @@
   const KEY = 'sk_expedition_v1';        // 원정단·진형·진행도·별·레벨·장비
   const META_KEY = 'sk_meta_merit';      // 영구 공훈(본편과 공유)
   const START_MERIT = 1000;              // 처음 연 사람에게 지급하는 시작 공훈
-  const MAX_LV = 99, MAX_ACT = 30, MAX_ACT1 = 10, MAX_SQUAD = 5, STAR_MAX = 5;
+  const MAX_LV = 99, MAX_ACT = 40, MAX_ACT1 = 10, MAX_SQUAD = 5, STAR_MAX = 5;
   const ENH_MAX = 5;                     // 장비 강화 상한 (+5)
   const STONE_NAME = '🔨 정련석';         // 강화 재료
 
@@ -47,15 +48,19 @@
   const FCOLOR = { '촉': '#2f8f4b', '위': '#2f6fb8', '오': '#b8432f', '군웅': '#8a7448', '한국': '#7a5aa8' };
   const CLS_LABEL = { melee: '근접', ranged: '원거리', strategist: '책사' };
 
-  /* ── 3막 구성 (v6.2) — 관문 1~10 · 11~20 · 21~30 ────────────────
-     이전 막의 마지막 관문을 깨면 다음 막이 열린다 (actUnlocked). */
+  /* ── 막 구성 — 막마다 관문 10개 (v7.1에서 제4막 추가, 31~40) ──────────
+     · 1막 1~10 · 2막 11~20 · 3막 21~30 · 4막 31~40
+     이전 막의 마지막 관문을 깨면 다음 막이 열린다 (actUnlocked).
+     · 앞으로 5~10막(서주·형주·오·남만·중원·한국)을 붙이면 MAX_ACT와 ACTS만 늘리면 된다. */
   const ACTS = [
     { n: 1, short: '1막', name: '제1막 · 황건적의 난', sub: '황건의 난', from: 1, to: 10, icon: '🟡',
       desc: '창천이 죽고 황천이 서리라 — 태평도 황건의 물결' },
     { n: 2, short: '2막', name: '제2막 · 반동탁 연합', sub: '동탁 토벌', from: 11, to: 20, icon: '🔥',
       desc: '열여덟 제후가 낙양으로 — 서량군과의 결전' },
     { n: 3, short: '3막', name: '제3막 · 관도·적벽 대전', sub: '천하삼분', from: 21, to: 30, icon: '🌊',
-      desc: '하북의 패권과 장강의 불길 — 천하가 셋으로 갈린다' }
+      desc: '하북의 패권과 장강의 불길 — 천하가 셋으로 갈린다' },
+    { n: 4, short: '4막', name: '제4막 · 하북 제패전', sub: '하북·북방 평정', from: 31, to: 40, icon: '🐎',
+      desc: '계교에서 요동까지, 원씨의 하북을 끊고 북방을 평정한다' }
   ];
   const ACT_NAME = ACTS[0].name;
   function actOf(n) { const k = clamp(Math.round(Number(n) || 1), 1, MAX_ACT); return ACTS[Math.floor((k - 1) / 10)] || ACTS[0]; }
@@ -240,10 +245,12 @@
     });
   }
 
-  /* ── 관문 30개 — 1막 1~10 · 2막 11~20 · 3막 21~30 (v6.2) ─────────────
+  /* ── 관문 40개 — 막마다 10개 (v7.1에서 31~40 제4막 추가) ──────────────
+     story: { enter: 입장 한 줄, win: 승리 한 줄 } — 전투 시작 때 띠로, 결과 창에서 글로 보인다.
      편성은 본편 장수 공식과 같은 식(L·W·I)으로 적는다. 실제 HP·공격·방어는
      unitsFrom() 이 계산하며 boss:true 는 HP 1.75배·크기 확대다.
-     보스 이름은 모두 js/data.js SK.GENERALS 에 실재하는 장수라 초상·치비가 정상 표시된다. */
+     보스 이름은 본편 명부(SK.GENERALS)에 있는 장수를 우선 쓴다. 명부에 없는 인물(국의·엄강·고람·답돈·유연)은
+     def() 폴백을 타서 병과 SD(enemySrc)로 표시되고 이름만 쓰인다 — 4막 하북 인물들이 여기에 해당한다. */
   const STAGE_DEFS = [
     /* ══ 제1막 · 황건적의 난 (1~10) ══ */
     { n: 1, name: '황건 정찰대', sub: '길목을 지키는 황건 패잔병', groups: [{ name: '황건 정찰병', job: '산적', L: 26, W: 28, I: 6, c: 3 }] },
@@ -345,7 +352,78 @@
       { name: '조조', boss: true, job: '군주', L: 134, W: 130, I: 136, c: 1, scale: 1.75 },
       { name: '제갈량', boss: true, job: '책사', L: 130, W: 88, I: 152, c: 1, scale: 1.7 },
       { name: '호위 친위대', job: '검병', L: 126, W: 132, I: 48, c: 2 },
-      { name: '조조 수군', job: '수적', L: 124, W: 128, I: 46, c: 2 }] }
+      { name: '조조 수군', job: '수적', L: 124, W: 128, I: 46, c: 2 }] },
+
+    /* ══ 제4막 · 하북 제패전 (31~40) — 계교(191) → 역경루(199) → 백마·연진(200) → 여양(200)
+       → 남피(205) → 업성(204) → 백랑산·요동(207). 원씨 가문과 북방을 끝내는 사슬이다. ══ */
+    { n: 31, name: '계교 전초전', sub: '국의의 강노진이 계교의 길을 막는다', story: {
+      enter: '계교의 안개가 걷히고, 국의가 이끄는 원소의 선봉이 강노를 일제히 겨눈다.',
+      win: '강노진이 무너지자 하북으로 들어가는 첫 길이 열렸다.' }, groups: [
+      { name: '국의', job: '연노병', L: 138, W: 136, I: 52, c: 1, scale: 1.35 },
+      { name: '원소군 강노병', job: '연노병', L: 134, W: 130, I: 48, c: 2 },
+      { name: '원소군 선봉', job: '기병', L: 136, W: 138, I: 42, c: 2 }] },
+    { n: 32, name: '역경루 공방', sub: '공손찬·엄강의 백마의종이 성루를 지킨다', story: {
+      enter: '높이 솟은 역경루 아래, 백마의종이 창을 세워 성문을 굳게 닫았다.',
+      win: '백마의 깃발이 성루에서 떨어졌다 — 하북의 서쪽이 평정됐다.' }, groups: [
+      { name: '공손찬', job: '군주', L: 140, W: 140, I: 74, c: 1, scale: 1.35 },
+      { name: '엄강', job: '기병', L: 138, W: 142, I: 46, c: 1, scale: 1.3 },
+      { name: '백마의종', job: '기병', L: 134, W: 138, I: 40, c: 3 },
+      { name: '역경 수비대', job: '창병', L: 132, W: 132, I: 44, c: 1 }] },
+    { n: 33, name: '백마진 돌파', sub: '안량의 포위망을 뚫고 백마성 유연을 구한다', story: {
+      enter: '안량의 군세가 백마성을 에워쌌다. 성 안의 유연은 이제 버틸 힘이 없다.',
+      win: '포위망을 찢자 백마성의 성문이 열렸다 — 관도로 가는 길이 드러났다.' }, groups: [
+      { name: '안량', job: '기병', L: 142, W: 150, I: 46, c: 1, scale: 1.45 },
+      { name: '원소군 창병', job: '창병', L: 138, W: 140, I: 44, c: 3 },
+      { name: '원소군 궁병', job: '궁수', L: 134, W: 132, I: 48, c: 2 }] },
+    { n: 34, name: '연진 야습', sub: '문추와 유비의 지원군이 야습을 노린다', story: {
+      enter: '연진의 갈대밭이 흔들린다 — 문추와 유비가 밤을 타고 야습을 걸어온다.',
+      win: '야습은 불꽃 한 줌으로 끝났다. 원소의 본대가 흔들리기 시작한다.' }, groups: [
+      { name: '문추', job: '궁기', L: 144, W: 152, I: 46, c: 1, scale: 1.45 },
+      { name: '유비', job: '군주', L: 142, W: 140, I: 102, c: 1, scale: 1.3 },
+      { name: '원소군 기병', job: '기병', L: 138, W: 142, I: 40, c: 3 },
+      { name: '원소군 궁기', job: '궁기', L: 136, W: 136, I: 46, c: 1 }] },
+    { n: 35, name: '여양 공방전', sub: '중간보스 · 원담과 곽도의 여양성', boss: '원담', story: {
+      enter: '여양성의 성문이 활짝 열린다. 원담과 곽도가 하북의 기병을 모두 내보낸다.',
+      win: '여양이 함락되자 원소군의 허리가 꺾였다.' }, groups: [
+      { name: '원담', boss: true, job: '군주', L: 146, W: 144, I: 98, c: 1, scale: 1.55 },
+      { name: '곽도', boss: true, job: '풍수사', L: 142, W: 72, I: 140, c: 1, scale: 1.45 },
+      { name: '여양 수비대', job: '창병', L: 140, W: 142, I: 46, c: 2 },
+      { name: '하북 철기', job: '기병', L: 140, W: 144, I: 40, c: 2 }] },
+    { n: 36, name: '기주 남피성', sub: '신평과 봉기의 계책이 남피성을 지킨다', story: {
+      enter: '남피성에서 신평과 봉기가 원씨의 마지막 계책을 펼친다.',
+      win: '남피성에 원씨의 깃발이 하나둘 내려갔다 — 기주가 우리 것이 됐다.' }, groups: [
+      { name: '신평', job: '책사', L: 148, W: 84, I: 144, c: 1, scale: 1.4 },
+      { name: '봉기', job: '검병', L: 148, W: 148, I: 54, c: 1, scale: 1.4 },
+      { name: '남피 수비대', job: '검병', L: 144, W: 146, I: 48, c: 2 },
+      { name: '원담의 잔당', job: '창병', L: 142, W: 144, I: 44, c: 2 }] },
+    { n: 37, name: '업성 수성전', sub: '저수·전풍의 계책과 고람의 수비대', story: {
+      enter: '업성의 성벽 위로 저수와 전풍의 계책이 걸리고, 고람의 수비대가 성문을 메운다.',
+      win: '성벽을 넘자 고람이 성문을 열었다 — 업성의 심장이 드러났다.' }, groups: [
+      { name: '저수', job: '풍수사', L: 150, W: 84, I: 146, c: 1, scale: 1.4 },
+      { name: '전풍', job: '책사', L: 150, W: 86, I: 148, c: 1, scale: 1.4 },
+      { name: '고람', job: '검병', L: 150, W: 150, I: 56, c: 1, scale: 1.35 },
+      { name: '업성 수비대', job: '창병', L: 146, W: 148, I: 48, c: 3 }] },
+    { n: 38, name: '업성 본진 함락', sub: '보스 · 심배와 원상 — 업성의 심장', boss: '심배', story: {
+      enter: '심배가 본진의 문을 걸어 잠그고, 원상이 마지막 군세를 세운다.',
+      win: '심배는 끝까지 무릎을 굽히지 않았다. 업성은 그렇게 함락됐다.' }, groups: [
+      { name: '심배', boss: true, job: '연노병', L: 154, W: 150, I: 64, c: 1, scale: 1.65 },
+      { name: '원상', boss: true, job: '군주', L: 152, W: 154, I: 66, c: 1, scale: 1.6 },
+      { name: '업성 친위대', job: '검병', L: 148, W: 150, I: 50, c: 2 },
+      { name: '하북 결사대', job: '창병', L: 148, W: 150, I: 48, c: 2 }] },
+    { n: 39, name: '백랑산 오환 토벌', sub: '답돈의 오환 철기가 백랑산을 내려온다', boss: '답돈', story: {
+      enter: '백랑산의 능선이 검게 물든다 — 답돈의 오환 철기가 일제히 내려온다.',
+      win: '오환의 철기가 백랑산 아래에 멈췄다 — 북방의 발길이 끊겼다.' }, groups: [
+      { name: '답돈', boss: true, job: '기병', L: 156, W: 162, I: 48, c: 1, scale: 1.6 },
+      { name: '오환 철기', job: '기병', L: 152, W: 156, I: 42, c: 3 },
+      { name: '오환 궁기', job: '궁기', L: 150, W: 152, I: 46, c: 2 }] },
+    { n: 40, name: '요동·하북 완전 평정', sub: '최종보스 · 원희·원상과 공손강의 연합군', boss: '공손강', story: {
+      enter: '요동의 성문 앞, 원희와 원상이 공손강과 손을 잡고 마지막 방벽을 세운다.',
+      win: '원씨의 마지막 불씨가 꺼졌다 — 하북과 요동, 북방 전역이 평정됐다.' }, groups: [
+      { name: '공손강', boss: true, job: '군주', L: 160, W: 158, I: 102, c: 1, scale: 1.7 },
+      { name: '원상', boss: true, job: '군주', L: 158, W: 160, I: 70, c: 1, scale: 1.6 },
+      { name: '원희', job: '기병', L: 156, W: 158, I: 50, c: 1, scale: 1.4 },
+      { name: '요동 수비대', job: '창병', L: 152, W: 154, I: 48, c: 2 },
+      { name: '원씨 친위대', job: '검병', L: 154, W: 156, I: 50, c: 1 }] }
   ];
   /* 보스 토벌전(도전 모드) — 이미 클리어한 막의 대표 보스를 강화해 다시 상대한다 */
   const BOSS_RUSH = [
@@ -1154,6 +1232,7 @@
     const rw = rewardOf(st), hero = rw.hero ? def(rw.hero) : null;
     const allDone = maxCleared() >= act.to, actLock = !actUnlocked(act);
     room.appendChild(el('div', 'ex-goal' + (actLock ? ' lock' : ''),
+      '<div class="g0">⚔️ 꼬마영웅 원정대</div>' +
       '<div class="g1">' + (act.n > 1 ? act.short + ' · ' + act.sub : '현재 목표') + '</div>' +
       '<div class="g2">' + st + '관문 · ' + sd.name + '</div>' +
       '<div class="g3">🏅 ' + fmt(rw.merit) + (hero ? ' · 🎁 ' + hero.name : '') + (rw.stone ? ' · ' + STONE_NAME + ' +' + rw.stone : '') + '</div>' +
@@ -1174,6 +1253,17 @@
       '<small>' + (S.weekly.first ? '✔ 격파 · 최고 ' + fmt(S.weekly.best) : '최고 피해 ' + fmt(S.weekly.best)) + '</small>');
     wkCard.onclick = openWeekly;
     room.appendChild(wkCard);
+    /* v7.1 — 목표 카드가 두 줄 이름·보상·클리어 줄로 길어지면 주간 보스 명패를 그 아래로 내린다
+       (둘 다 absolute 라 168px 고정일 때 4막처럼 긴 막에서 겹친다) */
+    requestAnimationFrame(() => {
+      try {
+        const gEl = room.querySelector('.ex-goal');
+        if (gEl && wkCard && wkCard.parentNode) {
+          const bottom = gEl.offsetTop + gEl.offsetHeight + 8;
+          if (bottom > 168) wkCard.style.top = Math.round(bottom) + 'px';
+        }
+      } catch (e) { /* ignore */ }
+    });
 
     const yard = el('div', 'ex-yard');
     ids.forEach((id, i) => {
@@ -1243,13 +1333,13 @@
   }
   function rewardOf(n) {
     const boss = !!(STAGE_DEFS[n - 1] && STAGE_DEFS[n - 1].boss);
-    const hero = n === 10 ? '유비' : n === 20 ? '관우' : n === 30 ? '제갈량' : null;
+    const hero = n === 10 ? '유비' : n === 20 ? '관우' : n === 30 ? '제갈량' : n === 40 ? '장비' : null;
     return { merit: 40 + n * 15 + (boss ? 60 : 0), hero: hero, stone: stoneOf(n) };
   }
   /* 보스 관문 첫 클리어 — 강화 재료 정련석 (막이 올라갈수록 많다) */
   function stoneOf(n) {
     if (!(STAGE_DEFS[n - 1] && STAGE_DEFS[n - 1].boss)) return 0;
-    return n <= 10 ? 4 : n <= 20 ? 6 : 8;
+    return n <= 10 ? 4 : n <= 20 ? 6 : n <= 30 ? 8 : 10;
   }
   /* v5.74 — 재도전은 첫 클리어의 15~25% (관문이 높을수록 ↑), 최소 10 · 최대 120 */
   function repeatRewardOf(n) {
@@ -1357,7 +1447,7 @@
       }
     };
     draw();
-    const m = modal('원정 시나리오 · 관문', body, { cls: 'tall' });
+    const m = modal('꼬마영웅 원정대 · 관문', body, { cls: 'tall' });
   }
 
   /* =====================================================================
@@ -2021,7 +2111,9 @@
   function startBattle(n) {
     const k = clamp(Math.round(n) || 1, 1, MAX_ACT);
     const sd = STAGE_DEFS[k - 1];
-    startArena({ mode: 'stage', n: k, sd: sd, title: '⚔️ ' + k + '관문 돌입!',
+    const st = (sd && sd.story) || {};
+    startArena({ mode: 'stage', n: k, sd: sd, title: '⚔️ ' + k + '관문 돌입!', story: st.enter || '',
+      storyTitle: k + '관문 · ' + ((sd && sd.name) || ''),
       foeLabel: k + '관문 · 적군', foes: buildEnemies(k), meta: {} });
   }
   function startRankBattle(pos) {
@@ -2111,6 +2203,8 @@
     $('.out', ctl).onclick = () => finish(false, true);
 
     banner(cfg.title || '⚔️ 전투 시작!');
+    /* v7.1 — 관문 입장 한 줄 시나리오 (4.6초 뒤 스스로 물러난다 · 전투는 그대로 진행) */
+    if (cfg.story) storyCard(cfg.storyTitle, cfg.story);
     B.last = performance.now();
     B.raf = requestAnimationFrame(frame);
   }
@@ -2549,6 +2643,16 @@
     B.root.appendChild(b);
     bTimer(1180, function () { try { b.remove(); } catch (e) { /* ignore */ } });
   }
+  /* v7.1 — 관문 입장 시나리오 띠 — 이름과 한 줄 대사를 목판 띠로 띄운다 */
+  function storyCard(title, txt) {
+    if (!B || !txt) return null;
+    const c = el('div', 'bt-story',
+      (title ? '<b>' + esc(title) + '</b>' : '') + '<p>' + esc(txt) + '</p>');
+    B.root.appendChild(c);
+    bTimer(4600, function () { try { c.classList.add('out'); } catch (e) { /* ignore */ } });
+    bTimer(5400, function () { try { c.remove(); } catch (e) { /* ignore */ } });
+    return c;
+  }
   function hud() {
     const A = B.units.filter((u) => u.team === 0), E = B.units.filter((u) => u.team === 1);    const ratio = (L) => {
       const m = L.reduce((s, u) => s + u.max, 0), h = L.reduce((s, u) => s + Math.max(0, u.hp), 0);
@@ -2583,7 +2687,8 @@
       try { host.querySelectorAll('.bt-fx,.bt-pop,.bt-proj,.bt-ghost,.bt-banner,.ex-cutin').forEach((n) => n.remove()); } catch (e) { /* ignore */ }
     });
     const mode = B.mode || 'stage';
-    const n = B.n || 0, meta = B.meta || {};
+    const n = B.n || 0, meta = B.meta || {}, sd = B.sd || {};
+    const lived = (sd.story && sd.story.win) || '';
     const dealt = Math.round(B.dmg || 0);
     const first = win && mode === 'stage' && S.cleared.indexOf(n) < 0;
     const rw = mode === 'stage' ? rewardOf(n) : { merit: 0, hero: null, stone: 0 };
@@ -2666,7 +2771,8 @@
       (win ? (merit ? ' · 🏅 +' + fmt(merit) : '') + (stone ? ' · ' + STONE_NAME + ' +' + stone : '') : ' · 잃은 것은 없어요') + '</div>' +
       (mode === 'weekly' ? '<div class="r-h">이번 전투 피해 ' + fmt(dealt) + ' · 이번 주 최고 ' + fmt(S.weekly ? S.weekly.best : dealt) + (wkBest ? ' — 기록 갱신!' : '') + '</div>' : '') +
       (heroTxt ? '<div class="r-h">' + esc(heroTxt) + '</div>' : '') +
-      (extraTxt ? '<div class="r-h">' + esc(extraTxt) + '</div>' : '');
+      (extraTxt ? '<div class="r-h">' + esc(extraTxt) + '</div>' : '') +
+      (win && mode === 'stage' && lived ? '<div class="r-story">' + esc(lived) + '</div>' : '');
     res.forEach((r) => {
       const nm = (def(r.id) || {}).name || r.id;
       body.appendChild(el('div', 'r-row', '<span>' + esc(nm) + '</span><b>Lv.' + r.before + (r.up ? ' → Lv.' + r.after + ' ⬆' : '') + '</b>'));
@@ -2695,7 +2801,7 @@
   /* =====================================================================
      입장 · 공개 API
      ===================================================================== */
-  /* v7.0 — 정식 오픈. 표지의 [⚔️ 원정 · 삼국이분다] 버튼(항상 보임)이 기본 입장이고,
+  /* v7.0 — 정식 오픈. 표지의 [⚔️ 꼬마영웅 원정대] 버튼(항상 보임)이 기본 입장이고,
      ?exp=1 즉시 입장과 표지 제목 5연타 입장도 예전 그대로 호환한다. */
   function bindEntry() {
     let dev = false;
@@ -2817,7 +2923,8 @@
     /* v6.2 — 막·랭킹·보스·장비 강화 점검용 */
     acts: () => ACTS.map((a) => ({ n: a.n, name: a.name, from: a.from, to: a.to, unlocked: actUnlocked(a) })),
     actTab: (i) => { actSel = clamp(Math.round(i) || 0, 0, ACTS.length - 1); renderRoom(); return ACTS[actSel].n; },
-    stages: () => STAGE_DEFS.map((s) => ({ n: s.n, name: s.name, boss: s.boss || null, merit: rewardOf(s.n).merit, hero: rewardOf(s.n).hero, stone: rewardOf(s.n).stone })),
+    stages: () => STAGE_DEFS.map((s) => ({ n: s.n, name: s.name, boss: s.boss || null, merit: rewardOf(s.n).merit, hero: rewardOf(s.n).hero, stone: rewardOf(s.n).stone,
+      act: actOf(s.n).n, sub: s.sub || '', enter: (s.story && s.story.enter) || '', win: (s.story && s.story.win) || '' })),
     stone: () => readStone(),
     addStone: (n) => { addStone(n); save(); return readStone(); },
     ladder: () => LADDER.map((e, i) => ({ pos: i + 1, name: e.name, title: e.title, deck: e.deck.slice(), power: rankTargetPower(i + 1) })),
