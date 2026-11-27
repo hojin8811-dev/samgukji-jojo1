@@ -9557,3 +9557,153 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
   font-size: 10px; line-height: 1; border: 0; background: none; box-shadow: none;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v6.10 (?v=148) — 80거점 천하통일 엔딩 (왕조 목판 · 비단)
+   · 빈 제목 h3 자리 제거(제목을 카드 안에서만 쓰는 창) — 뒤에 오는 규칙이 이긴다
+   · 금빛 꽃가루·폭죽은 CSS 애니메이션만 쓴다(그림·캔버스·타이머 없음)
+   · 결산표 → MVP → 장수 코믹 축사 → 명예의 전당
+   ═══════════════════════════════════════════════════════════════════ */
+#modal-root .modal h3:empty { display: none; }
+
+.unify-hero {
+  position: relative; overflow: hidden; margin: 0 0 7px; padding: 9px 10px 8px;
+  border-radius: 12px; text-align: center;
+  border: 1.5px solid #d8b96f;
+  background: radial-gradient(circle at 50% -14%, #fffaea 0%, #f7e8c4 46%, #eed7a4 100%);
+  box-shadow: inset 0 1px 0 #fffdf4;
+}
+.unify-hero > *:not(.unify-fx) { position: relative; z-index: 1; }
+.unify-fx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.unify-fx i {
+  position: absolute; top: -8px; left: var(--x, 50%); width: 5px; height: 5px; border-radius: 50%;
+  background: radial-gradient(circle, #fff8d6 0%, #eec153 55%, #b8862f 100%);
+  box-shadow: 0 0 4px rgba(238, 193, 83, 0.85);
+  animation: ufFall 2.9s linear infinite; animation-delay: var(--dl, 0s); opacity: 0;
+}
+@keyframes ufFall {
+  0% { transform: translate(0, -8px) scale(0.5); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(var(--dx, 0px), 148px) scale(1.2); opacity: 0; }
+}
+.unify-fx b {
+  position: absolute; left: var(--x, 50%); top: var(--y, 34%); width: 6px; height: 6px; border-radius: 50%;
+  animation: ufBurst 2.4s ease-out infinite; animation-delay: var(--dl, 0s);
+}
+@keyframes ufBurst {
+  0% { box-shadow: 0 0 0 0 rgba(238, 193, 83, 0.9), 0 0 0 0 rgba(255, 248, 214, 0.7); opacity: 1; }
+  62% { box-shadow: 0 0 0 20px rgba(238, 193, 83, 0), 0 0 0 34px rgba(255, 248, 214, 0); opacity: 0.45; }
+  100% { box-shadow: 0 0 0 26px rgba(238, 193, 83, 0), 0 0 0 44px rgba(255, 248, 214, 0); opacity: 0; }
+}
+.unify-emblem {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: 8px; border: 1.5px solid #a9761c;
+  background: linear-gradient(180deg, #7a1f16, #4a0f0a); color: #f6d98c;
+  font-family: var(--serif); font-size: 18px; font-weight: 900; line-height: 1;
+  box-shadow: 0 1px 3px rgba(40, 20, 6, 0.4), inset 0 1px 0 rgba(255, 243, 204, 0.28);
+}
+.unify-hero .unify-lord {
+  display: block; width: 82px; height: 100px; margin: 3px auto 1px; object-fit: contain;
+  object-position: 50% 100%; filter: drop-shadow(0 3px 5px rgba(40, 28, 8, 0.42));
+}
+.unify-title {
+  display: inline-block; margin: 1px 0 3px; padding: 3px 13px; border-radius: 8px;
+  border: 1.5px solid #8a5f14;
+  background: linear-gradient(180deg, #f9e29b 0%, #dcac45 52%, #b3812a 100%);
+  color: #3a1f06; font-family: var(--serif); font-size: 17.5px; font-weight: 900;
+  letter-spacing: -0.01em; text-shadow: 0 1px 0 rgba(255, 246, 204, 0.55);
+  box-shadow: inset 0 1px 0 #fff3c4, 0 2px 5px rgba(60, 40, 8, 0.32);
+}
+.unify-sub { margin: 0 0 5px; font-size: 10.5px; font-weight: 800; color: #6b4a12; }
+.unify-sub b { color: #8a3a22; }
+.unify-hero .unify-rank { margin-bottom: 0; }
+
+.unify-period { margin: 0 0 5px; font-size: 10px; font-weight: 800; color: #7a5a20; text-align: center; }
+.unify-period b { color: #a8443a; }
+
+.unify-report { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 0 7px; }
+.unify-report > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 4px;
+  padding: 4px 7px; border-radius: 8px; border: 1px solid #ddc9a0; background: #fffaf0;
+}
+.unify-report span { font-size: 9px; font-weight: 800; color: #9a875e; white-space: nowrap; }
+.unify-report b { font-size: 11.5px; font-weight: 900; color: #3a2c10; letter-spacing: -0.02em; }
+.unify-report b em { font-style: normal; font-size: 9px; font-weight: 800; color: #8a5a24; }
+.unify-report .ur-grade b {
+  padding: 0 6px; border-radius: 5px; color: #fff6dc;
+  background: linear-gradient(180deg, #b8862f, #8a5a1a);
+}
+
+.unify-mvp {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  margin: 0 0 7px; padding: 6px 8px 6px 32px; border-radius: 10px;
+  border: 1.5px solid #d4a64a; background: linear-gradient(180deg, #fffdf4, #f7e9c9);
+  box-shadow: inset 0 1px 0 #fff;
+}
+.unify-mvp .um-ribbon {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px 0 0 8px; border-right: 1px solid #d4a64a;
+  background: linear-gradient(180deg, #b8862f, #7c4f12); color: #fff6dc;
+  font-family: var(--serif); font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em;
+  writing-mode: vertical-rl; text-orientation: upright;
+}
+.unify-mvp img {
+  flex: 0 0 auto; width: 36px; height: 42px; object-fit: contain; object-position: 50% 100%;
+  border-radius: 6px; border: 1.5px solid #d4a64a;
+  background: linear-gradient(180deg, #5c1a14, #3e100c);
+}
+.unify-mvp .um-main { flex: 1 1 auto; min-width: 0; text-align: left; }
+.unify-mvp .um-main b { display: block; font-family: var(--serif); font-size: 13.5px; color: #2c2412; letter-spacing: -0.01em; }
+.unify-mvp .um-main b i { font-style: normal; font-size: 9.5px; font-weight: 800; color: #8a7448; margin-left: 4px; }
+.unify-mvp .um-main span { display: block; margin-top: 1px; font-size: 9.5px; font-weight: 700; color: #7a5a20; line-height: 1.4; }
+
+.unify-speech { margin: 0 0 6px; }
+.unify-speech .us-head { display: flex; align-items: baseline; gap: 5px; margin: 0 0 4px; font-size: 10.5px; font-weight: 900; color: #6b4a12; }
+.unify-speech .us-head em { font-size: 8.5px; font-weight: 700; color: #9a875e; }
+.us-card { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
+.us-card img {
+  flex: 0 0 auto; width: 28px; height: 32px; object-fit: contain; object-position: 50% 100%;
+  border-radius: 6px; border: 1px solid #c9a86a; background: linear-gradient(180deg, #5c1a14, #3e100c);
+}
+.us-bub { position: relative; flex: 1 1 auto; min-width: 0; padding: 4px 8px 5px; border-radius: 10px; border: 1px solid #dcc79a; background: #fffdf6; text-align: left; }
+.us-bub::before {
+  content: ''; position: absolute; left: -4px; top: 11px; width: 7px; height: 7px;
+  background: #fffdf6; border-left: 1px solid #dcc79a; border-bottom: 1px solid #dcc79a;
+  transform: rotate(45deg);
+}
+.us-bub b { display: block; font-size: 9.5px; font-weight: 900; color: #8a3a22; }
+.us-bub span { display: block; font-size: 10.5px; line-height: 1.45; color: #4a3a1c; word-break: keep-all; }
+
+.unify-seal-line { margin: 0 0 5px; font-size: 9.5px; line-height: 1.5; color: #6b5a36; word-break: keep-all; }
+.unify-seal-line b { color: #a8443a; }
+
+/* ── 명예의 전당 (표지 · 엔딩) ─────────────────────────────── */
+.hall-wrap { display: flex; flex-direction: column; gap: 6px; }
+.hall-list { display: flex; flex-direction: column; gap: 5px; }
+.hall-row {
+  display: flex; align-items: center; gap: 7px; padding: 6px 8px;
+  border-radius: 10px; border: 1px solid #d8c193; background: #fffdf6;
+}
+.hall-row .hr-grade {
+  flex: 0 0 auto; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  border-radius: 7px; color: #fff6dc; font-family: var(--serif); font-size: 13px; font-weight: 900;
+  background: linear-gradient(180deg, #b8862f, #8a5a1a);
+  box-shadow: inset 0 1px 0 rgba(255, 243, 204, 0.4);
+}
+.hall-row.g-S .hr-grade { background: linear-gradient(180deg, #c9a13c, #8a5a12); }
+.hall-row.g-A .hr-grade { background: linear-gradient(180deg, #8a6aa8, #5a3f74); }
+.hall-row.g-B .hr-grade { background: linear-gradient(180deg, #6a86a8, #3f5474); }
+.hall-row .hr-main { flex: 1 1 auto; min-width: 0; text-align: left; }
+.hall-row .hr-main b { display: block; font-size: 12px; font-weight: 900; color: #2c2412; }
+.hall-row .hr-main b i { font-style: normal; font-size: 9px; font-weight: 800; color: #8a7448; margin-left: 3px; }
+.hall-row .hr-main span { display: block; font-size: 9px; line-height: 1.45; color: #7a6534; }
+.hall-empty {
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 10px; border-radius: 11px; text-align: center;
+  border: 1px dashed #c8a860; background: #fffaf0;
+}
+.hall-empty b { font-size: 13px; color: #2c2412; }
+.hall-empty span { font-size: 10.5px; line-height: 1.45; color: #7a6534; word-break: keep-all; }
+.hall-note { margin: 0; font-size: 9.5px; line-height: 1.5; color: #7a6534; word-break: keep-all; }
+.hall-note.brand { padding: 6px 8px; border-radius: 9px; border: 1px solid #d4a64a; background: #fff6dc; color: #6b4a12; font-weight: 800; }
+.hall-note b { color: #8a3a22; }

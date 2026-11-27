@@ -12863,6 +12863,7 @@
        (openPendingInvasion 이 줄어든 병력으로 수성전을 다시 연다).
      ══════════════════════════════════════════════════════════════ */
   function invasionInterceptVictory() {
+    if (SK.recBattle) SK.recBattle(true);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('victory');
@@ -12930,6 +12931,7 @@
   }
 
   function invasionInterceptDefeat() {
+    if (SK.recBattle) SK.recBattle(false);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('defeat');
@@ -12987,6 +12989,7 @@
   }
 
   function interceptVictory() {
+    if (SK.recBattle) SK.recBattle(true);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('victory');
@@ -13166,6 +13169,7 @@
   }
 
   function interceptDefeat() {
+    if (SK.recBattle) SK.recBattle(false);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('defeat');
@@ -13479,6 +13483,7 @@
     if (B.over) return;
     if (B.intercept) { if (B.intercept.invasion) { invasionInterceptVictory(); return; } interceptVictory(); return; }
     if (B.defense) { defenseVictory(); return; }
+    if (SK.recBattle) SK.recBattle(true);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('victory');
@@ -13693,6 +13698,7 @@
     if (B.over) return;
     if (B.intercept) { if (B.intercept.invasion) { invasionInterceptDefeat(); return; } interceptDefeat(); return; }
     if (B.defense) { defenseDefeat(); return; }
+    if (SK.recBattle) SK.recBattle(false);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('defeat');
@@ -13754,6 +13760,7 @@
 
   /* ───────────── v5.7 — 수성전의 승패 ───────────── */
   function defenseVictory() {
+    if (SK.recBattle) SK.recBattle(true);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('victory');
@@ -13842,6 +13849,7 @@
   }
 
   function defenseDefeat() {
+    if (SK.recBattle) SK.recBattle(false);   // v6.10 — 천하통일 결산 전적
     B.over = true;
     clearBattleProgress();
     SK.sfx.play('defeat');

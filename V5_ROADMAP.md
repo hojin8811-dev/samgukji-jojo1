@@ -1,6 +1,19 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=147`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=148`
+
+## ✅ v6.10 — 80거점 천하통일 엔딩 (2026-11-27 · `?v=148`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 판정 | 80거점 전부 **또는** 적대 세력 전멸(비-공백 적 성 0) → 발동. 남은 재야 호족 성은 '스스로 문을 연 것'으로 흡수해 80/80(`s.neutralSealed`), `s.unified`로 한 판 1회 | `js/app.js` `SK.checkUnification`·`hostileCities`·`sealNeutralCities` |
+| ② 엔딩 창 | 금빛 꽃가루 18 + 폭죽 3(순수 CSS) · 승리 효과음 · 군주 초상·세력 인장 · 금박 타이틀 '천하통일 대업 달성!' | `js/app.js` `showUnification`·`unifyFxHtml`, `css/game.css` `.unify-*` |
+| ③ 결산표 | 통일 시점·소요 기간(시작→통일 연월)·전투 N전 N승 N%·거점·장수·보물·명성·천하 등급(S/A/B) + MVP 장수 카드 | `js/app.js` `unifySnapshot` |
+| ④ 코믹 축사 | 공훈 상위 3~4명 말풍선 — 고유 코믹 승리 대사 → `SK.quoteOf` → 통일 전용 풀 | `js/app.js` `unifySpeechOf`·`UNIFY_SPEECH` |
+| ⑤ 전적 | `s.rec = { battles, wins }` — 승패 함수 8곳이 `SK.recBattle(win)` 호출(중복 집계 없음) | `js/battle.js` 8곳, `js/app.js` `recBattle` |
+| ⑥ 명예의 전당 | `localStorage['samgukji-jojo-hall-of-fame']` 최대 20건 · `SK.openHall()` · 표지 [🏆 명예의 전당 (n)] · [🌏 새 천하 시작] | `js/app.js` `hallAdd`·`openHall`·`refreshHallBtn`, `index.html` `#btn-hall` |
+| ⑦ 점검 문 | `window.SK_QA.triggerEnding()` 등 | `js/app.js` 끝 |
+| ⑧ 검수 | `tools/v610_browser.py` 37항목 OK · 스샷 `preview/v610/` | `tools/v610_browser.py` |
 
 ## ✅ v6.9a — 상점 편의·후원 상품 2종 (2026-11-27 · `?v=147`, 상점은 여전히 **출시 전 비공개**)
 

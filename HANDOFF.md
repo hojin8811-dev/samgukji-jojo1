@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.9a · 2026-11-27 · 라이브 `?v=147`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.10 · 2026-11-27 · 라이브 `?v=148`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 
 ---
@@ -13,15 +13,15 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=147`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=148`) |
 | 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 10 + 편의·후원 상품 2(출시 전 비공개)** |
 
 ---
 
 ## 2. 지금 상태 — 실제로 확인한 값 (2026-11-27 기준)
 
-- **최신 커밋**: `v6.9a 상점 편의·후원 상품 2종 — 자동 내정 패스·응원 팩 (?v=147)` — 2026-11-27 `main` HEAD
-- **`index.html`**: `css/game.css?v=147`, `js/*.js?v=147`(17개 — `js/dlc.js` 추가), `manifest start_url "./index.html?v=147"`, 서비스워커 등록도 `sw.js?v=147`
+- **최신 커밋**: `v6.10 80거점 천하통일 엔딩 — 결산표·MVP·코믹 축사·명예의 전당 (?v=148)` — 2026-11-27 `main` HEAD
+- **`index.html`**: `css/game.css?v=148`, `js/*.js?v=148`(17개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=148"`, 서비스워커 등록도 `sw.js?v=148`
 - **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
 - **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1.
@@ -85,6 +85,7 @@
 
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
+| **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
 | **v6.9a** | 11-27 | **상점 편의·후원 상품 2종**(출시 전 비공개) — 상점 모달에 [✨ 특전 영웅] · [🎁 편의·후원] 탭 · **자동 내정 패스**(3,900원 영구 `pass_auto_city`) — 지도·성 화면 [⚡ 전체 자동 내정] 원터치로 내 모든 성의 남은 장수로 징병·훈련·보수·개간·상업·민심 일괄 실행 후『전체 자동 내정 보고』(성/장수/건수 + 금·군량·병력 순변화), 성별 금고·`refreshHud` 반영 · **개발자 응원 팩**(1,900원 계정당 1회 `pack_supporter_once`) — 👑 후원자 뱃지(지도 군주 초상·성 시트·관아·명부) + 금·군량 +3,000·S/A 보물 1개를 세력당 1회(`s.supGrant` 가드), 구매 뒤 [감사합니다!] · `SK.DlcBilling`이 상품 12개(`products()`·`kindOf`) 처리 |
 | **v6.9** | 11-27 | **이세계 특전 영웅 DLC 1탄**(출시 전 비공개) — `data/dlc_heroes.json` 10인(고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_01~10`·2,900원) · `js/dlc.js` 로더/해금(`unlockedDlc`)/`SK.DlcBilling`(AndroidBilling 브리지)/상점 모달(목판·비단) · `?dlc=1` 또는 `dlcTestMode`에서만 보이는 게이트 · 전용 초상 `assets/portraits/dlc/`·전용 전장 SD `assets/units/dlc/` 10종 + 영웅별 오라(`drawDlcChibi`) · 율도국 의적 전리품 금 +25% |
 | **v6.8a** | 11-27 | 본편 유저 입장 TOP 5 UX — ① 출진 편성 전력 비교(적 성 수비+전장 증원 vs 우리 출진)·2배 이상 [전멸 위험] 배지·1.5배 이상 확인창 ② 성하 야전 승리 뒤 [성문 앞 전력] 비교 + [이번 달 물러난다(회군)] ③ 생포 처리(등용·석방·억류) 한 줄 설명 ④ 3분 입문 성문 앞 1~3칸 근거리 스폰 + 안내 전환을 `allyHits > 0`(실제 타격)으로 수정 ⑤ 이동 가능 칸 밝은 파랑 판·바깥 윤곽, 부대 스프라이트 히트박스 ⑥ 월정산 '이 달 실제 병력' 줄·스크롤 힌트 ⑦ 공·사기 변동 사유(지형·진형·사기·책략) 표기 ⑧ 일기토 결과 [확인 — 전장으로] 버튼(수동은 자동 닫힘 없음) ⑨ 공터 건설 Lv.1 기대 효과 수치 ⑩ 출진 대상 성 카드 목록 |
@@ -139,6 +140,15 @@
 - **뱃지** — `SK.supBadge(name[, 'crown'])`. 지도 군주 초상 위 왕관(`#flag-sup`), 성 정보 시트·관아 태수 카드의 `👑 후원자`, 장수 명부는 칸이 좁아 초상 위 왕관만.
 - **Billing**(네이티브 담당자용): `SK.DlcBilling.products()` 12개 · `kindOf(id)`(`hero`/`pass`/`supporter`) · `purchase`·`onPurchaseSuccess`·`onPurchaseFail` 그대로. 성공 콜백 하나로 패스는 버튼, 응원 팩은 뱃지·지원까지 끝난다.
 - **검수**: `python3 tools/v690a_browser.py`(70항목) · 스크린샷 `preview/v690a/`. 일반 주소 버튼 비공개·상점 2탭·패스 원터치(성 12곳 포함)·응원 팩 지급/중복 방지/새 게임 1회·Billing 12상품·세이브 version 5까지 자동 확인.
+
+## 6-3. 천하통일 엔딩 (v6.10 · `?v=148`)
+
+- **판정은 `SK.checkUnification()` 한 곳** — 80거점 전부 또는 **적대 세력 전멸**(비-공백 적 성 0). 후자는 남은 재야 호족 성을 `sealNeutralCities`가 넘겨받아 80/80으로 맞춘다(`s.neutralSealed`). `s.unified`로 한 판 한 번만 뜬다.
+- **문구·수치의 정본은 `SK.unifySnapshot()`** — 엔딩 창과 명예의 전당이 같은 값을 쓴다. 등급 기준(36개월 & 승률 70% → S · 72개월 → A · 그 밖 B)을 바꾸려면 이 함수의 `grade` 한 줄만 고친다.
+- **축사 순서**은 `SK_COMEDY.quotes[이름].victory` → `SK.quoteOf(이름,'victory')` → `UNIFY_SPEECH`(통일 전용 풀). 새 코믹 대사는 `UNIFY_SPEECH`에 한 줄씩 더한다.
+- **전적은 `s.rec = { battles, wins }` 하나**. 새 승패 경로를 만들면 `SK.recBattle(true|false)`를 그 경로에 **한 번만** 넣어야 결산 승률이 맞는다(현재 `js/battle.js` 8곳).
+- **명예의 전당은 `localStorage['samgukji-jojo-hall-of-fame']` 별도 키**라 세이브 슬롯과 무관하게 남는다(최대 20건). 표지 버튼은 `SK.refreshHallBtn()`이 기록 유무로 숨김/표시.
+- 점검 문: `window.SK_QA.triggerEnding()` · `SK_QA.unifySnapshot()` · `SK_QA.hallList()` · `SK_QA.hallClear()`. 검수 `tools/v610_browser.py`(37항목), 스샷 `preview/v610/`.
 
 ## 6. 작업 마칠 때 체크리스트
 

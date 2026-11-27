@@ -818,6 +818,9 @@
       capitalAuto: false,      // v5.66 — 수도(본성) 자동 내정 (기본 꺼짐)
       prisoners: [], captured: [],   // v5.11 — 억류 포로 · 적에게 사로잡힌 아군
       codex: { g: {}, t: {} },        // v5.16 — 인물·보물 도감 누적 기록
+      /* v6.10 — 천하통일 결산용: 판을 시작한 연월 · 전투 전적(전투/승) */
+      startedAt: { year: sc ? Number(sc.year) : 200, month: 0 },
+      rec: { battles: 0, wins: 0 },
     };
     SK.CITY_LIST.forEach((c) => enforceStartLevel(cities[c.id], c));
     if (sc) {
@@ -1742,6 +1745,14 @@
       const s = JSON.parse(raw);
       if (!s || s.version !== 5) return false;
       s.treasures = s.treasures || [];
+      /* v6.10 — 옛 세이브에는 시작 연월·전투 전적이 없다. 지난 해·달 수로 시작 연월을 되짚고,
+         전적은 0에서 새로 센다(결산표에 '기록 없음'으로 나간다). */
+      if (!s.startedAt || typeof s.startedAt !== 'object') {
+        s.startedAt = { year: (Number(s.eraYear) || (195 + (Number(s.year) || 1))) - Math.max(0, (Number(s.year) || 1) - 1), month: 0 };
+      }
+      s.rec = (s.rec && typeof s.rec === 'object')
+        ? { battles: Math.max(0, Number(s.rec.battles) || 0), wins: Math.max(0, Number(s.rec.wins) || 0) }
+        : { battles: 0, wins: 0 };
       /* v5.75 — 총도독 군단 저장 형식 보정 (옛 저장에는 없다) */
       s.corps = Array.isArray(s.corps) ? s.corps.filter((c) => c && Array.isArray(c.cityIds)) : [];
       /* v5.88 — 수송·장수 이동 대기열·건설 기록 (옛 저장에는 없다) */
@@ -12607,11 +12618,72 @@
     return SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === PF()).length;
   }
   SK.ownedCount = ownedCount;
+  /* ══════════════════════════════════════════════════════════════
+     v6.10 — 천하통일 엔딩 (80거점 · 왕조 목판·비단)
+     · 내 깃발이 80거점에 모두 서면 한 번만 축하 화면을 연다 (s.unified 로 기억)
+     · 적대 세력이 전멸해 지도에 적 성이 하나도 없으면, 남은 재야 호족 성을
+       '스스로 문을 연 것'으로 넘겨받아 80/80을 맞추고 역시 통일로 본다
+     · 결산표(통일 시점·소요 기간·전투 승률·장수·보물·등급) + MVP + 장수 코믹 축사
+     · [🏆 명예의 전당 기록 & 새 천하] · [🗺️ 천하 계속 둘러보기]
+     ══════════════════════════════════════════════════════════════ */
+  const HALL_KEY = 'samgukji-jojo-hall-of-fame';
+  const HALL_MAX = 20;
+
+  /* 전투 전적 — js/battle.js 의 승패 함수가 부른다 (결산표의 'N전 N승') */
+  function recBattle(win) {
+    const s = SK.state;
+    if (!s) return null;
+    const r = s.rec || (s.rec = { battles: 0, wins: 0 });
+    r.battles = Math.max(0, Math.round(Number(r.battles) || 0)) + 1;
+    if (win) r.wins = Math.max(0, Math.round(Number(r.wins) || 0)) + 1;
+    return r;
+  }
+  SK.recBattle = recBattle;
+
+  /* 적대(비-공백) 세력이 아직 가진 성 — 0이면 재야 호족만 남은 것 */
+  function hostileCities(s) {
+    s = s || SK.state;
+    if (!s || !s.cities) return [];
+    return SK.CITY_LIST.filter((c) => {
+      const st = s.cities[c.id];
+      return !!st && st.owner !== PF() && st.owner !== 'neutral';
+    });
+  }
+  SK.hostileCities = hostileCities;
+
+  /* 남은 재야 호족 성을 넘겨받는다 (적대 세력 전멸 → 천하통일) */
+  function sealNeutralCities(s) {
+    let n = 0;
+    SK.CITY_LIST.forEach((c) => {
+      const st = s.cities[c.id];
+      if (!st || st.owner === PF()) return;
+      st.owner = PF();
+      st.genIds = [];
+      st.governor = null;
+      st.advisor = null;
+      st.auto = true;
+      st.bandit = false;
+      st.scoutedUntil = 0;
+      if (st.train == null) st.train = 50;
+      if ((st.loyalty || 0) < 55) st.loyalty = 55;
+      n += 1;
+    });
+    if (n) {
+      s.neutralSealed = (Number(s.neutralSealed) || 0) + n;
+      if (syncFactionCities) { try { syncFactionCities(s); } catch (e) { /* ignore */ } }
+    }
+    return n;
+  }
+  SK.sealNeutralCities = sealNeutralCities;
+
   SK.checkUnification = function (force) {
     const s = SK.state;
     if (!s) return false;
-    if (ownedCount(s) < SK.CITY_LIST.length) return false;
     if (s.unified && !force) return false;
+    if (ownedCount(s) < 1) return false;                 // 거점이 하나도 없으면 통일이 아니다
+    if (hostileCities(s).length) return false;           // 아직 칠 적이 남아 있다
+    if (ownedCount(s) < SK.CITY_LIST.length && !sealNeutralCities(s)) return false;
+    if (ownedCount(s) < SK.CITY_LIST.length) return false;
     const wasUnified = !!s.unified;
     s.unified = true;
     try { SK.save(); } catch (e) { /* ignore */ }
@@ -12625,42 +12697,244 @@
     setTimeout(() => showUnification(), 380);
     return true;
   };
+
+  /* ── 결산 스냅샷: 엔딩 창과 명예의 전당이 같은 값을 본다 ── */
+  function unifyDateLabel(year, month) {
+    if (SK.dateLabel) { try { return SK.dateLabel(year, month); } catch (e) { /* ignore */ } }
+    return `${year}년차 ${SK.monthName(month)}`;
+  }
+  function unifySnapshot() {
+    const s = SK.state;
+    if (!s) return null;
+    const months = Math.max(1, Number(s.turn) || 1);
+    const f = (s.factions && s.factions[s.playerFaction]) || {};
+    const endYear = Number(s.eraYear) || (195 + (Number(s.year) || 1));
+    const endMonth = Number(s.month) || 0;
+    const st0 = (s.startedAt && Number(s.startedAt.year)) ? s.startedAt
+      : { year: endYear - Math.max(0, (Number(s.year) || 1) - 1), month: 0 };
+    const startYear = Number(st0.year) || endYear;
+    const startMonth = Number(st0.month) || 0;
+    const rec = s.rec || {};
+    const battles = Math.max(0, Math.round(Number(rec.battles) || 0));
+    const wins = Math.min(battles, Math.max(0, Math.round(Number(rec.wins) || 0)));
+    const rate = battles ? Math.round((wins * 100) / battles) : null;
+    const heroes = (s.heroes || []).slice();
+    const ranked = heroes.slice().sort((a, b) => (SK.meritOf(b) - SK.meritOf(a)) || ((Number(b.lv) || 1) - (Number(a.lv) || 1)));
+    const mvp = ranked[0] || null;
+    const owned = {};
+    heroes.forEach((h) => Object.keys(h.equip || {}).forEach((k) => { if (h.equip[k]) owned[String(h.equip[k])] = 1; }));
+    (s.treasures || []).forEach((id) => { if (id) owned[String(id)] = 1; });
+    const q = SK.codexStats ? SK.codexStats() : { gPct: 0, tPct: 0 };
+    /* 천하 등급 — 36개월 안에 끝내고 승률 70% 이상이면 S, 72개월 안이면 A, 그 밖은 B */
+    const grade = (months <= 36 && (rate == null || rate >= 70)) ? 'S' : (months <= 72 ? 'A' : 'B');
+    return {
+      factionId: s.playerFaction,
+      factionName: f.name || SK.factionName(s.playerFaction),
+      lordName: f.lord || '',
+      mark: f.mark || SK.FACTION_MARK[s.playerFaction] || '天',
+      months, startYear, startMonth, endYear, endMonth,
+      startLabel: unifyDateLabel(startYear, startMonth),
+      endLabel: unifyDateLabel(endYear, endMonth),
+      battles, wins, rate,
+      cities: ownedCount(s), total: SK.CITY_LIST.length,
+      heroN: heroes.length, treasureN: Object.keys(owned).length, fame: Math.round(Number(s.fame) || 0),
+      grade,
+      mvp: mvp ? { name: mvp.name, merit: SK.meritOf(mvp), lv: Number(mvp.lv) || 1, tier: SK.tierOfPerson(mvp) } : null,
+      gPct: Number(q.gPct) || 0, tPct: Number(q.tPct) || 0,
+      sealedFactions: ((s.surrenderSealed && s.surrenderSealed.factions) || []).slice(0, 6),
+      neutralSealed: Math.max(0, Number(s.neutralSealed) || 0),
+      spokes: ranked.slice(0, 5).map((h) => h.name),
+    };
+  }
+  SK.unifySnapshot = unifySnapshot;
+
+  /* 통일 축사 — 장수 고유 코믹 승리 대사 → 통일 전용 코믹 풀 순서로 고른다 */
+  const UNIFY_SPEECH = [
+    '이제 야근 없는 천하다! …아직 야근 중이지만!',
+    '천하통일했으니 월급은 오르는 거죠?',
+    '내가 이렇게까지 할 줄 알았어? 나도 몰랐어.',
+    '적이 없으니 심심하다. 다음 판 가자.',
+    '온 천하가 우리 것이니 밥값은 이제 그만 내도 되나요?',
+    '이 은혜는 간식으로 갚겠습니다.',
+    '이겼다! 오늘은 간식 두 개!',
+    '천하는 넓고 내 잠은 짧다. 자러 가자.',
+    '내 이름을 새겨라! …오타 나면 안 되는데.',
+    '이 정도면 저도 좀 쉬어도 되죠?',
+    '전쟁 끝! 이제 밭 갈러 갑니다.',
+    '천하통일 기념으로 노래 한 곡! …박수는 됐고요.',
+    '성 80개 관리할 사람 구합니다. 월급은 명성으로.',
+    '적장들도 이제 우리 회식 멤버죠?',
+  ];
+  function unifySpeechOf(name) {
+    const own = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.quotes
+      && window.SK_COMEDY.quotes[name] && window.SK_COMEDY.quotes[name].victory) || null;
+    if (own && own.length) return own[hashStr(name) % own.length];
+    const q = SK.quoteOf ? SK.quoteOf(name, 'victory') : '';
+    if (q) return q;
+    return UNIFY_SPEECH[hashStr(name) % UNIFY_SPEECH.length];
+  }
+  function unifyPic(name) {
+    const g = (SK.GEN_BY_NAME && SK.GEN_BY_NAME[name]) || null;
+    try { return g ? SK.ptSrc(SK.genPortrait(g)) : SK.ptSrc(''); } catch (e) { return SK.ptSrc(''); }
+  }
+  /* 금빛 꽃가루 18 + 폭죽 3 — CSS 만으로 돈다(그림·캔버스 없음) */
+  function unifyFxHtml() {
+    const parts = [];
+    for (let i = 0; i < 18; i += 1) {
+      const x = Math.round((i * 37 + 11) % 100);
+      const dl = Math.round(((i * 13) % 28)) / 10;
+      const dx = (i % 2 ? -1 : 1) * (((i * 7) % 22) + 4);
+      parts.push(`<i style="--x:${x}%;--dl:${dl}s;--dx:${dx}px"></i>`);
+    }
+    [[26, 30, 0], [72, 24, 0.7], [50, 46, 1.4]].forEach((b) => {
+      parts.push(`<b style="--x:${b[0]}%;--y:${b[1]}%;--dl:${b[2]}s"></b>`);
+    });
+    return `<div class="unify-fx" aria-hidden="true">${parts.join('')}</div>`;
+  }
+
   function showUnification() {
     const s = SK.state;
     if (!s) return;
-    const months = Math.max(1, s.turn || 1);
-    const q = SK.codexStats ? SK.codexStats() : { gPct: 0, tPct: 0, gHave: 0, gTotal: 0 };
-    const rank = months <= 24 ? '전설의 난투왕' : months <= 48 ? '백전노장' : '천하의 주인';
-    const f = s.factions[s.playerFaction] || {};
-    const lord = f.lord ? SK.GEN_BY_NAME[f.lord] : null;
+    const sn = unifySnapshot();
+    if (!sn) return;
+    const rank = sn.months <= 24 ? '전설의 난투왕' : sn.months <= 48 ? '백전노장' : '천하의 주인';
+    const lordSrc = sn.lordName ? unifyPic(sn.lordName) : '';
+    const winTxt = sn.rate == null ? '전적 기록 없음' : `${sn.wins}승 <em>${sn.rate}%</em>`;
+    /* 축사 — MVP 다음으로 공훈이 높은 장수 3~4명 (MVP 도 포함해 최소 3명) */
+    let spokes = (sn.spokes || []).filter((n) => n && (!sn.mvp || n !== sn.mvp.name)).slice(0, 4);
+    if (spokes.length < 3 && sn.mvp) spokes = [sn.mvp.name].concat(spokes);
+    const speechHtml = spokes.map((n) => `<div class="us-card"><img src="${unifyPic(n)}" alt="">
+        <div class="us-bub"><b>${n}</b><span>“${unifySpeechOf(n)}”</span></div></div>`).join('');
+    const sealLines = [];
+    if (sn.sealedFactions.length) sealLines.push(`마지막은 칼이 아니라 <b>항복</b>이었습니다 — ${sn.sealedFactions.join(' · ')}이(가) 문을 열었습니다.`);
+    if (sn.neutralSealed) sealLines.push(`재야 호족 <b>${sn.neutralSealed}곳</b>도 스스로 깃발을 내렸습니다.`);
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
     SK.modal({
-      kicker: '천하통일', title: '천하가 하나로 모였습니다', wide: true,
-      body: `<div class="unify-card">
-        <div class="unify-seal">통일</div>
-        ${lord ? `<img class="unify-lord ${SK.tcls(lord)}" src="${SK.ptSrc(SK.genPortrait(lord))}" alt="">` : ''}
-        <p class="unify-line"><b>${f.name || SK.factionName(s.playerFaction)}</b>의 깃발이 <b>${SK.CITY_LIST.length}개 거점</b> 모두에 섰습니다. ${months}개월의 난투 끝에 천하가 하나가 되었습니다.</p>
-        ${s.surrenderSealed ? `<p class="unify-line">마지막은 칼이 아니라 <b>항복</b>이었습니다 — ${(s.surrenderSealed.factions || []).join(' · ')}이 문을 열었습니다${s.surrenderSealed.neutral ? ' (재야 호족도 따랐습니다)' : ''}.</p>` : ''}
-        <div class="unify-rank">${rank}</div>
-        <div class="unify-stats">
-          <div><span>걸린 달</span><b>${months}</b></div>
-          <div><span>거점</span><b>${ownedCount(s)} / ${SK.CITY_LIST.length}</b></div>
-          <div><span>장수</span><b>${(s.heroes || []).length}명</b></div>
-          <div><span>명성</span><b>${fmt(s.fame || 0)}</b></div>
-          <div><span>인물 도감</span><b>${q.gPct.toFixed(1)}%</b></div>
-          <div><span>보물 도감</span><b>${q.tPct.toFixed(1)}%</b></div>
-        </div>
-        <p class="unify-note">도감은 다음 회차에도 이어집니다. 아직 만나지 못한 장수와 보물을 모아 보십시오.</p>
-      </div>`,
+      kicker: '大業 · 천하통일', title: '', wide: true, scrollHint: true,
+      body: `<div class="unify-hero">
+        ${unifyFxHtml()}
+        <span class="unify-emblem">${sn.mark}</span>
+        ${lordSrc ? `<img class="unify-lord" src="${lordSrc}" alt="${sn.lordName}">` : ''}
+        <span class="unify-title">천하통일 대업 달성!</span>
+        <p class="unify-sub"><b>${sn.factionName}</b>${sn.lordName ? ` · 군주 ${sn.lordName}` : ''}</p>
+        <div class="unify-rank">${sn.grade}급 · ${rank}</div>
+      </div>
+      <p class="unify-period">${sn.startLabel} → <b>${sn.endLabel}</b> · <b>${sn.months}개월</b>의 난투</p>
+      <div class="unify-report">
+        <div><span>통일 시점</span><b>${sn.endLabel}</b></div>
+        <div><span>소요 기간</span><b>${sn.months}개월</b></div>
+        <div><span>전투</span><b>${sn.battles}전 ${winTxt}</b></div>
+        <div><span>거점</span><b>${sn.cities} / ${sn.total}</b></div>
+        <div><span>보유 장수</span><b>${sn.heroN}명</b></div>
+        <div><span>보물</span><b>${sn.treasureN}점</b></div>
+        <div><span>명성</span><b>${fmt(sn.fame)}</b></div>
+        <div class="ur-grade"><span>천하 등급</span><b>${sn.grade}</b></div>
+      </div>
+      ${sn.mvp ? `<div class="unify-mvp">
+        <span class="um-ribbon">MVP</span>
+        <img src="${unifyPic(sn.mvp.name)}" alt="">
+        <div class="um-main"><b>${sn.mvp.name}<i>Lv.${sn.mvp.lv}</i></b>
+          <span>공훈 ${fmt(sn.mvp.merit)} · ${sn.mvp.tier}급 · 이번 천하 최고 공훈 장수</span></div>
+      </div>` : ''}
+      ${speechHtml ? `<div class="unify-speech"><p class="us-head">장수들의 한마디 <em>천하통일을 축하하며</em></p>${speechHtml}</div>` : ''}
+      ${sealLines.length ? `<p class="unify-seal-line">${sealLines.join('<br>')}</p>` : ''}
+      <p class="unify-note">인물 도감 ${sn.gPct.toFixed(1)}% · 보물 도감 ${sn.tPct.toFixed(1)}%. 도감은 다음 회차에도 이어집니다 — 아직 만나지 못한 장수와 보물을 모아 보십시오.</p>`,
       actions: [
-        { label: '도감 보기', onClick: () => setTimeout(() => SK.openCodex(), 160) },
-        { label: '계속 둘러보기', primary: true, onClick: () => { SK.showMap(); } },
+        { label: '🏆 명예의 전당 기록 & 새 천하', primary: true, onClick: () => {
+          const d = new Date();
+          const pad = (n) => (n < 10 ? '0' + n : '' + n);
+          SK.hallAdd(Object.assign({}, sn, {
+            at: d.getTime(),
+            dateText: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`,
+            ver: 'v6.10',
+          }));
+          setTimeout(() => SK.openHall({ fresh: true }), 260);
+        } },
+        { label: '🗺️ 천하 계속 둘러보기', onClick: () => { SK.showMap(); } },
       ],
       dismissible: false,
     });
   }
   SK.showUnification = showUnification;
+
+  /* ── 명예의 전당 (이 기기에 영구 기록 · 표지 [🏆 명예의 전당]) ── */
+  function hallList() {
+    try {
+      const raw = localStorage.getItem(HALL_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.filter((x) => x && typeof x === 'object' && x.at) : [];
+    } catch (e) { return []; }
+  }
+  SK.hallList = hallList;
+  function hallWrite(arr) {
+    try { localStorage.setItem(HALL_KEY, JSON.stringify(arr.slice(0, HALL_MAX))); } catch (e) { /* ignore */ }
+  }
+  function hallAdd(rec) {
+    if (!rec || !rec.at) return false;
+    const arr = hallList();
+    if (arr.some((x) => x.at === rec.at)) return false;
+    arr.unshift(rec);
+    hallWrite(arr);
+    if (SK.refreshHallBtn) SK.refreshHallBtn();
+    return true;
+  }
+  SK.hallAdd = hallAdd;
+  function hallClear() {
+    try { localStorage.removeItem(HALL_KEY); } catch (e) { /* ignore */ }
+    if (SK.refreshHallBtn) SK.refreshHallBtn();
+  }
+  SK.hallClear = hallClear;
+  function refreshHallBtn() {
+    const b = document.getElementById('btn-hall');
+    if (!b) return;
+    const n = hallList().length;
+    b.hidden = !n;
+    b.textContent = n ? `🏆 명예의 전당 (${n})` : '🏆 명예의 전당';
+  }
+  SK.refreshHallBtn = refreshHallBtn;
+
+  function openHall(opts) {
+    const arr = hallList();
+    const rows = arr.map((r) => {
+      const rate = (r.rate == null) ? '전적 기록 없음' : `${r.wins}/${r.battles}승 · 승률 ${r.rate}%`;
+      return `<div class="hall-row g-${r.grade || 'B'}">
+        <span class="hr-grade">${r.grade || 'B'}</span>
+        <div class="hr-main"><b>${r.factionName || '천하'}${r.lordName ? ` <i>${r.lordName}</i>` : ''}</b>
+          <span>${r.endLabel || ''} 통일 · ${r.months || 1}개월 · ${rate}</span>
+          <span>장수 ${r.heroN || 0}명 · 보물 ${r.treasureN || 0}점${r.mvp && r.mvp.name ? ` · MVP ${r.mvp.name}` : ''}${r.dateText ? ` · ${r.dateText}` : ''}</span></div>
+      </div>`;
+    }).join('');
+    SK.modal({
+      kicker: '명예의 전당', title: '천하통일 기록', wide: true, scrollHint: true,
+      body: `<div class="hall-wrap">
+        ${arr.length ? `<div class="hall-list">${rows}</div>`
+          : `<div class="hall-empty"><b>아직 기록이 없습니다</b><span>천하통일 엔딩에서 [🏆 명예의 전당 기록]을 누르면 이 기기에 기록이 남습니다.</span></div>`}
+        ${opts && opts.fresh ? '<p class="hall-note brand">방금 통일을 <b>명예의 전당</b>에 기록했습니다. 새 천하를 시작해도 이 기록은 이 기기에 남습니다.</p>' : ''}
+        <p class="hall-note">새 천하를 시작하면 지금 세이브는 새 판으로 넘어갑니다(전당 기록은 그대로 남습니다).</p>
+      </div>`,
+      actions: [
+        { label: '닫기' },
+        { label: '🌏 새 천하 시작', primary: true, onClick: () => { startGame(true); } },
+      ],
+    });
+  }
+  SK.openHall = openHall;
+
+  /* ── 점검·검수용 문 — 언제든 엔딩 창을 즉시 띄운다 ── */
+  if (typeof window !== 'undefined') {
+    window.SK_QA = window.SK_QA || {};
+    window.SK_QA.triggerEnding = function (opt) {
+      if (!SK.state) return false;
+      if (opt && opt.reset) SK.state.unified = false;
+      showUnification();
+      return true;
+    };
+    window.SK_QA.unifySnapshot = unifySnapshot;
+    window.SK_QA.hallList = hallList;
+    window.SK_QA.hallClear = hallClear;
+    window.SK_QA.openHall = openHall;
+  }
 
   /* ══════════════════════════════════════════════════════════════
      v5.66 — 60성 이상 장악 시 조기 천통(일괄 항복 권유)
@@ -17083,6 +17357,12 @@
     $('#btn-continue').onclick = () => { if (SK.load()) startGame(false); else startGame(true); };
     const slotsBtn = $('#btn-slots');
     if (slotsBtn) slotsBtn.onclick = () => SK.openSaveSlots('load');
+    /* v6.10 — 표지 [🏆 명예의 전당]: 천하통일 기록이 한 건이라도 있으면 보인다 */
+    const hallBtn = $('#btn-hall');
+    if (hallBtn) {
+      hallBtn.onclick = () => SK.openHall({});
+      if (SK.refreshHallBtn) SK.refreshHallBtn();
+    }
     /* v5.11 — 표지 아무 곳이나 첫 터치/스크롤에 title BGM 잠금 해제 */
     const titleKick = () => {
       if (window.JojoBGM && JojoBGM.kick) { try { JojoBGM.kick('title'); } catch (e) { /* ignore */ } }
