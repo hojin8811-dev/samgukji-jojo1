@@ -1495,6 +1495,7 @@
     const mine = power(S.squad), theirs = Math.round(weeklyTarget(b));
     body.appendChild(el('div', 'u-note', '내 원정단 ⚔️' + fmt(mine) + ' · 이번 주 보스 ⚔️' + fmt(theirs) +
       '<br>적을 모두 쓰러뜨리면 격파, 시간이 끝나도 그때까지 넣은 피해가 기록에 남습니다.' +
+      '<br>보스 전투력은 내 원정단에 맞춰 조정되고, 관문 진행과 상관없이 언제든 도전할 수 있습니다.' +
       '<br>주간 첫 격파 보상은 한 주에 한 번, 매주 월요일 0시에 보스가 바뀝니다.'));
 
     if (S.weeklyHist.length) {
@@ -1512,9 +1513,11 @@
   function weeklyTarget(b) {
     const mine = power(S ? S.squad : []);
     const curve = expectedPartyPower(b.stage) * WEEKLY_FOE_RATE * TUNE_POWER_MULT;
-    /* 관문·토벌전과 같은 원칙 — 곡선보다 강한 사람에게는 같이 올라가고, 새로 시작한 사람도
-       아예 긁지도 못하는 일은 없게 내 원정단 ×1.15 을 넘지 않는다 */
-    return Math.min(curve, Math.max(600, mine * 1.15));
+    /* 관문·토벌전과 같은 원칙 — 곡선보다 강한 사람에게는 곡선(고정)이 적용되고,
+       새로 시작한 원정단은 내 전투력의 90%로 맞춰 한 번은 해 볼 만하게 둔다.
+       (급하게 맞춘 5인 편성으로 6판 재 보니 ×1.15·×1.00·×0.95는 전패, ×0.90은 첫 판 패배 뒤
+        5연승 — 첫 도전은 아슬아슬하고 성장·재도전으로 넘어가는 값) */
+    return Math.min(curve, Math.max(600, mine * 0.90));
   }
   function weeklyFoes(b) {
     const g = b.gim || {};
