@@ -1768,7 +1768,9 @@
       '<div class="g1">' + (act.n > 1 ? act.short + ' · ' + act.sub : '현재 목표') + '</div>' +
       '<div class="g2">' + st + '관문 · ' + sd.name + '</div>' +
       '<div class="g3">🏅 ' + fmt(rw.merit) + (hero ? ' · 🎁 ' + hero.name : '') + (rw.stone ? ' · ' + STONE_NAME + ' +' + rw.stone : '') + '</div>' +
-      (allDone ? '<div class="g4">' + act.short + ' 클리어 완료</div>' : '') +
+      (allDone && maxCleared() < MAX_ACT ? '<div class="g4">' + act.short + ' 클리어 완료</div>' : '') +
+      /* v7.3 — 100관문을 다 깨면 막 클리어 줄 대신 완주 줄 하나만 쓴다(줄이 늘면 주간 명패가
+         아래로 밀려 첫 줄 캐릭터 명패를 15px 가린다 — 390×844 실측). */
       (maxCleared() >= MAX_ACT ? '<div class="g4">🏆 100관문 완주 — 대장정 완료</div>' : '') +
       (allDone && act.n < ACTS.length ? '<div class="g4">🔓 ' + ACTS[act.n].short + ' 해금 — 위 탭에서 이동</div>' : '') +
       (actLock ? '<div class="g4">🔒 ' + (act.from - 1) + '관문 클리어 시 해금</div>' : '')));
