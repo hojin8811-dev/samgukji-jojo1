@@ -9373,3 +9373,66 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 #expRoot .ex-top .ex-pw, #expRoot .ex-top .ex-merit {
   padding: 0 5px; font-size: 10.5px; letter-spacing: -0.02em; min-height: 30px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v7.2 (?v=148) — 원정 《꼬마영웅 원정대》 · 제5~7막 서주·형주·오나라(41~70관문)
+   ① 막 탭 가로 스크롤 — 막이 7개(앞으로 10개)라 한 줄에 다 들어가지 않는다.
+      대기실 머리줄(.ex-top .ex-tabs)과 스테이지 창(.ex-stabs)이 같은 레일을 쓴다.
+      · 탭은 줄어들지 않고(flex:0 0 auto) 레일만 옆으로 밀린다 → 세로 높이·가로 넘침 0
+      · 고른 탭이 보이도록 actTabsHTML 이 scrollLeft 를 잡아 준다(JS)
+      · 스크롤바는 감추고(모바일) 손가락 관성 스크롤을 켠다
+   ② 7개가 되어도 탭 글자는 압축하지 않는다 — 레일이 넓어졌으니 11.5/9.5px로 읽히게
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 막 탭 레일 — 가로 스크롤 ─────────────────────────────────────── */
+#expRoot .ex-tabs,
+#expRoot .ex-stabs {
+  display: flex; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+#expRoot .ex-tabs::-webkit-scrollbar,
+#expRoot .ex-stabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+#expRoot .ex-tabs .ex-tab,
+#expRoot .ex-stabs .ex-tab { flex: 0 0 auto; }
+
+/* ── ② 탭 크기 — 44px 손가락 기준 유지, 글자는 더 또렷하게 ─────────── */
+#expRoot .ex-top .ex-tabs { gap: 4px; }
+#expRoot .ex-top .ex-tab { min-width: 54px; padding: 1px 6px; }
+#expRoot .ex-top .ex-tab b { font-size: 11.5px; letter-spacing: -0.01em; }
+#expRoot .ex-top .ex-tab small { font-size: 9.5px; letter-spacing: -0.02em; }
+#expRoot .ex-stabs .ex-tab { min-width: 62px; }
+
+/* ── ①-b 레일 양 끝 안내 — 숨은 쪽 가장자리만 흐리게 (JS syncTabEdge 와 짝) ── */
+#expRoot .ex-tabs.scrollable,
+#expRoot .ex-stabs.scrollable { scroll-behavior: auto; }
+#expRoot .ex-tabs.scrollable:not(.at-start),
+#expRoot .ex-stabs.scrollable:not(.at-start) {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16px);
+}
+#expRoot .ex-tabs.scrollable:not(.at-end),
+#expRoot .ex-stabs.scrollable:not(.at-end) {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent 100%);
+}
+#expRoot .ex-tabs.scrollable:not(.at-start):not(.at-end),
+#expRoot .ex-stabs.scrollable:not(.at-start):not(.at-end) {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+
+/* ── ③ 결과 창 — 클래스 이름 충돌 정리 ────────────────────────────────
+   결과 창은 `.ex-mbox.res` 인데, 본편에 같은 이름의 자원 칩 규칙(.res)이 있어
+   `white-space: nowrap` 이 창 안 전체로 상속된다. 그래서 긴 보상 줄(🏅 +1,150 · 정련석 +16)이
+   한 줄로 늘어나 창 폭을 밀어내고, 관문 행·버튼이 창 밖으로 삐져나왔다(v7.1 잠복 · 5~7막에서 드러남).
+   결과 창 안에서만 줄바꿈을 되돌리고, 한 줄이어야 하는 값만 nowrap 으로 남긴다. */
+#expRoot .ex-mbox.res, #expRoot .ex-mbox.res * { white-space: normal; }
+#expRoot .ex-mbox.res .r-t,
+#expRoot .ex-mbox.res .r-row span,
+#expRoot .ex-mbox.res .r-row b,
+#expRoot .ex-mbox.res .u-btns button { white-space: nowrap; }
+#expRoot .ex-mbox.res .ex-result { min-width: 0; }
+#expRoot .ex-mbox.res .r-l { line-height: 1.45; }
