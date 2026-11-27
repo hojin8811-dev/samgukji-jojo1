@@ -13310,5 +13310,3429 @@
       "taken": 0.154,
       "counter": 0.206
     }
+  },
+  {
+    "name": "국연",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.149
+    }
+  },
+  {
+    "name": "노육",
+    "title": "둔전가",
+    "trigger": "domestic",
+    "effect": "이 성 군량 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_food",
+    "vp": {},
+    "adm": {
+      "food": 12
+    },
+    "dom": {
+      "food": 12
+    }
+  },
+  {
+    "name": "만분",
+    "title": "기마돌파",
+    "trigger": "passive",
+    "effect": "기병이 2칸 이상 달린 뒤 치면 피해 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 돌격 피해 +20%",
+    "v582": "breakthrough",
+    "vp": {
+      "move": 0.204,
+      "minMove": 2
+    }
+  },
+  {
+    "name": "만위",
+    "title": "복병",
+    "trigger": "passive",
+    "effect": "숲·산지에서 치명타 <b>+13%p</b> · 회피 <b>+11%p</b>",
+    "valuePct": 13,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 숲·산지에서 치명·회피 상승",
+    "v582": "ambush",
+    "vp": {
+      "crit": 0.134,
+      "evade": 0.107
+    }
+  },
+  {
+    "name": "만정",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-13%</b> · 반격 피해 <b>+18%</b>",
+    "valuePct": 13,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -13%, 반격 +18%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.134,
+      "counter": 0.178
+    }
+  },
+  {
+    "name": "맹건",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+19%</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +19%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.194
+    }
+  },
+  {
+    "name": "배서",
+    "title": "공성파괴",
+    "trigger": "passive",
+    "effect": "성문 공격 피해 <b>+20%</b> · 방어력 <b>25%</b> 관통",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 성문 피해 +20%, 방어 25% 무시",
+    "v582": "siege",
+    "vp": {
+      "siege": 0.197,
+      "pierce": 0.246
+    }
+  },
+  {
+    "name": "배흠",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+15%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.146
+    }
+  },
+  {
+    "name": "변양",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "보정",
+    "title": "혈전",
+    "trigger": "passive",
+    "effect": "병력이 50% 이하일 때 공격 <b>+25%</b>, 준 피해의 <b>15%</b> 흡혈",
+    "valuePct": 25,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: HP 절반 이하에서 강화·흡혈",
+    "v582": "bloodlust",
+    "vp": {
+      "atk": 0.25,
+      "hp": 50,
+      "leech": 0.15
+    }
+  },
+  {
+    "name": "사환",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 71%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.283,
+      "pct": 0.707
+    }
+  },
+  {
+    "name": "상림",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 29% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>24%</b> 추가 피해",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.292,
+      "splash": 0.244
+    }
+  },
+  {
+    "name": "서곤",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +21%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.209
+    }
+  },
+  {
+    "name": "서소",
+    "title": "궁수저격",
+    "trigger": "passive",
+    "effect": "2칸 이상 거리에서 쏘면 피해 <b>+18%</b>",
+    "valuePct": 18,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 원거리 사격 피해 +18%",
+    "v582": "snipe",
+    "vp": {
+      "ranged": 0.179
+    }
+  },
+  {
+    "name": "석도",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+19%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.193,
+      "crit": 0.097
+    }
+  },
+  {
+    "name": "성만",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+15%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.151
+    }
+  },
+  {
+    "name": "성헌",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+22%</b>",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +22%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.221
+    }
+  },
+  {
+    "name": "송금생",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-14%</b> · 반격 피해 <b>+19%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -14%, 반격 +19%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.144,
+      "counter": 0.192
+    }
+  },
+  {
+    "name": "순개",
+    "title": "복병",
+    "trigger": "passive",
+    "effect": "숲·산지에서 치명타 <b>+13%p</b> · 회피 <b>+11%p</b>",
+    "valuePct": 13,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 숲·산지에서 치명·회피 상승",
+    "v582": "ambush",
+    "vp": {
+      "crit": 0.134,
+      "evade": 0.107
+    }
+  },
+  {
+    "name": "순검",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "순곤",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "순굉",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+22%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +22%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.223
+    }
+  },
+  {
+    "name": "순도",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 27% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>23%</b> 추가 피해",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.273,
+      "splash": 0.228
+    }
+  },
+  {
+    "name": "순상",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "순연",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+14%p</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +14%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.14
+    }
+  },
+  {
+    "name": "순열",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "왕굉",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 29% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>24%</b> 추가 피해",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.291,
+      "splash": 0.242
+    }
+  },
+  {
+    "name": "왕덕미",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "왕도",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "왕분",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.151
+    }
+  },
+  {
+    "name": "왕상",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+22%</b>",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +22%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.216
+    }
+  },
+  {
+    "name": "왕예",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.153,
+      "counter": 0.204
+    }
+  },
+  {
+    "name": "왕웅",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+15%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.146
+    }
+  },
+  {
+    "name": "왕항",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 35% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 35,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.353,
+      "dot": 0.061,
+      "turns": 3
+    }
+  },
+  {
+    "name": "왕혼",
+    "title": "개간가",
+    "trigger": "domestic",
+    "effect": "이 성 개간·농업 효과 <b>+15%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_farm",
+    "vp": {},
+    "adm": {
+      "farm": 15
+    },
+    "dom": {
+      "farm": 15
+    }
+  },
+  {
+    "name": "유량",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+23%</b>",
+    "valuePct": 23,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +23%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.227
+    }
+  },
+  {
+    "name": "유자양",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 34% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 34,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.336,
+      "dot": 0.058,
+      "turns": 3
+    }
+  },
+  {
+    "name": "유자혜",
+    "title": "개간가",
+    "trigger": "domestic",
+    "effect": "이 성 개간·농업 효과 <b>+15%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_farm",
+    "vp": {},
+    "adm": {
+      "farm": 15
+    },
+    "dom": {
+      "farm": 15
+    }
+  },
+  {
+    "name": "유필",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "유헌",
+    "title": "첩보관",
+    "trigger": "domestic",
+    "effect": "이 성 첩보 성공률 <b>+15%p</b>, 적 성 정보 확대",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_spy",
+    "vp": {},
+    "adm": {
+      "spy": 15
+    },
+    "dom": {
+      "spy": 15
+    }
+  },
+  {
+    "name": "응소",
+    "title": "혈전",
+    "trigger": "passive",
+    "effect": "병력이 50% 이하일 때 공격 <b>+22%</b>, 준 피해의 <b>13%</b> 흡혈",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: HP 절반 이하에서 강화·흡혈",
+    "v582": "bloodlust",
+    "vp": {
+      "atk": 0.221,
+      "hp": 50,
+      "leech": 0.133
+    }
+  },
+  {
+    "name": "응순",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 30% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>25%</b> 추가 피해",
+    "valuePct": 30,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.297,
+      "splash": 0.247
+    }
+  },
+  {
+    "name": "응정",
+    "title": "궁수저격",
+    "trigger": "passive",
+    "effect": "2칸 이상 거리에서 쏘면 피해 <b>+18%</b>",
+    "valuePct": 18,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 원거리 사격 피해 +18%",
+    "v582": "snipe",
+    "vp": {
+      "ranged": 0.184
+    }
+  },
+  {
+    "name": "응창",
+    "title": "복병",
+    "trigger": "passive",
+    "effect": "숲·산지에서 치명타 <b>+15%p</b> · 회피 <b>+12%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 숲·산지에서 치명·회피 상승",
+    "v582": "ambush",
+    "vp": {
+      "crit": 0.148,
+      "evade": 0.118
+    }
+  },
+  {
+    "name": "장간",
+    "title": "신속",
+    "trigger": "passive",
+    "effect": "이동력 <b>+1</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 이동력 +1",
+    "v582": "swift",
+    "vp": {
+      "move": 1
+    }
+  },
+  {
+    "name": "장검",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+15%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.151
+    }
+  },
+  {
+    "name": "장도",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+15%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.15
+    }
+  },
+  {
+    "name": "장무",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+20%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.195,
+      "crit": 0.098
+    }
+  },
+  {
+    "name": "장미",
+    "title": "신속",
+    "trigger": "passive",
+    "effect": "이동력 <b>+1</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 이동력 +1",
+    "v582": "swift",
+    "vp": {
+      "move": 1
+    }
+  },
+  {
+    "name": "장반",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+24%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 24,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +24%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.24
+    }
+  },
+  {
+    "name": "장상",
+    "title": "건축가",
+    "trigger": "domestic",
+    "effect": "이 성 건설·강화 비용 <b>-10%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_build",
+    "vp": {},
+    "adm": {
+      "build": 10
+    },
+    "dom": {
+      "build": 10
+    }
+  },
+  {
+    "name": "장선",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+21%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +21%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.154,
+      "counter": 0.206
+    }
+  },
+  {
+    "name": "장성",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+18%</b>",
+    "valuePct": 18,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +18%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.184
+    }
+  },
+  {
+    "name": "장세평",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 30% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>25%</b> 추가 피해",
+    "valuePct": 30,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.297,
+      "splash": 0.247
+    }
+  },
+  {
+    "name": "장순",
+    "title": "재정가",
+    "trigger": "domestic",
+    "effect": "이 성 금 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_gold",
+    "vp": {},
+    "adm": {
+      "gold": 12
+    },
+    "dom": {
+      "gold": 12
+    }
+  },
+  {
+    "name": "장숙",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +20%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.198
+    }
+  },
+  {
+    "name": "장염",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "장예",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+24%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 24,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +24%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.24
+    }
+  },
+  {
+    "name": "장자겸",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "29% 확률로 공격력 71%의 추가타",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.286,
+      "pct": 0.714
+    }
+  },
+  {
+    "name": "장절",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 31% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>26%</b> 추가 피해",
+    "valuePct": 31,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.306,
+      "splash": 0.255
+    }
+  },
+  {
+    "name": "장진",
+    "title": "복병",
+    "trigger": "passive",
+    "effect": "숲·산지에서 치명타 <b>+14%p</b> · 회피 <b>+12%p</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 숲·산지에서 치명·회피 상승",
+    "v582": "ambush",
+    "vp": {
+      "crit": 0.145,
+      "evade": 0.116
+    }
+  },
+  {
+    "name": "장집",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "29% 확률로 공격력 73%의 추가타",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.291,
+      "pct": 0.728
+    }
+  },
+  {
+    "name": "장창",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 33% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 33,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.333,
+      "dot": 0.057,
+      "turns": 3
+    }
+  },
+  {
+    "name": "장현",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 31% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>26%</b> 추가 피해",
+    "valuePct": 31,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.306,
+      "splash": 0.255
+    }
+  },
+  {
+    "name": "장홍",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "전단",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+14%p</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +14%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.145
+    }
+  },
+  {
+    "name": "전만",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 31% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>26%</b> 추가 피해",
+    "valuePct": 31,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.306,
+      "splash": 0.255
+    }
+  },
+  {
+    "name": "전서",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+20%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.201,
+      "crit": 0.101
+    }
+  },
+  {
+    "name": "전속",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "전주",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "정광",
+    "title": "둔전가",
+    "trigger": "domestic",
+    "effect": "이 성 군량 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_food",
+    "vp": {},
+    "adm": {
+      "food": 12
+    },
+    "dom": {
+      "food": 12
+    }
+  },
+  {
+    "name": "정륜",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +20%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.202
+    }
+  },
+  {
+    "name": "정문",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +21%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.214
+    }
+  },
+  {
+    "name": "정밀",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +21%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.209
+    }
+  },
+  {
+    "name": "정서",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "27% 확률로 공격력 68%의 추가타",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.27,
+      "pct": 0.675
+    }
+  },
+  {
+    "name": "정원",
+    "title": "혈전",
+    "trigger": "passive",
+    "effect": "병력이 50% 이하일 때 공격 <b>+24%</b>, 준 피해의 <b>15%</b> 흡혈",
+    "valuePct": 24,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: HP 절반 이하에서 강화·흡혈",
+    "v582": "bloodlust",
+    "vp": {
+      "atk": 0.245,
+      "hp": 50,
+      "leech": 0.147
+    }
+  },
+  {
+    "name": "정은",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.172
+    }
+  },
+  {
+    "name": "정충",
+    "title": "방진",
+    "trigger": "passive",
+    "effect": "인접 아군이 있으면 방어 <b>+12%</b>",
+    "valuePct": 12,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 붙은 아군이 있으면 방어 +12%",
+    "v582": "phalanx",
+    "vp": {
+      "def": 0.119
+    }
+  },
+  {
+    "name": "정탁",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.151
+    }
+  },
+  {
+    "name": "정태",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "29% 확률로 공격력 71%의 추가타",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "B",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.286,
+      "pct": 0.714
+    }
+  },
+  {
+    "name": "정현",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "조간",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 30% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>25%</b> 추가 피해",
+    "valuePct": 30,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.3,
+      "splash": 0.25
+    }
+  },
+  {
+    "name": "조감",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +20%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.197
+    }
+  },
+  {
+    "name": "조거",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +20%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.197
+    }
+  },
+  {
+    "name": "조경",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 71%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.284,
+      "pct": 0.711
+    }
+  },
+  {
+    "name": "조곤",
+    "title": "방진",
+    "trigger": "passive",
+    "effect": "인접 아군이 있으면 방어 <b>+12%</b>",
+    "valuePct": 12,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 붙은 아군이 있으면 방어 +12%",
+    "v582": "phalanx",
+    "vp": {
+      "def": 0.121
+    }
+  },
+  {
+    "name": "조구",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 33% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 33,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.326,
+      "dot": 0.056,
+      "turns": 3
+    }
+  },
+  {
+    "name": "조궐",
+    "title": "공성파괴",
+    "trigger": "passive",
+    "effect": "성문 공격 피해 <b>+20%</b> · 방어력 <b>26%</b> 관통",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 성문 피해 +20%, 방어 26% 무시",
+    "v582": "siege",
+    "vp": {
+      "siege": 0.205,
+      "pierce": 0.256
+    }
+  },
+  {
+    "name": "조균",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "조근",
+    "title": "개간가",
+    "trigger": "domestic",
+    "effect": "이 성 개간·농업 효과 <b>+15%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_farm",
+    "vp": {},
+    "adm": {
+      "farm": 15
+    },
+    "dom": {
+      "farm": 15
+    }
+  },
+  {
+    "name": "조덕",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "조랑",
+    "title": "건축가",
+    "trigger": "domestic",
+    "effect": "이 성 건설·강화 비용 <b>-10%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_build",
+    "vp": {},
+    "adm": {
+      "build": 10
+    },
+    "dom": {
+      "build": 10
+    }
+  },
+  {
+    "name": "조례",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.153,
+      "counter": 0.204
+    }
+  },
+  {
+    "name": "조루",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+14%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.138
+    }
+  },
+  {
+    "name": "조림",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +21%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.209
+    }
+  },
+  {
+    "name": "조맹",
+    "title": "등용관",
+    "trigger": "domestic",
+    "effect": "이 성 인재 등용 성공률 <b>+10%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_recruit",
+    "vp": {},
+    "adm": {
+      "recruit": 10
+    },
+    "dom": {
+      "recruit": 10
+    }
+  },
+  {
+    "name": "조민",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +20%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.202
+    }
+  },
+  {
+    "name": "조병",
+    "title": "건축가",
+    "trigger": "domestic",
+    "effect": "이 성 건설·강화 비용 <b>-10%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_build",
+    "vp": {},
+    "adm": {
+      "build": 10
+    },
+    "dom": {
+      "build": 10
+    }
+  },
+  {
+    "name": "조부",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 71%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.283,
+      "pct": 0.707
+    }
+  },
+  {
+    "name": "조빈",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+20%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.203,
+      "crit": 0.102
+    }
+  },
+  {
+    "name": "조삭",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 29% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>24%</b> 추가 피해",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.291,
+      "splash": 0.242
+    }
+  },
+  {
+    "name": "조숭",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-16%</b> · 반격 피해 <b>+21%</b>",
+    "valuePct": 16,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -16%, 반격 +21%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.158,
+      "counter": 0.211
+    }
+  },
+  {
+    "name": "조승",
+    "title": "사기진작",
+    "trigger": "passive",
+    "effect": "매 턴 시작에 MP <b>+6</b>, 인접 아군 사기 <b>+4</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 턴마다 MP·아군 사기",
+    "v582": "morale",
+    "vp": {
+      "mp": 6,
+      "morale": 4
+    }
+  },
+  {
+    "name": "조심",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.147
+    }
+  },
+  {
+    "name": "조안민",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+19%</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +19%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.194
+    }
+  },
+  {
+    "name": "조연",
+    "title": "복병",
+    "trigger": "passive",
+    "effect": "숲·산지에서 치명타 <b>+14%p</b> · 회피 <b>+12%p</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 숲·산지에서 치명·회피 상승",
+    "v582": "ambush",
+    "vp": {
+      "crit": 0.144,
+      "evade": 0.115
+    }
+  },
+  {
+    "name": "조영",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+20%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.203,
+      "crit": 0.102
+    }
+  },
+  {
+    "name": "조옥",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.153,
+      "counter": 0.204
+    }
+  },
+  {
+    "name": "조온",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "조옹",
+    "title": "등용관",
+    "trigger": "domestic",
+    "effect": "이 성 인재 등용 성공률 <b>+10%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_recruit",
+    "vp": {},
+    "adm": {
+      "recruit": 10
+    },
+    "dom": {
+      "recruit": 10
+    }
+  },
+  {
+    "name": "조웅",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+19%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.19,
+      "crit": 0.095
+    }
+  },
+  {
+    "name": "조유",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 35% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 35,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.35,
+      "dot": 0.06,
+      "turns": 3
+    }
+  },
+  {
+    "name": "조은",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+25%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 25,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +25%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.247
+    }
+  },
+  {
+    "name": "조잠",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-14%</b> · 반격 피해 <b>+19%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -14%, 반격 +19%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.143,
+      "counter": 0.19
+    }
+  },
+  {
+    "name": "조전",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "조정",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.146,
+      "counter": 0.195
+    }
+  },
+  {
+    "name": "조제",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "조찬",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 35% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 35,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.353,
+      "dot": 0.061,
+      "turns": 3
+    }
+  },
+  {
+    "name": "조필",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+15%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.151
+    }
+  },
+  {
+    "name": "조현",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "조협",
+    "title": "기마돌파",
+    "trigger": "passive",
+    "effect": "기병이 2칸 이상 달린 뒤 치면 피해 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 돌격 피해 +21%",
+    "v582": "breakthrough",
+    "vp": {
+      "move": 0.21,
+      "minMove": 2
+    }
+  },
+  {
+    "name": "조훈",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+14%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.144
+    }
+  },
+  {
+    "name": "조휘",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-14%</b> · 반격 피해 <b>+19%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -14%, 반격 +19%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.144,
+      "counter": 0.192
+    }
+  },
+  {
+    "name": "조흡",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +20%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.197
+    }
+  },
+  {
+    "name": "종리목",
+    "title": "신속",
+    "trigger": "passive",
+    "effect": "이동력 <b>+1</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 이동력 +1",
+    "v582": "swift",
+    "vp": {
+      "move": 1
+    }
+  },
+  {
+    "name": "종리비",
+    "title": "조련관",
+    "trigger": "domestic",
+    "effect": "이 성 훈련 효과 <b>+15%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_train",
+    "vp": {},
+    "adm": {
+      "train": 15
+    },
+    "dom": {
+      "train": 15
+    }
+  },
+  {
+    "name": "종불",
+    "title": "둔전가",
+    "trigger": "domestic",
+    "effect": "이 성 군량 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_food",
+    "vp": {},
+    "adm": {
+      "food": 12
+    },
+    "dom": {
+      "food": 12
+    }
+  },
+  {
+    "name": "종소",
+    "title": "첩보관",
+    "trigger": "domestic",
+    "effect": "이 성 첩보 성공률 <b>+15%p</b>, 적 성 정보 확대",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_spy",
+    "vp": {},
+    "adm": {
+      "spy": 15
+    },
+    "dom": {
+      "spy": 15
+    }
+  },
+  {
+    "name": "종승",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "종신",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.154,
+      "counter": 0.205
+    }
+  },
+  {
+    "name": "종육",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+22%</b>",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +22%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.224
+    }
+  },
+  {
+    "name": "좌령",
+    "title": "혈전",
+    "trigger": "passive",
+    "effect": "병력이 50% 이하일 때 공격 <b>+22%</b>, 준 피해의 <b>13%</b> 흡혈",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: HP 절반 이하에서 강화·흡혈",
+    "v582": "bloodlust",
+    "vp": {
+      "atk": 0.221,
+      "hp": 50,
+      "leech": 0.133
+    }
+  },
+  {
+    "name": "좌함",
+    "title": "야습",
+    "trigger": "passive",
+    "effect": "아직 행동하지 않은 적을 치면 피해 <b>+22%</b>",
+    "valuePct": 22,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 미행동 적에게 +22%",
+    "v582": "nightraid",
+    "vp": {
+      "raid": 0.221
+    }
+  },
+  {
+    "name": "좌혁",
+    "title": "기마돌파",
+    "trigger": "passive",
+    "effect": "기병이 2칸 이상 달린 뒤 치면 피해 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 돌격 피해 +21%",
+    "v582": "breakthrough",
+    "vp": {
+      "move": 0.21,
+      "minMove": 2
+    }
+  },
+  {
+    "name": "진건",
+    "title": "재정가",
+    "trigger": "domestic",
+    "effect": "이 성 금 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_gold",
+    "vp": {},
+    "adm": {
+      "gold": 12
+    },
+    "dom": {
+      "gold": 12
+    }
+  },
+  {
+    "name": "진경동",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "진단",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+24%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 24,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +24%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.24
+    }
+  },
+  {
+    "name": "진랑",
+    "title": "신속",
+    "trigger": "passive",
+    "effect": "이동력 <b>+1</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 이동력 +1",
+    "v582": "swift",
+    "vp": {
+      "move": 1
+    }
+  },
+  {
+    "name": "진량",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 71%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.284,
+      "pct": 0.711
+    }
+  },
+  {
+    "name": "진명",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 27% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>23%</b> 추가 피해",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.272,
+      "splash": 0.226
+    }
+  },
+  {
+    "name": "진밀",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.154
+    }
+  },
+  {
+    "name": "진백련",
+    "title": "재정가",
+    "trigger": "domestic",
+    "effect": "이 성 금 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_gold",
+    "vp": {},
+    "adm": {
+      "gold": 12
+    },
+    "dom": {
+      "gold": 12
+    }
+  },
+  {
+    "name": "진손",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+19%</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +19%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.19
+    }
+  },
+  {
+    "name": "진송",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "27% 확률로 공격력 68%의 추가타",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.272,
+      "pct": 0.679
+    }
+  },
+  {
+    "name": "진용",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.151
+    }
+  },
+  {
+    "name": "진우",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "진원",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "조침",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "진조",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "진준",
+    "title": "방진",
+    "trigger": "passive",
+    "effect": "인접 아군이 있으면 방어 <b>+11%</b>",
+    "valuePct": 11,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 붙은 아군이 있으면 방어 +11%",
+    "v582": "phalanx",
+    "vp": {
+      "def": 0.114
+    }
+  },
+  {
+    "name": "진초",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-14%</b> · 반격 피해 <b>+19%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -14%, 반격 +19%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.145,
+      "counter": 0.193
+    }
+  },
+  {
+    "name": "진취",
+    "title": "공성파괴",
+    "trigger": "passive",
+    "effect": "성문 공격 피해 <b>+20%</b> · 방어력 <b>26%</b> 관통",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 성문 피해 +20%, 방어 26% 무시",
+    "v582": "siege",
+    "vp": {
+      "siege": 0.205,
+      "pierce": 0.256
+    }
+  },
+  {
+    "name": "진표",
+    "title": "급습",
+    "trigger": "passive",
+    "effect": "적의 옆·뒤를 치면 피해 <b>+19%</b> · 치명타 <b>+10%p</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 측면·배후 강타",
+    "v582": "flank",
+    "vp": {
+      "flank": 0.193,
+      "crit": 0.097
+    }
+  },
+  {
+    "name": "진화",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "징숭",
+    "title": "복병",
+    "trigger": "passive",
+    "effect": "숲·산지에서 치명타 <b>+14%p</b> · 회피 <b>+12%p</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 숲·산지에서 치명·회피 상승",
+    "v582": "ambush",
+    "vp": {
+      "crit": 0.144,
+      "evade": 0.115
+    }
+  },
+  {
+    "name": "창자",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 69%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.277,
+      "pct": 0.693
+    }
+  },
+  {
+    "name": "채중",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 30% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>25%</b> 추가 피해",
+    "valuePct": 30,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.298,
+      "splash": 0.249
+    }
+  },
+  {
+    "name": "채훈",
+    "title": "독공",
+    "trigger": "passive",
+    "effect": "공격 시 33% 확률로 중독 (3턴, 턴마다 최대병력 <b>6%</b>)",
+    "valuePct": 33,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 중독 도트 6%",
+    "v582": "venom",
+    "vp": {
+      "chance": 0.327,
+      "dot": 0.056,
+      "turns": 3
+    }
+  },
+  {
+    "name": "최거업",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "최량",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+14%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.138
+    }
+  },
+  {
+    "name": "최용",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "최우",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "최의",
+    "title": "공성파괴",
+    "trigger": "passive",
+    "effect": "성문 공격 피해 <b>+20%</b> · 방어력 <b>24%</b> 관통",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 성문 피해 +20%, 방어 24% 무시",
+    "v582": "siege",
+    "vp": {
+      "siege": 0.196,
+      "pierce": 0.245
+    }
+  },
+  {
+    "name": "하식",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 71%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.284,
+      "pct": 0.711
+    }
+  },
+  {
+    "name": "하후걸",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+15%p</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +15%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.148
+    }
+  },
+  {
+    "name": "하후란",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "27% 확률로 공격력 68%의 추가타",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.27,
+      "pct": 0.675
+    }
+  },
+  {
+    "name": "하후유",
+    "title": "개간가",
+    "trigger": "domestic",
+    "effect": "이 성 개간·농업 효과 <b>+15%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_farm",
+    "vp": {},
+    "adm": {
+      "farm": 15
+    },
+    "dom": {
+      "farm": 15
+    }
+  },
+  {
+    "name": "하후존",
+    "title": "공성파괴",
+    "trigger": "passive",
+    "effect": "성문 공격 피해 <b>+20%</b> · 방어력 <b>24%</b> 관통",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 성문 피해 +20%, 방어 24% 무시",
+    "v582": "siege",
+    "vp": {
+      "siege": 0.196,
+      "pierce": 0.245
+    }
+  },
+  {
+    "name": "하후형",
+    "title": "재정가",
+    "trigger": "domestic",
+    "effect": "이 성 금 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_gold",
+    "vp": {},
+    "adm": {
+      "gold": 12
+    },
+    "dom": {
+      "gold": 12
+    }
+  },
+  {
+    "name": "학보",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +21%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.21
+    }
+  },
+  {
+    "name": "한기",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+19%</b>",
+    "valuePct": 19,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +19%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.194
+    }
+  },
+  {
+    "name": "한경",
+    "title": "방진",
+    "trigger": "passive",
+    "effect": "인접 아군이 있으면 방어 <b>+12%</b>",
+    "valuePct": 12,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 붙은 아군이 있으면 방어 +12%",
+    "v582": "phalanx",
+    "vp": {
+      "def": 0.116
+    }
+  },
+  {
+    "name": "한덕",
+    "title": "신속",
+    "trigger": "passive",
+    "effect": "이동력 <b>+1</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 이동력 +1",
+    "v582": "swift",
+    "vp": {
+      "move": 1
+    }
+  },
+  {
+    "name": "한순",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "한영",
+    "title": "건축가",
+    "trigger": "domestic",
+    "effect": "이 성 건설·강화 비용 <b>-10%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_build",
+    "vp": {},
+    "adm": {
+      "build": 10
+    },
+    "dom": {
+      "build": 10
+    }
+  },
+  {
+    "name": "한윤",
+    "title": "불굴",
+    "trigger": "passive",
+    "effect": "전투당 1회 치명상에서도 병력 1로 버티고, 그 뒤 공격 <b>+14%</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 1회 사망 무효",
+    "v582": "unyielding",
+    "vp": {
+      "atk": 0.138
+    }
+  },
+  {
+    "name": "한융",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 29% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>24%</b> 추가 피해",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.291,
+      "splash": 0.242
+    }
+  },
+  {
+    "name": "한정",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.151,
+      "counter": 0.202
+    }
+  },
+  {
+    "name": "한종",
+    "title": "사기진작",
+    "trigger": "passive",
+    "effect": "매 턴 시작에 MP <b>+6</b>, 인접 아군 사기 <b>+4</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 턴마다 MP·아군 사기",
+    "v582": "morale",
+    "vp": {
+      "mp": 6,
+      "morale": 4
+    }
+  },
+  {
+    "name": "한충",
+    "title": "위압",
+    "trigger": "passive",
+    "effect": "공격할 때마다 적 사기 <b>-6</b> (회심타면 2배)",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 적 사기 -6",
+    "v582": "awe",
+    "vp": {
+      "morale": 6
+    }
+  },
+  {
+    "name": "한형",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+24%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 24,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +24%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.238
+    }
+  },
+  {
+    "name": "허의",
+    "title": "기마돌파",
+    "trigger": "passive",
+    "effect": "기병이 2칸 이상 달린 뒤 치면 피해 <b>+20%</b>",
+    "valuePct": 20,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 돌격 피해 +20%",
+    "v582": "breakthrough",
+    "vp": {
+      "move": 0.203,
+      "minMove": 2
+    }
+  },
+  {
+    "name": "호반",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 27% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>23%</b> 추가 피해",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.272,
+      "splash": 0.226
+    }
+  },
+  {
+    "name": "호열",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 71%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.283,
+      "pct": 0.707
+    }
+  },
+  {
+    "name": "호준",
+    "title": "외교관",
+    "trigger": "domestic",
+    "effect": "이 성 사자의 외교 성공률 <b>+12%p</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_diplo",
+    "vp": {},
+    "adm": {
+      "diplo": 12
+    },
+    "dom": {
+      "diplo": 12
+    }
+  },
+  {
+    "name": "호진",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "호질",
+    "title": "재정가",
+    "trigger": "domestic",
+    "effect": "이 성 금 수입 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_gold",
+    "vp": {},
+    "adm": {
+      "gold": 12
+    },
+    "dom": {
+      "gold": 12
+    }
+  },
+  {
+    "name": "호충",
+    "title": "쾌검",
+    "trigger": "passive",
+    "effect": "공격한 뒤 1턴간 회피 <b>+14%p</b>",
+    "valuePct": 14,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 공격 후 회피 +14%p",
+    "v582": "swiftblade",
+    "vp": {
+      "evade": 0.14
+    }
+  },
+  {
+    "name": "호화",
+    "title": "선봉돌격",
+    "trigger": "passive",
+    "effect": "전투 첫 턴 공격력 <b>+21%</b>",
+    "valuePct": 21,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 전투 1턴째에만 공격 +21%",
+    "v582": "charge",
+    "vp": {
+      "atk": 0.21
+    }
+  },
+  {
+    "name": "화영",
+    "title": "철벽수비",
+    "trigger": "passive",
+    "effect": "받는 피해 <b>-15%</b> · 반격 피해 <b>+20%</b>",
+    "valuePct": 15,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 피격 피해 -15%, 반격 +20%",
+    "v582": "ironwall",
+    "vp": {
+      "taken": 0.152,
+      "counter": 0.203
+    }
+  },
+  {
+    "name": "환발",
+    "title": "건축가",
+    "trigger": "domestic",
+    "effect": "이 성 건설·강화 비용 <b>-10%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_build",
+    "vp": {},
+    "adm": {
+      "build": 10
+    },
+    "dom": {
+      "build": 10
+    }
+  },
+  {
+    "name": "황규",
+    "title": "사기진작",
+    "trigger": "passive",
+    "effect": "매 턴 시작에 MP <b>+6</b>, 인접 아군 사기 <b>+4</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 턴마다 MP·아군 사기",
+    "v582": "morale",
+    "vp": {
+      "mp": 6,
+      "morale": 4
+    }
+  },
+  {
+    "name": "황보숭",
+    "title": "징병관",
+    "trigger": "domestic",
+    "effect": "이 성 징병량 <b>+12%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_draft",
+    "vp": {},
+    "adm": {
+      "conscript": 12
+    },
+    "dom": {
+      "conscript": 12
+    }
+  },
+  {
+    "name": "황숭",
+    "title": "책략극대",
+    "trigger": "passive",
+    "effect": "계략 피해 <b>+17%</b>",
+    "valuePct": 17,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 계략·필살기 마법 피해 +17%",
+    "v582": "sorcery",
+    "vp": {
+      "magic": 0.17
+    }
+  },
+  {
+    "name": "진기",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "29% 확률로 공격력 73%의 추가타",
+    "valuePct": 29,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.293,
+      "pct": 0.731
+    }
+  },
+  {
+    "name": "위단",
+    "title": "개간가",
+    "trigger": "domestic",
+    "effect": "이 성 개간·농업 효과 <b>+15%</b>",
+    "valuePct": 0,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "domestic",
+    "role": "domestic",
+    "applied": "성 내정에 반영",
+    "v582": "d_farm",
+    "vp": {},
+    "adm": {
+      "farm": 15
+    },
+    "dom": {
+      "farm": 15
+    }
+  },
+  {
+    "name": "위막",
+    "title": "추격",
+    "trigger": "passive",
+    "effect": "적을 쓰러뜨리면 27% 확률로 한 번 더 행동, 실패하면 인접 적에게 <b>23%</b> 추가 피해",
+    "valuePct": 27,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 처치 시 재행동 또는 인접 적 추가타",
+    "v582": "pursue",
+    "vp": {
+      "act": 0.273,
+      "splash": 0.228
+    }
+  },
+  {
+    "name": "위월",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 70%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.28,
+      "pct": 0.7
+    }
+  },
+  {
+    "name": "위유",
+    "title": "창벽",
+    "trigger": "passive",
+    "effect": "기병에게 주는 피해 <b>+25%</b>, 기병에게 맞으면 거리와 상관없이 반격",
+    "valuePct": 25,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 기병 상대 +25%·반격",
+    "v582": "spearwall",
+    "vp": {
+      "cav": 0.247
+    }
+  },
+  {
+    "name": "위탄",
+    "title": "연격",
+    "trigger": "passive",
+    "effect": "28% 확률로 공격력 70%의 추가타",
+    "valuePct": 28,
+    "cooldown": 0,
+    "tier": "C",
+    "kind": "combat",
+    "role": "combat",
+    "applied": "실제 적용: 확률 추가타",
+    "v582": "combo",
+    "vp": {
+      "chance": 0.28,
+      "pct": 0.7
+    }
   }
 ]

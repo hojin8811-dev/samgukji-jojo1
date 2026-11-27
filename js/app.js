@@ -813,6 +813,7 @@
       rp: 0, techs: [], truce: {}, pacts: {}, aiPacts: {}, genLoyal: {}, deadGens: {}, deadNames: {},
       marches: [], marchSeq: 0, pendingMarch: null, recruitFail: {}, autoBestDuty: false,
       corps: [],               // v5.75 — 총도독(군단) 위임 [{ id, name, governorId, cityIds, policy }]
+      corpsBattleQueue: [],    // v6.12 — 총도독 출진 대기 (관전/자동결산을 고를 때까지)
       transitQueue: [],        // v5.88 — 수송·장수 이동 대기열 [{ id, from, to, left, total, troops, gold, food, heroes }]
       buildLog: [],            // v5.88 — 이 달 지은·올린 건물 [{ cityId, key, name, from, to, turn }]
       capitalAuto: false,      // v5.66 — 수도(본성) 자동 내정 (기본 꺼짐)
@@ -1989,34 +1990,102 @@
   };
   SK.deleteSlot = function (i) { try { localStorage.removeItem(SLOT_KEY(i)); return true; } catch (e) { return false; } };
 
+  /* ══════════════════════════════════════════════════════════════
+     v6.12 — 세이브 슬롯 유료화 (사용자 확정)
+     · 1번 슬롯만 기본 무료, 2~5번은 슬롯당 1,900원 유료 해금
+     · 상품 ID는 save_slot_2 ~ save_slot_5 (js/dlc.js GOODS · Billing에 등록)
+     · 이미 저장이 들어 있는 슬롯은 결제 여부와 무관하게 불러오기·표시 가능(기존 유저 호환)
+     ══════════════════════════════════════════════════════════════ */
+  const SAVE_SLOT_PRICE = 1900;
+  SK.SAVE_SLOT_PRICE = SAVE_SLOT_PRICE;
+  function slotProductId(i) { return 'save_slot_' + i; }
+  SK.slotProductId = slotProductId;
+  function slotPurchased(i) {
+    if (Number(i) <= 1) return true;
+    try { return !!(window.SK && SK.DLC && SK.DLC.hasPass && SK.DLC.hasPass(slotProductId(i))); } catch (e) { return false; }
+  }
+  /* 저장이 이미 있는 슬롯은 잠그지 않는다 (기존 유저가 자기 세이브를 못 여는 일 방지) */
+  function slotUnlocked(i) { return slotPurchased(i) || !!slotInfo(i); }
+  SK.slotUnlocked = slotUnlocked;
+  function unlockSaveSlot(i) {
+    const pid = slotProductId(i);
+    if (!window.SK || !SK.DLC) { SK.toast('상점 데이터를 아직 불러오지 못했습니다 — 잠시 뒤 다시 시도하세요.'); return false; }
+    const ok = SK.DLC.grantGoods ? SK.DLC.grantGoods(pid) : false;
+    if (ok) { SK.toast(`슬롯 ${i} 해금 — 이제 이 슬롯에 저장할 수 있습니다.`); }
+    return ok;
+  }
+  SK.unlockSaveSlot = unlockSaveSlot;
+  /* 슬롯 해금 구매/안내 (웹에서는 테스트 해금) */
+  function buySaveSlot(i) {
+    const pid = slotProductId(i);
+    const price = SAVE_SLOT_PRICE.toLocaleString('ko-KR');
+    const testable = !!(window.SK && SK.DLC && SK.DLC.isOpen && SK.DLC.isOpen());
+    const r = (window.SK && SK.DlcBilling) ? SK.DlcBilling.purchase(pid) : 'unavailable';
+    if (r === 'already') { unlockSaveSlot(i); return; }
+    if (r === 'pending') return;
+    SK.modal({
+      kicker: `세이브 슬롯 ${i}`, title: `슬롯 ${i} 해금 — ${price}원`,
+      body: `<div class="ss-buy-note">
+        <p class="modal-p">세이브 슬롯 5개 중 <b>1번은 무료</b>이고, <b>2~5번은 슬롯당 ${price}원</b>입니다.
+        한 번 사면 그 계정에서 <b>영구히</b> 같은 슬롯을 쓸 수 있습니다.</p>
+        <ul class="ss-buy-list">
+          <li>슬롯 ${i} — ${price}원 (상품 ID <code>${pid}</code>)</li>
+          <li>결제는 앱(안드로이드)의 Google Play 결제로 열립니다.</li>
+          ${testable ? '<li>지금은 테스트 모드입니다 — 아래 [테스트 해금]으로 바로 확인할 수 있습니다.</li>' : ''}
+        </ul>
+        ${slotInfo(i) ? `<p class="modal-sub">이 슬롯에는 이미 저장이 있어 <b>지금도 불러올 수 있습니다</b>. 해금은 새로 저장할 때 필요합니다.</p>` : ''}
+      </div>`,
+      actions: [
+        { label: '닫기' },
+        testable ? { label: '테스트 해금', primary: true, onClick: () => { unlockSaveSlot(i); setTimeout(() => SK.openSaveSlots('save'), 160); } } : null,
+      ].filter(Boolean),
+    });
+  }
+  SK.buySaveSlot = buySaveSlot;
+
   function slotRow(label, info, idx, isAuto) {
     const has = !!info;
+    const locked = !isAuto && !has && !slotUnlocked(idx);
+    if (locked) {
+      return `<div class="save-slot locked">
+        <span class="ss-no">${label}</span>
+        <span class="ss-pt empty lock">🔒</span>
+        <div class="ss-main"><b>잠긴 슬롯</b><span>슬롯당 ${SAVE_SLOT_PRICE.toLocaleString('ko-KR')}원 · 1번 슬롯은 무료</span><em>구매하면 이 계정에서 영구히 쓸 수 있습니다</em></div>
+        <div class="ss-btns"><button class="ss-buy" data-buy="${idx}" title="슬롯 해금">${SAVE_SLOT_PRICE.toLocaleString('ko-KR')}원 해금</button></div>
+      </div>`;
+    }
     return `<div class="save-slot ${has ? 'on' : ''} ${isAuto ? 'auto' : ''}">
       <span class="ss-no">${label}</span>
       ${has ? `<img class="ss-pt ${SK.tcls(info.tier || SK.tierOfPerson(info.lord))}" src="${SK.ptSrc(info.portrait || 'caocao')}" alt="">` : '<span class="ss-pt empty">＋</span>'}
       <div class="ss-main">${has
         ? `<b>${info.faction || '세력'}${info.lord ? ` · ${info.lord}` : ''}</b><span>${info.date} · 거점 ${info.cities}곳</span><em>${info.savedAt}</em>`
-        : '<b>빈 슬롯</b><span>저장하면 여기에 군주와 연월이 표시됩니다</span>'}</div>
+        : `<b>빈 슬롯</b><span>${idx > 1 && slotPurchased(idx) ? '해금됨 — 저장할 수 있습니다' : '저장하면 여기에 군주와 연월이 표시됩니다'}</span>`}</div>
       <div class="ss-btns">
         ${!isAuto ? `<button class="ss-save" data-save="${idx}" title="저장">저장</button>` : ''}
         ${has ? `<button class="ss-load" data-load="${idx}" data-auto="${isAuto ? 1 : 0}" title="불러오기">불러오기</button>` : ''}
         ${has ? `<button class="ss-del" data-del="${idx}" data-auto="${isAuto ? 1 : 0}" title="삭제">삭제</button>` : ''}
+        ${(!isAuto && idx > 1 && !slotPurchased(idx) && has) ? `<button class="ss-buy" data-buy="${idx}" title="이 슬롯 해금">해금</button>` : ''}
       </div>
     </div>`;
   }
 
   SK.openSaveSlots = function (mode) {
     const auto = SK.autoSlotInfo();
+    const ownN = [2, 3, 4, 5].filter((i) => slotPurchased(i)).length;
     const body = `<div class="save-wrap">
-      <p class="talent-note">수동 슬롯 5개와 자동 저장 1개를 따로 둡니다. 여러 세력을 동시에 키우거나, 큰 결정 앞에서 갈래를 나눠 저장할 수 있습니다.</p>
+      <p class="talent-note">수동 슬롯 5개와 자동 저장 1개를 따로 둡니다. <b>1번 슬롯은 무료</b>, <b>2~5번은 슬롯당 ${SAVE_SLOT_PRICE.toLocaleString('ko-KR')}원</b>(영구)입니다 — 지금 해금한 유료 슬롯 <b>${ownN}/4</b>.</p>
       ${[1, 2, 3, 4, 5].map((i) => slotRow(`슬롯 ${i}`, slotInfo(i), i, false)).join('')}
       ${slotRow('자동', auto, 0, true)}
     </div>`;
     const m = SK.modal({ kicker: '세이브 · 불러오기', title: mode === 'load' ? '어느 저장으로 돌아갈까' : '세이브 슬롯', body, wide: true, actions: [{ label: '닫기' }] });
+    m.el.querySelectorAll('[data-buy]').forEach((b) => {
+      b.onclick = () => buySaveSlot(Number(b.dataset.buy));
+    });
     m.el.querySelectorAll('[data-save]').forEach((b) => {
       b.onclick = () => {
         if (!SK.state) { SK.toast('게임을 시작한 뒤 저장할 수 있습니다.'); return; }
         const i = Number(b.dataset.save);
+        if (!slotUnlocked(i)) { buySaveSlot(i); return; }
         const info = slotInfo(i);
         const doSave = () => { SK.saveTo(i); SK.sfx.play('ui'); m.close(); SK.toast(`슬롯 ${i}에 저장했습니다.`); setTimeout(() => SK.openSaveSlots('save'), 120); };
         if (info) SK.modal({ title: `슬롯 ${i} 덮어쓰기`, body: `<p class="modal-p">${info.faction} · ${info.date} 저장을 덮어쓸까요?</p>`, actions: [{ label: '취소' }, { label: '덮어쓰기', primary: true, onClick: doSave }] });
@@ -3362,7 +3431,7 @@
       if (nCn) nCn.textContent = nCp;
       cpill.classList.toggle('ready', owned >= 4);
       cpill.title = owned >= 4
-        ? `총도독(군단) — 3~5성 위임 · 지금 ${nCp}개 군단`
+        ? `총도독(군단) — 최대 20성 위임 · 지금 ${nCp}개 군단`
         : `총도독(군단) — 내 성이 4개 이상이면 열립니다 (지금 ${owned}성)`;
     }
     const fname = SK.factionName(PF());
@@ -4688,18 +4757,34 @@
   const DOMESTIC = ['farm', 'trade', 'recruit', 'train', 'talent', 'repair'];
   const ACTION_SFX = { farm: 'chop', trade: 'coin', recruit: 'drum', train: 'drum', talent: 'coin', repair: 'hammer' };
   const CUTIN_LINES = {
-    farm: ['민심을 살피고 창고를 채웠습니다!', '들녘을 일구니 곡식이 가득합니다!', '백성과 함께 땀을 흘렸습니다.'],
-    trade: ['저잣거리에 금빛이 넘칩니다!', '상로를 열어 금은을 모았습니다!', '상인들이 웃으며 성을 떠납니다.'],
-    recruit: ['백성들이 창을 들었습니다!', '새 병사가 대열에 섰습니다!', '깃발 아래로 젊은이들이 모였습니다.'],
-    train: ['병법을 익혀 사기가 올랐습니다!', '한 번 더, 다시 한 번!', '진법이 흐트러짐 없이 정돈됩니다.'],
-    talent: ['재야의 인재가 우리를 찾아왔습니다!', '천하의 인재를 얻었습니다!', '이 사람, 쓸 만합니다.'],
-    repair: ['성벽을 다시 세웠습니다!', '이제 성문은 굳건합니다!', '돌 하나까지 손보았습니다.'],
+    farm: ['삽질 한 번에 밥 한 그릇! 이게 내 개간 비법이야~', '씨앗 심고 노래 불렀더니 벼가 콩콩 자라네?!',
+      '흙 먹고 자란 사람이 흙을 안다! 삽 들라!', '풍년 예감! 창고 문짝 새로 달아야겠어~',
+      '오늘은 밭, 내일은 밥. 완벽한 계획이지!', '벼가 내 이름을 부르는 소리가 들려… 아 배고픈가?'],
+    trade: ['비싸게 팔고 싸게 사기! 이게 상도의 기본!', '저잣거리 아저씨들이 오늘따라 다정하네~',
+      '금화 소리 딸깍딸깍~ 이게 내 자장가야.', '흥정 한 판! 내가 이겼다, 아니 우리가 이겼다!',
+      '상인: “이건 원가야~” 나: “그럼 두 개 주세요.”', '지갑이 두둑해졌다! …내 지갑은 아니지만.'],
+    recruit: ['짠! 신병 모집! 점심은 군량밥이야~', '목이 긴 사람, 창 들기 좋아요~ 모여라!',
+      '지원자: “힘들어요?” 나: “재밌어요!” (합격)', '긁적긁적… 신병이 늘었네! 훈련은 내일부터!',
+      '창 하나씩 들고 오세요~ 줄 서 주세요!', '신병: “밥은 주나요?” 나: “그게 제일 중요하지!”'],
+    train: ['하나, 둘! 발 맞춰! 왼발이 아니고 오른발!', '삐빅 — 대열 삐뚤! 다시!',
+      '훈련 끝나면 맛있는 거 줄게~ 진짜로!', '적보다 발부터 맞추자! 하나, 둘!',
+      '한 번 더! …한 번만 더! (열 번째)', '병사들아, 이 동작이 이기면 내가 쏜다!'],
+    talent: ['이력서에 “천하무적”이라 적었네? 채용!', '술 한 잔 하면서 얘기해요~ (내가 마심)',
+      '재야의 고수인 척했는데 진짜 고수였네?!', '면접 질문: “야근 되세요?” “…. 네.” 합격!',
+      '이 사람 눈빛이 다르다! …졸린 눈빛이지만.', '인재 한 명 얻었다! 이제 일은 누가 하지?'],
+    repair: ['돌 하나, 흙 한 줌 — 참 쉽죠? (아님)', '성벽아, 미안해. 내가 부실했어. 다시 튼튼해지자!',
+      '망치질 삼천 번! 오늘도 근육이 자란다~', '이제 성문이 내 어깨만큼 단단해!',
+      '두드리고 두드려도 안 무너지는 게 성벽의 매력!', '성벽 보수 완료! 문 두드리지 마세요~'],
   };
-  /* v6.4b — 코믹 개그 대사(내정)를 여섯 갈래 모두에 덧붙인다 */
+  /* v6.4b — 코믹 개그 대사(내정)를 여섯 갈래 모두에 덧붙인다
+     v6.12 — 이제 명령별 풀(extra.domesticBy)이 있으면 그 풀을 그 명령에만 붙인다 */
   (function () {
-    const C = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.extra && window.SK_COMEDY.extra.domestic) || [];
+    const EX = (typeof window !== 'undefined' && window.SK_COMEDY && window.SK_COMEDY.extra) || {};
+    const C = EX.domestic || [];
+    const by = EX.domesticBy || {};
     Object.keys(CUTIN_LINES).forEach((k) => {
       C.forEach((s) => { if (CUTIN_LINES[k].indexOf(s) < 0) CUTIN_LINES[k].push(s); });
+      (by[k] || []).forEach((s) => { if (CUTIN_LINES[k].indexOf(s) < 0) CUTIN_LINES[k].push(s); });
     });
     if (typeof window !== 'undefined') { window.SK_QA = window.SK_QA || {}; window.SK_QA.cutinLines = CUTIN_LINES; }
   })();
@@ -9725,11 +9810,11 @@
   SK.recruitChance = recruitChance;
 
   const REFUSE_LINES = [
-    '“아직은 때가 아닙니다. 다른 곳을 찾아보십시오.”',
-    '“제게는 아직 해야 할 일이 남아 있습니다.”',
-    '“그대의 뜻은 알겠으나, 이번에는 사양하겠습니다.”',
-    '“세상이 아직 저를 부르지 않는군요.”',
-    '“한 번 더 생각할 시간을 주십시오.”',
+    '“죄송해요, 오늘은 집에서 빨래 널기로 했어요.”',
+    '“저… 성격이 안 맞을 것 같아요. 전 조용한 편이라.”',
+    '“다음 기회에요! (다음 기회가 올지는 모르겠지만)”',
+    '“세상이 아직 저를 부르지 않는군요. 알람은 맞춰 뒀어요.”',
+    '“밥은 먹고 하나요? …아, 거절이요? 그럼 됐어요.”',
   ];
   /* v6.4b — 코믹 개그 대사(등용 거절) — 기존 대사와 같은 모양으로 앞뒤에 따옴표를 붙인다 */
   (function () {
@@ -10301,7 +10386,7 @@
     if (!gens.length) { SK.toast('포상할 아군 장수가 없습니다.'); return; }
     const hereN = gens.filter((h) => String(h.city) === String(cityId)).length;
     const inv = (s.treasures || []).map((id) => SK.TREASURE_BY_ID[id]).filter(Boolean);
-    const rows = gens.map((h) => {
+    const rowsFor = () => gens.map((h) => {
       const l = loyalOf(h);
       const chip = l >= 70 ? '' : l >= 40 ? 'mid' : 'low';
       const gain = loyalGain(l);
@@ -10316,12 +10401,29 @@
         <button class="gift" data-gift="${h.uid}" ${inv.length && l < 100 ? '' : 'disabled'}>${l >= 100 ? '완료' : '보물 +15'}</button>
       </div>`;
     }).join('');
+    const noteFor = () => `<p class="talent-note">금이나 보물을 내려 장수의 충성을 올립니다. <b>다른 내 성의 장수에게도 내릴 수 있습니다</b>(성 이름 표시). 충성이 100이면 더 오르지 않고, 충성이 70 아래인 장수는 전투에서 힘을 덜 씁니다(40 아래는 큰 폭). 금고 ${fmt(s.gold)} · 보관 보물 ${inv.length}점 · 이 성 ${hereN}명 포함</p>`;
     const m = SK.modal({
       kicker: `${CITY[cityId].name} 관아`, title: `포상 — 아군 장수 ${gens.length}명`,
-      body: `<p class="talent-note">금이나 보물을 내려 장수의 충성을 올립니다. <b>다른 내 성의 장수에게도 내릴 수 있습니다</b>(성 이름 표시). 충성이 100이면 더 오르지 않고, 충성이 70 아래인 장수는 전투에서 힘을 덜 씁니다(40 아래는 큰 폭). 금고 ${fmt(s.gold)} · 보관 보물 ${inv.length}점 · 이 성 ${hereN}명 포함</p>
-        <div class="reward-list">${rows}</div>`,
+      body: `<div id="reward-body">${noteFor()}<div class="reward-list">${rowsFor()}</div></div>`,
       wide: true, actions: [{ label: '닫기' }],
     });
+    /* v6.12 — 포상 뒤 목록만 다시 그리고 스크롤 위치를 그대로 둔다.
+       예전에는 창을 닫았다 다시 열어 목록이 맨 위로 튀었다(연속 포상이 힘들었다). */
+    const bind = () => {
+      const box = m.el.querySelector('#reward-body');
+      if (!box) return;
+      box.querySelectorAll('[data-gold]').forEach((b) => { b.onclick = () => pay(b.dataset.gold, 'gold'); });
+      box.querySelectorAll('[data-gift]').forEach((b) => { b.onclick = () => pay(b.dataset.gift, 'treasure'); });
+    };
+    const rerender = () => {
+      const box = m.el.querySelector('#reward-body');
+      const scroller = m.el.querySelector('.modal-body') || box;
+      const top = scroller ? scroller.scrollTop : 0;
+      if (!box) return;
+      box.innerHTML = `${noteFor()}<div class="reward-list">${rowsFor()}</div>`;
+      bind();
+      if (scroller) scroller.scrollTop = top;
+    };
     const pay = (uid, kind) => {
       const h = s.heroes.find((x) => x.uid === uid);
       if (!h) return;
@@ -10330,26 +10432,24 @@
         const gain = loyalGain(loyalOf(h));
         s.gold -= 100;
         h.loyal = clamp(loyalOf(h) + gain, 0, 100);
-        SK.save(); SK.refreshHud(); m.close();
+        SK.save(); SK.refreshHud();
         SK.sfx.play('coin');
-        openReward(cityId);
+        rerender();
         SK.toast(`${h.name}(${CITY[h.city] ? CITY[h.city].name : ''})에게 금 100을 내렸습니다 — 충성 +${gain} (${h.loyal})${rewardQuip()}`);
         return;
       }
-      m.close();
-      openTreasureGift(cityId, uid);
+      openTreasureGift(cityId, uid, () => rerender());
     };
-    m.el.querySelectorAll('[data-gold]').forEach((b) => { b.onclick = () => pay(b.dataset.gold, 'gold'); });
-    m.el.querySelectorAll('[data-gift]').forEach((b) => { b.onclick = () => pay(b.dataset.gift, 'treasure'); });
+    bind();
   }
   SK.openReward = openReward;
 
-  function openTreasureGift(cityId, uid) {
+  function openTreasureGift(cityId, uid, onDone) {
     const s = SK.state;
     const h = s.heroes.find((x) => x.uid === uid);
     if (!h) return;
     const inv = (s.treasures || []).map((id) => SK.TREASURE_BY_ID[id]).filter(Boolean);
-    if (!inv.length) { SK.toast('보관 중인 보물이 없습니다.'); openReward(cityId); return; }
+    if (!inv.length) { SK.toast('보관 중인 보물이 없습니다.'); if (onDone) onDone(); return; }
     const rows = inv.map((t) => `<button class="target-card" data-t="${t.id}">
       <span class="tc-flag" style="background:${SK.GRADE_COLOR[t.grade] || '#8a6a2a'}">${t.name.charAt(0)}</span>
       <div class="tc-main"><b>${t.name}</b><span>${t.grade} · ${t.type} · ${t.effect || ''}</span></div>
@@ -10372,7 +10472,7 @@
         h.loyal = clamp(loyalOf(h) + 15, 0, 100);
         SK.save(); SK.refreshHud(); m.close();
         SK.sfx.play('levelup');
-        openReward(cityId);
+        if (onDone) onDone(); else openReward(cityId);
         SK.toast(`${h.name}에게 ${SK.josa(t.name, 'eul')} 내렸습니다 — 충성 +15 (${h.loyal})`);
       };
     });
@@ -13462,6 +13562,11 @@
     if (promoteMarchQueue(s)) { setTimeout(() => { if (SK.openPendingMarch) SK.openPendingMarch(); }, 320); return; }
     if (promoteInvasionQueue(s)) { setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320); return; }
     if (s.pendingInvasion && SK.openPendingInvasion) setTimeout(() => { if (SK.openPendingInvasion) SK.openPendingInvasion(); }, 320);
+    /* v6.12 — 총도독 출진(관전/자동결산 선택)은 다른 사건이 모두 끝난 바에 연다 */
+    if (!s.pendingInvasion && s.corpsBattleQueue && s.corpsBattleQueue.length && SK.openCorpsBattle) {
+      setTimeout(() => { if (SK.openCorpsBattle) SK.openCorpsBattle(); }, 380);
+      return;
+    }
     /* v5.66 — 월말 사건이 모두 끝난 뒤 형세를 살핀다 (60성 이상 일괄 항복) */
     if (SK.maybeSurrenderOffer) setTimeout(() => SK.maybeSurrenderOffer(), 700);
   }
@@ -14373,6 +14478,9 @@
       const as = s.cities[a.id];
       const strength = (as.troops || 0) - AI_CITY_RESERVE;
       if (strength < 1600) return;
+      /* v6.12 — 전쟁만 좇지 않는다: 훈련도가 바닥인 성은 이번 달은 내정·훈련에 쓰고
+         다음 달에 나간다 (병력만 많고 훈련도 없는 군세가 계속 소모되던 문제) */
+      if ((as.train == null ? 50 : as.train) < 45) return;
       SK.allNeighbors(a.id).forEach((tid) => {
         const ts = s.cities[tid];
         if (!ts || ts.owner === fid || ts.owner === PF()) return;
@@ -14719,8 +14827,7 @@
   SK.aiLevelGoal = aiLevelGoal;
 
   function runAiDomestic(s) {
-    const news = [];
-    /* v5.75 — 내 평균 성 병력이 커진 만큼 적도 더 징병한다 (중후반 추격) */
+    const news = [];    /* v5.75 — 내 평균 성 병력이 커진 만큼 적도 더 징병한다 (중후반 추격) */
     const pScale = aiPowerScale(s);
     /* v5.66 — 세력별 성 수 (자기 세력이 클수록 더 세게 자란다) */
     const ownCount = {};
@@ -14803,9 +14910,65 @@
         }
       }
     });
+    /* v6.12 — 적 AI도 장수를 성 사이에 재배치한다 (후방 → 전방, 새 성에 태수 배치).
+       예전엔 장수가 처음 배치된 성에 영원히 머물러 전선 보강·후방 내정 균형이 없었다. */
+    try { aiMoveGenerals(s, news); } catch (e) { /* ignore */ }
     return news;
   }
   SK.runAiDomestic = runAiDomestic;
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.12 — 적 AI 세력의 장수 재배치
+     · 전방 성에 장수가 2명 미만이면 후방(3명 이상)에서 가장 강한 장수를 옮긴다
+     · 장수 없는 성에는 후방에서 한 명 보내 태수를 앉힌다 (그 성도 내정이 돌게)
+     · 세력당 한 달 최대 3명 — 지도가 순식간에 바뀌지 않게
+     ══════════════════════════════════════════════════════════════ */
+  function aiMoveGenerals(s, news) {
+    if (!s || !s.cities || !s.factions) return 0;
+    const fids = Object.keys(s.factions).filter((k) => k !== 'neutral' && k !== PF());
+    let total = 0;
+    fids.forEach((fid) => {
+      const ids = SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === fid).map((c) => c.id);
+      if (ids.length < 2) return;
+      const isFront = (id) => SK.allNeighbors(id).some((n) => s.cities[n] && s.cities[n].owner !== fid);
+      let moved = 0;
+      const moveOne = (toId) => {
+        if (moved >= 3) return false;
+        const donors = ids.filter((id) => !isFront(id) && (s.cities[id].genIds || []).length >= 3)
+          .sort((a, b) => (s.cities[b].genIds || []).length - (s.cities[a].genIds || []).length);
+        if (!donors.length) return false;
+        const from = s.cities[donors[0]];
+        const to = s.cities[toId];
+        if (!from || !to) return false;
+        const pool = (from.genIds || []).slice().sort((a, b) => {
+          const ga = SK.GEN_BY_ID[a] || {}, gb = SK.GEN_BY_ID[b] || {};
+          return ((gb.war || 0) + (gb.leadership || 0)) - ((ga.war || 0) + (ga.leadership || 0));
+        });
+        const gid = pool[0];
+        if (gid == null) return false;
+        from.genIds = (from.genIds || []).filter((x) => x !== gid);
+        to.genIds = (to.genIds || []).concat([gid]);
+        aiGenBook(to);
+        if (from.genLv && from.genLv[gid] != null) { to.genLv[gid] = from.genLv[gid]; delete from.genLv[gid]; }
+        if (from.genExp && from.genExp[gid] != null) { to.genExp[gid] = from.genExp[gid]; delete from.genExp[gid]; }
+        if (from.genMerit && from.genMerit[gid] != null) { to.genMerit[gid] = from.genMerit[gid]; delete from.genMerit[gid]; }
+        moved += 1; total += 1;
+        return true;
+      };
+      ids.filter((id) => isFront(id))
+        .sort((a, b) => ((s.cities[a].genIds || []).length) - ((s.cities[b].genIds || []).length))
+        .forEach((id) => {
+          while ((s.cities[id].genIds || []).length < 2 && moved < 3) { if (!moveOne(id)) break; }
+        });
+      ids.forEach((id) => {
+        if (moved >= 3) return;
+        if ((s.cities[id].genIds || []).length === 0) moveOne(id);
+      });
+    });
+    if (total) news.push({ kind: 'move', text: `적 세력 장수 ${total}명이 성 사이를 옮겼습니다 (전선 보강·후방 내정)` });
+    return total;
+  }
+  SK.aiMoveGenerals = aiMoveGenerals;
 
   /* 수성전에 내보낼 부대 — 주둔 장수와 수비병을 나눠 편성 */
   function defenseUnits(cityId) {
@@ -15189,6 +15352,52 @@
   }
   SK.openInvasionIntercept = openInvasionIntercept;
 
+  /* ══════════════════════════════════════════════════════════════
+     v6.12 — 길목 요격전 관전/자동결산 (군단 위임 성 포함)
+     · 수성전뿐 아니라 성 밖 길목에서 벌어지는 필드 교전도 [관전하기]·[자동결산]으로 고른다.
+     · 군단 성은 총도독이 수비병을 내보내고, 플레이어는 지켜보거나 결과만 받는다.
+     ══════════════════════════════════════════════════════════════ */
+  function launchInvasionIntercept(inv, opts) {
+    const s = SK.state;
+    const ts = s && inv && s.cities[inv.target];
+    const c = CITY[inv.target];
+    if (!ts || !c) return false;
+    const gens = cityGens(inv.target).slice()
+      .sort((a, b) => ((b.tong * 0.6 + b.wu * 0.4) - (a.tong * 0.6 + a.wu * 0.4)));
+    const avail = Math.floor(ts.troops || 0);
+    if (!gens.length || avail < 1200) return false;
+    const itype = interceptTypeFor({ origin: inv.from, target: inv.target });
+    const keep = Math.max(600, Math.round(avail * 0.35));
+    const budget = Math.max(0, avail - keep);
+    const pickN = Math.min(gens.length, 6);
+    const per = Math.max(300, Math.min(3000, Math.floor(budget / pickN / 100) * 100));
+    const units = [];
+    gens.slice(0, pickN).forEach((h) => {
+      const room = budget - units.reduce((a, u) => a + u.troops, 0);
+      if (room < 300) return;
+      units.push({ kind: 'hero', uid: h.uid, troops: Math.min(SK.troopCapOf(h), per, room) });
+    });
+    let rest = budget - units.reduce((a, u) => a + u.troops, 0);
+    let guard = 0;
+    while (rest >= 500 && units.length < 8 && guard++ < 8) {
+      const t = Math.min(2000, rest);
+      units.push({ kind: 'regiment', cls: 'changbyung', name: `${c.name} 수비병`, troops: t });
+      rest -= t;
+    }
+    const total = units.reduce((a, u) => a + u.troops, 0);
+    if (!units.length || total <= 0) return false;
+    ts.troops = Math.max(0, avail - total);
+    SK.save();
+    SK.startBattle({
+      origin: inv.target, targetId: inv.target, type: itype, units,
+      spectate: !!(opts && opts.spectate), skip: !!(opts && opts.skip),
+      intercept: { name: `${SK.CITY[inv.from] ? SK.CITY[inv.from].name : '적 성'} → ${c.name} 길목`,
+        troops: inv.troops, faction: inv.faction, from: inv.from, genIds: inv.genIds || [], invasion: inv },
+    });
+    return true;
+  }
+  SK.launchInvasionIntercept = launchInvasionIntercept;
+
   function openPendingInvasion() {
     const s = SK.state;
     if (!s || !s.pendingInvasion) return;
@@ -15211,12 +15420,21 @@
           <p><b>${invCorps.name}</b>${govHero ? ` (총도독 ${govHero.name})` : ''}에 맡긴 성이라 <b>지원 요청을 띄우지 않습니다</b> — 총도독이 주둔 장수·수비병으로 성을 직접 지킵니다.</p>
           <div class="invasion-nums"><span>적 병력 <b>${fmt(inv.troops)}</b></span><span>우리 수비병 <b>${fmt(ts.troops)}</b></span><span>성벽 <b>${Math.round(ts.def)}</b></span><span>주둔 장수 <b>${gens.length}명</b></span></div>
           <p class="talent-note"><b>[관전하기]</b> — AI 자동전투로만 진행됩니다. <b>직접 조작은 불가능</b>합니다(관전 전용 배너가 뜨고 명령 버튼이 잠깁니다).<br><b>[건너뛰기]</b> — 전장을 지켜보지 않고 결과만 빠르게 자동 결산합니다(같은 전투 엔진).</p>
+          ${(gens.length && (ts.troops || 0) >= 1200) ? '<p class="talent-note"><b>[길목 요격]</b> — 성문을 닫기 전에 수비병을 길목에 내보내 먼저 맞습니다. 이기면 성벽 피해 없이 침공이 꺾입니다. 관전과 자동결산을 모두 고를 수 있습니다.</p>' : ''}
           <p class="talent-note">직접 지휘·철수·요격을 하려면 이 성을 군단에서 빼 직할로 회수한 뒤 다음 침공부터 고르면 됩니다.</p>
         </div>`,
         actions: [
           { label: '건너뛰기 (자동 결산)', onClick: () => { setTimeout(() => startDefense(inv, null, { skip: true }), 80); } },
-          { label: '관전하기', primary: true, onClick: () => { setTimeout(() => startDefense(inv, null, { spectate: true }), 80); } },
-        ],
+          (gens.length && (ts.troops || 0) >= 1200) ? { label: '길목 요격 — 자동결산', onClick: () => {
+            s.pendingInvasion = null; SK.save();
+            setTimeout(() => { if (!launchInvasionIntercept(inv, { skip: true })) startDefense(inv, null, { skip: true }); }, 80);
+          } } : null,
+          (gens.length && (ts.troops || 0) >= 1200) ? { label: '길목 요격 — 관전', onClick: () => {
+            s.pendingInvasion = null; SK.save();
+            setTimeout(() => { if (!launchInvasionIntercept(inv, { spectate: true })) startDefense(inv, null, { spectate: true }); }, 80);
+          } } : null,
+          { label: '관전하기 (수성전)', primary: true, onClick: () => { setTimeout(() => startDefense(inv, null, { spectate: true }), 80); } },
+        ].filter(Boolean),
         dismissible: false,
       });
       return;
@@ -15961,6 +16179,37 @@
     return s.corps.find((cp) => (cp.cityIds || []).indexOf(cityId) >= 0) || null;
   }
   SK.corpsOfCity = corpsOfCity;
+  /* v6.12 — 총도독(군단) 관할 성 상한을 5성 → 20성으로 넓힌다.
+     군단 여러 개를 합쳐 20성까지 맡길 수 있고(합산 상한), 넘으면 편성에서 막는다. */
+  const CORPS_CITY_MAX = 20;
+  const CORPS_TOTAL_MAX = 20;
+  SK.CORPS_CITY_MAX = CORPS_CITY_MAX;
+  SK.CORPS_TOTAL_MAX = CORPS_TOTAL_MAX;
+  /* 지금 군단에 맡긴 성 수 (모든 군단 합산) */
+  function corpsCitiesTotal(s, exceptId) {
+    const st = s || SK.state;
+    if (!st || !Array.isArray(st.corps)) return 0;
+    let n = 0;
+    st.corps.forEach((cp) => { if (!cp || cp.id === exceptId) return; n += (cp.cityIds || []).length; });
+    return n;
+  }
+  SK.corpsCitiesTotal = corpsCitiesTotal;
+  function corpsAttachCity(s, corpsId, cityId) {
+    const st = s || SK.state;
+    if (!st || !corpsId || !cityId) return false;
+    const cp = (st.corps || []).find((x) => x.id === corpsId);
+    if (!cp) return false;
+    cp.cityIds = cp.cityIds || [];
+    if (cp.cityIds.indexOf(cityId) < 0) {
+      if (cp.cityIds.length >= CORPS_CITY_MAX || corpsCitiesTotal(st, cp.id) >= CORPS_TOTAL_MAX) return false;
+      cp.cityIds.push(cityId);
+    }
+    const cs = st.cities[cityId];
+    if (cs) cs.auto = true;
+    if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    return true;
+  }
+  SK.corpsAttachCity = corpsAttachCity;
 
   /* ══════════════════════════════════════════════════════════════
      v5.88 — 총도독(군단) 위임 성의 직접 명령 잠금
@@ -16060,6 +16309,21 @@
       if (!t || !t.closest) return;
       if (t.closest('#btn-corps-release') || t.closest('#btn-city-back') || t.closest('#btn-city-map')
         || t.closest('#btn-city-next') || t.closest('.icon-btn') || t.closest('.js-sound') || t.closest('#btn-city-intro')) return;
+      /* v6.12 — 군단 위임 성에서도 [장수 자세히 보기]는 열어 준다.
+         (스탯·특기·보물·충성을 확인하는 것은 명령이 아니다) */
+      const card = t.closest('.gen-card[data-uid]');
+      if (card) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (SK.showHeroInfo) SK.showHeroInfo(card.getAttribute('data-uid'));
+        return;
+      }
+      if (t.closest('.gl-all')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (SK.openRoster) SK.openRoster('gen');
+        return;
+      }
       if (t.closest('.city-commands .cmd[data-grp]') || t.closest('.city-pane')
         || t.closest('#scene-hotspots') || t.closest('#city-generals') || t.closest('#city-tabs')) {
         e.preventDefault();
@@ -16107,8 +16371,13 @@
         }).join('');
         return `<div class="cp-card">
           <div class="cp-card-head"><b>⚑ ${cp.name}</b><em>${cp.policy === 'grow' ? '내정·수비' : '적극 공세'}</em></div>
-          <div class="cp-card-meta">총도독 <b>${gov ? gov.name : '미임명'}</b> · 편성 <b>${cp.cityIds.length}/5성</b></div>
+          <div class="cp-card-meta">총도독 <b>${gov ? gov.name : '미임명'}</b> · 편성 <b>${cp.cityIds.length}/${CORPS_CITY_MAX}성</b> · 합산 <b>${corpsCitiesTotal(s)}/${CORPS_TOTAL_MAX}성</b></div>
           <div class="cp-chips">${chips}</div>
+          <div class="cp-gens">${(cp.cityIds || []).map((id) => {
+            const gs = cityGens(id);
+            if (!gs.length) return '';
+            return `<span class="cp-gen-city"><b>${CITY[id] ? CITY[id].name : id}</b>${gs.map((g) => `<button type="button" class="cp-gen${g.uid === cp.governorId ? ' gov' : ''}" data-gen="${g.uid}" title="${g.name} — 장수 자세히 보기">${g.name}</button>`).join('')}</span>`;
+          }).join('') || '<span class="cp-gen-none">관할 성에 주둔 장수가 없습니다</span>'}</div>
           <div class="cp-card-foot">
             <button class="btn btn-paper cp-edit" data-cp="${cp.id}" type="button">수정</button>
             <button class="btn btn-paper cp-disband" data-cp="${cp.id}" type="button">군단 해산(직할 회수)</button>
@@ -16128,7 +16397,7 @@
         <p class="talent-note">총도독을 세운 군단은 달이 바뀔 때 <b>스스로 내정·징병</b>하고, 후방 성의 병력·금·군량을 <b>전방 성으로 보내며</b>, 전력이 모이면 이웃 적성을 <b>직접 공략</b>합니다. 결과는 월정산에 보고됩니다. 수도는 군단에 넣을 수 없습니다(직할 1곳 보장).</p>
         <div class="cp-list">${corpsHtml}</div>
         <div class="cp-form">
-          <div class="cp-form-head"><b>${editingId ? '군단 수정' : '새 군단 편성'}</b><em>${draft.cityIds.length} / 5성 선택 · 1성 이상</em></div>
+          <div class="cp-form-head"><b>${editingId ? '군단 수정' : '새 군단 편성'}</b><em>${draft.cityIds.length} / ${CORPS_CITY_MAX}성 선택 · 1성 이상</em></div>
           <div class="cp-row"><label>군단명<input id="cp-name" type="text" maxlength="12" value="${draft.name.replace(/"/g, '')}" placeholder="예: 전군"></label>
           <label>방침<select id="cp-policy"><option value="attack" ${draft.policy === 'attack' ? 'selected' : ''}>적극 공세 (수송·자동 출진)</option><option value="grow" ${draft.policy === 'grow' ? 'selected' : ''}>내정·수비 (징병·전방 보급)</option></select></label></div>
           <label class="cp-gov">총도독<select id="cp-gov">${govOpts}</select></label>
@@ -16144,7 +16413,8 @@
         cb.onchange = () => {
           const id = cb.dataset.city;
           if (cb.checked) {
-            if (draft.cityIds.length >= 5) { cb.checked = false; SK.toast('군단은 최대 5성까지입니다.'); return; }
+            if (draft.cityIds.length >= CORPS_CITY_MAX) { cb.checked = false; SK.toast(`군단은 최대 ${CORPS_CITY_MAX}성까지입니다.`); return; }
+            if (corpsCitiesTotal(s, editingId) + draft.cityIds.length >= CORPS_TOTAL_MAX) { cb.checked = false; SK.toast(`총도독 관할은 합산 ${CORPS_TOTAL_MAX}성까지입니다.`); return; }
             if (draft.cityIds.indexOf(id) < 0) draft.cityIds.push(id);
           } else {
             draft.cityIds = draft.cityIds.filter((x) => x !== id);
@@ -16156,7 +16426,7 @@
       if (cancel) cancel.onclick = () => { editingId = null; draft = { name: '', govUid: '', policy: 'attack', cityIds: [] }; render(); };
       body.querySelector('#cp-save').onclick = () => {
         const ids = draft.cityIds.slice();
-        if (ids.length < 1 || ids.length > 5) { SK.toast('군단은 1~5성만 묶을 수 있습니다.'); return; }
+        if (ids.length < 1 || ids.length > CORPS_CITY_MAX) { SK.toast(`군단은 1~${CORPS_CITY_MAX}성까지 맡길 수 있습니다.`); return; }
         if (ids.indexOf(cap) >= 0) { SK.toast('수도는 군단에 넣을 수 없습니다(직할 1곳 보장).'); return; }
         const other = new Set();
         s.corps.forEach((cp) => { if (cp.id !== editingId) (cp.cityIds || []).forEach((id) => other.add(id)); });
@@ -16177,6 +16447,12 @@
         draft = { name: '', govUid: '', policy: 'attack', cityIds: [] };
         render();
       };
+      body.querySelectorAll('.cp-gen').forEach((b) => {
+        b.onclick = (e) => {
+          e.stopPropagation();
+          if (SK.showHeroInfo) SK.showHeroInfo(b.dataset.gen);
+        };
+      });
       body.querySelectorAll('.cp-edit').forEach((b) => {
         b.onclick = () => {
           const cp = s.corps.find((x) => x.id === b.dataset.cp);
@@ -16225,6 +16501,89 @@
   }
   SK.openCorpsPanel = openCorpsPanel;
 
+  /* ══════════════════════════════════════════════════════════════
+     v6.12 — 총도독의 출진도 [관전하기] / [자동결산]으로 고른다
+     · 달 바꿈 계산 중에는 창을 띄울 수 없으므로, 군단이 노릴 성을 큐에 남기고
+       월정산·사건 창이 끝난 뒤(chainPendingEvents) 한 건씩 고르게 한다.
+     · 고른 결과가 [관전하기]면 격자 전장(관전 전용), [자동결산]이면 화면 없이 같은 엔진으로 결산.
+     ══════════════════════════════════════════════════════════════ */
+  function corpsBattleQueuePush(s, item) {
+    if (!s || !item) return;
+    s.corpsBattleQueue = (s.corpsBattleQueue || []).filter((q) => q && q.corpsId !== item.corpsId);
+    s.corpsBattleQueue.push(item);
+    if (s.corpsBattleQueue.length > 6) s.corpsBattleQueue = s.corpsBattleQueue.slice(-6);
+  }
+  SK.corpsBattleQueuePush = corpsBattleQueuePush;
+
+  function startCorpsBattle(item, opts) {
+    const s = SK.state;
+    if (!s || !item) return false;
+    const as = s.cities[item.from];
+    const tcs = s.cities[item.target];
+    const c = CITY[item.target];
+    if (!as || !tcs || !c || as.owner !== PF() || tcs.owner === PF()) return false;
+    const gens = cityGens(item.from).slice(0, 6);
+    if (!gens.length) return false;
+    const send = Math.max(600, Math.min(Math.round(item.troops || 0), Math.round((as.troops || 0) * 0.66)));
+    const per = Math.max(300, Math.floor(send / gens.length / 100) * 100);
+    const units = gens.map((h) => ({ kind: 'hero', uid: h.uid, troops: Math.max(300, Math.min(SK.troopCapOf(h), per)) }));
+    let rest = send - units.reduce((a, u) => a + u.troops, 0);
+    if (rest >= 400) units.push({ kind: 'regiment', cls: 'changbyung', name: `${CITY[item.from].name} 부대`, troops: rest });
+    const total = units.reduce((a, u) => a + u.troops, 0);
+    if (total < 600) return false;
+    as.troops = Math.max(0, Math.round((as.troops || 0) - total));
+    SK.save();
+    SK.startBattle({
+      origin: item.from, targetId: item.target, type: SK.battleTypeFor(c), units,
+      spectate: !!(opts && opts.spectate), skip: !!(opts && opts.skip),
+      corpsId: item.corpsId || null,
+    });
+    return true;
+  }
+  SK.startCorpsBattle = startCorpsBattle;
+
+  function openCorpsBattle() {
+    const s = SK.state;
+    if (!s) return false;
+    const q = s.corpsBattleQueue || [];
+    if (!q.length) return false;
+    if (document.querySelector('#modal-root .modal-layer')) return false;
+    const item = q[0];
+    const cp = (s.corps || []).find((x) => x.id === item.corpsId);
+    const as = s.cities[item.from];
+    const tcs = s.cities[item.target];
+    if (!cp || !as || !tcs || as.owner !== PF() || tcs.owner === PF()) {
+      s.corpsBattleQueue.shift(); SK.save();
+      return q.length > 1 ? openCorpsBattle() : false;
+    }
+    const c = CITY[item.target];
+    const fromName = CITY[item.from].name;
+    const gens = cityGens(item.from).slice(0, 6);
+    const foe = SK.factionInfo(tcs.owner);
+    SK.modal({
+      kicker: `${cp.name} · 총도독 출진`, title: `${fromName} → ${c.name}`,
+      body: `<div class="march-event">
+        <div class="me-flag" style="background:${foe.color || '#8a6a2c'}">${SK.markOf(foe)}</div>
+        <p><b>${cp.name}</b>${cp.governorId ? `(총도독 <b>${((s.heroes || []).find((h) => h.uid === cp.governorId) || {}).name || ''}</b>)` : ''}이 ${SK.josa(c.name, 'eul')} 치러 나섭니다. <b>${SK.factionName(tcs.owner)}</b>이 지키는 성입니다.</p>
+        <div class="me-nums"><span>출진 병력 <b>${fmt(Math.round((as.troops || 0) * 0.66))}</b></span><span>출진 장수 <b>${gens.length}명</b></span><span>적 수비병 <b>${fmt(tcs.troops)}</b></span><span>성벽 <b>${Math.round(tcs.def || 0)}</b></span></div>
+        <p class="me-note"><b>[관전하기]</b> — 격자 전장에서 AI끼리 벌이는 공성전을 지켜봅니다(직접 조작은 잠김).<br><b>[자동결산]</b> — 전장에 들어가지 않고 같은 전투 엔진으로 결과(승패·피해·포로·점령)만 바로 받습니다.</p>
+      </div>`,
+      actions: [
+        { label: '자동결산 (결과만)', onClick: () => {
+          s.corpsBattleQueue.shift(); SK.save();
+          setTimeout(() => { if (!startCorpsBattle(item, { skip: true })) SK.toast('출진 병력이 모자라 이번 출진은 취소되었습니다.'); }, 90);
+        } },
+        { label: '관전하기', primary: true, onClick: () => {
+          s.corpsBattleQueue.shift(); SK.save();
+          setTimeout(() => { if (!startCorpsBattle(item, { spectate: true })) SK.toast('출진 병력이 모자라 이번 출진은 취소되었습니다.'); }, 90);
+        } },
+      ],
+      dismissible: false,
+    });
+    return true;
+  }
+  SK.openCorpsBattle = openCorpsBattle;
+
   /* 달마다 군단이 스스로 움직인다 — 내정·징병 → 수송 → 출진·점령 */
   function runCorpsTurn(s) {
     const lines = [];
@@ -16248,6 +16607,48 @@
       const gov = (s.heroes || []).find((h) => h.uid === cp.governorId) || null;
       const govMul = 1 + Math.min(0.15, gov ? (gov.wu + gov.tong) * 0.0008 : 0);
       let acts = [];
+      /* v6.12 — 군단 성 장수 정리: ① 태수·군사가 빈 성에 앉힌다 (빈 성은 자동 내정이 멈춘다)
+         ② 후방에 묶인 장수를 전방·새로 얻은 성으로 옮긴다 (인재 재배치) */
+      let appointN = 0, moveN = 0;
+      ids.forEach((id) => {
+        const c = SK.CITY[id], cs = s.cities[id];
+        if (!c || !cs) return;
+        /* v6.12 — 군단 성은 반드시 자동 내정 상태로 둔다. auto=false 로 남아 있으면
+           그 성 장수 전원이 내정을 못 해 통째로 멈춘다(사용자 제보의 원인). */
+        if (cs.auto !== true) cs.auto = true;
+        const gs = cityGens(id);
+        if (!gs.length) return;
+        if (!gs.some((g) => g.uid === cs.governor)) {
+          const gov2 = gs.slice().sort((a, b) => (b.pol * 0.6 + b.tong * 0.4) - (a.pol * 0.6 + a.tong * 0.4))[0];
+          if (gov2) { cs.governor = gov2.uid; appointN += 1; }
+        }
+        if (cs.advisor && !gs.some((g) => g.uid === cs.advisor)) cs.advisor = null;
+        if (!cs.advisor && gs.length > 1) {
+          const st2 = gs.filter((g) => g.uid !== cs.governor)
+            .sort((a, b) => (b.ji * 0.7 + b.cha * 0.3) - (a.ji * 0.7 + a.cha * 0.3))[0];
+          if (st2) { cs.advisor = st2.uid; appointN += 1; }
+        }
+      });
+      const frontNow = ids.filter((id) => enemyNeighborsOf(id).length > 0);
+      const rearNow = ids.filter((id) => enemyNeighborsOf(id).length === 0);
+      frontNow.forEach((fid) => {
+        let guard = 0;
+        while (cityGens(fid).length < 3 && moveN < 2 && guard++ < 3) {
+          const donors = rearNow.filter((rid) => cityGens(rid).length >= 4)
+            .sort((a, b) => cityGens(b).length - cityGens(a).length);
+          if (!donors.length) break;
+          const donor = donors[0];
+          const h = cityGens(donor).slice().sort((a, b) => (b.wu + b.tong) - (a.wu + a.tong))[0];
+          if (!h) break;
+          h.city = fid;
+          h.actedThisMonth = true;   // 이달은 이동으로 썼다
+          if (s.cities[donor] && s.cities[donor].governor === h.uid) s.cities[donor].governor = null;
+          acts.push(`${h.name} ${CITY[donor].name}→${CITY[fid].name} 이동`);
+          moveN += 1;
+        }
+      });
+      if (appointN) acts.push(`태수·군사 임명 ${appointN}건`);
+      if (moveN) news.push({ kind: 'move', text: `${cp.name} — 장수 ${moveN}명을 전방으로 재배치했습니다` });
       /* ① 자동 내정·징병 */
       let drafted = 0, developed = 0;
       ids.forEach((id) => {
@@ -16306,6 +16707,15 @@
           const tid = cands[0];
           const tcs = s.cities[tid];
           const send = Math.round(troops * 0.66);
+          /* v6.12 — 장수가 있는 군단 성은 '실제 전장'으로 출진한다.
+             달 바꿈 중에는 창을 띄울 수 없어 큐에 넣고, 월정산 뒤에
+             [관전하기] / [자동결산]을 고르게 한다 (예전에는 화면 없이 숫자로만 결산됐다). */
+          const squad = cityGens(id).slice(0, 6);
+          if (squad.length) {
+            corpsBattleQueuePush(s, { corpsId: cp.id, corpsName: cp.name, from: id, target: tid, troops: send });
+            acts.push(`${SK.CITY[id].name} → ${SK.CITY[tid].name} 출진 (${fmt(send)})`);
+            break;
+          }
           const atk = send * govMul * (1 + setB.atk) * (0.92 + Math.random() * 0.16);
           const def = cityPower(tcs) * 1.05;
           cs.troops = troops - send;
@@ -16333,7 +16743,7 @@
             /* v5.77 — 점령당한 성의 옛 장수는 자기 세력의 남은 성으로 퇴각한다 */
             const retreat = SK.retreatEnemyGens ? SK.retreatEnemyGens(s, prevOwner, tid, prevGenIds, join) : null;
             if (retreat && retreat.count) acts.push(`옛 ${SK.factionName(prevOwner)} 장수 ${retreat.count}명 ${SK.CITY[retreat.cityId].name}으로 퇴각`);
-            if (cp.cityIds.length < 5) cp.cityIds.push(tid);
+            if (cp.cityIds.length < CORPS_CITY_MAX && corpsCitiesTotal(s, cp.id) < CORPS_TOTAL_MAX) cp.cityIds.push(tid);
             if (SK.fameAdd) SK.fameAdd('cityCapture', { cityId: tid, type: (SK.CITY[tid] || {}).type });
             else s.fame = (s.fame || 0) + 6;
             if (SK.pruneLandlessFactions) { try { SK.pruneLandlessFactions(s); } catch (e) { /* ignore */ } }

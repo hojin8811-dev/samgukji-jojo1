@@ -68,6 +68,10 @@
      한 판에서 고른 배속은 세션 동안 다음 전투에도 이어진다. */
   let autoSpeed = 1;
   let speedPref = 1;
+  /* v6.12 — 관전 중 [⏸ 멈춤]: 전장 시계·대기 콜백을 함께 멈추고 ▶ 재개에서 순서대로 풀어 준다 */
+  let specPaused = false;
+  let headlessMode = false;      // v6.12 — [자동결산]은 전장에 들어가지 않고 결과만 낸다
+  const holdQ = [];
   const LV_GROW = 0.018;        // 1레벨마다 공·방 +1.8% (아군·적군 공통)
   /* v5.49 — 책략(기술)에는 반격이 없는 대신 모두의 최대 MP를 절반으로 낮춘다.
      아군 장수는 SK.maxMpOf(app.js)가 절반으로 계산하고, 일반 부대·적 부대는 여기서
@@ -93,14 +97,22 @@
   let paceBoost = 1;
   function paceMs(ms) {
     const n = Math.round(Number(ms) || 0);
-    const sp = autoSpeed || 1;
     if (n <= 0) return n;
-    if (sp <= 1 && paceBoost <= 1) return n;
-    const eff = Math.max(1, sp) * Math.max(1, paceBoost);
+    /* v6.12 — [자동결산]은 연출 없이 엔진만 돌린다 */
+    if (headlessMode) return 0;
+    const sp = Math.max(1, autoSpeed || 1) * Math.max(1, paceBoost);
+    /* v6.12 — 기본 배속(×1)을 기존의 절반 템포로 내린다 (대기 시간 ×2).
+       ×2·×3·×4는 이 느려진 ×1을 기준으로 정확히 1/2·1/3·1/4 이 된다. */
     const floor = sp >= 4 ? 8 : (sp === 3 ? 12 : 16);
-    return Math.max(floor, Math.round(n / eff));
+    return Math.max(floor, Math.round(n * 2 / sp));
   }
-  function wait(fn, ms) { return setTimeout(fn, paceMs(ms)); }
+  function wait(fn, ms) {
+    return setTimeout(() => {
+      /* v6.12 — 관전 중 멈춤: 예약된 대기 콜백을 붙잡아 두었다가 재개 때 순서대로 실행한다 */
+      if (specPaused && B && B.spectate) { holdQ.push(fn); return; }
+      fn();
+    }, paceMs(ms));
+  }
   SK.battlePace = paceMs;
   const anims = [];            // 타일 단위 이동 · 돌격 애니메이션
   let shakeT = 0, shakeAmp = 0; // 화면 진동
@@ -187,6 +199,11 @@
 
   SK.startBattle = function (opts) {
     document.querySelectorAll('#modal-root .modal-layer').forEach((m) => m.remove());
+    /* v6.12 — [자동결산]은 격자 전장에 들어가지 않는다. 같은 전투 엔진을 화면 없이
+       돌려 승패·피해·포로·점령을 그대로 계산하고 결과 창만 띄운다. */
+    headlessMode = !!opts.skip;
+    specPaused = false;
+    holdQ.length = 0;
     closeGenInfo();   // v5.53 — 앞 전투의 《장수 정보》 창이 새 전장에 남지 않게
     const s = SK.state;
     const target = SK.CITY[opts.targetId];
@@ -224,6 +241,13 @@
       : ((opts.intercept && opts.intercept.faction) ? opts.intercept.faction : s.cities[opts.targetId].owner);
     const bossInfo = bossOfFaction(faction);
     const intercept = opts.intercept || null;
+    /* v6.12 — 이 전투에 실제로 참전한 아군 총대장 (인트로 대사·아군 지휘 연출에 쓴다) */
+    const allyVoice = (function () {
+      const hs = (opts.units || []).filter((u) => u && u.kind === 'hero' && u.uid)
+        .map((u) => (s.heroes || []).find((h) => h.uid === u.uid)).filter(Boolean)
+        .sort((a, b) => (Number(b.lv) || 1) - (Number(a.lv) || 1));
+      return hs[0] || null;
+    })();
 
     const allies = opts.units.map((spec, i) => (spec.kind === 'hero' ? makeAlly(spec, i, opts.origin) : makeRegiment(spec, i)));
     /* v5.21 — 수성전 배치 모달에서 고른 자리(외성·망루·내성)를 부대에 달아 둔다 */
@@ -401,11 +425,13 @@
       tiles, units: [], turn: 1, phase: 'ally', sel: null, insp: null,   // v5.53 — insp = 아래 카드에 띄운 부대(적군 포함, 읽기 전용)
       cols: cols, rows: rows, bgKey: bgKey, mapKey: mapKey, customTilesRender: customTilesRender,
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings, towers: [],
-      introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept),
+      introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept, allyVoice),
       _snapOpts: snapOpts,
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense, lastStand: !!opts.lastStand,
+      /* v6.12 — 총도독(군단)이 뺀 성이면 함락 직후 그 군단 관할로 붙인다 */
+      corpsId: opts.corpsId || null,
       /* v5.30 — 야간 전장: 야영 기습전은 밤에 습격하는 전투로 친다.
          흑갑·혼천의모형 같은 '야간' 보물이 여기서만 실제로 붙는다. */
       night: (type === 'camp'),
@@ -594,9 +620,9 @@
     skipMode = !!opts.skip;
     B.spectate = spectateMode || skipMode;
     B.skip = skipMode;
-    if (spectateMode) { autoSpeed = skipMode ? 4 : Math.max(2, autoSpeed); }
+    if (spectateMode && !skipMode) { autoSpeed = Math.max(2, autoSpeed); }
     paintSpeedBtn();
-    SK.show('screen-battle');
+    if (!headlessMode) SK.show('screen-battle');
     if (window.JojoBGM) {
       try { JojoBGM.play(isSiege || type === 'fortress' ? 'battle_siege' : 'battle_field'); } catch (e) { /* ignore */ }
     }
@@ -1092,17 +1118,22 @@
     return { x: 1, y: 1 };
   }
 
-  function buildIntro(type, target, faction, bossInfo, defGens, event, intercept) {
+  function buildIntro(type, target, faction, bossInfo, defGens, event, intercept, allyVoice) {
     const lines = [];
     if (event) lines.push({ event });
     const mine = SK.factionInfo(SK.playerFaction());
     const lordName = mine.lord || '조조';
     const lordG = SK.GEN_BY_NAME[lordName];
     const lordPt = lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong;
+    /* v6.12 — 아군 대사는 '실제 이 전투에 나온 총대장'이 한다.
+       예전에는 늘 군주(유비 등)가 말해서, 군주가 참전하지 않은 싸움에서도
+       유비가 나와 지휘하는 것처럼 보였다(사용자 제보). */
+    const voiceName = (allyVoice && allyVoice.name) ? allyVoice.name : lordName;
+    const voicePt = (allyVoice && allyVoice.portrait) ? allyVoice.portrait : lordPt;
     if (intercept) {
-      lines.push({ who: lordName, hanja: '', pt: lordPt, side: 'ally',
-        text: SK.quoteOf(lordName, 'deploy') || '길을 막는 자는 뚫고 지나간다.' });
-      lines.push({ who: lordName, hanja: '', pt: lordPt, side: 'ally',
+      lines.push({ who: voiceName, hanja: '', pt: voicePt, side: 'ally',
+        text: SK.quoteOf(voiceName, 'deploy') || SK.quoteOf(lordName, 'deploy') || '길을 막는 자는 뚫고 지나간다.' });
+      lines.push({ who: voiceName, hanja: '', pt: voicePt, side: 'ally',
         text: {
           plain: '들을 가로지른다. 대형을 흐트러뜨리지 마라!',
           ford: '물이 얕은 곳을 찾아라. 강을 건너면 우리 땅이다.',
@@ -1116,13 +1147,13 @@
         text: '이 길로는 못 지나간다. 여기서 발을 붙여 보아라!' });
       return lines;
     }
-    lines.push({ who: lordName, hanja: '', pt: lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong,
-      side: 'ally', text: SK.quoteOf(lordName, 'deploy') || `${target.name}의 성문을 열어라. 오늘로 끝내겠다.` });
+    lines.push({ who: voiceName, hanja: '', pt: voicePt,
+      side: 'ally', text: SK.quoteOf(voiceName, 'deploy') || SK.quoteOf(lordName, 'deploy') || `${target.name}의 성문을 열어라. 오늘로 끝내겠다.` });
     /* v5.7 — 수성전은 우리가 성 안에서 맞는다 */
     if (type === 'defense') {
       const mine2 = SK.factionInfo(SK.playerFaction());
       const named = (defGens || [])[0];
-      lines.push({ who: lordName, hanja: '', pt: lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong,
+      lines.push({ who: voiceName, hanja: '', pt: voicePt,
         side: 'ally', text: `${target.name}은 우리 성이다. 문을 닫고 한 걸음도 내주지 마라!` });
       lines.push({ who: named ? named.name : `${SK.factionName(faction)} 장수`, hanja: '',
         pt: named ? SK.genPortrait(named) : SK.CLASS_PORTRAIT.chaeksa, side: 'enemy',
@@ -1138,10 +1169,10 @@
       ford: '여울을 먼저 잡아라. 강을 등지면 끝이다.',
       ambush: '숲의 숨소리를 들어라. 매복이 있다.',
     }[type];
-    const speaker = (SK.state.heroes || []).find((h) => h.city === (B && B.origin) && SK.quoteOf(h.name, 'deploy'));
+    const speaker = allyVoice || (SK.state.heroes || []).find((h) => h.city === (B && B.origin) && SK.quoteOf(h.name, 'deploy'));
     if (hint) {
-      lines.push({ who: speaker ? speaker.name : lordName, hanja: '',
-        pt: speaker ? speaker.portrait : (lordG ? SK.genPortrait(lordG) : SK.CLASS_PORTRAIT.gunwoong),
+      lines.push({ who: speaker ? speaker.name : voiceName, hanja: '',
+        pt: speaker ? speaker.portrait : voicePt,
         side: 'ally', text: hint });
     }
     const named = (defGens || [])[0];
@@ -1357,14 +1388,14 @@
           const r = canvas.getBoundingClientRect();
           const px = e.clientX - r.left, py = e.clientY - r.top;
           /* v5.98 — 병력 숫자·HP 바 라벨을 눌러도 그 부대를 선택한다 (스프라이트 힟박스 + 라벨 힟박스) */
+          const t = screenToTile(px, py);
+          /* v6.12 — 캐릭터 그림(머리·몸통 위쪽)을 누르면 그 부대를 고른다.
+             예전에는 칸 좌표가 먼저라, 타일 위로 솟은 스프라이트 상단을 누르면
+             위 칸(빈 땅)으로 판정돼 헛터치가 났다. 이제 라벨 → 스프라이트 → 칸 순서다. */
           const lab = unitLabelAt(px, py);
           if (lab) onTappedUnit(lab);
           else {
-            const t = screenToTile(px, py);
-            /* v6.8a — 그 칸에 부대가 없고 성문·망루도 아니면, 스프라이트 몸통을 눌렀는지 한 번 더 본다 */
-            const onUnit = B && B.units.some((o) => o.alive && o.x === t.x && o.y === t.y);
-            const special = (gateIntact() && gateTileAt(t.x, t.y)) || !!towerAt(t.x, t.y);
-            const spr = (!onUnit && !special) ? unitSpriteAt(px, py) : null;
+            const spr = unitSpriteAt(px, py);
             if (spr) onTappedUnit(spr);
             else onTileTap(t.x, t.y);
           }
@@ -1433,9 +1464,9 @@
        애니메이션 시계가 **느려져** 걸음·돌진이 오히려 길어졌다(그래서 ×4가 ×1보다 느렸다).
        이제 전장의 시계가 배속만큼 빨리 흐른다 — 보행·돌진·타격·이펙트·진동이 모두 ÷배속.
        피해 숫자는 ×4에서도 읽히도록 배속을 2배까지만 적용한다(fdt). */
-    const spd = autoSpeed || 1;
-    const sdt = dt * timeScale * spd;
-    const fdt = dt * timeScale * Math.min(2, spd);
+    const spd = headlessMode ? 16 : (autoSpeed || 1) / 2;
+    const sdt = specPaused ? 0 : dt * timeScale * spd;
+    const fdt = specPaused ? 0 : dt * timeScale * Math.min(2, spd);
     updateFx(sdt, fdt);
     updateAnims(sdt);
     updateUnits(sdt);
@@ -5037,8 +5068,9 @@
     /* v6.8a — 부대 스프라이트 통째 힟박스(월드 좌표). 2×2로 뭉쳐 그린 부대도 그림 몸통을
        누르면 그 부대가 집힌다 (칸 위쪽을 살짝 빚나가 누를 때 헛탭이 났다). */
     u._hit = {
-      x0: bx - TILE * 0.5 - 8, x1: bx + TILE * 0.5 + 8,
-      y0: topY - 8, y1: by + 10,
+      x0: bx - TILE * 0.62, x1: bx + TILE * 0.62,
+      /* v6.12 — 그림 위로 살짝 여유(머리 위 0.22칸)를 두어 머리끝을 눌러도 집힌다 */
+      y0: topY - TILE * 0.22, y1: by + TILE * 0.16,
     };
     ctx.save();
     if (showNum) {
@@ -6225,7 +6257,7 @@
     while (el.children.length > 2) el.firstChild.remove();
     requestAnimationFrame(() => d.classList.add('in'));
     /* v5.51 — 피드 글자는 배속이 높아도 읽을 수 있게 최소 1.2초는 남긴다 */
-    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, Math.max(1200, paceMs(3200)));
+    wait(() => { d.classList.remove('in'); wait(() => d.remove(), 260); }, headlessMode ? 0 : Math.max(1200, paceMs(3200)));
   }
 
   /* v5.0.1 — [공격]·[책략]을 누르면 사거리 안의 대상을 버튼으로 보여 준다 */
@@ -6286,7 +6318,7 @@
     el.textContent = text;
     el.className = 'battle-callout show ' + (kind || '');
     clearTimeout(calloutTimer);
-    calloutTimer = wait(() => el.classList.remove('show'), Math.max(700, paceMs(1750)));
+    calloutTimer = wait(() => el.classList.remove('show'), headlessMode ? 0 : Math.max(700, paceMs(1750)));
   }
 
   function shakeScreen(amp) { shakeAmp = amp || 5; shakeT = 240; }
@@ -6327,7 +6359,7 @@
     nmA.textContent = a.name; nmB.textContent = d.name;
     if (subEl) subEl.textContent = rival ? `숙적 · ${bond.title}` : '장수 맞대결';
     el.classList.toggle('rival', rival);
-    const dur = Math.max(180, paceMs(720));
+    const dur = headlessMode ? 1 : Math.max(180, paceMs(720));
     el.style.setProperty('--dcs', (dur / 720).toFixed(2));
     el.hidden = false;
     const stageEl = document.getElementById('battle-stage');
@@ -6341,7 +6373,7 @@
       wait(() => {
         el.classList.remove('show', 'out'); el.hidden = true;
         if (stageEl) stageEl.classList.remove('dueling');
-      }, Math.max(80, paceMs(200)));
+      }, headlessMode ? 0 : Math.max(80, paceMs(200)));
     }, dur);
     SK.sfx.play('drum');
     shakeScreen(4);
@@ -7012,6 +7044,9 @@
     if (!B || !a || !d || a === d || !a.alive || !d.alive) return false;
     if (a.side === d.side || a.side !== 'ally') return false;
     if (duel) return false;
+    /* v6.12 — 관전·자동결산에서는 일기토 미니게임을 열지 않는다.
+       (플레이어 입력을 기다리는 창이 열리면 결산이 거기서 멈춘다) */
+    if (spectateMode || skipMode || headlessMode) return false;
     if (!namedUnit(a) || !namedUnit(d)) return false;
     B.duels = B.duels || { n: 0, last: 0, seen: {} };
     const key = [a.name, d.name].sort().join('|');
@@ -8619,30 +8654,35 @@
     onTileTap(u.x, u.y);
   }
   /* v6.8a — 스프라이트 몸통 힟박스 판정 (칸 좌표가 빗나가도 그림을 누르면 집힌다).
-     가까운 중심의 부대 하나만 돌려준다. */
+     v6.12 — 여러 부대의 상자가 겹칠 때는 '가장 나중에 그린(아래쪽 y)' 부대를 고른다.
+     화면에 보이는 것은 앞 부대이므로, 겹친 머리를 눌렀는데 뒤 부대가 잡히던 문제를 없앤다. */
   function unitSpriteAt(px, py) {
     if (!B) return null;
     const w = screenToWorld(px, py);
-    let best = null, bestD = Infinity;
+    let best = null, bestKey = -Infinity;
     B.units.forEach((u) => {
       if (!u.alive || !u._hit) return;
       const r = u._hit;
       if (w.x < r.x0 || w.x > r.x1 || w.y < r.y0 || w.y > r.y1) return;
-      const d = Math.abs(w.x - (r.x0 + r.x1) / 2) + Math.abs(w.y - (r.y0 + r.y1) / 2);
-      if (d < bestD) { bestD = d; best = u; }
+      const uy = (u.ry == null ? u.y : u.ry) * 10000;
+      const key = uy + Math.abs(w.y - (r.y0 + r.y1) / 2) * 0.001 + Math.abs(w.x - (r.x0 + r.x1) / 2) * 0.000001;
+      if (key > bestKey) { bestKey = key; best = u; }
     });
     return best;
   }
 
   function onTileTap(x, y) {
-    if (!B || B.over || busy || !B.introDone) return;
-    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
-    /* v5.89 — 관전 중에는 명령을 받지 않는다. 부대 정보만 열어 준다 */
+    if (!B || B.over) return;
+    /* v5.89 — 관전 중에는 명령을 받지 않는다. 부대 정보만 열어 준다
+       v6.12 — 멈춤·연출 중에도 정보는 열린다 (부대를 보려고 기다리게 하지 않는다) */
     if (spectateMode || skipMode) {
+      if (!B.introDone) return;
       const t0 = B.units.find((o) => o.alive && o.x === x && o.y === y);
       if (t0) inspectUnit(t0, { open: true });
       return;
     }
+    if (busy || !B.introDone) return;
+    if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return;
     const u = B.sel;
     const t = B.units.find((o) => o.alive && o.x === x && o.y === y);
     /* v5.53 — 적군 페이즈에도 부대를 눌러 《장수 정보》를 볼 수 있다.
@@ -13320,7 +13360,7 @@
             <div><span>병력</span><b>${Math.round(survivors.reduce((a, u) => a + u.hp, 0)).toLocaleString('ko-KR')}</b></div>
           </div>
           <p class="rm-note">${nextLeft > 0 ? `행군을 이어갑니다 — <b>${nextLeft}개월 뒤 ${goalName}</b> 도착` : `이 달 그대로 <b>${goalName}</b> 공성전으로 이어집니다`} · 적 성은 침공군을 내보낸 만큼 수비병이 줄어 있습니다.</p></div>`,
-        actions: [{ label: nextLeft > 0 ? '행군 계속' : '성으로 밀어넣는다', primary: true, onClick: () => {
+        actions: [{ label: nextLeft > 0 ? '행군 계속' : '성으로 공격한다', primary: true, onClick: () => {
           closeBattle();
           if (SK.afterFieldBattle) setTimeout(() => SK.afterFieldBattle(mid, 'clash'), 320);
           else SK.showMap();
@@ -13348,7 +13388,7 @@
       SK.save();
       if (SK.refreshHud) SK.refreshHud();
       const after = ts ? Math.round(ts.troops || 0) : 0;
-      /* v6.8a — 성으로 밀어넣기 전에 '남은 병력 대 남은 수비병'을 나란히 보여 주고,
+      /* v6.8a — 성으로 공격하기 전에 '남은 병력 대 남은 수비병'을 나란히 보여 주고,
          강행과 회군(이번 달 물러나기)을 함께 고를 수 있게 한다. */
       const allyLeft = Math.round(survivors.reduce((a, u) => a + Math.max(0, u.hp || 0), 0));
       const pushRatio = allyLeft > 0 ? after / allyLeft : 99;
@@ -13360,7 +13400,7 @@
         kicker: '성하 야전 승리',
         title: `${(SK.CITY[fld.cityId] || {}).name || ''} 성하 돌파`,
         body: `<div class="result-modal win"><div class="rm-seal">승</div>
-          <p class="rm-line">성 밖으로 나온 적을 꺾었습니다. 성안 수비병이 <b>${before.toLocaleString('ko-KR')} → ${after.toLocaleString('ko-KR')}</b>으로 줄었습니다 — 이 달 바로 공성전으로 밀어넣거나, 물러날 수 있습니다.</p>
+          <p class="rm-line">성 밖으로 나온 적을 꺾었습니다. 성안 수비병이 <b>${before.toLocaleString('ko-KR')} → ${after.toLocaleString('ko-KR')}</b>으로 줄었습니다 — 이 달 바로 성으로 공격해 공성전을 벌이거나, 물러날 수 있습니다.</p>
           <div class="field-push ${pushCls}"><span class="fp-tag">성문 앞 전력</span>
             <b>성안 수비병 ${after.toLocaleString('ko-KR')}</b><em>vs</em><b>우리 병력 ${allyLeft.toLocaleString('ko-KR')}</b>
             <span class="fp-note">${pushTag}${pushRatio < 2 ? '' : ` (${pushRatio.toFixed(1)}배)`}</span></div>
@@ -13379,7 +13419,7 @@
             if (SK.fieldRetreat) SK.fieldRetreat(mid);
             else if (SK.showMap) SK.showMap();
           } },
-          { label: '성으로 밀어넣는다', primary: true, onClick: () => {
+          { label: '성으로 공격한다', primary: true, onClick: () => {
             closeBattle();
             if (SK.afterFieldBattle) setTimeout(() => SK.afterFieldBattle(mid), 320);
             else SK.showMap();
@@ -13878,6 +13918,8 @@
     /* v5.78 — 마지막 성이면 군주 포함 전원 포로 (2명 제한·군주 제외 해제) */
     const prisoners = rollPrisoners(fallenFaction ? { all: true, genIds: prevGenIds } : null);
     B.prisoners = prisoners;
+    /* v6.12 — 총도독(군단) 출진으로 얻은 성은 그 군단 관할에 들어간다 */
+    if (B.corpsId && SK.corpsAttachCity) { try { SK.corpsAttachCity(s, B.corpsId, B.targetId); } catch (e) { /* ignore */ } }
     /* v5.77 — 함락한 성 장수 중 포로로 잡히지 않은 이들은 그 세력의 남은 성으로 퇴각한다.
        예전에는 genIds를 비워 버려 맹획군 성(영창)이 남아 있어도 맹획·축융·올돌골이 증발했다. */
     let genRetreat = { cityId: null, cityName: '', count: 0 };
@@ -14259,6 +14301,9 @@
     /* v5.89 — 관전·자동결산 상태와 배속을 다음 전장으로 넘기지 않는다 */
     spectateMode = false;
     skipMode = false;
+    headlessMode = false;
+    specPaused = false;
+    holdQ.length = 0;
     paceBoost = 1;
     const sbar = document.querySelector('#spectate-bar');
     if (sbar) sbar.hidden = true;
@@ -14336,13 +14381,19 @@
      (건너뛰기는 같은 엔진을 배속 10으로 돌려 결과만 빠르게 받는다) */
   function startSpectating() {
     if (!B) return;
+    specPaused = false;
     const bar = document.querySelector('#spectate-bar');
     if (bar) {
       bar.hidden = false;
       bar.innerHTML = skipMode
         ? '<b>👁 자동 결산</b> 총도독이 지휘합니다 — 결과까지 AI가 진행합니다'
-        : '<b>👁 관전 중</b> AI가 지휘합니다 — 직접 조작할 수 없습니다';
+        : '<b>👁 관전 중</b> AI가 지휘합니다 — 직접 조작할 수 없습니다'
+          + '<button type="button" id="spec-pause" class="spec-pause" aria-label="관전 멈춤">⏸ 멈춤</button>';
     }
+    /* v6.12 — 관전 중에도 [⏸ 멈춤 / ▶ 재개]으로 전장 시계를 세우고, 멈춴 상태에서
+       아무 부대나 누르면 그 장수 정보(능력치·병과·기술·체력)를 열어 본다. */
+    const pauseBtn = document.getElementById('spec-pause');
+    if (pauseBtn) pauseBtn.onclick = () => setSpecPaused(!specPaused);
     const autoBtn = document.querySelector('#battle-actions .act.auto');
     if (autoBtn) autoBtn.hidden = true;
     const retreat = document.querySelector('#btn-retreat');
@@ -14352,7 +14403,7 @@
     /* hidden 속성은 display 규칙에 져서 화면에 남는다(.act·.icon-btn) → 전용 클래스로 확실히 숨긴다 */
     const scr = document.getElementById('screen-battle');
     if (scr) scr.classList.add('spectating');
-    if (skipMode) {
+    if (skipMode && !headlessMode) {
       autoSpeed = 4;
       paceBoost = 12;   // 같은 엔진을 최대 배속으로 돌려 결과만 빨리 받는다
     }
@@ -14362,8 +14413,37 @@
     autoPending = null;
     autoClear();
     autoTimer = wait(autoStep, 160);
-    SK.toast(skipMode ? '총도독 전투 — 결과까지 자동으로 결산합니다.' : '관전 — 아군도 AI가 지휘합니다. 직접 명령은 잠겼습니다.');
+    if (!headlessMode) SK.toast(skipMode ? '총도독 전투 — 결과까지 자동으로 결산합니다.' : '관전 — 아군도 AI가 지휘합니다. 직접 명령은 잠겼습니다.');
   }
+
+  /* v6.12 — 관전 멈춤/재개. 예약된 대기 콜백을 붙잡아 두었다가 재개에서 풀어 준다 */
+  function setSpecPaused(on) {
+    if (!B || B.over) return;
+    specPaused = !!on;
+    const btn = document.getElementById('spec-pause');
+    if (btn) {
+      btn.textContent = specPaused ? '▶ 재개' : '⏸ 멈춤';
+      btn.classList.toggle('on', specPaused);
+    }
+    if (specPaused) { autoClear(); SK.toast('관전을 멈췄습니다 — 부대를 누르면 장수 정보를 볼 수 있습니다.'); return; }
+    /* 재개 — 붙잡아 둔 콜백을 예약 순서대로 하나씩 푼다 */
+    const q = holdQ.splice(0, holdQ.length);
+    let i = 0;
+    const step = () => {
+      if (!B || B.over) return;
+      if (specPaused) return;
+      if (i >= q.length) {
+        if (autoOn) { autoClear(); autoTimer = wait(autoStep, 120); }
+        return;
+      }
+      const fn = q[i++];
+      try { fn(); } catch (e) { console.warn('[관전 재개]', e); }
+      setTimeout(step, 0);
+    };
+    SK.toast('관전을 다시 시작합니다.');
+    setTimeout(step, 0);
+  }
+  SK.setSpecPaused = setSpecPaused;
 
   function showIntro() {
     let i = 0;
@@ -15960,6 +16040,8 @@
     const gatk = $('#gi-attack');
     if (gatk) gatk.onclick = () => {
       if (!B) return;
+      /* v6.12 — 관전·자동결산 중에는 정보만 본다 */
+      if (spectateMode || skipMode) { SK.toast('관전 중에는 직접 명령할 수 없습니다 — AI가 지휘합니다.'); return; }
       const t = B.units.find((o) => o.id === giUid);
       const a = B.sel;
       if (!t || !a) return;

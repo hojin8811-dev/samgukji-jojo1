@@ -1,6 +1,26 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=151`
+기준: 2026-11-28 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=152`
+
+## ✅ v6.12 — 대규모 업데이트 14건: 공성 문구·터치 히트박스·말풍선 톤·관전 확대·총도독 20성·세이브 슬롯 유료화·B/C급 200명 (2026-11-28 · `?v=152`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 공성 문구 | "성으로 밀어넣는다" → **"성으로 공격한다"** (파일 내 '밀어넣' 0건) | `js/battle.js` `interceptVictory` |
+| ② 터치 히트박스 | 판정 순서 **라벨 → 스프라이트 → 칸**, 그림 위 0.22칸 여유, 겹치면 앞 부대 | `js/battle.js` `unitSpriteAt`·`_hit`·`pointerup` |
+| ③ 말풍선 톤 | 내정 6종 개그 대사 84줄 · 등용 거절 개그화 · 인용구 35줄 제거/280줄 추가 · 명령별 개그 풀 | `js/app.js` `CUTIN_LINES`·`REFUSE_LINES`, `js/comedy_v64b.js` `extra.domesticBy`, `data/quotes_and_ranks.json` |
+| ④ 관전 확대 | 총도독 출진 **[관전/자동결산]**, 군단 성 **[길목 요격 — 관전/자동결산]** | `js/app.js` `openCorpsBattle`·`startCorpsBattle`·`launchInvasionIntercept` |
+| ⑤ 장수 상세 | 위임 성 장수 카드·군단 창 장수 칩 → 《장수 정보》 | `js/app.js` `bindCorpsLockCapture`·`openCorpsPanel` |
+| ⑥ 포상 스크롤 | 창 유지 + `scrollTop` 복원 | `js/app.js` `openReward` |
+| ⑦ 장수 200명 | 명부 596→**796**(B 80·C 120), 특기 701→**901** | `data/generals.json`·`data/unique_passives.json` |
+| ⑧ 인트로 화자 | 아군 대사 = 실제 참전 총대장 | `js/battle.js` `buildIntro`·`allyVoice` |
+| ⑨ 관전 멈춤 | [⏸ 멈춤/▶ 재개] + 멈춘 채 장수 정보 | `js/battle.js` `setSpecPaused`·`wait`·`loop` |
+| ⑩ 배속 | ×1 2배 느리게(200ms), ×2 100 · ×3 67 · ×4 50ms | `js/battle.js` `paceMs`·`loop` |
+| ⑪ 자동결산 | 전장 미진입·결과 창만(같은 엔진, 8초 안팎), 일기토 미개방 | `js/battle.js` `headlessMode`·`duelOffer` |
+| ⑫ 총도독 20성 | 군단·합산 모두 20성, `n/20성` 표기 | `js/app.js` `CORPS_CITY_MAX`·`corpsAttachCity` |
+| ⑬ 세이브 슬롯 | 1번 무료 · 2~5번 각 **1,900원**(`save_slot_2~5`), 기존 저장 슬롯은 무료로 열림 | `js/dlc.js` `GOODS`, `js/app.js` `slotUnlocked`·`buySaveSlot` |
+| ⑭ 총도독·AI | 군단 성 `auto=false` 복구 · 태수 임명 · 후방→전방 장수 이동 · AI 재배치 + 훈련도 45 미만이면 내정 | `js/app.js` `runCorpsTurn`·`aiMoveGenerals`·`aiAttackPlan` |
+| ⑮ 검수 | `tools/v612_browser.py` 35 · `browser2` 13 · `browser3` 10 · `browser4` 5 = **63항목 OK** · 스샷 `preview/v612/` | `tools/` |
 
 ## ✅ v6.11 — QA 3건: 개별 성 군량 자동 보급·1턴 경고 유예 · 전투 중 팝업 보류 큐 · 거점 8곳 이상 장수 수급 (2026-11-27 · `?v=151`)
 

@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.11 · 2026-11-27 · 라이브 `?v=151`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.12 · 2026-11-28 · 라이브 `?v=152`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 > **수익화 정책(광고 노출 규칙·무뽑기)과 유료 상품 5대 축은 §1-1에 사용자가 확정한 그대로 적혀 있다(2026-11-28 갱신: 전투 3판마다 5초 스킵 전면 광고 1회 + 광고 제거 패스). 협업 AI는 임의로 바꾸지 않는다.**
 
@@ -14,8 +14,8 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=151`) |
-| 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 30(1·2·3탄) + 편의·후원 상품 2(출시 전 비공개)** |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=152`) |
+| 규모(실측) | 거점 80(`data/cities.json`) · 장수 **901**(명부 `data/generals.json` **796** + 시나리오·재야 인물 105) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 **901**(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 30(1·2·3탄) + 편의·후원·세이브 슬롯 상품 6(출시 전 비공개)** |
 
 ---
 
@@ -42,9 +42,10 @@
 | ② 배속 패스 | 전투 배속 영구 해금(편의) | 미정 | **미구현** — 지금은 ×1~×4가 전부 무료(`js/battle.js` `speedPref`) |
 | ③ 편의성 패스 | 전체 성 일괄 내정·징병·보급 원터치 자동 내정 `pass_auto_city` | 3,900원 영구 | **구현 완료**(v6.9a) — `js/dlc.js` `GOODS` |
 | ④ 한국 패키지 | 한반도 전용 지도 + 한국 세력 스타팅 캠페인 DLC | 4,900원 | **기획 확정 · 미구현** — 코드·데이터 없음 |
+| ⑥ 세이브 슬롯 확장 | 2~5번 슬롯을 슬롯당 1,900원에 영구 개방(1번은 무료) | **1,900원** | **구현 완료**(v6.12) — `js/dlc.js` `GOODS`·`js/app.js` `openSaveSlots` |
 | ⑤ S급 특전 장수 단품 | 고유 일러스트·고유 치비·고유 직업/필살기 30인, **1인 단품만(묶음 판매 없음)** | 각 2,800원대(현재 정본 `price` **2,900원**) | **구현 완료**(v6.9~v6.10c) — `data/dlc_heroes.json`, 출시 전 비공개 |
 
-수익화 축은 이 5개뿐이다. 여기에 구독·확률 상품·시즌 패스·새 광고 상품 같은 축을 새로 만들지 않는다.
+수익화 축은 이 5개 + **⑥ 세이브 슬롯 확장(v6.12 사용자 확정)** 이다. 여기에 구독·확률 상품·시즌 패스·새 광고 상품 같은 축을 새로 만들지 않는다.
 
 > 구현 메모: `js/dlc.js` `GOODS`에는 위 5축 밖에 **`pack_supporter_once`(1,900원 개발자 응원 팩 — 👑 뱃지 + 초기 지원)** 이 이미 구현돼 있다. 5축에 넣을지 말지를 사용자가 아직 정하지 않았으므로 코드는 그대로 두고, 여기에 새 상품을 더할 때는 이 항목과 함께 정리한다.
 
@@ -54,6 +55,13 @@
 - 구현 메모: 지금 코드에는 **광고 SDK도, 광고 판 수를 세는 카운터도, 이 상품도 없다.** 넣을 때 필요한 것 — ① AdMob 인터스티셜 연결 ② **전투 종료(결과 처리)에서 판 수를 세는 카운터**(본편·원정·관리자 모드 중 어디서 세고 어디서 빼는지 먼저 정한다) ③ `js/dlc.js` `GOODS`에 상품 추가 + `SK.DlcBilling.products()`·`kindOf()`에 반영 + `SK.DLC.hasPass()` 계열 해금 판정 연결 ④ Google Play 상품 ID 등록.
 - 광고는 유저가 고르는 것이 아니라 결과 화면 뒤에 따라오는 것이므로, **패스 미구매자도 5초 뒤에는 반드시 스킵**되고 광고 때문에 진행이 막히면 안 된다.
 - 나중에 선택형 보상 광고를 넣기로 하면, 광고 제거 패스가 그것까지 없애는지(보통은 '보상형은 남긴다')는 그때 함께 정한다.
+
+#### ⑥ 세이브 슬롯 확장 — `save_slot_2`~`save_slot_5` (구현 완료, v6.12 · **사용자 확정**)
+
+- 세이브 슬롯 5개 중 **1번만 무료**, **2~5번은 슬롯당 1,900원** 영구 해금. 2026-11-28 사용자 확정 사항이다.
+- 상품 정본은 `js/dlc.js` `GOODS`(`kind: 'save_slot'`), 해금 판정은 `SK.DLC.hasPass('save_slot_N')`. UI는 `SK.openSaveSlots`가 그리고, 잠긴 슬롯은 `[1,900원 해금]` → `SK.DlcBilling.purchase('save_slot_N')`, 웹에서는 구매 안내 창의 **[테스트 해금]**(`?dlc=1` 또는 `dlcTestMode`).
+- **기존 유저 보호** — 이미 저장이 들어 있는 슬롯은 결제 여부와 상관없이 표시·불러오기·덮어쓰기가 된다(`SK.slotUnlocked`). 3번 슬롯만 비어 있고 결제를 안 했다면 잠금으로 보인다.
+- 이 축은 §1-1의 "유료는 확정된 것만" 원칙 안에 있다(확률 없음). **가격을 바꾸거나 무료 슬롯을 회수하지 않는다**(사용자 확인 필요).
 
 #### ② 배속 패스 — 미구현
 
@@ -96,11 +104,11 @@
 
 ## 2. 지금 상태 — 실제로 확인한 값 (2026-11-27 기준)
 
-- **최신 커밋**: `v6.11 QA 3건 — 군량 자동 보급·전투 중 팝업 보류·거점 8곳 이상 장수 수급 (?v=151)` — 2026-11-27 `main` HEAD
-- **`index.html`**: `css/game.css?v=151`, `js/*.js?v=151`(18개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=151"`, 서비스워커 등록도 `sw.js?v=151`
+- **최신 커밋**: `v6.12 — 대규모 업데이트 14건 (관전·총도독 20성·세이브 슬롯·B/C급 200명) (?v=152)` — 2026-11-28 `main` HEAD
+- **`index.html`**: `css/game.css?v=152`, `js/*.js?v=152`(18개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=152"`, 서비스워커 등록도 `sw.js?v=152`
 - **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
-- **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1.
+- **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1 — **1번 무료, 2~5번은 각 1,900원 해금**(v6.12, 이미 저장이 있으면 무료로 열림).
 - **오류 수집**: `index.html`이 `window.__errs`에 `error`·`unhandledrejection`을 모은다. 점검은 이 배열 길이 0으로 판정.
 
 ---
@@ -149,7 +157,7 @@
 
 ### `data/` (런타임에 실제로 읽는 것)
 
-`dlc_heroes.json`(특전 영웅 1·2·3탄 30인) · `generals.json`(596) · `cities.json`(80) · `classes.json`(18, **런타임에 `SK.CLASSES`를 덮어씀**) · `treasures.json`(350) · `unique_passives.json`(701) · `scenarios.json`(4) · `historical_scenarios.json` · `bonds.json` · `tech_tree.json` · `events.json` · `domestic_events.json` · `quotes_and_ranks.json` · `hero_gags.json` · `korea_v523_art.json` · `*_art_manifest.json`(초상 매니페스트)
+`dlc_heroes.json`(특전 영웅 1·2·3탄 30인) · `generals.json`(**796**) · `cities.json`(80) · `classes.json`(18, **런타임에 `SK.CLASSES`를 덮어씀**) · `treasures.json`(350) · `unique_passives.json`(**901**) · `scenarios.json`(4) · `historical_scenarios.json` · `bonds.json` · `tech_tree.json` · `events.json` · `domestic_events.json` · `quotes_and_ranks.json` · `hero_gags.json` · `korea_v523_art.json` · `*_art_manifest.json`(초상 매니페스트)
 
 ### `assets/`
 
@@ -161,6 +169,7 @@
 
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
+| **v6.12** | 11-28 | **대규모 업데이트 14건 (?v=152)** — ① 공성 문구 "성으로 공격한다" ② 캐릭터 머리 터치 히트박스(라벨→스프라이트→칸, 머리 위 0.22칸 여유, 겹치면 앞 부대) ③ 내정 말풍선 6종 개그톤(84줄) + 등용 거절·인용구 개그화(딱딱한 35줄 제거) ④ **총도독 출진·길목 요격도 [관전하기]/[자동결산]** ⑤ 위임 성·군단 창에서 [장수 자세히 보기] ⑥ 포상 후 스크롤 고정 ⑦ **B/C급 장수 200명 + 고유 특기 200종**(명부 596→796, 특기 701→901) ⑧ 인트로 아군 대사를 실제 참전 총대장이 ⑨ 관전 중 [⏸ 멈춤/▶ 재개] + 장수 정보 ⑩ **×1 배속 2배 느리게**(×2 100ms·×3 67ms·×4 50ms) ⑪ **[자동결산]은 전장 미진입·결과 창만** ⑫ 총도독 **최대 20성** ⑬ **세이브 슬롯 1번 무료·2~5번 각 1,900원** ⑭ 군단 성 장수 정지(auto=false) 수정 + 군단/AI 장수 전방 재배치·내정 균형 · 검수 4묶음 63항목 OK |
 | **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문과 주소 `&ending=1` 미리보기. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
 | **v6.10b** | 11-27 | **이세계 특전 영웅 DLC 2탄**(11~20번, 출시 전 비공개) — `data/dlc_heroes.json`에 10인 추가(`dlc_hero_11~20`·2,900원·`ep:2`·`episodes`) · 고유 직업·고유 책략 3종·고유 필살기(아킬레우스 관통·헤라클레스 광역 강타·토르 연쇄 번개·오딘 회피 무시·로빈 7칸 화살비·란슬롯 3연격·멀린 화염/빙결·나폴레옹 6칸 포격·카이사르 전장 방패진·한니발 코끼리 공포 돌진) · 상점 특전 탭 **0/20** + [전체/1탄/2탄] 필터·탄 머리 · 초상 10장(`assets/portraits/dlc/dlc_11~20.webp`)·전장 SD 10종(`assets/units/dlc/`)·`dlcAccent()` 표식 · 엔진에 `chain` 필살기·`ignoreEvade`·`e.rng`(6·7칸) 추가 · `?v=149`
 | **v6.11** | 11-27 | **QA 3건** — ① 월정산 군량을 3단계로(성별 순수지 → 모자란 성을 다른 내 성 **잉여**에서 자동 보급 → 남은 적자만 페널티). 처음 바닥난 성은 그 달 **경고만**(`cs.foodWarn`) 하고 다음 달에 민심 −3 · 병력 3% — 보고에 `[군량 긴급 보급]`·`군량 경고` 줄 ② **전투 중 팝업 보류**: `SK.battleLive()`면 `SK.modal` 이 `SK.popupQueue`에 쌓고 전투 종료 시 `SK.flushPopups()`가 순서대로 연다(전투 자체 창은 `battleOk: true` — `js/battle.js` `battleModal`) ③ `SK.landPressure`(8곳 0 → 20곳 1)로 주점 간격 6→4개월·자리 2→4·새 성 주점 3→4명·포로 설득 +10%p·주점 등용 +4%p · `?v=151` · 검수 `tools/v611_browser.py` 34항목 |
@@ -242,6 +251,19 @@
   - 멸망 속보 배너처럼 창이 아닌 연출은 `SK.queuePopup(fn)`으로 미룬다.
 - **장수 수급 손잡이는 `SK.landPressure(s)` 하나** — 보유 거점 `n`에 대해 `n≤8: 0`, `(n−8)/12` 상한 1. 쓰는 곳: `wanderInterval`(6→4개월) · `runWanderers`의 `tavernCap`(2→4) · `refillTalents`의 `take`(3→4) · `recruitChance`(+4%p) · `prisonHireChance`(+10%p, 상한 85%). 초중반(8곳 이하)은 0이라 기존 밸런스 그대로다.
 - **검수**: `python3 tools/v611_browser.py`(34항목 — 보급 단위·월정산 3회·가짜/실제 전투 팝업·밸런스 4구간·세이브 재로드) · 스샷 `preview/v611/`.
+
+## 6-5. v6.12 — 대규모 업데이트 14건 (2026-11-28 · `?v=152`)
+
+- **배속은 `paceMs` 한 곳** — 기본(×1) 템포를 절반으로 내렸다(대기 시간 ×2). ×2·×3·×4는 `n*2/sp`로 정확히 1/2·1/3·1/4, 하한 16/12/8ms. 애니메이션 시계는 `loop()`의 `spd = autoSpeed/2`로 같은 비율. **더 느리게/빠르게 하려면 `paceMs`의 `*2`와 `loop`의 `/2` 두 곳만** 고친다.
+- **[자동결산]은 `headlessMode`** — `SK.startBattle({skip:true})`면 `SK.show('screen-battle')`을 부르지 않고(`opts.skip`), `paceMs`가 0, 연출 대기 하한(`Math.max(1200,…)` 등 4곳)이 0, 루프 `sdt`가 16배가 된다. 결과는 **같은 전투 엔진의 승리/패배 함수**가 그대로 처리하므로 포로·점령·부상병·전적이 관전과 똑같다. 관전·자동결산에서는 **일기토를 열지 않는다**(`duelOffer` 가드) — 입력 대기 창이 뜨면 결산이 멈춘다.
+- **관전 멈춤은 `setSpecPaused`** — `wait()`가 `specPaused`면 콜백을 `holdQ`에 붙잡고, 루프는 `sdt=0`으로 선다. 재개하면 `holdQ`를 예약 순서대로 푼다. 버튼은 `startSpectating()`이 `#spectate-bar`에 넣는다(`pointer-events`는 `.spec-pause`만 auto — 부모가 none).
+- **터치 판정 순서는 라벨 → 스프라이트 → 칸** (`pointerup` 처리). `_hit`는 그릴 때 남기는 월드 좌표 상자(그림 위 0.22칸 여유), 겹치면 y가 큰(앞에 그려진) 부대가 이긴다.
+- **총도독 20성** — `CORPS_CITY_MAX`(군단 하나) = `CORPS_TOTAL_MAX`(합산) = 20. `SK.corpsAttachCity(s, corpsId, cityId)`가 유일한 편입 경로(전투 승리도 이 함수를 부른다, `B.corpsId`).
+- **총도독 출진은 큐** — 달 바꿈 중에는 창을 못 띄우므로 `runCorpsTurn`이 `s.corpsBattleQueue`에 `{corpsId, from, target, troops}`를 넣고, `SK.chainPendingEvents()`가 월정산 뒤 `SK.openCorpsBattle()`로 **[자동결산]/[관전하기]** 를 묻는다. 고르면 `SK.startCorpsBattle(item, {skip|spectate})`.
+- **군단 성 장수가 멈추던 원인은 `cs.auto === false`** — 자동 내정이 그 성을 건너뛰어 장수 전원이 놀았다. `runCorpsTurn`이 매달 `cs.auto = true`로 되돌리고, 태수·군사를 앉히고, 후방(장수 4명↑)에서 전방(장수 3명 미만)으로 **달 최대 2명** 옮긴다. 적 AI는 `SK.aiMoveGenerals(s, news)`가 세력당 달 3명까지 옮긴다.
+- **세이브 슬롯 상품** — `save_slot_2`~`save_slot_5`(각 1,900원, `kind:'save_slot'`). `SK.slotUnlocked(i)` = `i<=1 || 구매 || 이미 저장 있음`. 구매는 `SK.buySaveSlot(i)` → `SK.DlcBilling.purchase`, 웹은 창의 **[테스트 해금]**. Billing 상품은 **36개**(영웅 30 + 편의·후원·슬롯 6).
+- **B/C급 200명** — `data/generals.json` id 597~796(위·촉·오·군웅, B 80·C 120) + `data/unique_passives.json`에 같은 이름 200종. `SK.rebalanceTiers`가 다시 등급을 매기므로 **새 장수의 능력치를 바꾸면 B/C 분포가 흔들린다** — 넣은 뒤 `SK.TIER_COUNT`로 확인한다. 초상은 없으면 병과 초상으로 떨어져 404가 없다.
+- **검수** — `tools/v612_browser.py`(35) · `v612_browser2.py`(13) · `v612_browser3.py`(10) · `v612_browser4.py`(5) = **63항목**, 실행은 `bash tools/v612_run.sh tools/v612_browser.py`(로컬 서버 + playwright). 스샷 `preview/v612/`.
 
 ## 6. 작업 마칠 때 체크리스트
 

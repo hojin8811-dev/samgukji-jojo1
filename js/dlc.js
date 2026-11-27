@@ -44,6 +44,36 @@
       ],
       foot: '계정당 1회 한정 · 구매 뒤에는 버튼이 잠깁니다',
     },
+    /* v6.12 — 세이브 슬롯 2~5 유료 해금 (슬롯당 1,900원 · 사용자 확정).
+       1번 슬롯은 기본 무료이고, 여기 네 상품이 2~5번을 하나씩 연다. */
+    {
+      productId: 'save_slot_2', kind: 'save_slot', ic: '💾',
+      name: '세이브 슬롯 2', price: 1900, tag: '세이브 · 영구',
+      one: '두 번째 세이브 — 갈래를 나눠 저장',
+      bullets: ['2번 슬롯을 영구히 사용할 수 있습니다', '여러 세력을 따로 키우거나 큰 결정 앞에서 갈래를 나눕니다', '1번 슬롯은 무료 · 자동 저장도 그대로'],
+      foot: '계정에 영구 적용 · 이 슬롯 하나만 열립니다',
+    },
+    {
+      productId: 'save_slot_3', kind: 'save_slot', ic: '💾',
+      name: '세이브 슬롯 3', price: 1900, tag: '세이브 · 영구',
+      one: '세 번째 세이브 — 도전과 본편을 따로',
+      bullets: ['3번 슬롯을 영구히 사용할 수 있습니다', '실험적인 도전과 안전한 본편을 동시에', '1번 슬롯은 무료 · 자동 저장도 그대로'],
+      foot: '계정에 영구 적용 · 이 슬롯 하나만 열립니다',
+    },
+    {
+      productId: 'save_slot_4', kind: 'save_slot', ic: '💾',
+      name: '세이브 슬롯 4', price: 1900, tag: '세이브 · 영구',
+      one: '네 번째 세이브 — 마음 편한 되돌림',
+      bullets: ['4번 슬롯을 영구히 사용할 수 있습니다', '큰 싸움 앞에서 갈래를 미리 저장해 둡니다', '1번 슬롯은 무료 · 자동 저장도 그대로'],
+      foot: '계정에 영구 적용 · 이 슬롯 하나만 열립니다',
+    },
+    {
+      productId: 'save_slot_5', kind: 'save_slot', ic: '💾',
+      name: '세이브 슬롯 5', price: 1900, tag: '세이브 · 영구',
+      one: '다섯 번째 세이브 — 모든 갈래 보관',
+      bullets: ['5번 슬롯을 영구히 사용할 수 있습니다', '다섯 갈래의 천하를 모두 보관', '1번 슬롯은 무료 · 자동 저장도 그대로'],
+      foot: '계정에 영구 적용 · 이 슬롯 하나만 열립니다',
+    },
   ];
   function goodsOf(pid) {
     for (var i = 0; i < GOODS.length; i++) if (GOODS[i].productId === String(pid)) return GOODS[i];
@@ -317,6 +347,9 @@
     if (g.kind === 'pass') {
       syncAutoPill();
       if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 해금 — 지도·성 화면의 [⚡ 전체 자동 내정]을 쓰세요.');
+    } else if (g.kind === 'save_slot') {
+      /* v6.12 — 세이브 슬롯 상품: 슬롯만 열고 다른 보상은 없다 */
+      if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 해금 — 세이브·불러오기 창에서 바로 쓸 수 있습니다.');
     } else {
       if (SK.state) SK.state.supporter = true;
       ensureSupporter({ silent: !!(opts && opts.silent) });
@@ -335,6 +368,8 @@
     if (g.kind === 'pass') {
       syncAutoPill();
       if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — 전체 자동 내정 버튼이 숨겨집니다.');
+    } else if (g.kind === 'save_slot') {
+      if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — 이 슬롯은 다시 잠깁니다. (이미 저장한 데이터는 그대로 남습니다)');
     } else {
       /* 지급 기록(s.supGrant)은 지우지 않는다 — 테스트로 꺼다 켜도 같은 세력에 두 번 지급되지 않게 */
       if (SK.state) SK.state.supporter = false;
@@ -900,6 +935,9 @@
       supporterOn: function () { grantGoods('pack_supporter_once'); },
       supporterOff: function () { revokeGoods('pack_supporter_once'); },
       autoCity: function () { return runAutoCityAll(); },
+      /* v6.12 — 세이브 슬롯 검수용 */
+      saveSlotOn: function (n) { return grantGoods('save_slot_' + n); },
+      saveSlotOff: function (n) { return revokeGoods('save_slot_' + n); },
     },
   };
   SK.DlcBilling = Billing;
