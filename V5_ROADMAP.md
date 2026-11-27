@@ -12,8 +12,8 @@
 | ④ 코믹 축사 | 공훈 상위 3~4명 말풍선 — 고유 코믹 승리 대사 → `SK.quoteOf` → 통일 전용 풀 | `js/app.js` `unifySpeechOf`·`UNIFY_SPEECH` |
 | ⑤ 전적 | `s.rec = { battles, wins }` — 승패 함수 8곳이 `SK.recBattle(win)` 호출(중복 집계 없음) | `js/battle.js` 8곳, `js/app.js` `recBattle` |
 | ⑥ 명예의 전당 | `localStorage['samgukji-jojo-hall-of-fame']` 최대 20건 · `SK.openHall()` · 표지 [🏆 명예의 전당 (n)] · [🌏 새 천하 시작] | `js/app.js` `hallAdd`·`openHall`·`refreshHallBtn`, `index.html` `#btn-hall` |
-| ⑦ 점검 문 | `window.SK_QA.triggerEnding()` 등 | `js/app.js` 끝 |
-| ⑧ 검수 | `tools/v610_browser.py` 37항목 OK · 스샷 `preview/v610/` | `tools/v610_browser.py` |
+| ⑦ 점검·미리보기 | `window.SK_QA.triggerEnding()` · `SK_QA.unifySnapshot()` · `SK_QA.hallList()` · 주소 **`&ending=1`**(판정·저장 없이 한 번 보기) | `js/app.js` 끝·`SK.showMap` |
+| ⑧ 검수 | `tools/v610_browser.py` 39항목 OK · 스샷 `preview/v610/` | `tools/v610_browser.py` |
 
 ## ✅ v6.9a — 상점 편의·후원 상품 2종 (2026-11-27 · `?v=147`, 상점은 여전히 **출시 전 비공개**)
 

@@ -85,7 +85,7 @@
 
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
-| **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
+| **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문과 주소 `&ending=1` 미리보기. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
 | **v6.9a** | 11-27 | **상점 편의·후원 상품 2종**(출시 전 비공개) — 상점 모달에 [✨ 특전 영웅] · [🎁 편의·후원] 탭 · **자동 내정 패스**(3,900원 영구 `pass_auto_city`) — 지도·성 화면 [⚡ 전체 자동 내정] 원터치로 내 모든 성의 남은 장수로 징병·훈련·보수·개간·상업·민심 일괄 실행 후『전체 자동 내정 보고』(성/장수/건수 + 금·군량·병력 순변화), 성별 금고·`refreshHud` 반영 · **개발자 응원 팩**(1,900원 계정당 1회 `pack_supporter_once`) — 👑 후원자 뱃지(지도 군주 초상·성 시트·관아·명부) + 금·군량 +3,000·S/A 보물 1개를 세력당 1회(`s.supGrant` 가드), 구매 뒤 [감사합니다!] · `SK.DlcBilling`이 상품 12개(`products()`·`kindOf`) 처리 |
 | **v6.9** | 11-27 | **이세계 특전 영웅 DLC 1탄**(출시 전 비공개) — `data/dlc_heroes.json` 10인(고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_01~10`·2,900원) · `js/dlc.js` 로더/해금(`unlockedDlc`)/`SK.DlcBilling`(AndroidBilling 브리지)/상점 모달(목판·비단) · `?dlc=1` 또는 `dlcTestMode`에서만 보이는 게이트 · 전용 초상 `assets/portraits/dlc/`·전용 전장 SD `assets/units/dlc/` 10종 + 영웅별 오라(`drawDlcChibi`) · 율도국 의적 전리품 금 +25% |
 | **v6.8a** | 11-27 | 본편 유저 입장 TOP 5 UX — ① 출진 편성 전력 비교(적 성 수비+전장 증원 vs 우리 출진)·2배 이상 [전멸 위험] 배지·1.5배 이상 확인창 ② 성하 야전 승리 뒤 [성문 앞 전력] 비교 + [이번 달 물러난다(회군)] ③ 생포 처리(등용·석방·억류) 한 줄 설명 ④ 3분 입문 성문 앞 1~3칸 근거리 스폰 + 안내 전환을 `allyHits > 0`(실제 타격)으로 수정 ⑤ 이동 가능 칸 밝은 파랑 판·바깥 윤곽, 부대 스프라이트 히트박스 ⑥ 월정산 '이 달 실제 병력' 줄·스크롤 힌트 ⑦ 공·사기 변동 사유(지형·진형·사기·책략) 표기 ⑧ 일기토 결과 [확인 — 전장으로] 버튼(수동은 자동 닫힘 없음) ⑨ 공터 건설 Lv.1 기대 효과 수치 ⑩ 출진 대상 성 카드 목록 |
@@ -148,7 +148,7 @@
 - **축사 순서**은 `SK_COMEDY.quotes[이름].victory` → `SK.quoteOf(이름,'victory')` → `UNIFY_SPEECH`(통일 전용 풀). 새 코믹 대사는 `UNIFY_SPEECH`에 한 줄씩 더한다.
 - **전적은 `s.rec = { battles, wins }` 하나**. 새 승패 경로를 만들면 `SK.recBattle(true|false)`를 그 경로에 **한 번만** 넣어야 결산 승률이 맞는다(현재 `js/battle.js` 8곳).
 - **명예의 전당은 `localStorage['samgukji-jojo-hall-of-fame']` 별도 키**라 세이브 슬롯과 무관하게 남는다(최대 20건). 표지 버튼은 `SK.refreshHallBtn()`이 기록 유무로 숨김/표시.
-- 점검 문: `window.SK_QA.triggerEnding()` · `SK_QA.unifySnapshot()` · `SK_QA.hallList()` · `SK_QA.hallClear()`. 검수 `tools/v610_browser.py`(37항목), 스샷 `preview/v610/`.
+- 점검·미리보기 문: `window.SK_QA.triggerEnding()` · `SK_QA.unifySnapshot()` · `SK_QA.hallList()` · `SK_QA.hallClear()`, 그리고 **주소 `?ending=1` + [이어하기]**(판정·저장 없이 엔딩 한 번, 사용자가 폰에서 바로 보는 길). 검수 `tools/v610_browser.py`(39항목), 스샷 `preview/v610/`.
 
 ## 6. 작업 마칠 때 체크리스트
 

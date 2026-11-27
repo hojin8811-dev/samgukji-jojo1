@@ -2204,6 +2204,7 @@
     /* v5.46 — 성 화면으로 넘어왔으면(어떤 경로든) 1년차 1월 첫 진입 입문서를 검사한다 */
     if (id === 'screen-city' && SK.maybeAutoIntro) SK.maybeAutoIntro();
   };
+  let endingPreviewed = false;   // v6.10 — ?ending=1 미리보기 1회
   SK.showMap = function () {
     SK.show('screen-map');
     bgm('map');
@@ -2218,6 +2219,12 @@
       || (SK.state.invasionQueue || []).length)) armPendingWatch();
     /* v5.16 — 모든 거점을 손에 넣었으면 천하통일 엔딩으로 */
     if (SK.checkUnification) setTimeout(() => SK.checkUnification(), 620);
+    /* v6.10 — 미리보기: 주소에 ?ending=1 을 붙이면 지도에 처음 들어올 때 엔딩 창을 한 번 띄운다.
+       판정(s.unified)·저장은 건드리지 않는다 — 실제 통일은 80거점 판정으로만. */
+    if (!endingPreviewed && SK.state && /[?&]ending=1(?:&|$)/.test(location.search)) {
+      endingPreviewed = true;
+      setTimeout(() => { try { if (SK.showUnification) SK.showUnification(); } catch (e) { /* ignore */ } }, 900);
+    }
     /* v5.66 — 60성 이상 + 압도적 우세면 일괄 항복을 한 번 물어본다 */
     if (SK.maybeSurrenderOffer) setTimeout(() => SK.maybeSurrenderOffer(), 1400);
   };
