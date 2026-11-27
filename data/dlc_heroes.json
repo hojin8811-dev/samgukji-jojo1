@@ -762,7 +762,7 @@
       "portrait": "assets/portraits/dlc/dlc_22.webp",
       "classDef": {
         "role": "광역 넉백",
-        "atk": 37, "def": 21, "mov": 4, "rng": 1, "minRng": 1, "mp": 26, "agi": 62,
+        "atk": 36, "def": 21, "mov": 4, "rng": 1, "minRng": 1, "mp": 26, "agi": 62,
         "weapon": "staff",
         "desc": "아홉 이빨 쇠스랑으로 주변을 통째로 휩쓸어 밀어낸다. 맞붙을수록 배가 두꺼워지는 방어형 돌격수."
       },
@@ -833,7 +833,7 @@
       "portrait": "assets/portraits/dlc/dlc_24.webp",
       "classDef": {
         "role": "고속 돌격",
-        "atk": 36, "def": 20, "mov": 6, "rng": 2, "minRng": 1, "mp": 26, "agi": 92,
+        "atk": 35, "def": 20, "mov": 6, "rng": 2, "minRng": 1, "mp": 26, "agi": 92,
         "weapon": "spear",
         "desc": "풍화륜으로 이동력이 가장 높고, 화첨창은 2칸을 찌른다. 돌파 뒤 적 뒤칸에 자리를 잡는다."
       },
@@ -863,14 +863,14 @@
       "tier": "S",
       "price": 2900,
       "ep": 3,
-      "stats": { "leadership": 96, "war": 99, "intel": 66, "politics": 42, "charm": 90 },
+      "stats": { "leadership": 96, "war": 98, "intel": 66, "politics": 42, "charm": 90 },
       "desc": "진나라를 무너뜨린 서초의 패왕. 패왕색 앞에 서면 적은 창을 들 힘부터 잃고, 그의 장창은 한 부대를 통째로 부순다.",
       "portrait": "assets/portraits/dlc/dlc_25.webp",
       "classDef": {
         "role": "공포·분쇄",
-        "atk": 40, "def": 23, "mov": 5, "rng": 1, "minRng": 1, "mp": 26, "agi": 74,
+        "atk": 38, "def": 23, "mov": 5, "rng": 1, "minRng": 1, "mp": 26, "agi": 74,
         "weapon": "spear",
-        "desc": "단일 대상 분쇄력이 전 병과 최고. 패왕색으로 주변 적의 사기를 무너뜨린다."
+        "desc": "단일 대상 분쇄에 특화돼 있다. 패왕색으로 주변 적의 사기를 무너뜨린다."
       },
       "skills": [
         { "key": "dlc25_s1", "name": "패왕천격", "mp": 12, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.9,
@@ -938,7 +938,7 @@
       "portrait": "assets/portraits/dlc/dlc_27.webp",
       "classDef": {
         "role": "결사 돌격",
-        "atk": 37, "def": 22, "mov": 5, "rng": 2, "minRng": 1, "mp": 24, "agi": 80,
+        "atk": 36, "def": 22, "mov": 5, "rng": 2, "minRng": 1, "mp": 24, "agi": 80,
         "weapon": "spear",
         "desc": "십문자창으로 2칸을 찌르고 돌파한다. 결사 돌격은 자신의 병력을 태워 위력을 올린다."
       },
@@ -1009,7 +1009,7 @@
       "portrait": "assets/portraits/dlc/dlc_29.webp",
       "classDef": {
         "role": "범위 분쇄",
-        "atk": 39, "def": 20, "mov": 4, "rng": 1, "minRng": 1, "mp": 22, "agi": 64,
+        "atk": 37, "def": 20, "mov": 4, "rng": 1, "minRng": 1, "mp": 22, "agi": 64,
         "weapon": "axe",
         "desc": "거대 도끼로 주변을 한 번에 분쇄하고 적의 방어를 깎는다. 사거리는 1칸이지만 한 방이 무겁다."
       },
@@ -1039,15 +1039,15 @@
       "tier": "S",
       "price": 2900,
       "ep": 3,
-      "stats": { "leadership": 84, "war": 90, "intel": 95, "politics": 70, "charm": 99 },
+      "stats": { "leadership": 84, "war": 90, "intel": 95, "politics": 70, "charm": 97 },
       "desc": "천 년을 살아 아홉 꼬리를 얻은 여우 요괴. 여우불로 넋을 빼앗고, 매혹의 눈빛으로 창을 든 적마저 돌아서게 한다.",
       "portrait": "assets/portraits/dlc/dlc_30.webp",
       "classDef": {
         "role": "매혹·회피",
-        "atk": 33, "def": 18, "mov": 5, "rng": 2, "minRng": 1, "mp": 30, "agi": 96,
+        "atk": 33, "def": 18, "mov": 5, "rng": 2, "minRng": 1, "mp": 30, "agi": 92,
         "weapon": "fan",
         "passive": {"eva": 0.12},
-        "desc": "민첩이 전 병과 최고라 회피가 높다(추가 회피 12%). 여우불은 혼란(매혹)을 남긴다."
+        "desc": "민첩이 최상위권이라 회피가 높다(추가 회피 12%). 여우불은 혼란(매혹)을 남긴다."
       },
       "skills": [
         { "key": "dlc30_s1", "name": "여우불", "mp": 12, "unlockLv": 1, "kind": "magicArea", "range": 3, "radius": 1, "power": 300, "confuse": true,
