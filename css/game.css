@@ -9413,3 +9413,147 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 .dd-ult span { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.45; color: #4a3d20; }
 .dd-ult em { display: block; margin-top: 4px; font-family: var(--serif); font-size: 10.5px; color: #8a7448; font-style: italic; }
 .menu-list .menu-dlc { color: #7c4d0c; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.9a — 편의·후원 상품 2종 (자동 내정 패스 · 개발자 응원 팩)
+   · 상점 2번째 탭 [🎁 편의·후원] · 지도/성 화면 [⚡ 전체 자동 내정] · 👑 후원자 뱃지
+   · 390×844 세로 화면에서 가로 넘침 없이 — 카드 한 장이 한 줄, 본문만 굴린다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 상점 탭 ─────────────────────────────────────────────── */
+.dlc-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dlc-tab {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  min-height: 38px; padding: 6px 8px; border-radius: 10px;
+  border: 1px solid #c8a860; background: linear-gradient(180deg, #f7ecd2, #e6d3a8);
+  color: #6b4c14; font-size: 11.5px; font-weight: 900; letter-spacing: -0.01em;
+}
+.dlc-tab b {
+  min-width: 26px; padding: 0 4px; border-radius: 7px; line-height: 15px;
+  background: rgba(120, 88, 30, 0.16); color: #6b4c14; font-size: 9.5px; font-weight: 900;
+}
+.dlc-tab.on {
+  border-color: #8c5a12; color: #2a1a04;
+  background: linear-gradient(180deg, #ffe6a8, #d9a83c);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 220, 0.8), 0 1px 3px rgba(60, 40, 10, 0.24);
+}
+.dlc-tab.on b { background: rgba(42, 26, 4, 0.22); color: #2a1a04; }
+.dlc-pane { display: flex; flex-direction: column; gap: 8px; }
+.dlc-pane[hidden] { display: none; }
+.dlc-head-goods { border-color: #b8862f; }
+
+/* ── 편의·후원 카드 ───────────────────────────────────────── */
+.dlc-card.goods { grid-template-columns: 46px minmax(0, 1fr); align-items: start; }
+.goods-ic {
+  width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center;
+  font-size: 22px; line-height: 1; border: 1px solid #c8a860;
+  background: radial-gradient(circle at 30% 22%, #fff6da, #efd9a4 70%, #dfc07c);
+  box-shadow: inset 0 1px 0 #fffdf4;
+}
+.dlc-card.goods.pass .goods-ic { background: radial-gradient(circle at 30% 22%, #e9f6ff, #bcdcf2 70%, #93bedd); border-color: #7fa6c4; }
+.dlc-card.goods.supporter .goods-ic { background: radial-gradient(circle at 30% 22%, #fff3cf, #f0d27e 70%, #dcb141); }
+.goods-list { margin: 1px 0 0; padding: 0 0 0 13px; display: flex; flex-direction: column; gap: 2px; }
+.goods-list li { font-size: 10px; line-height: 1.42; color: #4a3d20; word-break: keep-all; }
+.goods-list li::marker { color: #b8862f; }
+.goods-foot { margin: 1px 0 0; font-size: 9px; line-height: 1.4; color: #8a7448; word-break: keep-all; }
+.goods-foot code { font-family: ui-monospace, Menlo, monospace; font-size: 8.5px; color: #6b4c14; background: rgba(184, 134, 47, 0.12); border-radius: 3px; padding: 0 3px; }
+.dlc-buy.done {
+  background: linear-gradient(180deg, #eef7ef, #cfe6d4); border-color: #4e8a63; color: #22593b;
+  opacity: 1;
+}
+.dlc-buy:disabled { cursor: default; }
+
+/* ── 지도 [⚡ 전체 자동 내정] pill ─────────────────────────── */
+.map-pill.auto-city-pill {
+  border-color: rgba(150, 214, 175, 0.95);
+  background: linear-gradient(180deg, rgba(28, 62, 44, 0.95), rgba(14, 36, 25, 0.97));
+  color: #dcf6e2;
+}
+.map-pill.auto-city-pill .mp-ic { font-size: 13px; color: #b8f0c8; }
+.map-pill.auto-city-pill[hidden] { display: none !important; }
+
+/* ── 성 화면 [⚡ 전체 자동 내정] 띠 ─────────────────────────── */
+.auto-city-bar {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  margin: 0 0 6px; padding: 8px 10px; border-radius: 11px; text-align: left;
+  border: 1px solid #4e8a63;
+  background: linear-gradient(180deg, #2c5a41, #1b3d2b);
+  color: #e6f8ec; box-shadow: inset 0 1px 0 rgba(200, 255, 220, 0.22), 0 2px 7px rgba(0, 0, 0, 0.22);
+}
+.auto-city-bar[hidden] { display: none !important; }
+.auto-city-bar:active { transform: translateY(1px); }
+.auto-city-bar .acb-ic { font-size: 17px; line-height: 1; flex: 0 0 auto; }
+.auto-city-bar .acb-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.auto-city-bar .acb-tx b { font-size: 13px; letter-spacing: -0.01em; color: #f3ffe9; }
+.auto-city-bar .acb-tx small { font-size: 9.5px; font-weight: 700; color: #b9dcc4; }
+.auto-city-bar .acb-go { flex: 0 0 auto; font-size: 13px; color: #b8f0c8; }
+
+/* ── 👑 후원자 뱃지 ───────────────────────────────────────── */
+.sup-badge {
+  display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 6px;
+  font-size: 9px; font-weight: 900; font-style: normal; line-height: 15px; vertical-align: 1px;
+  color: #5a3d0c; border: 1px solid #d9b45c;
+  background: linear-gradient(180deg, #ffeeb8, #eccb72);
+  box-shadow: inset 0 1px 0 #fffbe8;
+  white-space: nowrap;
+}
+.flag-chip { position: relative; }
+.flag-chip .flag-sup {
+  position: absolute; left: 17px; bottom: -1px; font-size: 11px; line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+.flag-chip .flag-sup[hidden] { display: none !important; }
+
+/* ── 전체 자동 내정 보고 창 ───────────────────────────────── */
+.acall-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.acall-top > div {
+  padding: 7px 6px; border-radius: 10px; text-align: center;
+  border: 1px solid #d3b476; background: linear-gradient(180deg, #fffaf0, #f4e6c8);
+}
+.acall-top span { display: block; font-size: 9.5px; font-weight: 800; color: #7a6534; }
+.acall-top b { display: block; margin-top: 1px; font-size: 17px; font-weight: 900; color: #2c2412; letter-spacing: -0.02em; }
+.acall-top b em { font-size: 9.5px; font-style: normal; color: #8a7448; letter-spacing: 0; }
+.acall-delta { display: flex; gap: 5px; flex-wrap: wrap; }
+.acall-delta span {
+  flex: 1 1 auto; padding: 5px 7px; border-radius: 9px; text-align: center;
+  font-size: 11px; font-weight: 900; border: 1px solid #d8c193; background: #fffaf0; color: #4a3d20;
+}
+.acall-delta .g.up, .acall-delta .f.up, .acall-delta .t.up { color: #2f6a45; border-color: #a8c8ae; background: #f2fbf3; }
+.acall-delta .g.down, .acall-delta .f.down, .acall-delta .t.down { color: #9a3b2c; border-color: #e2b8ac; background: #fdf3f0; }
+.acall-delta .flat { color: #7a6534; }
+.acall-note { margin: 0; font-size: 9.5px; line-height: 1.45; color: #7a6534; word-break: keep-all; }
+.acall-note b { color: #4a3d20; }
+.acall-list { display: flex; flex-direction: column; gap: 5px; }
+.acall-city { padding: 6px 8px; border-radius: 10px; border: 1px solid #d8c193; background: #fffdf6; }
+.acall-head { display: flex; align-items: baseline; gap: 6px; }
+.acall-head b { font-family: var(--serif); font-size: 12.5px; color: #2c2412; }
+.acall-head em { font-size: 9px; font-weight: 800; font-style: normal; color: #8a7448; }
+.acall-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.acall-chip {
+  display: inline-flex; align-items: baseline; gap: 3px; max-width: 100%;
+  padding: 1px 5px; border-radius: 6px; border: 1px solid #dcc79a; background: #f8efd8;
+  font-size: 9px; font-weight: 700; color: #5a4a2c; line-height: 15px;
+}
+.acall-chip i { font-style: normal; font-weight: 900; color: #8a5a12; flex: 0 0 auto; }
+.acall-idle { margin-top: 2px; font-size: 10px; color: #7a6534; }
+.acall-idle summary { font-weight: 800; cursor: pointer; }
+.acall-idle-row { display: flex; gap: 6px; padding: 2px 0 0 8px; font-size: 9.5px; }
+.acall-idle-row b { flex: 0 0 auto; color: #4a3d20; }
+.acall-idle-row span { color: #8a7448; }
+.acall-empty {
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 10px; border-radius: 11px; text-align: center;
+  border: 1px dashed #c8a860; background: #fffaf0;
+}
+.acall-empty b { font-size: 13px; color: #2c2412; }
+.acall-empty span { font-size: 10.5px; line-height: 1.45; color: #7a6534; word-break: keep-all; }
+
+/* 좁은 목록(장수 명부) 안에서는 이름을 밀지 않게 왕관만 */
+.sup-badge.crown { margin-left: 2px; padding: 0 2px; font-size: 9px; line-height: 13px; vertical-align: 0; }
+
+/* 장수 명부는 이름 칸이 좁다 — 작은 초상 위에 왕관만 얹어 이름을 밀지 않는다 */
+.rs-name { position: relative; }
+.rs-name .sup-badge.sup-crown {
+  position: absolute; left: 14px; bottom: -1px; margin: 0; padding: 0;
+  font-size: 10px; line-height: 1; border: 0; background: none; box-shadow: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}

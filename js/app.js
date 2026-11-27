@@ -3234,6 +3234,12 @@
       capBtn.setAttribute('aria-label', `수도로 — ${capName}`);
     }
     paintMoney(s);
+    /* v6.9a — 응원 팩 후원자 표식 (군주 초상 위 왕관) */
+    const supFlag = $('#flag-sup');
+    if (supFlag) {
+      supFlag.hidden = !s.supporter;
+      supFlag.title = s.supporter ? `후원자 — ${(SK.factionInfo(PF()) || {}).lord || '군주'}` : '';
+    }
     /* v5.40 — 상단 병력은 주둔 + 행군을 합친 '총병력'. (예전에는 행군 부대가 빠져
        출진 직후 10,000 → 2,000처럼 보였다) */
     const gateT = totalTroops();
@@ -3406,7 +3412,7 @@
       <div class="sheet-head">
         <span class="faction-badge" style="--fc:${f.color}">${SK.markOf(f)}</span>
         <div class="sheet-title"><h3>${c.name}</h3>
-          <p>${f.name} · ${typeName(c.type)} · ${c.region}${!mine && scouted ? ' · <b class="scout-on">정찰됨</b>' : ''}</p></div>
+          <p>${f.name}${mine ? SK.supBadge(f.lord) : ''} · ${typeName(c.type)} · ${c.region}${!mine && scouted ? ' · <b class="scout-on">정찰됨</b>' : ''}</p></div>
         <button class="sheet-close" aria-label="닫기">✕</button>
       </div>
       <div class="sheet-stats ${scouted ? '' : 'fogged'}">
@@ -4152,7 +4158,7 @@
       const list = rows();
       const head = ROSTER_COLS.map((c) => `<button class="rs-th ${c.num ? 'num' : ''} ${sortKey === c.key ? 'on' : ''}" data-k="${c.key}">${c.label}${sortKey === c.key ? `<i class="rs-arrow">${dir < 0 ? '▲' : '▼'}</i>` : ''}</button>`).join('');
       const body = list.map((h) => `<button class="rs-row" data-uid="${h.uid}">
-          <span class="rs-name"><img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">
+          <span class="rs-name"><img class="${SK.tcls(h)}" src="${SK.ptSrc(h.portrait)}" alt="">${SK.supBadge(h.name, 'crown')}
             <span class="rs-nm"><span class="rs-nm-top"><b>${h.name}</b></span>
               <em class="rs-cls">${(SK.CLASSES[h.cls] || {}).name || '장수'}</em></span></span>
           ${rsLvCell(h)}
@@ -9910,7 +9916,7 @@
         </div>
         <div class="office-officers">
           <button class="office-officer" data-o="governor" ${gens.length ? '' : 'disabled'}>
-            <span>태수</span><b>${gov ? gov.name + (SK.factionInfo(PF()).lord === gov.name ? ' (군주)' : '') : '임명 필요'}</b>
+            <span>태수</span><b>${gov ? gov.name + (SK.factionInfo(PF()).lord === gov.name ? ' (군주)' : '') + SK.supBadge(gov.name) : '임명 필요'}</b>
             <em>${gov ? `정치 ${gov.pol} · 통솔 ${gov.tong} · 매력 ${gov.cha}` : '정치·통솔이 높을수록 개간·상업·보수·민심이 좋아집니다'}</em>
           </button>
           <button class="office-officer" data-o="advisor" ${gens.length ? '' : 'disabled'}>
@@ -11456,6 +11462,209 @@
     SK.sfx.play('drum');
   }
   SK.runDelegation = runDelegation;
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.9a — 편의 상품 『자동 내정 패스』(pass_auto_city)
+     · 보유한 **모든 성**에서 이번 달에 아직 행동하지 않은 장수를 차례로 써서
+       그 성의 형편(민심·병력·훈련도·성벽·금·군량)에 맞는 내정·징병·보급을 한 번에 지시한다.
+     · 성마다 자기 금고(cs.gold·cs.food)로 계산하고, 끝나면 HUD·금고를 다시 칠한다.
+     · 해금 게이트는 js/dlc.js(SK.DLC.hasPass)가 맡고, 여기서는 실제 게임 상태만 움직인다.
+     ══════════════════════════════════════════════════════════════ */
+  const AUTO_CITY_ACT = { farm: '개간', trade: '상업', recruit: '징병', train: '훈련', repair: '성벽 보수', comfort: '백성 위로' };
+  const AUTO_CITY_GUARD = 12;          // 성 하나에서 한 번에 지시할 수 있는 최대 건수
+
+  function autoCityReport() {
+    const s = SK.state;
+    if (!s) return null;
+    const prevPurse = s.purseCity;
+    const before = { gold: SK.totalGold(s), food: SK.totalFood(s), troops: SK.totalTroops() };
+    const rows = [];
+    let gens = 0, acts = 0, idleCities = 0, mine = 0;
+    SK.CITY_LIST.forEach((c) => {
+      const cs = s.cities[c.id];
+      if (!cs || cs.owner !== PF()) return;
+      mine += 1;
+      SK.setPurse(c.id);
+      const done = {};
+      const log = [];
+      const used = {};
+      let idle = null;
+      let guard = 0;
+      while (guard++ < AUTO_CITY_GUARD) {
+        const actor = cityGens(c.id).find((g) => !g.actedThisMonth && !SK.researchOf(g));
+        if (!actor) { idle = '대기 중인 장수가 없습니다'; break; }
+        const key = chooseDelegatedAction(c.id, done);
+        if (!key) { idle = (s.gold < 150 ? '이 성 군자금이 모자랍니다' : '지금 시킬 내정이 없습니다'); break; }
+        const res = key === 'comfort' ? comfortCity(c.id, actor) : CMDS[key].run(c.id, actor);
+        if (key === 'comfort') {
+          if (!res || !res.ok) { idle = '군자금이 모자라 백성 위로를 못 했습니다'; break; }
+          res.msg = `민심 +${res.gain}`; res.exp = 6;
+        }
+        if (!res || res.pending) { idle = '금·군량이 모자라 다음 내정을 못 했습니다'; break; }
+        done[key] = (done[key] || 0) + 1;
+        actor.actedThisMonth = true;
+        if (res.exp) SK.gainExp(actor, res.exp);
+        used[actor.uid] = actor.name;
+        log.push({ key, name: AUTO_CITY_ACT[key] || '내정', msg: String(res.msg || '') });
+        acts += 1;
+      }
+      if (log.length) {
+        const n = Object.keys(used).length;
+        gens += n;
+        rows.push({ cityId: c.id, city: c.name, gens: n, log, idle: null });
+      } else {
+        idleCities += 1;
+        rows.push({ cityId: c.id, city: c.name, gens: 0, log: [], idle: idle || '지시할 일이 없습니다' });
+      }
+    });
+    /* 보던 성의 금고 표시로 되돌린다 */
+    if (prevPurse && s.cities[prevPurse] && s.cities[prevPurse].owner === PF()) s.purseCity = prevPurse;
+    const after = { gold: SK.totalGold(s), food: SK.totalFood(s), troops: SK.totalTroops() };
+    return {
+      rows: rows, actedCities: rows.filter((r) => r.log.length).length, idleCities: idleCities,
+      gens: gens, acts: acts, mineCities: mine, before: before, after: after,
+      dGold: after.gold - before.gold, dFood: after.food - before.food, dTroops: after.troops - before.troops,
+    };
+  }
+  SK.autoCityReport = autoCityReport;
+
+  /* 한 줄 요약 — 토스트·검수용 */
+  function autoCityLine(rep) {
+    if (!rep) return '';
+    const sgn = (v) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
+    return `자동 내정 — 성 ${rep.actedCities}곳 · 장수 ${rep.gens}명 · ${rep.acts}건 (금 ${sgn(rep.dGold)} · 군량 ${sgn(rep.dFood)} · 병력 ${sgn(rep.dTroops)})`;
+  }
+  SK.autoCityLine = autoCityLine;
+
+  /* 성별 결과 요약 창 */
+  function openAutoCityAll() {
+    const s = SK.state;
+    if (!s) return null;
+    if (SK.DLC && typeof SK.DLC.hasPass === 'function' && !SK.DLC.hasPass('pass_auto_city')) {
+      SK.toast('『자동 내정 패스』를 보유해야 쓸 수 있습니다.');
+      return null;
+    }
+    const rep = autoCityReport();
+    if (!rep) return null;
+    SK.save();
+    SK.refreshHud();
+    const sgn = (v) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
+    const dirCls = (v) => (v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'));
+    const done = rep.rows.filter((r) => r.log.length);
+    const idle = rep.rows.filter((r) => !r.log.length);
+    /* 칩 글 — '상업 상업 +5'·'성벽 보수 성벽 +12'처럼 같은 말이 두 번 찍히지 않게 다듬는다 */
+    const tidyMsg = (msg, label) => {
+      let t = String(msg || '').replace(/^[^—]*—\s*/, '').trim();
+      if (label.indexOf('성벽') === 0 && t.indexOf('성벽 ') === 0) t = t.slice(3).trim();
+      if (label.indexOf('훈련') === 0 && t.indexOf('병사 ') === 0) t = t.slice(3).trim();
+      if (label && t.indexOf(label + ' ') === 0) t = t.slice(label.length).trim();
+      return t || String(msg || '');
+    };
+    const rowsHtml = done.slice(0, 8).map((r) => `<div class="acall-city">
+        <div class="acall-head"><b>${r.city}</b><em>장수 ${r.gens}명 · ${r.log.length}건</em></div>
+        <div class="acall-chips">${r.log.map((l) => `<span class="acall-chip"><i>${l.name}</i>${tidyMsg(l.msg, l.name)}</span>`).join('')}</div>
+      </div>`).join('');
+    /* 성이 많을 때는 8곳만 펼치고 나머지는 접는다 — 보고가 빠진 성은 없게 */
+    const moreHtml = done.length > 8
+      ? `<details class="acall-idle"><summary>나머지 ${done.length - 8}곳 더 보기</summary>${done.slice(8).map((r) => `<div class="acall-idle-row"><b>${r.city}</b><span>장수 ${r.gens}명 · ${r.log.length}건 — ${r.log.map((l) => l.name).join('·')}</span></div>`).join('')}</details>`
+      : '';
+    const idleHtml = idle.length
+      ? `<details class="acall-idle"><summary>지시하지 못한 성 ${idle.length}곳</summary>${idle.map((r) => `<div class="acall-idle-row"><b>${r.city}</b><span>${r.idle}</span></div>`).join('')}</details>`
+      : '';
+    const body = done.length
+      ? `<div class="acall-top">
+          <div><span>지시한 성</span><b>${rep.actedCities}<em>/${rep.mineCities}</em></b></div>
+          <div><span>동원 장수</span><b>${rep.gens}<em>명</em></b></div>
+          <div><span>내정 건수</span><b>${rep.acts}<em>건</em></b></div>
+        </div>
+        <div class="acall-delta">
+          <span class="g ${dirCls(rep.dGold)}">금 ${sgn(rep.dGold)}</span>
+          <span class="f ${dirCls(rep.dFood)}">군량 ${sgn(rep.dFood)}</span>
+          <span class="t ${dirCls(rep.dTroops)}">병력 ${sgn(rep.dTroops)}</span>
+        </div>
+        <p class="acall-note">성마다 그 성의 금고로 계산했습니다. 숫자는 이번 자동 내정의 <b>순변화</b>(수입 − 지출)입니다.</p>
+        <div class="acall-list">${rowsHtml}</div>
+        ${moreHtml}
+        ${idleHtml}`
+      : `<div class="acall-empty">
+          <b>이번 달은 지시할 일이 없습니다</b>
+          <span>${rep.idleCities}곳 모두 장수가 이미 행동을 마쳤거나, 금·군량이 모자랍니다.</span>
+          <span>다음 달로 넘기면 다시 쓸 수 있습니다.</span>
+        </div>${idleHtml}`;
+    SK.toast(autoCityLine(rep));
+    SK.sfx.play('drum');
+    SK.modal({
+      kicker: '자동 내정 패스',
+      title: done.length ? '전체 자동 내정 보고' : '전체 자동 내정',
+      body: body,
+      wide: true,
+      dismissible: true,
+      actions: [{ label: '확인', primary: true, onClick: () => {
+        const scr = document.querySelector('#screen-city.active');
+        const cid = s.lastCity || s.purseCity;
+        if (scr && cid && SK.openCity) SK.openCity(cid);
+      } }],
+    });
+    return rep;
+  }
+  SK.openAutoCityAll = openAutoCityAll;
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.9a — 『개발자 응원 팩』(pack_supporter_once) 초기 지원
+     · 금 +3,000 · 군량 +3,000 · S/A급(전설·영웅) 보물 1개를 본성 금고로 지급한다.
+     · 세이브에 s.supGrant 를 찍어 **한 세력당 한 번만** 지급한다(중복 지급 방지).
+     · 새 게임을 시작해도 s.supGrant 가 없으므로 그 세력이 한 번 받는다.
+     ══════════════════════════════════════════════════════════════ */
+  const SUPPORT_GOLD = 3000, SUPPORT_FOOD = 3000;
+  function grantSupporterSupport() {
+    const s = SK.state;
+    if (!s) return null;
+    if (s.supGrant) return null;
+    const capId = (s.playerCapital && s.cities[s.playerCapital] && s.cities[s.playerCapital].owner === PF()) ? s.playerCapital
+      : (SK.CITY_LIST.find((c) => s.cities[c.id] && s.cities[c.id].owner === PF()) || {}).id;
+    if (!capId) return null;
+    const prevPurse = s.purseCity;
+    SK.setPurse(capId);
+    const cs = s.cities[capId];
+    const g0 = Math.round(cs.gold || 0), f0 = Math.round(cs.food || 0);
+    cs.gold = g0 + SUPPORT_GOLD;
+    cs.food = f0 + SUPPORT_FOOD;
+    if (prevPurse && s.cities[prevPurse] && s.cities[prevPurse].owner === PF()) s.purseCity = prevPurse;
+    /* S/A급 보물 — 전설(S)·영웅(A) 중 아직 없는 것 하나 */
+    let treasure = null;
+    const all = SK.TREASURES || [];
+    if (all.length) {
+      const owned = new Set(s.treasures || []);
+      const open = (t) => (typeof treasureOpen === 'function' ? treasureOpen(t) : true);
+      let pool = all.filter((t) => !owned.has(t.id) && (t.grade === '전설' || t.grade === '영웅') && open(t));
+      if (!pool.length) pool = all.filter((t) => !owned.has(t.id) && open(t));
+      if (pool.length) {
+        treasure = pool[Math.floor(Math.random() * pool.length)];
+        s.treasures = s.treasures || [];
+        s.treasures.push(treasure.id);
+        if (SK.codexTreasure) SK.codexTreasure(treasure.id);
+      }
+    }
+    s.supporter = true;
+    s.supGrant = true;
+    return { city: CITY[capId].name, cityId: capId, gold: SUPPORT_GOLD, food: SUPPORT_FOOD, treasure: treasure };
+  }
+  SK.grantSupporterSupport = grantSupporterSupport;
+  SK.SUPPORT_PACK = { gold: SUPPORT_GOLD, food: SUPPORT_FOOD };
+
+  /* 군주 이름 옆 [👑 후원자] 뱃지 — 후원 팩을 산 계정에서만, 군주 이름에만 붙는다 */
+  SK.supBadge = function (name, compact) {
+    const s = SK.state;
+    if (!s || !s.supporter) return '';
+    let lord = '';
+    try { lord = (SK.factionInfo(PF()) || {}).lord || ''; } catch (e) { lord = ''; }
+    if (name && lord && String(name) !== String(lord)) return '';
+    const tip = '개발자 응원 팩으로 후원한 군주';
+    if (compact === 'crown') return '<em class="sup-badge crown sup-crown" title="' + tip + '">👑</em>';
+    return compact
+      ? '<em class="sup-badge crown" title="' + tip + '">👑</em>'
+      : '<em class="sup-badge" title="' + tip + '">👑 후원자</em>';
+  };
 
   /* ───────────── 군사 조언 (v4.1) ─────────────
      군사를 임명하면 [군사] 버튼은 남은 행동력을 태우는 위임이 아니라,

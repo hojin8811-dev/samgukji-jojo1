@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.9 · 2026-11-27 · 라이브 `?v=146`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.9a · 2026-11-27 · 라이브 `?v=147`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 
 ---
@@ -13,15 +13,15 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=146`) |
-| 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 10(1탄, 출시 전 비공개)** |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=147`) |
+| 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 10 + 편의·후원 상품 2(출시 전 비공개)** |
 
 ---
 
 ## 2. 지금 상태 — 실제로 확인한 값 (2026-11-27 기준)
 
-- **최신 커밋**: `v6.9 이세계 특전 영웅 DLC 1탄 — 특전 상점·Billing 연결·1~10번 (?v=146)` — 2026-11-27 `main` HEAD
-- **`index.html`**: `css/game.css?v=146`, `js/*.js?v=146`(17개 — `js/dlc.js` 추가), `manifest start_url "./index.html?v=146"`, 서비스워커 등록도 `sw.js?v=146`
+- **최신 커밋**: `v6.9a 상점 편의·후원 상품 2종 — 자동 내정 패스·응원 팩 (?v=147)` — 2026-11-27 `main` HEAD
+- **`index.html`**: `css/game.css?v=147`, `js/*.js?v=147`(17개 — `js/dlc.js` 추가), `manifest start_url "./index.html?v=147"`, 서비스워커 등록도 `sw.js?v=147`
 - **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
 - **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1.
@@ -62,7 +62,7 @@
 | `patch_v584.js` (55KB) | v5.84 연출·대사 패치 |
 | `bgm.js`(49KB) · `sfx.js`(7KB) | 16비트 FM 배경음 · 효과음(오디오 컨텍스트는 앱 전체 하나) |
 | `app.js` (1.0MB) | **본체** — 상태·화면·내정·월 정산·외교·저장/불러오기 |
-| `dlc.js` (24KB) | **이세계 특전 영웅 DLC** — `data/dlc_heroes.json`을 읽어 고유 직업·책략·필살기·초상·SD를 `SK`에 등록, 해금(`unlockedDlc`)·상점 UI·`SK.DlcBilling` 연결. 출시 전에는 `DLC_PUBLIC=false`로 상점이 닫혀 있다(아래 §6-1) |
+| `dlc.js` (24KB) | **이세계 특전 영웅 DLC + 편의·후원 상품** — `data/dlc_heroes.json`을 읽어 고유 직업·책략·필살기·초상·SD를 `SK`에 등록, 해금(`unlockedDlc`)·상점 UI(2탭)·`SK.DlcBilling` 연결. 편의·후원 상품 정본은 이 파일의 `GOODS` 배열(`pass_auto_city` 3,900원 · `pack_supporter_once` 1,900원). 출시 전에는 `DLC_PUBLIC=false`로 상점이 닫혀 있다(아래 §6-1·§6-2) |
 | `map.js` (76KB) | 천하 지도 렌더(지형/세력 영토/길 3레이어) |
 | `battle.js` (820KB) | 대형 격자 전장(24/28/32 팬·줌·미니맵) — 이동·공격·책략·AI·**일기토** |
 | `tutorial.js` (21KB) | 3분 입문 튜토리얼(1:1 모드) |
@@ -85,6 +85,7 @@
 
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
+| **v6.9a** | 11-27 | **상점 편의·후원 상품 2종**(출시 전 비공개) — 상점 모달에 [✨ 특전 영웅] · [🎁 편의·후원] 탭 · **자동 내정 패스**(3,900원 영구 `pass_auto_city`) — 지도·성 화면 [⚡ 전체 자동 내정] 원터치로 내 모든 성의 남은 장수로 징병·훈련·보수·개간·상업·민심 일괄 실행 후『전체 자동 내정 보고』(성/장수/건수 + 금·군량·병력 순변화), 성별 금고·`refreshHud` 반영 · **개발자 응원 팩**(1,900원 계정당 1회 `pack_supporter_once`) — 👑 후원자 뱃지(지도 군주 초상·성 시트·관아·명부) + 금·군량 +3,000·S/A 보물 1개를 세력당 1회(`s.supGrant` 가드), 구매 뒤 [감사합니다!] · `SK.DlcBilling`이 상품 12개(`products()`·`kindOf`) 처리 |
 | **v6.9** | 11-27 | **이세계 특전 영웅 DLC 1탄**(출시 전 비공개) — `data/dlc_heroes.json` 10인(고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_01~10`·2,900원) · `js/dlc.js` 로더/해금(`unlockedDlc`)/`SK.DlcBilling`(AndroidBilling 브리지)/상점 모달(목판·비단) · `?dlc=1` 또는 `dlcTestMode`에서만 보이는 게이트 · 전용 초상 `assets/portraits/dlc/`·전용 전장 SD `assets/units/dlc/` 10종 + 영웅별 오라(`drawDlcChibi`) · 율도국 의적 전리품 금 +25% |
 | **v6.8a** | 11-27 | 본편 유저 입장 TOP 5 UX — ① 출진 편성 전력 비교(적 성 수비+전장 증원 vs 우리 출진)·2배 이상 [전멸 위험] 배지·1.5배 이상 확인창 ② 성하 야전 승리 뒤 [성문 앞 전력] 비교 + [이번 달 물러난다(회군)] ③ 생포 처리(등용·석방·억류) 한 줄 설명 ④ 3분 입문 성문 앞 1~3칸 근거리 스폰 + 안내 전환을 `allyHits > 0`(실제 타격)으로 수정 ⑤ 이동 가능 칸 밝은 파랑 판·바깥 윤곽, 부대 스프라이트 히트박스 ⑥ 월정산 '이 달 실제 병력' 줄·스크롤 힌트 ⑦ 공·사기 변동 사유(지형·진형·사기·책략) 표기 ⑧ 일기토 결과 [확인 — 전장으로] 버튼(수동은 자동 닫힘 없음) ⑨ 공터 건설 Lv.1 기대 효과 수치 ⑩ 출진 대상 성 카드 목록 |
 | `d225c2a` **v6.8** | 11-26 | S/A급 네임드 일기토는 자동 행군 중에도 플레이어가 직접 지휘(등급 태그 + [⏭ 자동 진행]) · 거점 점령 특전 배지(성 함락·수성·지도 시트·성 요약) · 결산창 명성 표기 실제 가산(함락 350~500·수성 160)로 정정 |
@@ -114,7 +115,7 @@
 
 - **일반 유저에게는 전혀 보이지 않는다.** 지도 [✨ 특전] 버튼·메뉴 항목·상점 모두 `js/dlc.js`의 `DLC_PUBLIC = false` + `isDlcOpen()` 게이트로 닫혀 있고, `SK.DLC.open()`을 직접 불러도 열리지 않는다(테스트에서 확인).
 - **테스트 입장 두 가지**
-  1. 주소에 **`?dlc=1`** — 예: `https://hojin8811-dev.github.io/samgukji-jojo1/?v=146&dlc=1` (지도에 들어가면 상점이 한 번 자동으로 열린다)
+  1. 주소에 **`?dlc=1`** — 예: `https://hojin8811-dev.github.io/samgukji-jojo1/?v=147&dlc=1` (지도에 들어가면 상점이 한 번 자동으로 열린다)
   2. `localStorage['dlcTestMode'] = '1'` — 기기 브라우저 콘솔에서 한 번 실행하면 그 기기에서 계속 보인다. (상점에서 [테스트 해금]을 한 번 쓰면 자동으로 켜진다)
 - **해금 상태**는 `localStorage['unlockedDlc'] = ["dlc_hero_01", ...]` 배열. 해금하면 그 영웅이 본성 로스터에 합류하고, 지도에 들어올 때마다 빠진 영웅을 다시 합류시킨다(새 게임도 마찬가지).
 - **상품·가격 정본은 `data/dlc_heroes.json`** — `productId`(`dlc_hero_01`~`dlc_hero_10`), `price`(2900), 이름·직업·필살기. 2탄·3탄도 같은 파일에 항목만 이어 붙이면 된다.
@@ -123,6 +124,21 @@
   - 결제 완료 시 앱이 **`SK.DlcBilling.onPurchaseSuccess(productId)`**, 취소·실패 시 **`SK.DlcBilling.onPurchaseFail(productId, reason)`** 를 부르면 해금·로스터 합류·토스트까지 끝난다.
 - **출시할 때**: `js/dlc.js`의 `DLC_PUBLIC = false` → `true` 로 바꾸고 `?v=`를 올려 배포하면 전체 공개된다. 그 전까지 목록에 2·3탄을 채우는 것이 순서다.
 - **검수**: `python3 tools/v690_browser.py`(57항목) · 스크린샷 `preview/v682/`. 일반 주소 비공개·`?dlc=1` 상점·해금→로스터→실제 출진→전장 고유 치비→필살기 10종→세이브까지 자동 확인한다.
+
+## 6-2. 편의·후원 상품 2종 — **상점 2번째 탭 [🎁 편의·후원]** (v6.9a · `?v=147`)
+
+- **상품 정본은 `js/dlc.js`의 `GOODS` 배열** — 같은 `unlockedDlc` 배열에 상품 ID로 쌓는다. 항목을 추가하면 탭 배지(`n/2`)와 카드가 함께 늘어난다.
+
+| 상품 | 가격 | Billing ID | 해금 즉시 |
+| --- | --- | --- | --- |
+| 편의성 **자동 내정 패스**(영구) | 3,900원 | `pass_auto_city` | 지도 [⚡ 전체 자동 내정] 알약 + 성 화면 내정 탭 띠 버튼 표시 |
+| **개발자 응원 팩**(계정당 1회) | 1,900원 | `pack_supporter_once` | 👑 후원자 뱃지 + 금·군량 +3,000 · S/A 보물 1개(세력당 1회) |
+
+- **자동 내정** — 실행 엔진은 `js/app.js`의 `SK.runAutoCityAll`(내부 `autoCityReport`). 성마다 `SK.setPurse(성)` 후 `chooseDelegatedAction`·`CMDS[key].run`·`comfortCity`를 그대로 써서 징병→훈련→보수→개간→상업→민심을 돌리고, 끝나면 원래 보던 성 금고로 되돌린 뒤 `SK.save()`·`SK.refreshHud()`. 결과 창은 `SK.openAutoCityAll()`. **미해금이면 이 함수도 `null`로 막힌다**(`SK.DLC.hasPass('pass_auto_city')`).
+- **응원 팩 초기 지원** — `SK.grantSupporterSupport()`가 본성 금고에 금/군량 +3,000과 전설·영웅 등급 보물 1개를 주고 `s.supGrant = true`를 찍는다. **세력당 1회**라 새 게임에서만 다시 지급되고, 같은 세이브에서는 두 번 지급되지 않는다. 지도 진입마다 `SK.DLC.ensureSupporter()`가 확인한다.
+- **뱃지** — `SK.supBadge(name[, 'crown'])`. 지도 군주 초상 위 왕관(`#flag-sup`), 성 정보 시트·관아 태수 카드의 `👑 후원자`, 장수 명부는 칸이 좁아 초상 위 왕관만.
+- **Billing**(네이티브 담당자용): `SK.DlcBilling.products()` 12개 · `kindOf(id)`(`hero`/`pass`/`supporter`) · `purchase`·`onPurchaseSuccess`·`onPurchaseFail` 그대로. 성공 콜백 하나로 패스는 버튼, 응원 팩은 뱃지·지원까지 끝난다.
+- **검수**: `python3 tools/v690a_browser.py`(70항목) · 스크린샷 `preview/v690a/`. 일반 주소 버튼 비공개·상점 2탭·패스 원터치(성 12곳 포함)·응원 팩 지급/중복 방지/새 게임 1회·Billing 12상품·세이브 version 5까지 자동 확인.
 
 ## 6. 작업 마칠 때 체크리스트
 

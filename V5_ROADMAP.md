@@ -1,6 +1,17 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=146`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=147`
+
+## ✅ v6.9a — 상점 편의·후원 상품 2종 (2026-11-27 · `?v=147`, 상점은 여전히 **출시 전 비공개**)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 상점 2탭 | 기존 특전 상점 모달에 [✨ 특전 영웅] \| [🎁 편의·후원] 탭 — 보유 수 배지·kicker 동기화, 목판·비단 톤 유지 | `js/dlc.js` `tabsHTML`·`panesHTML`·`bindShop`, `css/game.css` |
+| ② 자동 내정 패스 | 3,900원 영구 · `pass_auto_city`. 지도 [⚡ 전체 자동 내정] 알약 + 성 화면 내정 탭 띠 버튼(미해금은 hidden). `SK.runAutoCityAll`이 모든 성의 남은 장수로 징병→훈련→보수→개간→상업→민심 일괄 실행, 성별 금고 계산·`refreshHud` 반영 | `js/app.js` `autoCityReport`·`openAutoCityAll`, `js/dlc.js` `syncAutoPill`·`runAutoCityAll` |
+| ③ 결과 보고 | 『전체 자동 내정 보고』 — 지시한 성/동원 장수/내정 건수 + 금·군량·병력 순변화 + 성별 칩, 8곳 초과는 접기, 못 한 성은 이유와 함께 | `js/app.js` `openAutoCityAll`, `css/game.css` `.acall-*` |
+| ④ 응원 팩 | 1,900원 계정당 1회 · `pack_supporter_once`. 👑 후원자 뱃지(지도 군주 초상·성 시트·관아·명부) + 금/군량 +3,000·S/A 보물 1개를 세력당 1회(`s.supGrant` 가드) 지급, 구매 뒤 [감사합니다!] 잠금 | `js/app.js` `grantSupporterSupport`·`supBadge`, `js/dlc.js` `grantGoods`·`ensureSupporter` |
+| ⑤ 빌링 확장 | `SK.DlcBilling.products()` 12개 · `kindOf` · `priceLabel` · `purchase`/`onPurchaseSuccess`/`onPurchaseFail`이 특전·패스·응원 팩을 모두 처리 | `js/dlc.js` `Billing` |
+| ⑥ 검수 | `tools/v690a_browser.py` 70항목 OK · 기존 `tools/v690_browser.py` 57항목도 ?v=147 재통과 · 스샷 `preview/v690a/` | `tools/v690a_browser.py` |
 
 ## ✅ v6.9 — 이세계 특전 영웅 DLC 1탄 (2026-11-27 · `?v=146`, **출시 전 비공개**)
 
@@ -31,6 +42,7 @@
 ## 📋 다음 패치 대기
 
 - **이세계 특전 영웅 2탄(11~20)·3탄(21~30)** — 1탄의 틀(`data/dlc_heroes.json` 항목 추가 + `assets/portraits/dlc/`·`assets/units/dlc/` 그림)만 그대로 이어 붙이면 된다. 30명이 모이면 `DLC_PUBLIC = true`로 상점을 연다.
+- **편의·후원 상품 추가 후보** — 상품 정본은 `js/dlc.js`의 `GOODS` 배열(가격·문구·Billing ID). 같은 틀에 항목만 넣으면 세 번째 탭/카드가 늘어난다. 자동 내정 패스는 게임 안 규칙을 그대로 쓰므로, 새 편의 상품도 `js/app.js`의 실제 함수에 붙일 것.
 - 2026-11-24에 킵해 둔 v5.89 후보 6종은 아래 ✅ v5.89에서 모두 반영했다. 다음 후보는 실플레이 제보를 받아 정한다.
 
 ## ✅ v5.89 — 배속 출진 핫픽스 · 포상/데려오기 · 보물 합산 · 요격 80% · 총도독 관전 (2026-11-24 · `?v=112`)

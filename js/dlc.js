@@ -17,6 +17,39 @@
   var DLC_PUBLIC = false;               // 출시 후 true 로 바꾸면 전체 공개
   var GEN_ID_BASE = 81000;
 
+  /* v6.9a — 상점 2번째 탭 『편의·후원』 상품 2종.
+     · pass_auto_city — 3,900원 영구. 전체 성 원터치 자동 내정.
+     · pack_supporter_once — 1,900원 계정당 1회. 👑 후원자 뱃지 + 초기 지원. */
+  var GOODS = [
+    {
+      productId: 'pass_auto_city', kind: 'pass', ic: '⚡',
+      name: '자동 내정 패스', price: 3900, tag: '편의성 · 영구',
+      one: '성이 늘어도 매달 반복되는 내정을 한 번에',
+      bullets: [
+        '내 모든 성의 남은 장수로 상업·개간·치안·징병·보급을 일괄 실행',
+        '성마다 형편(민심·병력·훈련도·성벽·금·군량)을 읽어 급한 일부터 지시',
+        '지도·성 화면 [⚡ 전체 자동 내정] 원터치 버튼',
+        '처리한 성·장수 수와 금·군량·병력 변화를 한 창으로 보고',
+      ],
+      foot: '계정에 영구 적용 · 내 성의 남은 행동만 씁니다',
+    },
+    {
+      productId: 'pack_supporter_once', kind: 'supporter', ic: '👑',
+      name: '개발자 응원 팩', price: 1900, tag: '후원 · 계정당 1회',
+      one: '응원 한 번 — 명예 뱃지와 초기 지원',
+      bullets: [
+        '군주 이름 옆 [👑 후원자] 명예 뱃지 상시 표시',
+        '지금 세력 또는 새 게임에 금 +3,000 · 군량 +3,000',
+        'S/A급 랜덤 보물 1개 (세력당 한 번, 중복 지급 없음)',
+      ],
+      foot: '계정당 1회 한정 · 구매 뒤에는 버튼이 잠깁니다',
+    },
+  ];
+  function goodsOf(pid) {
+    for (var i = 0; i < GOODS.length; i++) if (GOODS[i].productId === String(pid)) return GOODS[i];
+    return null;
+  }
+
   var data = null;
   var loading = null;
   var byProduct = {};
@@ -265,6 +298,80 @@
     return true;
   }
 
+  /* ─────────────────────────── 편의·후원 상품 해금 ───────────────────────────
+     결제·해금 기록은 특전 영웅과 같은 localStorage 배열(unlockedDlc)에 상품 ID로 쌓는다.
+     · 패스: 해금 즉시 지도·성 화면 버튼이 나타난다.
+     · 응원 팩: 해금 즉시 뱃지 + 초기 지원(세력당 1회, s.supGrant 가드). */
+  function goodsOwned(g) { return isUnlocked(g.productId); }
+  function grantGoods(pid, opts) {
+    var g = goodsOf(pid);
+    if (!g) return false;
+    if (g.kind === 'supporter' && isUnlocked(g.productId)) return false;   /* 계정당 1회 */
+    writeUnlocked(readUnlocked().concat([String(g.productId)]));
+    if (g.kind === 'pass') {
+      syncAutoPill();
+      if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 해금 — 지도·성 화면의 [⚡ 전체 자동 내정]을 쓰세요.');
+    } else {
+      if (SK.state) SK.state.supporter = true;
+      ensureSupporter({ silent: !!(opts && opts.silent) });
+      if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 후원 감사합니다!');
+    }
+    if (SK.refreshHud) { try { SK.refreshHud(); } catch (e) { /* ignore */ } }
+    if (SK.save) { try { SK.save(); } catch (e) { /* ignore */ } }
+    return true;
+  }
+  /* 웹 테스트 해금을 끌 때 — 패스는 버튼을 숨기고, 응원 팩은 뱃지만 걷는다.
+     (이미 지급한 금·군량·보물은 되돌리지 않는다) */
+  function revokeGoods(pid, opts) {
+    var g = goodsOf(pid);
+    if (!g) return false;
+    writeUnlocked(readUnlocked().filter(function (p) { return p !== String(g.productId); }));
+    if (g.kind === 'pass') {
+      syncAutoPill();
+      if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — 전체 자동 내정 버튼이 숨겨집니다.');
+    } else {
+      /* 지급 기록(s.supGrant)은 지우지 않는다 — 테스트로 꺼다 켜도 같은 세력에 두 번 지급되지 않게 */
+      if (SK.state) SK.state.supporter = false;
+      if (SK.refreshHud) { try { SK.refreshHud(); } catch (e) { /* ignore */ } }
+      if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — 후원자 뱃지가 사라집니다. (이미 받은 지원은 남습니다)');
+    }
+    if (SK.save) { try { SK.save(); } catch (e) { /* ignore */ } }
+    return true;
+  }
+
+  /* 응원 팩 초기 지원 — 현재 세력에 아직 안 받았을 때만 (새 게임 포함) */
+  var supportPending = false;
+  function ensureSupporter(opts) {
+    if (!isUnlocked('pack_supporter_once')) {
+      if (SK.state && SK.state.supporter) SK.state.supporter = false;
+      return 0;
+    }
+    if (!SK.state) return 0;
+    if (SK.state.supporter && SK.state.supGrant) return 0;
+    if (supportPending) return 0;
+    var doIt = function () {
+      supportPending = false;
+      if (!SK.state) return 0;
+      SK.state.supporter = true;
+      if (SK.state.supGrant) return 0;
+      var r = SK.grantSupporterSupport ? SK.grantSupporterSupport() : null;
+      if (SK.refreshHud) { try { SK.refreshHud(); } catch (e) { /* ignore */ } }
+      if (r && !(opts && opts.silent)) {
+        SK.toast('응원 팩 — ' + r.city + '에 금 +' + r.gold.toLocaleString('ko-KR') + ' · 군량 +' + r.food.toLocaleString('ko-KR')
+          + (r.treasure ? ' · 「' + r.treasure.name + '」' : '') + ' 지급. 후원 감사합니다!');
+      }
+      if (SK.save) { try { SK.save(); } catch (e) { /* ignore */ } }
+      return r ? 1 : 0;
+    };
+    if (SK.TREASURES && SK.TREASURES.length) return doIt();
+    supportPending = true;
+    if (SK.ensureData) {
+      Promise.resolve(SK.ensureData()).then(doIt).catch(function () { supportPending = false; doIt(); });
+      return 0;
+    }
+    return doIt();
+  }
+
   /* ─────────────────────────── Google Play Billing 연결점 ───────────────────────────
      네이티브(TWA/WebView) 쪽은 window.AndroidBilling.purchase(productId) 를 호출하고,
      결제가 끝나면 SK.DlcBilling.onPurchaseSuccess(productId) 를 부른다.
@@ -275,22 +382,36 @@
   }
   var Billing = {
     available: function () { return !!bridge(); },
+    /* 상점에 올라간 모든 상품 ID — 특전 영웅 10 + 편의·후원 2 */
+    products: function () {
+      return heroList().map(function (h) { return h.productId; }).concat(GOODS.map(function (g) { return g.productId; }));
+    },
+    kindOf: function (productId) {
+      if (byProduct[productId]) return 'hero';
+      var g = goodsOf(productId);
+      return g ? g.kind : null;
+    },
     priceLabel: function (productId) {
       var h = byProduct[productId];
-      var p = (h && h.price) || (data && data.priceKRW) || 2900;
+      var g = goodsOf(productId);
+      var p = (h && h.price) || (g && g.price) || (data && data.priceKRW) || 2900;
       return p.toLocaleString('ko-KR') + '원';
     },
     isPurchased: function (productId) { return isUnlocked(productId); },
     /* 결제 요청 — 네이티브 브리지로 넘긴다. 성공·실패는 onPurchaseSuccess/Fail 로 돌아온다. */
     purchase: function (productId) {
       var h = byProduct[productId];
-      if (!h) return 'unknown';
-      if (isUnlocked(productId)) { unlock(productId); return 'already'; }
+      var g = goodsOf(productId);
+      if (!h && !g) return 'unknown';
+      if (isUnlocked(productId)) {
+        if (h) unlock(productId);
+        return 'already';
+      }
       var b = bridge();
       if (!b) return 'unavailable';
       try {
         b.purchase(productId);
-        if (SK.toast) SK.toast('결제 창을 엽니다 — ' + h.name);
+        if (SK.toast) SK.toast('결제 창을 엽니다 — ' + (h ? h.name : g.name));
         return 'pending';
       } catch (e) {
         console.warn('Billing bridge 실패', e);
@@ -299,15 +420,25 @@
     },
     onPurchaseSuccess: function (productId) {
       var h = byProduct[productId];
-      if (!h) return false;
-      unlock(productId, { silent: true });
-      if (SK.toast) SK.toast('『' + h.name + '』 해금 완료 — 본성 로스터에 합류했습니다.');
-      if (SK.sfx) { try { SK.sfx.play('victory'); } catch (e) { /* ignore */ } }
-      return true;
+      if (h) {
+        unlock(productId, { silent: true });
+        if (SK.toast) SK.toast('『' + h.name + '』 해금 완료 — 본성 로스터에 합류했습니다.');
+        if (SK.sfx) { try { SK.sfx.play('victory'); } catch (e) { /* ignore */ } }
+        return true;
+      }
+      var g = goodsOf(productId);
+      if (g) {
+        var ok = grantGoods(productId, { silent: true });
+        if (SK.toast) SK.toast(ok ? '『' + g.name + '』 구매 완료 — 감사합니다!' : '『' + g.name + '』은(는) 계정당 1회만 살 수 있습니다.');
+        if (ok && SK.sfx) { try { SK.sfx.play('victory'); } catch (e) { /* ignore */ } }
+        return ok;
+      }
+      return false;
     },
     onPurchaseFail: function (productId, reason) {
       var h = byProduct[productId];
-      if (SK.toast) SK.toast(((h && h.name) || '특전 영웅') + ' 결제가 취소되었거나 실패했습니다' + (reason ? ' — ' + reason : ''));
+      var g = goodsOf(productId);
+      if (SK.toast) SK.toast(((h && h.name) || (g && g.name) || '상품') + ' 결제가 취소되었거나 실패했습니다' + (reason ? ' — ' + reason : ''));
       return false;
     },
   };
@@ -358,7 +489,66 @@
       heroList().map(cardHTML).join('') +
       '<p class="dlc-foot">2탄(11~20)과 3탄(21~30)은 후속 업데이트로 이어집니다. 해금한 영웅은 본성 로스터에 합류해 출진·전투·고유 필살기를 그대로 쓸 수 있습니다.</p>';
   }
-  function shopBody() { return '<div class="dlc-shop">' + shopInner() + '</div>'; }
+  function shopBody() { return '<div class="dlc-shop">' + shopInnerHTML() + '</div>'; }
+
+  /* ── v6.9a — 2번째 탭 『편의·후원』 ── */
+  function goodsCardHTML(g) {
+    var owned = isUnlocked(g.productId);
+    var price = (g.price || 0).toLocaleString('ko-KR');
+    var btn;
+    if (owned) {
+      btn = g.kind === 'supporter'
+        ? '<button class="dlc-buy done" type="button" disabled>감사합니다!</button>'
+        : '<button class="dlc-buy ok" type="button" disabled>보유 중 — 지도·성 화면 ⚡</button>';
+    } else {
+      btn = '<button class="dlc-buy" type="button" data-act="buy" data-prod="' + g.productId + '">' + price + '원 구매</button>';
+    }
+    return '<div class="dlc-card goods ' + g.kind + (owned ? ' owned' : '') + '" data-prod="' + g.productId + '">' +
+      '<div class="goods-ic" aria-hidden="true">' + g.ic + '</div>' +
+      '<div class="dlc-body">' +
+        '<div class="dlc-top"><b class="dlc-name">' + esc(g.name) + '</b>' +
+          '<em class="dlc-job">' + esc(g.tag) + '</em>' +
+          (owned ? '<em class="dlc-own">' + (g.kind === 'supporter' ? '후원 완료' : '보유') + '</em>' : '') + '</div>' +
+        '<p class="dlc-one">' + esc(g.one) + '</p>' +
+        '<ul class="goods-list">' + g.bullets.map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>' +
+        '<div class="dlc-acts">' + btn +
+          '<label class="dlc-sw" title="웹 테스트용 — 이 기기에서만 해금"><input type="checkbox" data-act="test" data-prod="' + g.productId + '"' + (owned ? ' checked' : '') + '><i></i><span>테스트 해금</span></label>' +
+        '</div>' +
+        '<p class="goods-foot">' + esc(g.foot) + ' · Billing ID <code>' + esc(g.productId) + '</code></p>' +
+      '</div></div>';
+  }
+  function goodsInner() {
+    return '<div class="dlc-head dlc-head-goods"><b>🎁 편의·후원</b>' +
+      '<span>한 번 결제 · 계정에 바로 적용</span>' +
+      '<em>게임을 편하게 만드는 편의 상품과 개발자를 응원하는 후원 상품입니다. 특전 영웅과 같이 Google Play Billing 상품 ID로 연결되어 있으며, 본편 밸런스(능력치·전투)는 건드리지 않습니다.</em></div>' +
+      GOODS.map(goodsCardHTML).join('') +
+      '<p class="dlc-foot">결제는 앱(안드로이드)의 Google Play 결제로 열립니다. 웹에서는 카드 아래 <b>테스트 해금</b> 스위치로 먼저 확인할 수 있습니다.</p>';
+  }
+
+  /* 상점 탭 · 판 — 한 번에 다시 그린다 */
+  var shopTab = 'hero';
+  function ownedHeroN() {
+    return readUnlocked().filter(function (p) { return !!byProduct[p]; }).length;
+  }
+  function ownedGoodsN() {
+    return GOODS.filter(function (g) { return isUnlocked(g.productId); }).length;
+  }
+  function tabsHTML() {
+    var hero = shopTab !== 'goods';
+    return '<div class="dlc-tabs" role="tablist" aria-label="상점 탭">' +
+      '<button type="button" class="dlc-tab' + (hero ? ' on' : '') + '" data-tab="hero" role="tab" aria-selected="' + hero + '">✨ 특전 영웅 <b>' + ownedHeroN() + '/' + heroList().length + '</b></button>' +
+      '<button type="button" class="dlc-tab' + (!hero ? ' on' : '') + '" data-tab="goods" role="tab" aria-selected="' + (!hero) + '">🎁 편의·후원 <b>' + ownedGoodsN() + '/' + GOODS.length + '</b></button>' +
+      '</div>';
+  }
+  function panesHTML() {
+    var hero = shopTab !== 'goods';
+    return '<div class="dlc-pane" data-pane="hero"' + (hero ? '' : ' hidden') + '>' + shopInner() + '</div>' +
+      '<div class="dlc-pane" data-pane="goods"' + (hero ? ' hidden' : '') + '>' + goodsInner() + '</div>';
+  }
+  function shopInnerHTML() { return tabsHTML() + panesHTML(); }
+  function kickerText() {
+    return '상점 · 특전 ' + ownedHeroN() + '/' + heroList().length + ' · 편의·후원 ' + ownedGoodsN() + '/' + GOODS.length;
+  }
   function detailBody(h) {
     var u = h.ultimate || {};
     var cd = h.classDef || {};
@@ -390,11 +580,13 @@
         el.onchange = function () {
           var pid = el.getAttribute('data-prod');
           setTestMode(true);
-          if (el.checked) {
-            unlock(pid);
-          } else if (!lock(pid)) {
-            el.checked = true;
-            return;
+          if (byProduct[pid]) {
+            if (el.checked) unlock(pid);
+            else if (!lock(pid)) { el.checked = true; return; }
+          } else if (el.checked) {
+            grantGoods(pid);
+          } else {
+            revokeGoods(pid);
           }
           refreshShop(modal);
         };
@@ -438,10 +630,21 @@
     if (!modal || !modal.el) return;
     var shop = modal.el.querySelector('.modal-body .dlc-shop');
     if (!shop) return;
-    shop.innerHTML = shopInner();
-    bindCardActions(shop, modal);
+    shop.innerHTML = shopInnerHTML();
+    bindShop(shop, modal);
     var kick = modal.el.querySelector('.modal-kicker');
-    if (kick) kick.textContent = '특전 영웅 · 보유 ' + readUnlocked().length + ' / ' + heroList().length;
+    if (kick) kick.textContent = kickerText();
+  }
+  /* 탭 + 카드 액션을 함께 묶는다 */
+  function bindShop(root, modal) {
+    if (!root) return;
+    root.querySelectorAll('.dlc-tab').forEach(function (b) {
+      b.onclick = function () {
+        shopTab = b.getAttribute('data-tab') === 'goods' ? 'goods' : 'hero';
+        refreshShop(modal);
+      };
+    });
+    bindCardActions(root, modal);
   }
   function openDetail(h) {
     var m = SK.modal({
@@ -487,28 +690,33 @@
       return null;
     }
     var m = SK.modal({
-      kicker: '특전 영웅 · 보유 ' + readUnlocked().length + ' / ' + heroList().length,
-      title: '✨ 이세계 특전 영웅',
+      kicker: kickerText(),
+      title: '✨ 이세계 상점',
       body: shopBody(),
       wide: true,
       scrollHint: true,
       actions: [{ label: '닫기' }],
       dismissible: true,
     });
-    bindCardActions(m.el.querySelector('.dlc-shop') || m.el, m);
+    bindShop(m.el.querySelector('.dlc-shop') || m.el, m);
     return m;
   }
 
   /* ─────────────────────────── 지도 진입 버튼 ─────────────────────────── */
   function syncPill() {
     var b = document.getElementById('btn-dlc-pill');
-    if (!b) return;
-    if (!isDlcOpen()) { b.hidden = true; return; }
-    b.hidden = false;
-    var n = readUnlocked().length;
-    var cnt = b.querySelector('.mp-n');
-    if (cnt) cnt.textContent = n;
-    b.title = '이세계 특전 영웅 상점 — 보유 ' + n + ' / ' + heroList().length;
+    var open = isDlcOpen();
+    if (b) {
+      if (!open) { b.hidden = true; }
+      else {
+        b.hidden = false;
+        var n = readUnlocked().length;
+        var cnt = b.querySelector('.mp-n');
+        if (cnt) cnt.textContent = n;
+        b.title = '이세계 상점 — 특전 ' + ownedHeroN() + ' / ' + heroList().length + ' · 편의·후원 ' + ownedGoodsN() + ' / ' + GOODS.length;
+      }
+    }
+    syncAutoPill();
   }
   function bindPill() {
     var b = document.getElementById('btn-dlc-pill');
@@ -544,6 +752,40 @@
     btn.onclick = function () { SK.openMenu(); };
   }
 
+  /* ─────────────────────────── 『자동 내정 패스』 버튼 ───────────────────────────
+     해금한 계정에만 지도 pill 과 성 화면 띠 버튼을 보인다. 미해금·일반 유저에게는 hidden. */
+  function hasPass(pid) { return isUnlocked(pid || 'pass_auto_city'); }
+  function syncAutoPill() {
+    var on = hasPass('pass_auto_city');
+    var pill = document.getElementById('btn-auto-city');
+    var bar = document.getElementById('btn-auto-city-city');
+    if (pill) {
+      pill.hidden = !on;
+      /* 특전 pill 이 보이면 그 위로, 아니면 한 칸 내려서 (겹침 없이) */
+      var dp = document.getElementById('btn-dlc-pill');
+      pill.style.bottom = (dp && !dp.hidden) ? 'calc(116px + env(safe-area-inset-bottom))' : 'calc(80px + env(safe-area-inset-bottom))';
+    }
+    if (bar) bar.hidden = !on;
+  }
+  function runAutoCityAll() {
+    if (!hasPass('pass_auto_city')) {
+      if (SK.toast) SK.toast('『자동 내정 패스』를 보유해야 쓸 수 있습니다. 상점 [🎁 편의·후원]에서 확인하세요.');
+      return null;
+    }
+    if (!SK.openAutoCityAll) return null;
+    if (SK.sfx) { try { SK.sfx.play('ui'); } catch (e) { /* ignore */ } }
+    return SK.openAutoCityAll();
+  }
+  function bindPassButtons() {
+    ['btn-auto-city', 'btn-auto-city-city'].forEach(function (id) {
+      var b = document.getElementById(id);
+      if (!b || b._autoCityBound) return;
+      b._autoCityBound = true;
+      b.onclick = function () { runAutoCityAll(); };
+    });
+    syncAutoPill();
+  }
+
   /* ─────────────────────────── 바깥 연결 ─────────────────────────── */
   SK.DLC = {
     PUBLIC: DLC_PUBLIC,
@@ -565,6 +807,17 @@
     open: openShop,
     openShop: openShop,
     priceOf: function (pid) { return Billing.priceLabel(pid); },
+    /* v6.9a — 편의·후원 */
+    GOODS: GOODS,
+    goods: function () { return GOODS.slice(); },
+    goodsOf: goodsOf,
+    hasPass: hasPass,
+    isSupporter: function () { return isUnlocked('pack_supporter_once'); },
+    grantGoods: grantGoods,
+    revokeGoods: revokeGoods,
+    ensureSupporter: ensureSupporter,
+    autoCity: runAutoCityAll,
+    syncAutoPill: syncAutoPill,
     chibiOf: function (id) { var h = byId[id]; return (h && h.chibi) || null; },
     badgeOf: function (cls) {
       var h = heroList().find(function (x) { return x.cls === cls; });
@@ -574,6 +827,12 @@
     debug: {
       unlockAll: function () { heroList().forEach(function (h) { unlock(h.productId, { silent: true }); }); SK.toast('특전 영웅 10명 테스트 해금'); },
       lockAll: function () { heroList().slice().reverse().forEach(function (h) { lock(h.productId, { silent: true }); }); SK.toast('특전 영웅 전체 잠금'); },
+      /* v6.9a — 편의·후원 검수용 */
+      passOn: function () { grantGoods('pass_auto_city'); },
+      passOff: function () { revokeGoods('pass_auto_city'); },
+      supporterOn: function () { grantGoods('pack_supporter_once'); },
+      supporterOff: function () { revokeGoods('pack_supporter_once'); },
+      autoCity: function () { return runAutoCityAll(); },
     },
   };
   SK.DlcBilling = Billing;
@@ -590,19 +849,21 @@
     wrapped._dlcHooked = true;
     SK.ensureData = wrapped;
   }
-  /* 지도에 들어올 때마다 해금된 특전 영웅이 로스터에 있는지 확인한다 */
+  /* 지도에 들어올 때마다 해금된 특전 영웅·상품 상태를 맞춘다 */
   function hookShowMap() {
     if (!SK.showMap || SK.showMap._dlcHooked) return;
     var orig = SK.showMap;
     var wrapped = function () {
       var r = orig.apply(SK, arguments);
       try {
-        if (SK.state && heroList().length) {
-          ensureRoster({ silent: true });
+        if (SK.state) {
+          if (heroList().length) ensureRoster({ silent: true });
+          ensureSupporter({ silent: false });   /* 응원 팩 — 현재 세력에 아직 안 받았으면 1회 지급 */
           syncPill();
+          bindPassButtons();
           if (hasParam() && !autoOpened) { autoOpened = true; setTimeout(openShop, 700); }
         }
-      } catch (e) { console.warn('DLC 로스터 확인 실패', e); }
+      } catch (e) { console.warn('DLC 로스터·상품 확인 실패', e); }
       return r;
     };
     wrapped._dlcHooked = true;
@@ -614,8 +875,9 @@
     hookShowMap();
     bindPill();
     bindMenu();
+    bindPassButtons();
     /* 표지에서 미리 받아 두어 게임 시작이 기다리지 않게 한다 */
-    load().then(function () { syncPill(); });
+    load().then(function () { syncPill(); ensureSupporter({ silent: true }); });
   }
 
   if (document.readyState === 'loading') {
