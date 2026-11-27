@@ -4674,6 +4674,41 @@
         ctx.beginPath();
         ctx.arc(bx + dir * (dw * 0.32 + ph * 4), by - h * (0.45 + ph * 0.34), 3 + ph * 4, 0, PI2);
         ctx.fill();
+      } else if (k === 'bajie') {
+        /* 쇠스랑이 땅을 긁은 먼지 — 발밑 양옆으로 퍼진다 */
+        for (let i = 0; i < 2; i++) {
+          const ph = ((t / 560) + i * 0.5) % 1;
+          ctx.fillStyle = 'rgba(196,164,120,' + (0.28 * (1 - ph)).toFixed(2) + ')';
+          ctx.beginPath();
+          ctx.ellipse(bx + (i ? 1 : -1) * (5 + ph * 11), by - 2 - ph * 2, 5 + ph * 6, 2.4 + ph * 2.6, 0, 0, PI2);
+          ctx.fill();
+        }
+      } else if (k === 'sha') {
+        /* 물결 — 발밑에 잔물결이 번진다 (수전) */
+        for (let i = 0; i < 2; i++) {
+          const ph = ((t / 900) + i * 0.5) % 1;
+          ctx.strokeStyle = 'rgba(150,215,225,' + (0.45 * (1 - ph)).toFixed(2) + ')';
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.ellipse(bx, by - 2, 5 + ph * 12, (5 + ph * 12) * 0.36, 0, 0, PI2);
+          ctx.stroke();
+        }
+      } else if (k === 'nezha') {
+        /* 풍화륜 불꽃 — 발밑 양옆에서 불티가 튄다 */
+        for (let i = 0; i < 2; i++) {
+          const ph = ((t / 420) + i * 0.5) % 1;
+          ctx.fillStyle = 'rgba(255,150,70,' + (0.5 * (1 - ph)).toFixed(2) + ')';
+          ctx.beginPath();
+          ctx.ellipse(bx + (i ? 1 : -1) * (5 + ph * 2), by - 2 - ph * 9, 3.2, 1.8, 0, 0, PI2);
+          ctx.fill();
+        }
+      } else if (k === 'im') {
+        /* 도끼 자국 — 발밑에서 흙 조각이 튄다 */
+        for (let i = 0; i < 3; i++) {
+          const ph = ((t / 640) + i * 0.33) % 1;
+          ctx.fillStyle = 'rgba(170,140,96,' + (0.34 * (1 - ph)).toFixed(2) + ')';
+          ctx.fillRect(bx + dir * (4 + ph * 10), by - 3 - ph * 6, 2, 2);
+        }
       }
       return;
     }
@@ -4717,6 +4752,83 @@
       ctx.beginPath();
       ctx.moveTo(cx0 - 2, cy0); ctx.lineTo(cx0 - 4.5, cy0 - 1.6);
       ctx.moveTo(cx0 - 2, cy0); ctx.lineTo(cx0 - 4.5, cy0 + 1.6);
+      ctx.stroke();
+    } else if (k === 'tangseng') {
+      /* 금고아 진언 — 머리 위로 금빛 서광 한 줄과 떠오르는 경문 점 */
+      const ph = (t / 1500) % 1;
+      ctx.strokeStyle = 'rgba(255,226,140,' + (0.55 * (1 - ph)).toFixed(2) + ')';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(bx, by - h * 0.86, 7 + ph * 6, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.stroke();
+      for (let i = 0; i < 3; i++) {
+        const a = ((t / 1100) + i / 3) % 1;
+        ctx.fillStyle = 'rgba(255,236,170,' + (0.7 * (1 - a)).toFixed(2) + ')';
+        ctx.beginPath();
+        ctx.arc(bx - 6 + i * 6, by - h * (0.6 + a * 0.32), 1.5, 0, PI2);
+        ctx.fill();
+      }
+    } else if (k === 'xiangyu') {
+      /* 패왕색 — 어깨 위로 붉은 기운이 솟는다 */
+      const ph = (t / 700) % 1;
+      ctx.strokeStyle = 'rgba(232,70,70,' + (0.55 * (1 - ph)).toFixed(2) + ')';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 2; i++) {
+        const x0 = bx + (i ? 6 : -7);
+        ctx.beginPath();
+        ctx.moveTo(x0, by - h * 0.62);
+        ctx.lineTo(x0 + (i ? 1.5 : -1.5), by - h * (0.74 + ph * 0.16));
+        ctx.stroke();
+      }
+    } else if (k === 'nobunaga') {
+      /* 조총 — 총구 쪽에 연기와 불티 */
+      const ph = (t / 1000) % 1;
+      ctx.fillStyle = 'rgba(226,220,206,' + (0.30 * (1 - ph)).toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.arc(bx + dir * (dw * 0.4 + ph * 5), by - h * (0.6 - ph * 0.1), 2.2 + ph * 3, 0, PI2);
+      ctx.fill();
+      if ((t % 1000) < 110) {
+        ctx.fillStyle = 'rgba(255,190,90,0.95)';
+        ctx.beginPath();
+        ctx.arc(bx + dir * dw * 0.42, by - h * 0.6, 2.4, 0, PI2);
+        ctx.fill();
+      }
+    } else if (k === 'yukimura') {
+      /* 붉은 깃발 — 투구 깃이 뒤로 흽날린다 */
+      const ph = (t / 520) % 1;
+      ctx.strokeStyle = 'rgba(230,70,60,' + (0.55 * (1 - ph)).toFixed(2) + ')';
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(bx - dir * (2 + i * 2), by - h * (0.92 + i * 0.05));
+        ctx.lineTo(bx - dir * (10 + i * 3 + ph * 6), by - h * (0.88 + i * 0.04));
+        ctx.stroke();
+      }
+    } else if (k === 'vlad') {
+      /* 피방울 — 어깨에서 붉은 물방울이 떠오른다 */
+      for (let i = 0; i < 3; i++) {
+        const a = ((t / 1300) + i / 3) % 1;
+        ctx.fillStyle = 'rgba(210,40,60,' + (0.75 * (1 - a)).toFixed(2) + ')';
+        ctx.beginPath();
+        ctx.ellipse(bx + (i - 1) * 5, by - h * (0.5 + a * 0.4), 1.4, 2.1, 0, 0, PI2);
+        ctx.fill();
+      }
+    } else if (k === 'gumiho') {
+      /* 여우불 — 머리 옆을 도는 푸른 불꽃 두 점과 꼬리 쪽 잔불 */
+      for (let i = 0; i < 2; i++) {
+        const a = t / 900 + i * Math.PI;
+        const fx2 = bx + Math.cos(a) * 8, fy2 = by - h * 0.8 + Math.sin(a) * 3;
+        ctx.fillStyle = 'rgba(120,200,255,0.8)';
+        ctx.beginPath(); ctx.arc(fx2, fy2, 1.9, 0, PI2); ctx.fill();
+        ctx.fillStyle = 'rgba(190,235,255,0.5)';
+        ctx.beginPath(); ctx.arc(fx2, fy2, 3.6, 0, PI2); ctx.fill();
+      }
+      const ph = (t / 760) % 1;
+      ctx.strokeStyle = 'rgba(140,215,255,' + (0.5 * (1 - ph)).toFixed(2) + ')';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(bx - dir * 8, by - h * 0.35);
+      ctx.lineTo(bx - dir * (12 + ph * 6), by - h * (0.45 + ph * 0.2));
       ctx.stroke();
     }
     ctx.restore();
@@ -7444,6 +7556,8 @@
     return v;
   }
   function classEva(u) { const c = classPas(u); return (c && c.eva) || 0; }
+  /* v6.10c — 병과 패시브 흡혈(블라드 체페슈). 적을 칠 때마다 피해의 일부를 병력으로 되돌려 받는다. */
+  function classSteal(u) { const c = classPas(u); return (c && c.lifesteal) || 0; }
 
   /* ══════════════════════════════════════════════════════════════
      v5.31 — 사기(morale)와 상태이상(ailment)
@@ -8145,6 +8259,35 @@
     u.kbx = clamp((u.kbx || 0) + dir.x * kb, -8, 8);
     u.kby = clamp((u.kby || 0) + dir.y * kb * 0.65, -6, 6);
   }
+  /* v6.10c — 칸 단위 넉백 (저팔계 구치정파). 중심에서 밀려나는 방향으로 n칸까지 밀어낸다.
+     벽·물·다른 부대가 막으면 그 앞에서 멈춘다. 실제 좌표를 옮기므로 다음 턴 이동·사거리에 그대로 반영된다. */
+  function pushAway(t, fx, fy, n) {
+    if (!t || !t.alive || !B || !B.tiles || !n) return 0;
+    const dx = Math.sign((t.x || 0) - (fx || 0)), dy = Math.sign((t.y || 0) - (fy || 0));
+    const dirs = (dx || dy)
+      ? (Math.abs((t.x || 0) - (fx || 0)) >= Math.abs((t.y || 0) - (fy || 0))
+        ? [{ x: dx, y: 0 }, { x: 0, y: dy }] : [{ x: 0, y: dy }, { x: dx, y: 0 }])
+      : [{ x: t.face > 0 ? 1 : -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+    let moved = 0;
+    for (let i = 0; i < dirs.length && !moved; i++) {
+      const d = dirs[i];
+      if (!d.x && !d.y) continue;
+      for (let k = 0; k < n; k++) {
+        const nx = t.x + d.x, ny = t.y + d.y;
+        const ch = (B.tiles[ny] || [])[nx];
+        if (!ch || ch === 'C' || ch === 'H' || ch === 'W') break;
+        if (B.units.some((o) => o !== t && o.alive && o.x === nx && o.y === ny)) break;
+        t.x = nx; t.y = ny;
+        if (t.rx != null) { t.rx = nx; t.ry = ny; }
+        moved += 1;
+      }
+    }
+    if (moved) {
+      addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.1) * TILE, '넉백!', '#ffd9a0', { back: true });
+      addFx({ kind: 'ring', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.55) * TILE, life: 420, color: '235,180,120' });
+    }
+    return moved;
+  }
 
   function impactAt(d, color, from, crit) {
     addFx({ kind: 'burst', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.5) * TILE, life: 430, color });
@@ -8367,6 +8510,18 @@
         return;
       }
       applyDamage(a, d, res.dmg, res.crit, bond);
+      /* v6.10c — 흡혈: 책략·병과 패시브(블라드)가 피해의 일부를 공격자 병력으로 돌려받는다.
+         반격(counterHit)에는 붙지 않아 한 번의 타격에 두 번 회복되지 않는다. */
+      const steal = ((opts && !opts.counterHit && opts.lifesteal) || 0) + (opts && opts.counterHit ? 0 : classSteal(a));
+      if (steal > 0 && a.alive && res.dmg > 0) {
+        const hl = Math.max(1, Math.round(res.dmg * steal));
+        const before = a.hp;
+        a.hp = Math.min(a.maxHp, a.hp + hl);
+        if (a.hp > before) {
+          addHeal(a, a.hp - before, a);
+          addFloat((rxOf(a) + 0.5) * TILE, (ryOf(a) + 0.3) * TILE, '+' + (a.hp - before), '#ff9aa8');
+        }
+      }
       /* v6.0 — 불·포격이 갈대밭 위의 적에게 닿으면 그 자리가 탄다 */
       fireSpreadFrom(a, d, opts && opts.skill, kind);
       /* v5.31 — 보물의 적중 시 상태이상·사기 저하 */
@@ -9666,7 +9821,7 @@
         if (!t.alive) { step(i + 1); return; }
         let mult = sk.power || 1;
         if (sk.ifHpBelow && t.hp / Math.max(1, t.maxHp) <= sk.ifHpBelow.thr / 100) mult *= 1 + sk.ifHpBelow.pct / 100;
-        attackUnit(u, t, { mult, defPierce: sk.defPierce || 0, critBonus: sk.crit || 0 }, () => {
+        attackUnit(u, t, { mult, defPierce: sk.defPierce || 0, critBonus: sk.crit || 0, lifesteal: sk.lifesteal || 0 }, () => {
           if (!B || B.over) { finish(0); return; }
           if (t.alive) {
             skillAilApply(u, t, sk);
@@ -9706,7 +9861,7 @@
           if (i >= list.length) { finishCheck(); finish(420); return; }
           const t = list[i++];
           if (!t.alive) { one(); return; }
-          attackUnit(u, t, { mult: sk.power || 1, critBonus: sk.crit || 0, forceKind: 'arrow' }, () => {
+          attackUnit(u, t, { mult: sk.power || 1, critBonus: sk.crit || 0, forceKind: 'arrow', lifesteal: sk.lifesteal || 0 }, () => {
             if (t.alive) { skillAilApply(u, t, sk); if (sk.morale < 0) moraleShift(t, sk.morale, `계략 「${sk.name}」`); }
             wait(one, 120);
           });
@@ -9824,7 +9979,7 @@
     if (ranged) SK.sfx.play(forceKind === 'rock' ? 'rock' : forceKind === 'bolt' ? 'bolt' : 'bow');
     const hits = sk.hits || 1;
     const apply = (n) => {
-      attackUnit(u, target, { mult, ignoreTerrain: sk.ignoreTerrain, forceKind,
+      attackUnit(u, target, { mult, ignoreTerrain: sk.ignoreTerrain, forceKind, lifesteal: sk.lifesteal || 0,
         defPierce: sk.defPierce || 0, noDodge: !!sk.ignoreEvade, critBonus: sk.crit || 0 }, () => {
         /* v5.31 — 파천격(기절 35%)·방패돌진(기절 20%) */
         if (target.alive && B && !B.over) skillAilApply(u, target, sk);
@@ -9924,7 +10079,7 @@
     switch (e.k) {
       case 'hit': return `적 1부대에게 일반 공격의 ${pc(e.m)} 위력${ail}`;
       case 'combo': return `적 1부대를 ${e.n || 2}회 연속 강타 (합계 ${pc(e.m)})${ail}`;
-      case 'aoe': return `지점 반경 ${e.r || 1}칸의 적 전원에게 ${pc(e.m)} 강타${ail}`;
+      case 'aoe': return `지점 반경 ${e.r || 1}칸의 적 전원에게 ${pc(e.m)} 강타${e.push ? ` · ${e.push}칸 넉백` : ''}${ail}`;
       case 'arrow': return `${e.n || 2}발의 화살을 한 번에 (합계 ${pc(e.m)})${ail}`;
       case 'arrowAoe': return `지점 반경 ${e.r || 1}칸에 화살 세례 (부대당 ${pc(e.m)}·${e.n || 2}발)${ail}`;
       case 'magic': return `지점 반경 ${e.r || 1}칸에 책략 폭발 (화계의 ${pc(e.p || 1.2)} 위력)${ail}`;
@@ -9967,6 +10122,7 @@
     if (e.stun) s.push(`기절 ${Math.round((e.stun.chance == null ? 1 : e.stun.chance) * 100)}%`);
     if (e.burn && !/화상/.test(spec.desc || '')) s.push(`화상 ${e.burn.turns}턴`);
     if (e.lifesteal) s.push(`흡혈 ${Math.round(e.lifesteal * 100)}%`);
+    if (e.push) s.push(`${e.push}칸 넉백`);
     if (e.mp && e.mp.gain) s.push(`MP +${e.mp.gain}`);
     if (e.mp && e.mp.drain) s.push(`MP ${e.mp.drain} 흡수`);
     if (e.heal) s.push(`HP ${Math.round(e.heal.pct * 100)}% 회복`);
@@ -10214,6 +10370,8 @@
           ail(t);
           track(t);
           if (t.alive && e.morale) moraleShift(t, e.morale, '필살기 위압');
+          /* v6.10c — 광역 넉백(저팔계 구치정파): 지점에서 밀려나는 방향으로 e.push 칸 */
+          if (t.alive && e.push) pushAway(t, cx, cy, e.push);
           addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
         }, 80 + i * 90);
       });

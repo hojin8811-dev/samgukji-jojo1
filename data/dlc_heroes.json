@@ -1,14 +1,15 @@
 {
   "series": "이세계 특전 영웅",
-  "episode": 1,
-  "episodeTitle": "1탄 — 패왕과 전설",
+  "episode": 3,
+  "episodeTitle": "3탄 — 동양 전설과 이색",
   "priceKRW": 2900,
   "currency": "KRW",
   "note": "본편 주점·탐색·도감과 완전히 분리된 유료 특전 영웅. 묶음 판매 없이 1인 단품(2,900원)만 판매한다. 능력치는 기존 S급 최상위권과 동급이고, 고유 직업·고유 필살기·고유 외형으로만 차별화한다.",
 
   "episodes": [
     { "n": 1, "title": "1탄 — 패왕과 전설", "range": "1~10번" },
-    { "n": 2, "title": "2탄 — 신화와 명장", "range": "11~20번" }
+    { "n": 2, "title": "2탄 — 신화와 명장", "range": "11~20번" },
+    { "n": 3, "title": "3탄 — 동양 전설과 이색", "range": "21~30번" }
   ],
   "heroes": [
     {
@@ -710,6 +711,359 @@
         "desc": "3칸 직선 관통 130% · 공포 60% · 사기 -10"
       },
       "chibi": { "kind": "hannibal", "skin": "#c98a5a", "hair": "#2a1c14", "cloth": "#5a2a6a", "trim": "#d8b24a", "metal": "#b0a080", "pants": "#4a2450", "aura": "200,170,255", "badge": ["🐘", "코끼리"] }
+    },
+    {
+      "id": "dlc_21",
+      "productId": "dlc_hero_21",
+      "name": "삼장법사",
+      "title": "서역 고승",
+      "job": "금고아 성승",
+      "cls": "dlc_tangseng",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 78, "war": 42, "intel": 96, "politics": 88, "charm": 94 },
+      "desc": "서역 천축으로 경전을 구하러 간 고승. 싸움보다 진언과 광명으로 아군을 살리며, 금고아 진언 한 번에 적의 전의를 꺾는다.",
+      "portrait": "assets/portraits/dlc/dlc_21.webp",
+      "classDef": {
+        "role": "진언·치유",
+        "atk": 20, "def": 20, "mov": 4, "rng": 1, "minRng": 1, "mp": 34, "agi": 56,
+        "weapon": "staff",
+        "desc": "무기를 들지 않은 대신 진언으로 적의 사기를 깎고, 반경 3칸 아군을 통째로 회복한다."
+      },
+      "skills": [
+        { "key": "dlc21_s1", "name": "금고아 진언", "mp": 12, "unlockLv": 1, "kind": "power", "pattern": "range2", "power": 0.5, "maxTargets": 6, "morale": -8,
+          "desc": "주변 2칸의 적 전원에게 50% 진언 타격 · 사기 -8" },
+        { "key": "dlc21_s2", "name": "해탈의 광명", "mp": 16, "unlockLv": 1, "kind": "healArea", "radius": 3, "healPct": 0.2, "cleanse": true, "morale": 6,
+          "desc": "반경 3칸 아군 병력 20% 회복 · 상태이상 해제 · 사기 +6" },
+        { "key": "dlc21_s3", "name": "천수천안", "mp": 18, "unlockLv": 8, "kind": "buffAllAllies", "atk": 0.12, "def": 0.12, "morale": 12, "turns": 3,
+          "desc": "전장 아군 전원 공격 +12% · 방어 +12% (3턴) · 사기 +12" }
+      ],
+      "ultimate": {
+        "n": "금고아 대해탈", "q": "제가 외우는 것은 경전이 아니라, 그대들의 죄업입니다.",
+        "v": "holy_wave", "c": "255,226,140",
+        "e": {"k": "heal", "p": 0.28, "r": 9, "clear": true, "atk": 0.14, "turns": 3, "morale": 16, "enemyAll": {"morale": -6}},
+        "desc": "전장 아군 전원 병력 28% 회복 · 상태이상 해제 · 공격 +14% (3턴) · 적 전체 사기 -6"
+      },
+      "chibi": { "kind": "tangseng", "skin": "#f6d3ae", "hair": "#e2bd94", "cloth": "#e8d9a8", "trim": "#b8342c", "metal": "#e0b23c", "pants": "#c9b88a", "aura": "255,226,140", "badge": ["📿", "삼장"] }
+    },
+    {
+      "id": "dlc_22",
+      "productId": "dlc_hero_22",
+      "name": "저팔계",
+      "title": "천봉원수",
+      "job": "천봉원수",
+      "cls": "dlc_bajie",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 84, "war": 95, "intel": 60, "politics": 44, "charm": 72 },
+      "desc": "하늘의 천봉원수였다가 돼지 요괴로 떨어진 호걸. 아홉 이빨 쇠스랑을 한 번 휘두르면 적 전열이 통째로 밀려난다.",
+      "portrait": "assets/portraits/dlc/dlc_22.webp",
+      "classDef": {
+        "role": "광역 넉백",
+        "atk": 37, "def": 21, "mov": 4, "rng": 1, "minRng": 1, "mp": 26, "agi": 62,
+        "weapon": "staff",
+        "desc": "아홉 이빨 쇠스랑으로 주변을 통째로 휩쓸어 밀어낸다. 맞붙을수록 배가 두꺼워지는 방어형 돌격수."
+      },
+      "skills": [
+        { "key": "dlc22_s1", "name": "구치정파", "mp": 13, "unlockLv": 1, "kind": "power", "pattern": "range2", "power": 0.62, "maxTargets": 7, "fear": true,
+          "desc": "주변 2칸(마름모) 적 전원에게 62% 쇠스랑 휩쓸기 · 공포 유발" },
+        { "key": "dlc22_s2", "name": "천봉의 배", "mp": 10, "unlockLv": 1, "kind": "buffSelf", "atk": 0.14, "def": 0.18, "turns": 3,
+          "desc": "배를 내밀어 공격 +14% · 방어 +18% (3턴)" },
+        { "key": "dlc22_s3", "name": "쇠스랑 내리치기", "mp": 14, "unlockLv": 8, "kind": "power", "range": 1, "power": 1.8, "morale": -6,
+          "desc": "1칸 적 하나를 180%로 내리침 · 사기 -6" }
+      ],
+      "ultimate": {
+        "n": "구치정파 대회전", "q": "이 몸의 쇠스랑 맛을 아직 모르는 놈은 없겠지!",
+        "v": "beast_charge", "c": "235,180,120",
+        "e": {"k": "aoe", "m": 1.15, "r": 2, "ail": "fear", "ch": 0.55, "morale": -9, "push": 2},
+        "desc": "지점 반경 2칸 적 전원 115% · 넉백 2칸 · 공포 55% · 사기 -9"
+      },
+      "chibi": { "kind": "bajie", "skin": "#f2b9a0", "hair": "#3a2418", "cloth": "#6b4a2f", "trim": "#b8342c", "metal": "#c9a24a", "pants": "#4a3324", "aura": "235,180,120", "badge": ["🐷", "팔계"] }
+    },
+    {
+      "id": "dlc_23",
+      "productId": "dlc_hero_23",
+      "name": "사오정",
+      "title": "권렴대장",
+      "job": "권렴대장",
+      "cls": "dlc_sha",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 83, "war": 90, "intel": 58, "politics": 50, "charm": 60 },
+      "desc": "유사하(流沙河)에서 요괴를 거느린 권렴대장. 물속에서 적의 배 밑으로 파고들어 월아산으로 배를 가른다.",
+      "portrait": "assets/portraits/dlc/dlc_23.webp",
+      "classDef": {
+        "role": "수전·기습",
+        "atk": 34, "def": 24, "mov": 5, "rng": 1, "minRng": 1, "mp": 24, "agi": 66,
+        "weapon": "axe",
+        "tb": {"naval": 25, "mountain": 10},
+        "desc": "물 위에서 월아산이 더 무거워진다(수전 +25%). 기습한 적은 둔화로 발이 묶인다."
+      },
+      "skills": [
+        { "key": "dlc23_s1", "name": "수중 기습", "mp": 12, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.55, "waterBonus": true, "slow": true,
+          "desc": "물 위에서 +15% · 155% 기습 · 둔화" },
+        { "key": "dlc23_s2", "name": "반월 참격", "mp": 13, "unlockLv": 1, "kind": "power", "pattern": "rowFront", "power": 0.9, "maxTargets": 3,
+          "desc": "전방 가로 3칸의 적에게 90% 반월 참격" },
+        { "key": "dlc23_s3", "name": "권렴진", "mp": 10, "unlockLv": 8, "kind": "buffSelf", "def": 0.18, "eva": 0.12, "turns": 3,
+          "desc": "대열을 갖춰 방어 +18% · 회피 +12% (3턴)" }
+      ],
+      "ultimate": {
+        "n": "요괴 소탕", "q": "이 강은 내가 지킨다. 물도, 요괴도.",
+        "v": "dragon_cleave", "c": "120,190,190",
+        "e": {"k": "line", "len": 3, "m": 1.4, "ail": "slow", "ch": 0.6, "morale": -8},
+        "desc": "3칸 직선 관통 140% · 둔화 60% · 사기 -8"
+      },
+      "chibi": { "kind": "sha", "skin": "#5f7f96", "hair": "#1e2a30", "cloth": "#2f5a5e", "trim": "#c8d4d0", "metal": "#b8c0b8", "pants": "#24403f", "aura": "120,190,190", "badge": ["💀", "오정"] }
+    },
+    {
+      "id": "dlc_24",
+      "productId": "dlc_hero_24",
+      "name": "나타",
+      "title": "연화 태자",
+      "job": "연화 태자",
+      "cls": "dlc_nezha",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 90, "war": 96, "intel": 70, "politics": 55, "charm": 84 },
+      "desc": "연꽃에서 다시 태어난 어린 태자. 풍화륜을 밟고 화첨창을 앞세워 적진을 가로지르는, 이 세계에서 가장 빠른 돌격수.",
+      "portrait": "assets/portraits/dlc/dlc_24.webp",
+      "classDef": {
+        "role": "고속 돌격",
+        "atk": 36, "def": 20, "mov": 6, "rng": 2, "minRng": 1, "mp": 26, "agi": 92,
+        "weapon": "spear",
+        "desc": "풍화륜으로 이동력이 가장 높고, 화첨창은 2칸을 찌른다. 돌파 뒤 적 뒤칸에 자리를 잡는다."
+      },
+      "skills": [
+        { "key": "dlc24_s1", "name": "화첨창", "mp": 11, "unlockLv": 1, "kind": "power", "range": 2, "power": 1.6,
+          "desc": "2칸(마름모) 적 하나를 160%로 찌름" },
+        { "key": "dlc24_s2", "name": "풍화륜", "mp": 10, "unlockLv": 1, "kind": "buffSelf", "move": 2, "eva": 0.18, "turns": 2,
+          "desc": "불바퀴를 돌려 이동력 +2 · 회피 +18% (2턴)" },
+        { "key": "dlc24_s3", "name": "연화 돌파", "mp": 14, "unlockLv": 8, "kind": "power", "pattern": "line2", "power": 1.0, "maxTargets": 2, "dash": "behind",
+          "desc": "전방 2칸 일렬 100% · 뚫고 적 뒤칸으로 돌파" }
+      ],
+      "ultimate": {
+        "n": "풍화륜 연화 돌격", "q": "불바퀴 위에 서면, 이 거리는 한 걸음도 아니야!",
+        "v": "flame_dash", "c": "255,150,80",
+        "e": {"k": "line", "len": 4, "m": 1.45, "moveBonus": 30, "ail": "stun", "ch": 0.25, "morale": -8},
+        "desc": "4칸 직선 관통 145% · 이동 뒤 +30% · 기절 25% · 사기 -8"
+      },
+      "chibi": { "kind": "nezha", "skin": "#f8d4b0", "hair": "#2a1c14", "cloth": "#c8302c", "trim": "#f2c651", "metal": "#e0b23c", "pants": "#8f1f1c", "aura": "255,150,80", "badge": ["🔥", "나타"] }
+    },
+    {
+      "id": "dlc_25",
+      "productId": "dlc_hero_25",
+      "name": "항우",
+      "title": "서초패왕",
+      "job": "서초패왕",
+      "cls": "dlc_xiangyu",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 96, "war": 99, "intel": 66, "politics": 42, "charm": 90 },
+      "desc": "진나라를 무너뜨린 서초의 패왕. 패왕색 앞에 서면 적은 창을 들 힘부터 잃고, 그의 장창은 한 부대를 통째로 부순다.",
+      "portrait": "assets/portraits/dlc/dlc_25.webp",
+      "classDef": {
+        "role": "공포·분쇄",
+        "atk": 40, "def": 23, "mov": 5, "rng": 1, "minRng": 1, "mp": 26, "agi": 74,
+        "weapon": "spear",
+        "desc": "단일 대상 분쇄력이 전 병과 최고. 패왕색으로 주변 적의 사기를 무너뜨린다."
+      },
+      "skills": [
+        { "key": "dlc25_s1", "name": "패왕천격", "mp": 12, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.9,
+          "desc": "1칸 적 하나를 190%로 내리침" },
+        { "key": "dlc25_s2", "name": "패왕색", "mp": 14, "unlockLv": 1, "kind": "power", "pattern": "range2", "power": 0.5, "maxTargets": 6, "fear": true, "morale": -10,
+          "desc": "주변 2칸 적 전원 50% · 공포 유발 · 사기 -10" },
+        { "key": "dlc25_s3", "name": "결사필사", "mp": 11, "unlockLv": 8, "kind": "buffSelf", "atk": 0.22, "def": 0.1, "turns": 3,
+          "desc": "죽을 각오로 공격 +22% · 방어 +10% (3턴)" }
+      ],
+      "ultimate": {
+        "n": "패왕의 일격", "q": "하늘이 나를 버려도, 이 창은 나를 버리지 않는다!",
+        "v": "dragon_cleave", "c": "220,60,60",
+        "e": {"k": "hit", "m": 2.0, "pierce": 0.45, "ail": "fear", "ch": 0.75, "enemyAll": {"morale": -8}, "onKill": {"extraAction": true}},
+        "desc": "적 1부대 200% · 방어 45% 무시 · 공포 75% · 적 전체 사기 -8 · 처치 시 재행동"
+      },
+      "chibi": { "kind": "xiangyu", "skin": "#e8bd94", "hair": "#1a1410", "cloth": "#2a2a34", "trim": "#c9a24a", "metal": "#d4af37", "pants": "#1e1e26", "aura": "220,60,60", "badge": ["👑", "패왕"] }
+    },
+    {
+      "id": "dlc_26",
+      "productId": "dlc_hero_26",
+      "name": "오다 노부나가",
+      "title": "전국 마왕",
+      "job": "전국 마왕",
+      "cls": "dlc_nobunaga",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 93, "war": 88, "intel": 94, "politics": 80, "charm": 84 },
+      "desc": "전국의 절반을 불태운 마왕. 조총대를 일렬로 세우고 한 번에 쏘게 하는 전술로, 창병의 시대를 끝냈다.",
+      "portrait": "assets/portraits/dlc/dlc_26.webp",
+      "classDef": {
+        "role": "조총 사격",
+        "atk": 34, "def": 19, "mov": 4, "rng": 3, "minRng": 1, "mp": 28, "agi": 72,
+        "weapon": "crossbow",
+        "desc": "사거리 3칸에서 지점 범위를 일제사격한다. 성문 앞에서도 화력을 그대로 쏟는다."
+      },
+      "skills": [
+        { "key": "dlc26_s1", "name": "조총 일제사격", "mp": 12, "unlockLv": 1, "kind": "powerArea", "range": 3, "minRange": 1, "radius": 1, "power": 0.9, "morale": -5,
+          "desc": "3칸 앞 지점 반경 1칸 일제사격 90% · 사기 -5" },
+        { "key": "dlc26_s2", "name": "철포대 재장전", "mp": 9, "unlockLv": 1, "kind": "buffSelf", "atk": 0.16, "turns": 2,
+          "desc": "다시 장전해 공격 +16% (2턴)" },
+        { "key": "dlc26_s3", "name": "천하포악", "mp": 14, "unlockLv": 8, "kind": "debuffDef", "range": 3, "radius": 2, "amount": -0.28, "turns": 3,
+          "desc": "3칸 앞 반경 2칸 적 방어 -28% (3턴)" }
+      ],
+      "ultimate": {
+        "n": "철포 일제사격", "q": "창은 시대를 끝냈다. 다음은 무엇이 끝날 차례인가.",
+        "v": "arrow_storm", "c": "255,120,90",
+        "e": {"k": "arrowAoe", "m": 1.0, "r": 2, "n": 3, "rng": 6, "ail": "stun", "ch": 0.2},
+        "desc": "사거리 6칸 지점 반경 2칸에 3연사 (부대당 100%) · 기절 20%"
+      },
+      "chibi": { "kind": "nobunaga", "skin": "#eec6a0", "hair": "#1a1410", "cloth": "#5a1e24", "trim": "#c9a24a", "metal": "#8a8f96", "pants": "#3a1418", "aura": "255,120,90", "badge": ["🔥", "전국"] }
+    },
+    {
+      "id": "dlc_27",
+      "productId": "dlc_hero_27",
+      "name": "사나다 유키무라",
+      "title": "일본 제일병",
+      "job": "일본 제일병",
+      "cls": "dlc_yukimura",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 95, "war": 97, "intel": 68, "politics": 50, "charm": 88 },
+      "desc": "오사카 여름의 진을 흔든 일본 제일의 병. 십문자창을 세우고 결사대를 이끌어 적 본진까지 곧장 파고든다.",
+      "portrait": "assets/portraits/dlc/dlc_27.webp",
+      "classDef": {
+        "role": "결사 돌격",
+        "atk": 37, "def": 22, "mov": 5, "rng": 2, "minRng": 1, "mp": 24, "agi": 80,
+        "weapon": "spear",
+        "desc": "십문자창으로 2칸을 찌르고 돌파한다. 결사 돌격은 자신의 병력을 태워 위력을 올린다."
+      },
+      "skills": [
+        { "key": "dlc27_s1", "name": "십문자창", "mp": 11, "unlockLv": 1, "kind": "power", "range": 2, "power": 1.5,
+          "desc": "2칸(마름모) 적 하나를 150%로 찌름" },
+        { "key": "dlc27_s2", "name": "결사 돌격", "mp": 13, "unlockLv": 1, "kind": "power", "pattern": "line2", "power": 1.05, "maxTargets": 2, "dash": "behind",
+          "desc": "전방 2칸 일렬 105% · 뚫고 적 뒤칸으로" },
+        { "key": "dlc27_s3", "name": "붉은 갑옷의 맹세", "mp": 10, "unlockLv": 8, "kind": "buffSelf", "atk": 0.2, "def": 0.12, "turns": 3,
+          "desc": "붉은 갑옷에 맹세해 공격 +20% · 방어 +12% (3턴)" }
+      ],
+      "ultimate": {
+        "n": "십문자창 결사 돌격", "q": "적 본진까지, 이 창 하나면 충분하다!",
+        "v": "flame_dash", "c": "255,110,90",
+        "e": {"k": "line", "len": 4, "m": 1.55, "moveBonus": 35, "selfCost": {"hpPct": 10}, "ail": "fear", "ch": 0.45},
+        "desc": "4칸 직선 관통 155% · 이동 뒤 +35% · 자신 HP 10% 소모 · 공포 45%"
+      },
+      "chibi": { "kind": "yukimura", "skin": "#f0c8a2", "hair": "#241812", "cloth": "#c03028", "trim": "#e8c85a", "metal": "#b8443a", "pants": "#8a1e1a", "aura": "255,110,90", "badge": ["🦌", "사나다"] }
+    },
+    {
+      "id": "dlc_28",
+      "productId": "dlc_hero_28",
+      "name": "블라드 체페슈",
+      "title": "가시 공작",
+      "job": "가시 공작",
+      "cls": "dlc_vlad",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 88, "war": 93, "intel": 82, "politics": 64, "charm": 78 },
+      "desc": "적을 꿰뚫어 세우는 것으로 공포를 다스린 가시 공작. 그의 검에 베이면 피가 그에게로 흘러 들어간다.",
+      "portrait": "assets/portraits/dlc/dlc_28.webp",
+      "classDef": {
+        "role": "흡혈·공포",
+        "atk": 35, "def": 21, "mov": 4, "rng": 1, "minRng": 1, "mp": 26, "agi": 70,
+        "weapon": "sword",
+        "passive": {"lifesteal": 0.08},
+        "desc": "적을 칠 때마다 피해의 일부를 병력으로 되돌려 받는다(흡혈 8%). 공포로 적의 사기를 무너뜨린다."
+      },
+      "skills": [
+        { "key": "dlc28_s1", "name": "가시 관통", "mp": 11, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.7, "lifesteal": 0.35,
+          "desc": "1칸 적을 170%로 꿰뚫고 피해의 35%를 흡혈" },
+        { "key": "dlc28_s2", "name": "흡혈의 송곳니", "mp": 13, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.4, "lifesteal": 0.6, "fear": true,
+          "desc": "140% 물어뜯어 피해의 60% 흡혈 · 공포 유발" },
+        { "key": "dlc28_s3", "name": "공포의 성", "mp": 14, "unlockLv": 8, "kind": "power", "pattern": "range2", "power": 0.55, "maxTargets": 6, "fear": true, "morale": -8,
+          "desc": "주변 2칸 적 전원 55% · 공포 · 사기 -8" }
+      ],
+      "ultimate": {
+        "n": "가시 공작의 만찬", "q": "피는 흐른다. 그리고 나에게로 돌아온다.",
+        "v": "blood_rite", "c": "200,40,60",
+        "e": {"k": "hit", "m": 1.7, "lifesteal": 0.55, "ail": "fear", "ch": 0.7, "onKill": {"heal": 0.2}},
+        "desc": "적 1부대 170% · 피해의 55% 흡혈 · 공포 70% · 처치 시 HP 20% 회복"
+      },
+      "chibi": { "kind": "vlad", "skin": "#e8ddd2", "hair": "#14100e", "cloth": "#5a0e14", "trim": "#c9b06a", "metal": "#6a6a72", "pants": "#2a1418", "aura": "200,40,60", "badge": ["🦇", "체페슈"] }
+    },
+    {
+      "id": "dlc_29",
+      "productId": "dlc_hero_29",
+      "name": "임꺽정",
+      "title": "청석골 장사",
+      "job": "청석골 장사",
+      "cls": "dlc_imkkukjeong",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 86, "war": 96, "intel": 48, "politics": 40, "charm": 78 },
+      "desc": "청석골을 굴로 삼아 탐관오리를 베어 온 장사. 사람 키만 한 도끼를 한 손으로 들고 적진을 갈아 버린다.",
+      "portrait": "assets/portraits/dlc/dlc_29.webp",
+      "classDef": {
+        "role": "범위 분쇄",
+        "atk": 39, "def": 20, "mov": 4, "rng": 1, "minRng": 1, "mp": 22, "agi": 64,
+        "weapon": "axe",
+        "desc": "거대 도끼로 주변을 한 번에 분쇄하고 적의 방어를 깎는다. 사거리는 1칸이지만 한 방이 무겁다."
+      },
+      "skills": [
+        { "key": "dlc29_s1", "name": "도끼 휩쓸기", "mp": 12, "unlockLv": 1, "kind": "power", "pattern": "range2", "power": 0.64, "maxTargets": 6,
+          "desc": "주변 2칸(마름모) 적 전원에게 64% 도끼 휩쓸기" },
+        { "key": "dlc29_s2", "name": "청석골의 위세", "mp": 10, "unlockLv": 1, "kind": "buffSelf", "atk": 0.18, "def": 0.1, "turns": 3,
+          "desc": "산적 두목의 위세로 공격 +18% · 방어 +10% (3턴)" },
+        { "key": "dlc29_s3", "name": "분쇄 일격", "mp": 14, "unlockLv": 8, "kind": "power", "range": 1, "power": 1.85, "morale": -8,
+          "desc": "1칸 적 하나를 185%로 분쇄 · 사기 -8" }
+      ],
+      "ultimate": {
+        "n": "거대 도끼 분쇄", "q": "이 도끼 앞에서는 갑옷도 나무토막이야!",
+        "v": "rock_crush", "c": "200,170,110",
+        "e": {"k": "aoe", "m": 1.2, "r": 2, "shred": {"def": -0.2}, "ail": "stun", "ch": 0.3, "morale": -8},
+        "desc": "지점 반경 2칸 120% 분쇄 · 방어 -20% · 기절 30% · 사기 -8"
+      },
+      "chibi": { "kind": "im", "skin": "#d9a878", "hair": "#241812", "cloth": "#3a4a30", "trim": "#c9b88a", "metal": "#8a8f96", "pants": "#2a3024", "aura": "200,170,110", "badge": ["🪓", "임꺽정"] }
+    },
+    {
+      "id": "dlc_30",
+      "productId": "dlc_hero_30",
+      "name": "구미호",
+      "title": "천년 여우",
+      "job": "천년 여우",
+      "cls": "dlc_gumiho",
+      "tier": "S",
+      "price": 2900,
+      "ep": 3,
+      "stats": { "leadership": 84, "war": 90, "intel": 95, "politics": 70, "charm": 99 },
+      "desc": "천 년을 살아 아홉 꼬리를 얻은 여우 요괴. 여우불로 넋을 빼앗고, 매혹의 눈빛으로 창을 든 적마저 돌아서게 한다.",
+      "portrait": "assets/portraits/dlc/dlc_30.webp",
+      "classDef": {
+        "role": "매혹·회피",
+        "atk": 33, "def": 18, "mov": 5, "rng": 2, "minRng": 1, "mp": 30, "agi": 96,
+        "weapon": "fan",
+        "passive": {"eva": 0.12},
+        "desc": "민첩이 전 병과 최고라 회피가 높다(추가 회피 12%). 여우불은 혼란(매혹)을 남긴다."
+      },
+      "skills": [
+        { "key": "dlc30_s1", "name": "여우불", "mp": 12, "unlockLv": 1, "kind": "magicArea", "range": 3, "radius": 1, "power": 300, "confuse": true,
+          "desc": "3칸 앞 지점 반경 1칸에 여우불 · 혼란(매혹) 유발" },
+        { "key": "dlc30_s2", "name": "매혹의 눈빛", "mp": 13, "unlockLv": 1, "kind": "debuffAtk", "range": 2, "radius": 2, "amount": -0.35, "turns": 3, "confuse": true,
+          "desc": "2칸 앞 반경 2칸 적 공격 -35% (3턴) · 혼란" },
+        { "key": "dlc30_s3", "name": "구미의 환영", "mp": 11, "unlockLv": 8, "kind": "buffSelf", "eva": 0.25, "move": 1, "turns": 2,
+          "desc": "아홉 꼬리로 환영을 만들어 회피 +25% · 이동 +1 (2턴)" }
+      ],
+      "ultimate": {
+        "n": "천년 여우불", "q": "천 년을 기다렸어. 그대의 넋은 얼마나 맛있을까.",
+        "v": "fox_fire", "c": "120,200,255",
+        "e": {"k": "magic", "p": 1.35, "r": 2, "ail": "confuse", "ch": 0.6, "burn": {"turns": 2, "dot": 0.04}, "selfBuff": {"evade": 0.2, "turns": 2}},
+        "desc": "반경 2칸 계략 135% · 화상 2턴 · 혼란(매혹) 60% · 자신 회피 +20% (2턴)"
+      },
+      "chibi": { "kind": "gumiho", "skin": "#f8e2d6", "hair": "#f0eae2", "cloth": "#f4eee6", "trim": "#c03028", "metal": "#7fc8b8", "pants": "#d9c8b8", "aura": "120,200,255", "badge": ["🦊", "구미호"] }
     }
   ]
 }

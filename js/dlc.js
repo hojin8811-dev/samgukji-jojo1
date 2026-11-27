@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   js/dlc.js — 《이세계 특전 영웅》 DLC (1탄: dlc_01 ~ dlc_10)
+   js/dlc.js — 《이세계 특전 영웅》 DLC (1~3탄: dlc_01 ~ dlc_30)
    · data/dlc_heroes.json 하나가 영웅 명부·고유 직업·고유 책략·필살기·가격을 들고 있다.
      이 파일은 그것을 게임의 실제 심볼(SK.CLASSES·SK.SKILLS·SK.ULTIMATES·SK.ART·
      SK.GEN_BY_ID)에 그대로 등록하고, 상점 UI·해금·Google Play Billing 연결점을 맡는다.
@@ -104,7 +104,8 @@
     };
     ['kind', 'power', 'hits', 'radius', 'maxTargets', 'amount', 'turns', 'atk', 'def', 'eva', 'move',
       'healPct', 'vsMount', 'pattern', 'crit', 'dash', 'confuse', 'fear', 'stun', 'slow', 'cleanse',
-      'poison', 'morale', 'ignoreTerrain', 'siegeBonus'].forEach(function (k) {
+      'poison', 'morale', 'ignoreTerrain', 'siegeBonus', 'lifesteal', 'waterBonus', 'ifHpBelow',
+      'defDown', 'selfBuff', 'allyBuff', 'root', 'ignoreEvade'].forEach(function (k) {
       if (sk[k] != null) def[k] = sk[k];
     });
     SK.SKILLS[sk.key] = def;
@@ -122,7 +123,10 @@
       desc: cd.desc || '', tier: h.tier || 'S', dlc: h.id,
     };
     SK.CLASSES[h.cls] = clsDef;
-    SK.TB[h.cls] = SK.TB[h.cls] || { siege: 0, naval: 0, mountain: 0, fortress: 0 };
+    /* v6.10c — 병과 지형 보정(사오정 수전 등)과 병과 패시브(블라드 흡혈·구미호 회피).
+       본편 SK.TB·SK.CLASS_PASSIVE 와 같은 표를 쓰므로 전투 계산이 그대로 읽는다. */
+    SK.TB[h.cls] = Object.assign({ siege: 0, naval: 0, mountain: 0, fortress: 0 }, cd.tb || {});
+    if (cd.passive) SK.CLASS_PASSIVE[h.cls] = Object.assign({}, cd.passive);
     SK.CLASS_UNIT[h.cls] = unitPathOf(h);   /* 전장 전용 SD — 병종 스프라이트 재탕 없음 */
     SK.CLASS_PORTRAIT[h.cls] = h.portrait;
     SK.JOB_CLASS[h.job] = h.cls;
@@ -158,6 +162,8 @@
     SK.JOB_CLASS = SK.JOB_CLASS || {};
     SK.CLASS_UNIT = SK.CLASS_UNIT || {};
     SK.CLASS_PORTRAIT = SK.CLASS_PORTRAIT || {};
+    SK.CLASS_PASSIVE = SK.CLASS_PASSIVE || {};
+    SK.TB = SK.TB || {};
     byProduct = {}; byId = {};
     heroList().forEach(function (h, i) {
       byProduct[h.productId] = h; byId[h.id] = h;
@@ -382,7 +388,7 @@
   }
   var Billing = {
     available: function () { return !!bridge(); },
-    /* 상점에 올라간 모든 상품 ID — 특전 영웅 20(1·2탄) + 편의·후원 2 */
+    /* 상점에 올라간 모든 상품 ID — 특전 영웅 30(1·2·3탄) + 편의·후원 2 */
     products: function () {
       return heroList().map(function (h) { return h.productId; }).concat(GOODS.map(function (g) { return g.productId; }));
     },
@@ -488,7 +494,7 @@
       '<span>묶음 없이 1인 단품 판매 — 각 ' + ((d.priceKRW || 2900).toLocaleString('ko-KR')) + '원 · 총 ' + heroList().length + '명</span>' +
       '<em>본편 주점·도감과 분리된 유료 특전 영웅입니다. 능력치는 본편 S급 최상위권과 동급이고, 고유 직업·고유 필살기·고유 외형으로만 차별화합니다.</em></div>' +
       filterHTML() + heroCardsHTML() +
-      '<p class="dlc-foot">3탄(21~30)은 후속 업데이트로 이어집니다. 해금한 영웅은 본성 로스터에 합류해 출진·전투·고유 필살기를 그대로 쓸 수 있습니다.</p>';
+      '<p class="dlc-foot">특전 영웅 30명 완결 — 1탄(1~10) · 2탄(11~20) · 3탄(21~30). 해금한 영웅은 본성 로스터에 합류해 출진·전투·고유 필살기를 그대로 쓸 수 있습니다.</p>';
   }
   function shopBody() { return '<div class="dlc-shop">' + shopInnerHTML() + '</div>'; }
 
@@ -531,9 +537,9 @@
   function ownedHeroN() {
     return readUnlocked().filter(function (p) { return !!byProduct[p]; }).length;
   }
-  /* ── v6.10b — 2탄: 탄(1탄·2탄) 구분과 필터 ──────────────────────────
-     영웅마다 data 의 ep(1·2) 를 읽는다. ep 가 없으면 11번째부터 2탄이다.
-     필터 칩은 [전체 0/20] [1탄 0/10] [2탄 0/10] 으로 보유 수를 같이 보여 준다. */
+  /* ── v6.10b — 탄 구분과 필터 / v6.10c — 3탄까지(전체 0/30) ───────────
+     영웅마다 data 의 ep(1·2·3) 를 읽는다. ep 가 없으면 11번째부터 2탄으로 본다.
+     필터 칩은 [전체 0/30] [1탄 0/10] [2탄 0/10] [3탄 0/10] 으로 보유 수를 같이 보여 준다. */
   var epFilter = 'all';
   function epList() {
     if (data && data.episodes && data.episodes.length) return data.episodes;
@@ -686,7 +692,7 @@
     bindShop(shop, modal);
     var kick = modal.el.querySelector('.modal-kicker');
     if (kick) kick.textContent = kickerText();
-    /* 탄 필터를 바꾸면 목록 처음부터 (20명이라 스크롤이 깊다) */
+    /* 탄 필터를 바꾸면 목록 처음부터 (30명이라 스크롤이 깊다) */
     var body = modal.el.querySelector('.modal-body');
     if (body) body.scrollTop = 0;
   }

@@ -1,6 +1,17 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=149`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=150`
+
+## ✅ v6.10c — 이세계 특전 영웅 DLC 3탄 21~30번 · **30인 완결** (2026-11-27 · `?v=150`, 상점은 여전히 **출시 전 비공개**)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 데이터 | `data/dlc_heroes.json` — 3탄 10인(삼장법사·저팔계·사오정·나타·항우·오다 노부나가·사나다 유키무라·블라드 체페슈·임꺽정·구미호) 고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_21~30`·2,900원 + `ep: 3`·`episodes` 3탄 | `data/dlc_heroes.json` |
+| ② 상점 3탄 필터 | 특전 탭 `0/30` · 필터 `[전체 0/30][1탄][2탄][3탄]` 4칩 한 줄(390px) · 탄 머리 3개 · kicker `특전 n/30` · 30명 완결 안내문 | `js/dlc.js` `filterHTML`·`heroCardsHTML`·`shopInner`, `css/game.css` `.dlc-filters`·`.dlc-fchip` |
+| ③ 전용 초상·SD | 3탄 초상 10장(`assets/portraits/dlc/dlc_21~30.webp`, 01_yeomong 화풍 `--edit`, 256 투명 RGBA) · 전장 전신 SD 10종(`assets/units/dlc/`, 풍화륜·조총·거대 도끼·아홉 꼬리 등) | 그림 파일 |
+| ④ 전장 표식 | `dlcAccent()` — 삼장 금빛 서광·저팔계 먼지·사오정 물결·나타 불티·항우 패왕색·노부나가 포연·사나다 깃·블라드 피방울·임꺽정 흙·구미호 여우불 | `js/battle.js` `dlcAccent` |
+| ⑤ 엔진 추가 | `push`(칸 단위 넉백 `pushAway`) · `lifesteal`을 책략·병과 패시브까지 확장 · `classDef.tb`→`SK.TB` · `classDef.passive`→`SK.CLASS_PASSIVE` 등록 · 설명 문구 | `js/battle.js` `applyUlt`·`attackUnit`·`ultDesc`, `js/dlc.js` `registerOne` |
+| ⑥ 검수 | `tools/v690c_browser.py` 93항목 · `tools/v690c_regress.py` 12항목 OK · 스샷 `preview/v690c/` | `tools/` |
 
 ## ✅ v6.10 — 80거점 천하통일 엔딩 (2026-11-27 · `?v=148`)
 
@@ -66,7 +77,8 @@
 ## 📋 다음 패치 대기
 
 - ~~이세계 특전 영웅 2탄(11~20)~~ ✅ v6.9b 완료.
-- **이세계 특전 영웅 3탄(21~30)** — 같은 틀에 `ep: 3` 항목과 그림(`assets/portraits/dlc/dlc_21~30.webp`·`assets/units/dlc/dlc_21~30.webp`)만 이어 붙이면 된다. 30명이 모이면 `DLC_PUBLIC = true`로 상점을 연다.
+- ~~이세계 특전 영웅 3탄(21~30)~~ ✅ v6.10c 완료 — 1·2·3탄 **30명 완결**.
+- **DLC 공개 준비** — `js/dlc.js`의 `DLC_PUBLIC = false` → `true`, Google Play Billing 상품 32개(영웅 30 + 편의·후원 2) 등록, 스토어 문구·스크린샷. 공개 시점은 대표님 결정.
 - **편의·후원 상품 추가 후보** — 상품 정본은 `js/dlc.js`의 `GOODS` 배열(가격·문구·Billing ID). 같은 틀에 항목만 넣으면 세 번째 탭/카드가 늘어난다. 자동 내정 패스는 게임 안 규칙을 그대로 쓰므로, 새 편의 상품도 `js/app.js`의 실제 함수에 붙일 것.
 - 2026-11-24에 킵해 둔 v5.89 후보 6종은 아래 ✅ v5.89에서 모두 반영했다. 다음 후보는 실플레이 제보를 받아 정한다.
 

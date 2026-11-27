@@ -9710,25 +9710,26 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 
 /* ══════════════════════════════════════════════════════════════════════
    v6.10b — 이세계 특전 영웅 2탄(11~20번) · 상점 탄 필터와 탄 구분 머리
-   · 특전 영웅 탭 0/20 — [전체] [1탄] [2탄] 칩으로 10명씩 끊어 본다.
-   · 390×844에서 칩 3개가 한 줄에 들어가고, 머리는 스크롤해도 위에 붙는다.
+   v6.10c — 3탄까지(전체 0/30) — 칩 4개(전체·1·2·3탄)를 390px 한 줄에
+   · 특전 영웅 탭 0/30 — [전체] [1탄] [2탄] [3탄] 칩으로 10명씩 끊어 본다.
+   · 머리는 스크롤해도 위에 붙는다.
    ══════════════════════════════════════════════════════════════════════ */
 .dlc-filters {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
   position: sticky; top: -1px; z-index: 4; padding: 5px 0 6px;
   background: linear-gradient(180deg, #f6eeda 60%, rgba(246, 238, 218, 0.92));
 }
 .dlc-fchip {
-  display: flex; align-items: center; justify-content: center; gap: 4px;
-  min-height: 34px; padding: 5px 6px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  min-height: 34px; padding: 5px 3px; border-radius: 9px;
   border: 1px solid #c8a860; background: linear-gradient(180deg, #fbf3de, #e9d8ae);
-  color: #6b4c14; font-size: 11px; font-weight: 900; letter-spacing: -0.02em;
+  color: #6b4c14; font-size: 10.5px; font-weight: 900; letter-spacing: -0.03em;
   white-space: nowrap; overflow: hidden;
 }
-.dlc-fchip b { font-size: 11px; }
+.dlc-fchip b { font-size: 10.5px; }
 .dlc-fchip span {
-  padding: 0 4px; border-radius: 6px; line-height: 14px;
-  background: rgba(120, 88, 30, 0.14); color: #6b4c14; font-size: 9px; font-weight: 900;
+  padding: 0 3px; border-radius: 6px; line-height: 13px;
+  background: rgba(120, 88, 30, 0.14); color: #6b4c14; font-size: 8.5px; font-weight: 900;
 }
 .dlc-fchip.on {
   border-color: #8c5a12; color: #2a1a04;
