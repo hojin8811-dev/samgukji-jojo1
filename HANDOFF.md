@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.10 · 2026-11-27 · 라이브 `?v=148`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.10b · 2026-11-27 · 라이브 `?v=149`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 
 ---
@@ -13,15 +13,15 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=148`) |
-| 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 10 + 편의·후원 상품 2(출시 전 비공개)** |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=149`) |
+| 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 20(1·2탄) + 편의·후원 상품 2(출시 전 비공개)** |
 
 ---
 
 ## 2. 지금 상태 — 실제로 확인한 값 (2026-11-27 기준)
 
-- **최신 커밋**: `v6.10 80거점 천하통일 엔딩 — 결산표·MVP·코믹 축사·명예의 전당 (?v=148)` — 2026-11-27 `main` HEAD
-- **`index.html`**: `css/game.css?v=148`, `js/*.js?v=148`(17개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=148"`, 서비스워커 등록도 `sw.js?v=148`
+- **최신 커밋**: `v6.10b 이세계 특전 영웅 DLC 2탄 — 신화·명장 11~20번 (?v=149)` — 2026-11-27 `main` HEAD
+- **`index.html`**: `css/game.css?v=149`, `js/*.js?v=149`(17개 — `js/dlc.js` 추가), `manifest start_url "./index.html?v=149"`, 서비스워커 등록도 `sw.js?v=149`
 - **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
 - **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1.
@@ -73,7 +73,7 @@
 
 ### `data/` (런타임에 실제로 읽는 것)
 
-`dlc_heroes.json`(특전 영웅 1탄 10인) · `generals.json`(596) · `cities.json`(80) · `classes.json`(18, **런타임에 `SK.CLASSES`를 덮어씀**) · `treasures.json`(350) · `unique_passives.json`(701) · `scenarios.json`(4) · `historical_scenarios.json` · `bonds.json` · `tech_tree.json` · `events.json` · `domestic_events.json` · `quotes_and_ranks.json` · `hero_gags.json` · `korea_v523_art.json` · `*_art_manifest.json`(초상 매니페스트)
+`dlc_heroes.json`(특전 영웅 1·2탄 20인) · `generals.json`(596) · `cities.json`(80) · `classes.json`(18, **런타임에 `SK.CLASSES`를 덮어씀**) · `treasures.json`(350) · `unique_passives.json`(701) · `scenarios.json`(4) · `historical_scenarios.json` · `bonds.json` · `tech_tree.json` · `events.json` · `domestic_events.json` · `quotes_and_ranks.json` · `hero_gags.json` · `korea_v523_art.json` · `*_art_manifest.json`(초상 매니페스트)
 
 ### `assets/`
 
@@ -86,6 +86,7 @@
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
 | **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문과 주소 `&ending=1` 미리보기. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
+| **v6.10b** | 11-27 | **이세계 특전 영웅 DLC 2탄**(11~20번, 출시 전 비공개) — `data/dlc_heroes.json`에 10인 추가(`dlc_hero_11~20`·2,900원·`ep:2`·`episodes`) · 고유 직업·고유 책략 3종·고유 필살기(아킬레우스 관통·헤라클레스 광역 강타·토르 연쇄 번개·오딘 회피 무시·로빈 7칸 화살비·란슬롯 3연격·멀린 화염/빙결·나폴레옹 6칸 포격·카이사르 전장 방패진·한니발 코끼리 공포 돌진) · 상점 특전 탭 **0/20** + [전체/1탄/2탄] 필터·탄 머리 · 초상 10장(`assets/portraits/dlc/dlc_11~20.webp`)·전장 SD 10종(`assets/units/dlc/`)·`dlcAccent()` 표식 · 엔진에 `chain` 필살기·`ignoreEvade`·`e.rng`(6·7칸) 추가 · `?v=149`
 | **v6.9a** | 11-27 | **상점 편의·후원 상품 2종**(출시 전 비공개) — 상점 모달에 [✨ 특전 영웅] · [🎁 편의·후원] 탭 · **자동 내정 패스**(3,900원 영구 `pass_auto_city`) — 지도·성 화면 [⚡ 전체 자동 내정] 원터치로 내 모든 성의 남은 장수로 징병·훈련·보수·개간·상업·민심 일괄 실행 후『전체 자동 내정 보고』(성/장수/건수 + 금·군량·병력 순변화), 성별 금고·`refreshHud` 반영 · **개발자 응원 팩**(1,900원 계정당 1회 `pack_supporter_once`) — 👑 후원자 뱃지(지도 군주 초상·성 시트·관아·명부) + 금·군량 +3,000·S/A 보물 1개를 세력당 1회(`s.supGrant` 가드), 구매 뒤 [감사합니다!] · `SK.DlcBilling`이 상품 12개(`products()`·`kindOf`) 처리 |
 | **v6.9** | 11-27 | **이세계 특전 영웅 DLC 1탄**(출시 전 비공개) — `data/dlc_heroes.json` 10인(고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_01~10`·2,900원) · `js/dlc.js` 로더/해금(`unlockedDlc`)/`SK.DlcBilling`(AndroidBilling 브리지)/상점 모달(목판·비단) · `?dlc=1` 또는 `dlcTestMode`에서만 보이는 게이트 · 전용 초상 `assets/portraits/dlc/`·전용 전장 SD `assets/units/dlc/` 10종 + 영웅별 오라(`drawDlcChibi`) · 율도국 의적 전리품 금 +25% |
 | **v6.8a** | 11-27 | 본편 유저 입장 TOP 5 UX — ① 출진 편성 전력 비교(적 성 수비+전장 증원 vs 우리 출진)·2배 이상 [전멸 위험] 배지·1.5배 이상 확인창 ② 성하 야전 승리 뒤 [성문 앞 전력] 비교 + [이번 달 물러난다(회군)] ③ 생포 처리(등용·석방·억류) 한 줄 설명 ④ 3분 입문 성문 앞 1~3칸 근거리 스폰 + 안내 전환을 `allyHits > 0`(실제 타격)으로 수정 ⑤ 이동 가능 칸 밝은 파랑 판·바깥 윤곽, 부대 스프라이트 히트박스 ⑥ 월정산 '이 달 실제 병력' 줄·스크롤 힌트 ⑦ 공·사기 변동 사유(지형·진형·사기·책략) 표기 ⑧ 일기토 결과 [확인 — 전장으로] 버튼(수동은 자동 닫힘 없음) ⑨ 공터 건설 Lv.1 기대 효과 수치 ⑩ 출진 대상 성 카드 목록 |
@@ -119,12 +120,13 @@
   1. 주소에 **`?dlc=1`** — 예: `https://hojin8811-dev.github.io/samgukji-jojo1/?v=147&dlc=1` (지도에 들어가면 상점이 한 번 자동으로 열린다)
   2. `localStorage['dlcTestMode'] = '1'` — 기기 브라우저 콘솔에서 한 번 실행하면 그 기기에서 계속 보인다. (상점에서 [테스트 해금]을 한 번 쓰면 자동으로 켜진다)
 - **해금 상태**는 `localStorage['unlockedDlc'] = ["dlc_hero_01", ...]` 배열. 해금하면 그 영웅이 본성 로스터에 합류하고, 지도에 들어올 때마다 빠진 영웅을 다시 합류시킨다(새 게임도 마찬가지).
-- **상품·가격 정본은 `data/dlc_heroes.json`** — `productId`(`dlc_hero_01`~`dlc_hero_10`), `price`(2900), 이름·직업·필살기. 2탄·3탄도 같은 파일에 항목만 이어 붙이면 된다.
+- **상품·가격 정본은 `data/dlc_heroes.json`** — `productId`(`dlc_hero_01`~`dlc_hero_20`), `price`(2900), 이름·직업·필살기·`ep`(1·2). **1탄 1~10번·2탄 11~20번이 들어가 있고, 3탄은 같은 파일에 `ep: 3` 항목만 이어 붙이면 된다.** 상점 특전 탭은 `0/20`이며 [전체/1탄/2탄] 필터로 10명씩 본다(`js/dlc.js` `epList`·`filterHTML`).
 - **Google Play Billing 연결점**(네이티브 담당자용): `window.SK.DlcBilling`
   - `purchase(productId)` → `window.AndroidBilling.purchase(productId)` 호출(없으면 `'unavailable'`을 돌려주고 웹 안내창)
   - 결제 완료 시 앱이 **`SK.DlcBilling.onPurchaseSuccess(productId)`**, 취소·실패 시 **`SK.DlcBilling.onPurchaseFail(productId, reason)`** 를 부르면 해금·로스터 합류·토스트까지 끝난다.
 - **출시할 때**: `js/dlc.js`의 `DLC_PUBLIC = false` → `true` 로 바꾸고 `?v=`를 올려 배포하면 전체 공개된다. 그 전까지 목록에 2·3탄을 채우는 것이 순서다.
-- **검수**: `python3 tools/v690_browser.py`(57항목) · 스크린샷 `preview/v682/`. 일반 주소 비공개·`?dlc=1` 상점·해금→로스터→실제 출진→전장 고유 치비→필살기 10종→세이브까지 자동 확인한다.
+- **검수**: `python3 tools/v690b_browser.py`(92항목, 20명·2탄 필터·연쇄 번개·광역 방어 버프·공포까지) · `python3 tools/v690b_regress.py`(12항목, 일반 주소 회귀) · 스크린샷 `preview/v690b/`. (`tools/v690_browser.py`·`v690a_browser.py`는 1탄·v6.9a 시점 스크립트라 특전 수 10 기준의 낡은 단언이 실패한다 — 지금은 v690b 두 스크립트를 쓴다.)
+- **전장 연출**: 2탄 영웅은 `drawDlcChibi` 아래 `dlcAccent()`가 영웅별 표식(한니발 발굽 먼지·나폴레옹 포연·토르 번개·멀린 룬·로빈 화살·오딘 까마귀)을 2~3획 더한다. 필살기 `chain`(연쇄 번개)과 `ignoreEvade`(회피 무시)는 `js/battle.js` `applyUlt`·`calcDamage`에 있다.
 
 ## 6-2. 편의·후원 상품 2종 — **상점 2번째 탭 [🎁 편의·후원]** (v6.9a · `?v=147`)
 

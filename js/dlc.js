@@ -382,7 +382,7 @@
   }
   var Billing = {
     available: function () { return !!bridge(); },
-    /* 상점에 올라간 모든 상품 ID — 특전 영웅 10 + 편의·후원 2 */
+    /* 상점에 올라간 모든 상품 ID — 특전 영웅 20(1·2탄) + 편의·후원 2 */
     products: function () {
       return heroList().map(function (h) { return h.productId; }).concat(GOODS.map(function (g) { return g.productId; }));
     },
@@ -483,11 +483,12 @@
   }
   function shopInner() {
     var d = data || {};
-    return '<div class="dlc-head"><b>✨ 이세계 특전 영웅 · ' + esc(d.episodeTitle || '1탄') + '</b>' +
-      '<span>묶음 없이 1인 단품 판매 — 각 ' + ((d.priceKRW || 2900).toLocaleString('ko-KR')) + '원</span>' +
+    var eps = epList().map(function (e) { return epShort(e.n); }).join('·');
+    return '<div class="dlc-head"><b>✨ 이세계 특전 영웅 · ' + esc(eps) + '</b>' +
+      '<span>묶음 없이 1인 단품 판매 — 각 ' + ((d.priceKRW || 2900).toLocaleString('ko-KR')) + '원 · 총 ' + heroList().length + '명</span>' +
       '<em>본편 주점·도감과 분리된 유료 특전 영웅입니다. 능력치는 본편 S급 최상위권과 동급이고, 고유 직업·고유 필살기·고유 외형으로만 차별화합니다.</em></div>' +
-      heroList().map(cardHTML).join('') +
-      '<p class="dlc-foot">2탄(11~20)과 3탄(21~30)은 후속 업데이트로 이어집니다. 해금한 영웅은 본성 로스터에 합류해 출진·전투·고유 필살기를 그대로 쓸 수 있습니다.</p>';
+      filterHTML() + heroCardsHTML() +
+      '<p class="dlc-foot">3탄(21~30)은 후속 업데이트로 이어집니다. 해금한 영웅은 본성 로스터에 합류해 출진·전투·고유 필살기를 그대로 쓸 수 있습니다.</p>';
   }
   function shopBody() { return '<div class="dlc-shop">' + shopInnerHTML() + '</div>'; }
 
@@ -530,6 +531,57 @@
   function ownedHeroN() {
     return readUnlocked().filter(function (p) { return !!byProduct[p]; }).length;
   }
+  /* ── v6.10b — 2탄: 탄(1탄·2탄) 구분과 필터 ──────────────────────────
+     영웅마다 data 의 ep(1·2) 를 읽는다. ep 가 없으면 11번째부터 2탄이다.
+     필터 칩은 [전체 0/20] [1탄 0/10] [2탄 0/10] 으로 보유 수를 같이 보여 준다. */
+  var epFilter = 'all';
+  function epList() {
+    if (data && data.episodes && data.episodes.length) return data.episodes;
+    return [{ n: 1, title: (data && data.episodeTitle) || '1탄', range: '1~10번' },
+      { n: 2, title: '2탄 — 신화와 명장', range: '11~20번' }];
+  }
+  function epOf(h) {
+    if (!h) return 1;
+    if (h.ep) return Number(h.ep);
+    return heroList().indexOf(h) >= 10 ? 2 : 1;
+  }
+  function epEntry(n) {
+    return epList().filter(function (x) { return Number(x.n) === Number(n); })[0] || null;
+  }
+  function epShort(n) {
+    var e = epEntry(n);
+    if (!e) return String(n) + '탄';
+    return String(e.title || '').split(' — ')[0] || (n + '탄');
+  }
+  function epTitleOf(n) {
+    var e = epEntry(n);
+    return e ? (e.title || epShort(n)) : (n + '탄');
+  }
+  function epHeroes(n) { return heroList().filter(function (h) { return epOf(h) === Number(n); }); }
+  function epOwned(n) { return epHeroes(n).filter(function (h) { return isUnlocked(h.productId); }).length; }
+  function filterHTML() {
+    var chip = function (key, label, own, all) {
+      var on = epFilter === key;
+      return '<button type="button" class="dlc-fchip' + (on ? ' on' : '') + '" data-f="' + key + '" role="tab" aria-selected="' + on + '">' +
+        '<b>' + esc(label) + '</b><span>' + own + '/' + all + '</span></button>';
+    };
+    return '<div class="dlc-filters" role="tablist" aria-label="탄 선택">' +
+      chip('all', '전체', ownedHeroN(), heroList().length) +
+      epList().map(function (e) { return chip(String(e.n), epShort(e.n), epOwned(e.n), epHeroes(e.n).length); }).join('') +
+      '</div>';
+  }
+  function heroCardsHTML() {
+    if (epFilter === 'all') {
+      return epList().map(function (e) {
+        var list = epHeroes(e.n);
+        if (!list.length) return '';
+        return '<div class="dlc-ep-h"><b>' + esc(epTitleOf(e.n)) + '</b>' +
+          '<span>' + esc(e.range || '') + ' · ' + epOwned(e.n) + '/' + list.length + ' 보유</span></div>' +
+          list.map(cardHTML).join('');
+      }).join('');
+    }
+    return epHeroes(Number(epFilter)).map(cardHTML).join('');
+  }
   function ownedGoodsN() {
     return GOODS.filter(function (g) { return isUnlocked(g.productId); }).length;
   }
@@ -558,7 +610,7 @@
     }).join('');
     return '<div class="dlc-detail">' +
       '<div class="dd-top"><div class="dlc-port tf tier-' + (h.tier || 'S') + '"><img src="' + SK.ptSrc(h.portrait) + '" alt=""></div>' +
-        '<div><b>' + esc(h.name) + '</b><em>' + esc(h.title) + ' · ' + (h.tier || 'S') + '급</em>' +
+        '<div><b>' + esc(h.name) + '</b><em>' + esc(epShort(epOf(h))) + ' · ' + esc(h.title) + ' · ' + (h.tier || 'S') + '급</em>' +
         '<p class="dd-desc">' + esc(h.desc) + '</p></div></div>' +
       statChips(h) +
       '<p class="dd-line">고유 직업 <b>' + esc(cd.role || '') + '</b> — ' + esc(cd.desc || '') + '</p>' +
@@ -634,13 +686,22 @@
     bindShop(shop, modal);
     var kick = modal.el.querySelector('.modal-kicker');
     if (kick) kick.textContent = kickerText();
+    /* 탄 필터를 바꾸면 목록 처음부터 (20명이라 스크롤이 깊다) */
+    var body = modal.el.querySelector('.modal-body');
+    if (body) body.scrollTop = 0;
   }
-  /* 탭 + 카드 액션을 함께 묶는다 */
+  /* 탭 + 탄 필터 + 카드 액션을 함께 묶는다 */
   function bindShop(root, modal) {
     if (!root) return;
     root.querySelectorAll('.dlc-tab').forEach(function (b) {
       b.onclick = function () {
         shopTab = b.getAttribute('data-tab') === 'goods' ? 'goods' : 'hero';
+        refreshShop(modal);
+      };
+    });
+    root.querySelectorAll('.dlc-fchip').forEach(function (b) {
+      b.onclick = function () {
+        epFilter = b.getAttribute('data-f') || 'all';
         refreshShop(modal);
       };
     });
@@ -825,7 +886,7 @@
     },
     lootMul: function (cls) { var C = SK.CLASSES[cls]; return (C && C.loot) || 0; },
     debug: {
-      unlockAll: function () { heroList().forEach(function (h) { unlock(h.productId, { silent: true }); }); SK.toast('특전 영웅 10명 테스트 해금'); },
+      unlockAll: function () { heroList().forEach(function (h) { unlock(h.productId, { silent: true }); }); SK.toast('특전 영웅 ' + heroList().length + '명 테스트 해금'); },
       lockAll: function () { heroList().slice().reverse().forEach(function (h) { lock(h.productId, { silent: true }); }); SK.toast('특전 영웅 전체 잠금'); },
       /* v6.9a — 편의·후원 검수용 */
       passOn: function () { grantGoods('pass_auto_city'); },

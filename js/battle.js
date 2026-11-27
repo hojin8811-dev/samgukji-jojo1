@@ -4649,10 +4649,84 @@
     ctx.beginPath(); ctx.ellipse(bx, by - 3, rr * 0.72, rr * 0.30, 0, 0, PI2); ctx.stroke();
     ctx.restore();
   }
+  /* v6.10b — 2탄 영웅의 전장 표식: 24px 짜리 SD 위에 그 영웅만의 2~3획만 더한다.
+     (한니발 코끼리 먼지 · 나폴레옹 포연 · 토르 번개 · 멀린 룬 · 로빈 화살 · 오딘 까마귀)
+     오라·발판은 dlcAura 가 그리고, 여기서는 전장에서도 누가 누구인지 읽히게 하는 표식만 얹는다. */
+  function dlcAccent(u, c, bx, by, h, dw, front) {
+    if (!c || !c.kind) return;
+    const k = c.kind;
+    const t = performance.now();
+    const dir = u.face > 0 ? 1 : -1;
+    if (!front) {
+      if (k === 'hannibal') {
+        /* 코끼리 발굽 먼지 — 발밑에서 뒤로 퍼진다 */
+        for (let i = 0; i < 2; i++) {
+          const ph = ((t / 520) + i * 0.5) % 1;
+          ctx.fillStyle = 'rgba(214,196,160,' + (0.26 * (1 - ph)).toFixed(2) + ')';
+          ctx.beginPath();
+          ctx.ellipse(bx - dir * (6 + ph * 12), by - 2 - ph * 3, 5 + ph * 7, 2.6 + ph * 3, 0, 0, PI2);
+          ctx.fill();
+        }
+      } else if (k === 'napoleon') {
+        /* 포연 — 어깨 옆에서 연기가 한 줄 피어오른다 */
+        const ph = (t / 900) % 1;
+        ctx.fillStyle = 'rgba(232,226,210,' + (0.30 * (1 - ph)).toFixed(2) + ')';
+        ctx.beginPath();
+        ctx.arc(bx + dir * (dw * 0.32 + ph * 4), by - h * (0.45 + ph * 0.34), 3 + ph * 4, 0, PI2);
+        ctx.fill();
+      }
+      return;
+    }
+    ctx.save();
+    ctx.lineCap = 'round';
+    if (k === 'thor') {
+      const on = (t % 700) < 130;
+      if (on) {
+        ctx.strokeStyle = 'rgba(180,220,255,0.9)';
+        ctx.lineWidth = 1.6;
+        for (let i = 0; i < 2; i++) {
+          const x0 = bx + (i ? 7 : -8), y0 = by - h * (0.62 + i * 0.1);
+          ctx.beginPath();
+          ctx.moveTo(x0, y0); ctx.lineTo(x0 + 3, y0 + 4); ctx.lineTo(x0 - 1, y0 + 5); ctx.lineTo(x0 + 2, y0 + 9);
+          ctx.stroke();
+        }
+      }
+    } else if (k === 'merlin') {
+      for (let i = 0; i < 2; i++) {
+        const a = t / 620 + i * Math.PI;
+        ctx.fillStyle = 'rgba(190,150,255,0.75)';
+        ctx.beginPath();
+        ctx.arc(bx + Math.cos(a) * 7, by - h * 0.86 + Math.sin(a) * 3, 1.8, 0, PI2);
+        ctx.fill();
+      }
+    } else if (k === 'robin') {
+      const ph = (t / 760) % 1;
+      ctx.strokeStyle = 'rgba(200,240,190,' + (0.5 * (1 - ph)).toFixed(2) + ')';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(bx + dir * (8 + ph * 8), by - h * 0.55);
+      ctx.lineTo(bx + dir * (16 + ph * 10), by - h * 0.55);
+      ctx.stroke();
+    } else if (k === 'odin') {
+      const a = t / 700;
+      const cx0 = bx + Math.cos(a) * 9, cy0 = by - h * 0.95 + Math.sin(a) * 2.5;
+      ctx.fillStyle = 'rgba(30,28,34,0.85)';
+      ctx.beginPath(); ctx.ellipse(cx0, cy0, 2.2, 1.5, 0, 0, PI2); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,28,34,0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx0 - 2, cy0); ctx.lineTo(cx0 - 4.5, cy0 - 1.6);
+      ctx.moveTo(cx0 - 2, cy0); ctx.lineTo(cx0 - 4.5, cy0 + 1.6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   /* 특전 영웅 한 명 그리기 — 오라 + 전용 SD (그림 크기·그림자는 다른 부대와 같은 규칙) */
   function drawDlcChibi(u, c, img, box, dx, dy, dw, dh) {
     dlcAura(u, c, dx + dw / 2, dy + dh, dh);
+    dlcAccent(u, c, dx + dw / 2, dy + dh, dh, dw, false);
     ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
+    dlcAccent(u, c, dx + dw / 2, dy + dh, dh, dw, true);
   }
 
   function drawUnit(u) {
@@ -8017,7 +8091,8 @@
     if (kind === 'rock') base *= 0.55;
     /* v5.15 — 무희 오라의 회피(받는 피해 −8%) · v5.81 무도가 고유 회피 · v5.82 복병(숲·산지 회피) */
     const ev = buffVal(d, 'evade') + classEva(d) + vpEvade(d);
-    if (ev > 0) base *= Math.max(0.6, 1 - ev);
+    /* v6.10b — 회피 무시(오딘 궁니르): 대상의 회피 보정을 계산에서 뺀다 */
+    if (ev > 0 && !(opts && opts.ignoreEvade)) base *= Math.max(0.6, 1 - ev);
     /* v5.82 — 고유 특기 40종: 공격자 배율·방어자 배율 (계산 맨 끝에서 한 번에) */
     base *= vpAtkMul(a, d, opts);
     base *= vpTakenMul(d);
@@ -9830,14 +9905,15 @@
     if (!spec.tier) spec.tier = (t === 'A' ? 'A' : 'S');
     return spec;
   }
-  const ULT_TARGET_KINDS = { hit: 1, combo: 1, aoe: 1, arrow: 1, arrowAoe: 1, magic: 1, rock: 1, debuff: 1, line: 1 };
+  /* v6.10b — chain(토르 묠니르 연쇄 번개) 추가 */
+  const ULT_TARGET_KINDS = { hit: 1, combo: 1, aoe: 1, arrow: 1, arrowAoe: 1, magic: 1, rock: 1, debuff: 1, line: 1, chain: 1 };
   function ultNeedsTarget(spec) { return !!(spec && spec.e && ULT_TARGET_KINDS[spec.e.k]); }
   function ultRange(u, spec) {
     if (!u || !spec || !spec.e) return 1;
     if (spec.e.rng) return spec.e.rng;
     const k = spec.e.k;
     if (k === 'line') return (spec.e.len || 2) + 1;
-    const bonus = (k === 'magic' || k === 'rock' || k === 'debuff' || k === 'aoe' || k === 'arrowAoe') ? 1 : 0;
+    const bonus = (k === 'magic' || k === 'rock' || k === 'debuff' || k === 'aoe' || k === 'arrowAoe' || k === 'chain') ? 1 : 0;
     return Math.max(1, effRng(u) + bonus);
   }
   function ultDesc(spec) {
@@ -9854,6 +9930,12 @@
       case 'magic': return `지점 반경 ${e.r || 1}칸에 책략 폭발 (화계의 ${pc(e.p || 1.2)} 위력)${ail}`;
       case 'line': return `${e.len || 2}칸 직선 관통${e.stat === 'int' ? ' 계략' : ''} ${pc(e.m || e.p || 1)}${ail}`;
       case 'rock': return `지점 반경 ${e.r || 1}칸에 투석 폭격 (${pc(e.p || 1.2)})${ail}`;
+      /* v6.10b — 연쇄 번개: 첫 대상 뒤로 이웃 적에게 튀며 위력이 줄어든다 */
+      case 'chain': {
+        const jumps = Math.max(1, Number(e.jumps) || 3);
+        const fall = Math.round((e.fall == null ? 0.72 : e.fall) * 100);
+        return `적 1부대에게 계략 ${pc(e.p || 1.3)} 번개 · ${e.r || 3}칸 안 적 ${jumps}부대까지 ${fall}%씩 연쇄${ail}`;
+      }
       case 'buff': {
         const p = [];
         if (e.atk) p.push(`공격 +${Math.round(e.atk * 100)}%`);
@@ -9997,7 +10079,8 @@
       m *= 1 + Math.min(e.lowHpBonus.max, steps * e.lowHpBonus.per10) / 100;
     }
     if (e.execute && t.maxHp && t.hp / t.maxHp <= e.execute.hpBelow / 100) m *= 1 + e.execute.bonusPct / 100;
-    const res = calcDamage(u, t, Object.assign({ mult: m, noCrit: true, firstStrike: false, defPierce: e.pierce || 0 }, opts || {}));
+    const res = calcDamage(u, t, Object.assign({ mult: m, noCrit: true, firstStrike: false, defPierce: e.pierce || 0,
+      ignoreEvade: !!e.ignoreEvade }, opts || {}));
     let dmg = res.dmg;
     let crit = false;
     if (e.crit && Math.random() < (e.crit.chance || 0)) {
@@ -10150,6 +10233,33 @@
           if (t.alive && e.morale) moraleShift(t, e.morale, '필살기 위압');
           addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
         }, 90 + i * 90);
+      });
+    } else if (e.k === 'chain') {
+      /* v6.10b — 연쇄 번개(토르): 첫 대상에서 시작해 r칸 안의 가장 가까운 적으로 이어져
+         최대 jumps부대까지 때린다. 위력은 한 번 튈 때마다 fall 만큼 줄어든다. */
+      const chainList = [];
+      const sorted = foes.slice().sort((a, b) => manh(u.x, u.y, a.x, a.y) - manh(u.x, u.y, b.x, b.y));
+      let cur = (tgt && tgt.alive) ? tgt : sorted[0];
+      const maxN = 1 + Math.max(0, Math.min(5, Number(e.jumps) || 0));
+      while (cur && chainList.length < maxN) {
+        chainList.push(cur);
+        const from = cur;
+        cur = foes.filter((o) => o.alive && chainList.indexOf(o) < 0
+          && manh(from.x, from.y, o.x, o.y) <= (e.r || 3))
+          .sort((a, b) => manh(from.x, from.y, a.x, a.y) - manh(from.x, from.y, b.x, b.y))[0] || null;
+      }
+      chainList.forEach((t, i) => {
+        wait(() => {
+          if (!B || B.over || !t.alive) return;
+          const p = (e.p || 1.3) * (i === 0 ? 1 : Math.pow(e.fall == null ? 0.72 : e.fall, i));
+          out.dmg += ultMagicHit(u, t, p);
+          out.hits.push(t.name);
+          addFx({ kind: 'bolt', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.5) * TILE, life: 460 });
+          addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 380, color: spec.c });
+          ail(t);
+          track(t);
+          if (t.alive && e.morale) moraleShift(t, e.morale, '필살기 위압');
+        }, 140 + i * 150);
       });
     } else if (e.k === 'magic' || e.k === 'rock') {
       const cx = tgt ? tgt.x : u.x, cy = tgt ? tgt.y : u.y;

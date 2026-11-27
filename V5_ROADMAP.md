@@ -1,6 +1,6 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=148`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=149`
 
 ## ✅ v6.10 — 80거점 천하통일 엔딩 (2026-11-27 · `?v=148`)
 
@@ -14,6 +14,17 @@
 | ⑥ 명예의 전당 | `localStorage['samgukji-jojo-hall-of-fame']` 최대 20건 · `SK.openHall()` · 표지 [🏆 명예의 전당 (n)] · [🌏 새 천하 시작] | `js/app.js` `hallAdd`·`openHall`·`refreshHallBtn`, `index.html` `#btn-hall` |
 | ⑦ 점검·미리보기 | `window.SK_QA.triggerEnding()` · `SK_QA.unifySnapshot()` · `SK_QA.hallList()` · 주소 **`&ending=1`**(판정·저장 없이 한 번 보기) | `js/app.js` 끝·`SK.showMap` |
 | ⑧ 검수 | `tools/v610_browser.py` 39항목 OK · 스샷 `preview/v610/` | `tools/v610_browser.py` |
+
+## ✅ v6.10b — 이세계 특전 영웅 DLC 2탄 11~20번 (2026-11-27 · `?v=149`, 상점은 여전히 **출시 전 비공개**)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 데이터 | `data/dlc_heroes.json` — 2탄 10인(아킬레우스·헤라클레스·토르·오딘·로빈 후드·란슬롯·멀린·나폴레옹·카이사르·한니발) 고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_11~20`·2,900원 + `ep`·`episodes` | `data/dlc_heroes.json` |
+| ② 상점 탄 구분 | 특전 탭 `0/20` · 필터 [전체/1탄/2탄] 보유 수 칩(sticky) · 탄 머리 2개 · 상세 창 탄 표기 · kicker `특전 n/20` | `js/dlc.js` `epList`·`filterHTML`·`heroCardsHTML`, `css/game.css` `.dlc-filters` |
+| ③ 전용 초상·SD | 2탄 초상 10장(`assets/portraits/dlc/dlc_11~20.webp`, 256 투명 RGBA) · 전장 전신 SD 10종(`assets/units/dlc/`, 한니발 전투 코끼리·나폴레옹 대포 포함) | 그림 파일 |
+| ④ 전장 표식 | `dlcAccent()` — 한니발 먼지·나폴레옹 포연·토르 번개·멀린 룬·로빈 화살·오딘 까마귀 | `js/battle.js` `drawDlcChibi`·`dlcAccent` |
+| ⑤ 엔진 추가 | `chain` 필살기(연쇄 번개) · `ignoreEvade`(회피 무시) · 6·7칸 사거리(`e.rng`) · 설명 문구 | `js/battle.js` `applyUlt`·`calcDamage`·`ultDesc` |
+| ⑥ 검수 | `tools/v690b_browser.py` 92항목 · `tools/v690b_regress.py` 12항목 OK · 스샷 `preview/v690b/` | `tools/` |
 
 ## ✅ v6.9a — 상점 편의·후원 상품 2종 (2026-11-27 · `?v=147`, 상점은 여전히 **출시 전 비공개**)
 
@@ -54,7 +65,8 @@
 
 ## 📋 다음 패치 대기
 
-- **이세계 특전 영웅 2탄(11~20)·3탄(21~30)** — 1탄의 틀(`data/dlc_heroes.json` 항목 추가 + `assets/portraits/dlc/`·`assets/units/dlc/` 그림)만 그대로 이어 붙이면 된다. 30명이 모이면 `DLC_PUBLIC = true`로 상점을 연다.
+- ~~이세계 특전 영웅 2탄(11~20)~~ ✅ v6.9b 완료.
+- **이세계 특전 영웅 3탄(21~30)** — 같은 틀에 `ep: 3` 항목과 그림(`assets/portraits/dlc/dlc_21~30.webp`·`assets/units/dlc/dlc_21~30.webp`)만 이어 붙이면 된다. 30명이 모이면 `DLC_PUBLIC = true`로 상점을 연다.
 - **편의·후원 상품 추가 후보** — 상품 정본은 `js/dlc.js`의 `GOODS` 배열(가격·문구·Billing ID). 같은 틀에 항목만 넣으면 세 번째 탭/카드가 늘어난다. 자동 내정 패스는 게임 안 규칙을 그대로 쓰므로, 새 편의 상품도 `js/app.js`의 실제 함수에 붙일 것.
 - 2026-11-24에 킵해 둔 v5.89 후보 6종은 아래 ✅ v5.89에서 모두 반영했다. 다음 후보는 실플레이 제보를 받아 정한다.
 
