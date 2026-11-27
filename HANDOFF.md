@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.10c · 2026-11-27 · 라이브 `?v=150`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.11 · 2026-11-27 · 라이브 `?v=151`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 
 ---
@@ -13,15 +13,15 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=150`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=151`) |
 | 규모(실측) | 거점 80(`data/cities.json`) · 장수 701(명부 `data/generals.json` 596 + 시나리오·재야 인물) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 701(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 30(1·2·3탄) + 편의·후원 상품 2(출시 전 비공개)** |
 
 ---
 
 ## 2. 지금 상태 — 실제로 확인한 값 (2026-11-27 기준)
 
-- **최신 커밋**: `v6.10c 이세계 특전 영웅 DLC 3탄 — 동양 전설·이색 21~30번 · 30인 완결 (?v=150)` — 2026-11-27 `main` HEAD
-- **`index.html`**: `css/game.css?v=150`, `js/*.js?v=150`(18개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=150"`, 서비스워커 등록도 `sw.js?v=150`
+- **최신 커밋**: `v6.11 QA 3건 — 군량 자동 보급·전투 중 팝업 보류·거점 8곳 이상 장수 수급 (?v=151)` — 2026-11-27 `main` HEAD
+- **`index.html`**: `css/game.css?v=151`, `js/*.js?v=151`(18개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=151"`, 서비스워커 등록도 `sw.js?v=151`
 - **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
 - **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1.
@@ -87,6 +87,7 @@
 | --- | --- | --- |
 | **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문과 주소 `&ending=1` 미리보기. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
 | **v6.10b** | 11-27 | **이세계 특전 영웅 DLC 2탄**(11~20번, 출시 전 비공개) — `data/dlc_heroes.json`에 10인 추가(`dlc_hero_11~20`·2,900원·`ep:2`·`episodes`) · 고유 직업·고유 책략 3종·고유 필살기(아킬레우스 관통·헤라클레스 광역 강타·토르 연쇄 번개·오딘 회피 무시·로빈 7칸 화살비·란슬롯 3연격·멀린 화염/빙결·나폴레옹 6칸 포격·카이사르 전장 방패진·한니발 코끼리 공포 돌진) · 상점 특전 탭 **0/20** + [전체/1탄/2탄] 필터·탄 머리 · 초상 10장(`assets/portraits/dlc/dlc_11~20.webp`)·전장 SD 10종(`assets/units/dlc/`)·`dlcAccent()` 표식 · 엔진에 `chain` 필살기·`ignoreEvade`·`e.rng`(6·7칸) 추가 · `?v=149`
+| **v6.11** | 11-27 | **QA 3건** — ① 월정산 군량을 3단계로(성별 순수지 → 모자란 성을 다른 내 성 **잉여**에서 자동 보급 → 남은 적자만 페널티). 처음 바닥난 성은 그 달 **경고만**(`cs.foodWarn`) 하고 다음 달에 민심 −3 · 병력 3% — 보고에 `[군량 긴급 보급]`·`군량 경고` 줄 ② **전투 중 팝업 보류**: `SK.battleLive()`면 `SK.modal` 이 `SK.popupQueue`에 쌓고 전투 종료 시 `SK.flushPopups()`가 순서대로 연다(전투 자체 창은 `battleOk: true` — `js/battle.js` `battleModal`) ③ `SK.landPressure`(8곳 0 → 20곳 1)로 주점 간격 6→4개월·자리 2→4·새 성 주점 3→4명·포로 설득 +10%p·주점 등용 +4%p · `?v=151` · 검수 `tools/v611_browser.py` 35항목 |
 | **v6.10c** | 11-27 | **이세계 특전 영웅 DLC 3탄**(21~30번, 출시 전 비공개) — `data/dlc_heroes.json`에 동양 전설·이색 10인(`dlc_hero_21~30`·2,900원·`ep:3`·`episodes` 3탄) · 고유 직업·고유 책략 3종·고유 필살기(삼장 전체 치유·저팔계 광역 넉백·사오정 수전 기습·나타 풍화륜 돌격·항우 패왕색·노부나가 조총 3연사·사나다 결사 돌격·블라드 흡혈·임꺽정 분쇄·구미호 여우불 매혹) · 상점 특전 탭 **0/30** + [전체/1탄/2탄/3탄] 4칩 한 줄 · 초상 10장·전장 SD 10종·`dlcAccent()` 10종 · 엔진에 **`push`(칸 단위 넉백)**·**흡혈을 책략·병과 패시브까지** · `classDef.tb`(수전)·`classDef.passive`(흡혈·회피) 등록 · `?v=150` |
 | **v6.9a** | 11-27 | **상점 편의·후원 상품 2종**(출시 전 비공개) — 상점 모달에 [✨ 특전 영웅] · [🎁 편의·후원] 탭 · **자동 내정 패스**(3,900원 영구 `pass_auto_city`) — 지도·성 화면 [⚡ 전체 자동 내정] 원터치로 내 모든 성의 남은 장수로 징병·훈련·보수·개간·상업·민심 일괄 실행 후『전체 자동 내정 보고』(성/장수/건수 + 금·군량·병력 순변화), 성별 금고·`refreshHud` 반영 · **개발자 응원 팩**(1,900원 계정당 1회 `pack_supporter_once`) — 👑 후원자 뱃지(지도 군주 초상·성 시트·관아·명부) + 금·군량 +3,000·S/A 보물 1개를 세력당 1회(`s.supGrant` 가드), 구매 뒤 [감사합니다!] · `SK.DlcBilling`이 상품 12개(`products()`·`kindOf`) 처리 |
 | **v6.9** | 11-27 | **이세계 특전 영웅 DLC 1탄**(출시 전 비공개) — `data/dlc_heroes.json` 10인(고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·`dlc_hero_01~10`·2,900원) · `js/dlc.js` 로더/해금(`unlockedDlc`)/`SK.DlcBilling`(AndroidBilling 브리지)/상점 모달(목판·비단) · `?dlc=1` 또는 `dlcTestMode`에서만 보이는 게이트 · 전용 초상 `assets/portraits/dlc/`·전용 전장 SD `assets/units/dlc/` 10종 + 영웅별 오라(`drawDlcChibi`) · 율도국 의적 전리품 금 +25% |
@@ -154,6 +155,17 @@
 - **전적은 `s.rec = { battles, wins }` 하나**. 새 승패 경로를 만들면 `SK.recBattle(true|false)`를 그 경로에 **한 번만** 넣어야 결산 승률이 맞는다(현재 `js/battle.js` 8곳).
 - **명예의 전당은 `localStorage['samgukji-jojo-hall-of-fame']` 별도 키**라 세이브 슬롯과 무관하게 남는다(최대 20건). 표지 버튼은 `SK.refreshHallBtn()`이 기록 유무로 숨김/표시.
 - 점검·미리보기 문: `window.SK_QA.triggerEnding()` · `SK_QA.unifySnapshot()` · `SK_QA.hallList()` · `SK_QA.hallClear()`, 그리고 **주소 `?ending=1` + [이어하기]**(판정·저장 없이 엔딩 한 번, 사용자가 폰에서 바로 보는 길). 검수 `tools/v610_browser.py`(39항목), 스샷 `preview/v610/`.
+
+## 6-4. v6.11 — 군량 정산 규칙·팝업 큐·장수 수급 손잡이 (2026-11-27 · `?v=151`)
+
+- **군량 정산은 `advanceMonth` 안의 3단계 한 덩어리** — ① `foodRows`에 성별 `after = 창고 + 수확 − 유지비`만 계산 ② `relieveFoodShortage(foodRows)`가 적자 성을 다른 내 성 잉여로 메움(주는 성은 `max(1,500, 유지비×4)` 보존, 길로 이어진 성 먼저) ③ `cs.foodWarn` 이 없으면 그 달은 경고만, 있으면 민심 −3 · 병력 3%.
+  - 유예를 없애려면 ③의 `if (cs.foodWarn)` 분기만 지우면 예전과 같이 바로 페널티다. 보급 예비분은 `relieveFoodShortage`의 `reserveOf` 한 줄에서 조절한다.
+  - 보급은 성 사이 이동이라 `SK.totalFood`(전체 창고)가 변하지 않고, 보고의 '군량 수지'도 그대로다. 새 세이브 필드는 `cs.foodWarn` 하나뿐(옛 세이브는 없으면 자동으로 '경고부터').
+- **팝업은 `SK.modal` 한 곳에서 걸린다** — `SK.battleLive()`면 `SK.popupQueue`에 보류, `SK.flushPopups()`가 하나씩 연다. 호출 경로는 모달이 닫힐 때 → `armPendingWatch` → `closeBattle`. 200ms 지연 사이 중복 방지는 `SK._flushBusy`.
+  - **전투 중에도 바로 떠야 하는 새 창**은 반드시 `SK.modal({ battleOk: true, ... })`로 연다(전장 UI는 `js/battle.js`의 `battleModal()`을 쓰면 된다). 지금 `battleOk`가 붙은 곳: battle.js 전부 · tutorial.js 3곳 · backguard.js 2곳.
+  - 멸망 속보 배너처럼 창이 아닌 연출은 `SK.queuePopup(fn)`으로 미룬다.
+- **장수 수급 손잡이는 `SK.landPressure(s)` 하나** — 보유 거점 `n`에 대해 `n≤8: 0`, `(n−8)/12` 상한 1. 쓰는 곳: `wanderInterval`(6→4개월) · `runWanderers`의 `tavernCap`(2→4) · `refillTalents`의 `take`(3→4) · `recruitChance`(+4%p) · `prisonHireChance`(+10%p, 상한 85%). 초중반(8곳 이하)은 0이라 기존 밸런스 그대로다.
+- **검수**: `python3 tools/v611_browser.py`(35항목 — 보급 단위·월정산 3회·가짜/실제 전투 팝업·밸런스 4구간·세이브 재로드) · 스샷 `preview/v611/`.
 
 ## 6. 작업 마칠 때 체크리스트
 

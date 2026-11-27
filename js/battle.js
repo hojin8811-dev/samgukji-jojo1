@@ -29,6 +29,10 @@
   const CLASS_UNIT = SK.CLASS_UNIT;
   const CLASS_PORTRAIT = SK.CLASS_PORTRAIT;
 
+  /* v6.11 — 전장 안에서 여는 창은 전투 중에도 그대로 떠야 한다(공격 예고·생포·일기토·결과).
+     SK.modal 은 전투 중 월정산·사건 같은 '바깥 소식'을 미루므로, battleOk 를 붙인다. */
+  const battleModal = (opts) => SK.modal(Object.assign({ battleOk: true }, opts || {}));
+
   let ctx, canvas, stage;
   let B = null;
   let cam = { s: 0.8, x: 0, y: 0 };
@@ -8953,7 +8957,7 @@
       ? `<div class="ap-row tri"><span>병과 상성</span><b>+${Math.round((tri.mul - 1) * 100)}%</b><em>${triName} 상성</em></div>`
       : '<div class="ap-row"><span>병과 상성</span><b>없음</b><em>기본 피해</em></div>';
     const dMin = d.minRng || 1;
-    const m = SK.modal({
+    const m = battleModal({
       kicker: '전투 예고',
       title: `${a.name} → ${d.name}`,
       body: `<div class="atk-preview">
@@ -9019,7 +9023,7 @@
     /* v5.14 — 자기 성문을 치는 진영은 없다 (수성전 아군 / 공성전 적군 차단) */
     if (!isGateAttacker(a)) { SK.toast('우리 성문은 아군이 칠 수 없습니다.'); return; }
     const res = calcGateDamage(a, {});
-    const m = SK.modal({
+    const m = battleModal({
       kicker: '성문 공략', title: `${a.name} → ${gate.ring > 1 || (B.gates || []).length > 1 ? `${gate.ring}번째 성문` : '성문'}`,
       body: `<div class="atk-preview">
         <div class="ap-row"><span>성문 피해</span><b>${res.dmg}</b><em>${res.kind === 'rock' ? '포격 특화' : res.kind === 'melee' ? '근접' : '사격'}</em></div>
@@ -9548,7 +9552,7 @@
     const lockNote = lockedN
       ? `<p class="skill-locknote">🔒 미해금 ${lockedN}종 · 가장 가까운 해금 Lv.${nextNeed} <em>(이 부대 Lv.${lv})</em></p>`
       : '';
-    const m = SK.modal({
+    const m = battleModal({
       kicker: `${u.name}의 책략`,
       title: '무엇을 펼칠까',
       body: `<div class="skill-list">${rows}</div><p class="skill-mp">남은 책략 ${u.mp} / ${u.maxMp}</p>${lockNote}`,
@@ -13172,7 +13176,7 @@
     SK.save();
     SKBattle.refreshUI();
     const targetName = inv.target && SK.CITY[inv.target] ? SK.CITY[inv.target].name : '성';
-    SK.modal({
+    battleModal({
       kicker: '요격전 승리',
       title: `${targetName} 앞길을 지켰다`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
@@ -13235,7 +13239,7 @@
     SK.save();
     SKBattle.refreshUI();
     const targetName = inv.target && SK.CITY[inv.target] ? SK.CITY[inv.target].name : '성';
-    SK.modal({
+    battleModal({
       kicker: '요격전 패배',
       title: '성을 지켜야 한다',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
@@ -13304,7 +13308,7 @@
       const goalName = ho.cityId && SK.CITY[ho.cityId] ? SK.CITY[ho.cityId].name : '적 성';
       SK.save();
       if (SK.refreshHud) SK.refreshHud();
-      SK.modal({
+      battleModal({
         kicker: '맞공격 요격 승리',
         title: '길목을 지켰습니다',
         body: `<div class="result-modal win"><div class="rm-seal">승</div>
@@ -13352,7 +13356,7 @@
       const pushTag = pushRatio >= 2 ? '성문을 뚫고 들어가도 전멸 위험'
         : pushRatio >= 1.5 ? '성안이 더 많습니다 — 공성 손실이 큽니다'
           : pushRatio <= 0.8 ? '성안보다 우리가 많습니다' : '호각입니다 — 성벽이 변수';
-      SK.modal({
+      battleModal({
         kicker: '성하 야전 승리',
         title: `${(SK.CITY[fld.cityId] || {}).name || ''} 성하 돌파`,
         body: `<div class="result-modal win"><div class="rm-seal">승</div>
@@ -13385,7 +13389,7 @@
       });
       return;
     }
-    SK.modal({
+    battleModal({
       kicker: '요격전 승리',
       title: `${B.def.name} 돌파`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
@@ -13468,7 +13472,7 @@
     const headOnLost = !!(B.intercept && B.intercept.headOn);
     const invName = (B.intercept && B.intercept.headOn && B.intercept.headOn.homeId && SK.CITY[B.intercept.headOn.homeId])
       ? SK.CITY[B.intercept.headOn.homeId].name : '우리 성';
-    SK.modal({
+    battleModal({
       kicker: headOnLost ? '맞공격 요격 패배' : (fieldLost ? '성하 야전 패배' : '행군 실패'),
       title: homeName ? '회군' : '유랑군',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
@@ -13589,7 +13593,7 @@
     if (!all.length) return;
     if (i >= all.length) {
       if (lines.length) {
-        SK.modal({
+        battleModal({
           kicker: '포로 처리', title: '포로를 정리했습니다',
           body: `<div class="prison-log">${lines.map((l) => `<p>${l}</p>`).join('')}</div>`,
           actions: [{ label: '지도로', primary: true }],
@@ -13611,7 +13615,7 @@
       const P = (typeof window !== 'undefined') ? window.V584 : null;
       capSay = (P && P.captureLine) ? (P.captureLine(v584WhoOf(g.name)) || '') : '';
     } catch (e) { capSay = ''; }
-    const m = SK.modal({
+    const m = battleModal({
       kicker: `포로 ${i + 1} / ${all.length}`, title: `${SK.josa(g.name, 'eul')} 어떻게 할까`, wide: true,
       body: `${capSay ? `<div class="v584-bub cap"><span class="vb-tag">🗣️ ${v584Esc(g.name)}</span><p>“${v584Esc(capSay)}”</p></div>` : ''}<div class="prison-card">
         <img class="prison-port ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
@@ -13916,7 +13920,7 @@
       };
       s.fallQueue = (s.fallQueue || []).filter((x) => !x || x.id !== prevOwner);
     }
-    SK.modal({
+    battleModal({
       kicker: '승리',
       title: `${c.name} 함락`,
       body: `<div class="result-modal win">
@@ -14009,7 +14013,7 @@
     /* v5.11 — 마지막 성까지 잃은 배수진 전투에서 지면 패망 */
     const leftCities = SK.CITY_LIST.filter((x) => s.cities[x.id].owner === SK.playerFaction()).length;
     if (!leftCities) { if (SK.gameOver) SK.gameOver('유랑군 배수진이 무너졌습니다.'); return; }
-    SK.modal({
+    battleModal({
       kicker: '패배',
       title: '퇴각',
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
@@ -14088,7 +14092,7 @@
     SK.save();
     SK.refreshHud();
     if (window.SKMap) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
-    SK.modal({
+    battleModal({
       kicker: '수성전 승리',
       title: `${SK.josa(c.name, 'eul')} 지켰습니다`,
       body: `<div class="result-modal win"><div class="rm-seal">승</div>
@@ -14150,7 +14154,7 @@
       /* v5.11 — 성은 다 잃었지만 밖에 원정 주력이 살아 있으면 유랑군 배수진 1회 */
       const army = (s.marches || []).filter((m) => (m.units || []).some((u) => u.uid && u.troops > 0));
       if (army.length && SK.openLastStand) {
-        SK.modal({
+        battleModal({
           kicker: '천하 패배 직전', title: '성을 모두 잃었습니다',
           body: `<div class="result-modal lose"><div class="rm-seal">망</div>
             <p class="rm-reason">패배 사유: ${B.winReason || '성을 지키지 못함'}</p>${battleReportHTML()}
@@ -14162,7 +14166,7 @@
         });
         return;
       }
-      SK.modal({
+      battleModal({
         kicker: '천하 패배', title: '거점을 모두 잃었습니다',
         body: `<div class="result-modal lose"><div class="rm-seal">망</div>
           <p class="rm-reason">패배 사유: ${B.winReason || '마지막 성 함락'}</p>${battleReportHTML()}
@@ -14173,7 +14177,7 @@
       });
       return;
     }
-    SK.modal({
+    battleModal({
       kicker: '수성전 패배', title: `${c.name} 함락`,
       body: `<div class="result-modal lose"><div class="rm-seal">패</div>
         <p class="rm-reason">패배 사유: ${B.winReason || '성을 지키지 못함'}</p>
@@ -14279,7 +14283,14 @@
     $('#battle-overlay').hidden = true;
     /* v5.25 — 전투가 끝난 뒤에도 남은 행군 도착·적 침공 사건을 이어서 띄운다 */
     /* v5.28 — 같은 달에 도착한 다른 부대가 대기열에 있으면 곷바로 다음 사건으로 이어진다 */
-    if (SK.chainPendingEvents) setTimeout(() => SK.chainPendingEvents(), 420);
+    /* v6.11 — 전투 중에 미뤄 둔 팝업(월정산·사건·소식)을 먼저 열고, 그것들이 끝나면
+       도착·침공 사건으로 이어진다 (팝업은 큐에 쌓인 순서대로 하나씩) */
+    if (SK.flushPopups) {
+      setTimeout(() => {
+        if (SK.flushPopups()) return;
+        if (SK.chainPendingEvents) SK.chainPendingEvents();
+      }, 420);
+    } else if (SK.chainPendingEvents) setTimeout(() => SK.chainPendingEvents(), 420);
     if (SK.armPendingWatch) setTimeout(() => SK.armPendingWatch(), 900);
   }
 
@@ -14697,7 +14708,7 @@
     if (!towerInRange(u, t)) { SK.toast(`망루까지 거리가 멉니다. (사거리 ${effRng(u)})`); return null; }
     const res = towerDamageOf(u, t);
     const mul = TOWER.SIEGE_CLS[u.cls] ? ` · ${SK.CLASSES[u.cls].name} 공성 ×${TOWER.SIEGE_MUL}` : '';
-    return SK.modal({
+    return battleModal({
       kicker: '망루 공략',
       title: `${u.name} → ${t.side === 'enemy' ? '적' : '아군'} 망루`,
       body: `<div class="atk-preview">

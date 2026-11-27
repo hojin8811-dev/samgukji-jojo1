@@ -2074,11 +2074,58 @@
 
   /* v5.23 — 열린 모달을 스택으로 관리한다. 안드로이드 뒤로가기(js/backguard.js)가
      '맨 위 모달만 닫기'를 하려면 어떤 모달이 열려 있고 닫을 수 있는지 알아야 한다. */
+  /* v6.11 — 전장이 열려 있는지 (격자 전투·일기토·수성전·관전·자동결산) */
+  SK.battleLive = function () {
+    try {
+      if (window.SKBattle && SKBattle.debug && SKBattle.debug.battle) return true;
+      const ov = document.getElementById('battle-overlay');
+      const scr = document.getElementById('screen-battle');
+      if (ov && scr && !ov.hidden && (scr.classList.contains('active') || scr.classList.contains('spectating'))) return true;
+    } catch (e) { /* ignore */ }
+    return false;
+  };
+  /* v6.11 — 전투 중 보류한 월정산·사건·소식 창을 담는 큐 */
+  SK.popupQueue = SK.popupQueue || [];
+  /* 전투가 끝나고 다른 창도 없을 때 보류한 팝업을 하나 연다 */
+  SK.flushPopups = function () {
+    if (SK.battleLive()) return false;
+    const now = Date.now();
+    /* 이미 하나를 여는 중(200ms 지연)인데 다른 경로가 또 부르면 겹쳐 열리지 않게 */
+    if (SK._flushBusy && now < SK._flushBusy) return true;
+    if (document.querySelector('#modal-root .modal-layer')) return false;
+    const item = SK.popupQueue.shift();
+    if (!item) return false;
+    SK._flushBusy = now + 900;
+    setTimeout(() => {
+      SK._flushBusy = 0;
+      try {
+        if (SK.battleLive()) { SK.popupQueue.unshift(item); return; }
+        if (document.querySelector('#modal-root .modal-layer')) { SK.popupQueue.unshift(item); return; }
+        if (typeof item.fn === 'function') item.fn();
+        else SK.modal(item.opts);
+      } catch (e) { /* ignore */ }
+    }, 200);
+    return true;
+  };
+  /* 창이 아닌 화면(멸망 속보 배너 등)도 전투가 끝난 뒤로 미룰 때 쓴다 */
+  SK.queuePopup = function (fn) { if (typeof fn === 'function') SK.popupQueue.push({ fn: fn }); };
+  SK.popupPending = function () { return SK.popupQueue.length; };
   SK.modalStack = SK.modalStack || [];
   SK.modal = function (opts) {
     if (opts && opts.delay) {
       const t = setTimeout(() => SK.modal(Object.assign({}, opts, { delay: 0 })), opts.delay);
       return { close() { clearTimeout(t); }, el: document.createElement('div') };
+    }
+    /* v6.11 — 전투 중에는 월정산·사건·소식 창이 전장 화면을 덮지 않게 큐에 보류한다.
+       (전투 자체가 쓰는 창은 battleOk: true 로 곧바로 연다 — battle.js battleModal)
+       전투가 끝나면 SK.flushPopups 가 차례로 다시 연다. */
+    if (!opts.battleOk && SK.battleLive()) {
+      const item = { opts: opts };
+      SK.popupQueue.push(item);
+      return {
+        el: document.createElement('div'), queued: true,
+        close() { const i = SK.popupQueue.indexOf(item); if (i >= 0) SK.popupQueue.splice(i, 1); },
+      };
     }
     const root = $('#modal-root');
     const wrap = document.createElement('div');
@@ -2132,6 +2179,8 @@
          (포로 처리처럼 시간이 걸리는 창을 오래 열어 두어도 사건이 굳지 않게) */
       setTimeout(() => {
         if (document.querySelector('#modal-root .modal-layer')) return;
+        /* v6.11 — 전투 중 보류해 둔 팝업이 있으면 그것을 먼저 연다 */
+        if (SK.flushPopups && SK.flushPopups()) return;
         if (SK.chainPendingEvents) SK.chainPendingEvents();
       }, 380);
     }
@@ -2187,6 +2236,8 @@
         if (left-- > 0) pendingWatch = setTimeout(tick, 700);
         return;
       }
+      /* v6.11 — 전투 중에 미뤄 둔 팝업(월정산·사건·소식)을 먼저 열고 다음 차례를 기다린다 */
+      if (SK.flushPopups && SK.flushPopups()) return;
       /* v5.47 — 내 공격 도착이 적 침공보다 먼저 열린다 (침공은 도착 사건이 다른 뒤에 이어진다)
          v5.28 — 같은 달 도착 대기열이 남아 있으면 다음 사건을 올린다 */
       if (SK.promoteMarchQueue && SK.promoteMarchQueue(s)) { if (left-- > 0) pendingWatch = setTimeout(tick, 220); return; }
@@ -9555,6 +9606,17 @@
      · 성마다 남은 개월(cs.wanderCd)을 따로 세어 매달 쏟아지지 않는다
      ══════════════════════════════════════════════════════════════ */
   const WANDER_MIN = 6, WANDER_MAX = 6;   // v5.58 — 6개월 고정
+  /* v6.11 — 거점 8곳을 넘기면 빈 성에 장수가 모자라기 시작한다.
+     거점 수에 따라 완만하게(8곳 0 → 20곳 1) 주점 재야·포로 등용 기회를 넓힌다.
+     초중반(8곳 이하) 수치는 하나도 건드리지 않는다. */
+  function landPressure(s) {
+    s = s || SK.state;
+    if (!s || !s.cities) return 0;
+    const n = ownedCount(s);
+    if (n <= 8) return 0;
+    return Math.min(1, (n - 8) / 12);
+  }
+  SK.landPressure = landPressure;
   function wanderInterval(cityId) {
     const cs = SK.state && SK.state.cities ? SK.state.cities[cityId] : null;
     if (!cs) return WANDER_MAX;
@@ -9565,7 +9627,9 @@
     const lvScore = Math.max(0, Math.min(1, (lv - 1) / 4));
     const chaScore = Math.max(0, Math.min(1, (cha - 40) / 50));
     const k = lvScore * 0.55 + chaScore * 0.45;
-    return Math.round(WANDER_MAX - (WANDER_MAX - WANDER_MIN) * k);
+    /* v6.11 — 거점이 많아지면 주점에 재야가 드는 간격이 최대 2개월 짧아진다 (6→4) */
+    const base = WANDER_MAX - (WANDER_MAX - WANDER_MIN) * k - landPressure() * 2;
+    return Math.max(3, Math.round(base));
   }
   SK.wanderInterval = wanderInterval;
 
@@ -9582,8 +9646,10 @@
       if (!cs || cs.owner !== PF()) return;
       if (cs.wanderCd == null) { cs.wanderCd = wanderInterval(c.id); return; }
       if (cs.wanderCd > 0) { cs.wanderCd -= 1; return; }
-      /* v5.58 — 두 명까지는 받는다 (예전에는 한 명이라도 서 있으면 쉬어 인원이 모자랐다) */
-      if ((cs.talents || []).length >= 2) { cs.wanderCd = wanderInterval(c.id); return; }
+      /* v5.58 — 두 명까지는 받는다 (예전에는 한 명이라도 서 있으면 쉬어 인원이 모자랐다)
+         v6.11 — 거점이 8곳을 넘으면 주점 대기 자리가 2→3~4명으로 늘어난다 */
+      const tavernCap = 2 + Math.round(landPressure(s) * 2);
+      if ((cs.talents || []).length >= tavernCap) { cs.wanderCd = wanderInterval(c.id); return; }
       const grp = tavernGroupOf(s, c.id);
       const region = grp === '한국' ? '한국' : '중국';
       const pickPool = (strict) => SK.GENERALS.filter((g) => {
@@ -9622,7 +9688,9 @@
     const pool = SK.GENERALS.filter((g) => !used.has(g.id) && genPoolGroup(g) === grp && SK.debutOk(g, yr) && !SK.isDead(g.id, g.name) && !SK.isLordOnly(g, lordSet))
       .sort((a, b) => SK.genScore(b) - SK.genScore(a));
     const start = Math.max(0, Math.min(pool.length - 1, Math.floor(pool.length * 0.5)));
-    cs.talents = pool.slice(start, start + 3).map((g) => g.id);
+    /* v6.11 — 새로 얻은 성(빈 성)의 주점은 거점이 많을수록 한 명 더 채운다 (3→4) */
+    const take = 3 + (landPressure(s) > 0 ? 1 : 0);
+    cs.talents = pool.slice(start, start + take).map((g) => g.id);
   };
 
   /* 등용 비용 — 매력이 높은 장수가 나서면 값이 줄어든다 */
@@ -9649,6 +9717,8 @@
     else if (bond && bond.relation === '숙적') p -= 15;
     /* v5.81 — 설객의 달변(행정 특기): 이 성의 등용 성공률 +N%p */
     p += cityAdminPct(cityId, 'recruit') * 100;
+    /* v6.11 — 거점이 8곳을 넘으면 빈 성 메우기용으로 등용 성공률 +최대 4%p */
+    p += landPressure(s) * 4;
     if (s.recruitFail && s.recruitFail[g.id] === s.turn) p = 0;
     return clamp(Math.round(p), 0, 95);
   }
@@ -10512,6 +10582,15 @@
     return lv ? ` (순찰소 Lv.${lv})` : ' (순찰소 없음)';
   }
 
+  /* v6.11 — 포로 설득(등용) 성공률 한 곳. 거점이 8곳을 넘으면 빈 성을 메우기 위해
+     필요해서 최대 +10%p까지 완만하게 오른다(표시와 실제 판정이 같은 함수를 쓴다). */
+  function prisonHireChance(rec, cha) {
+    const s = SK.state;
+    const base = 0.35 + ((cha || 62) - 60) * 0.006 - ((rec && rec.loyal) || 70) * 0.003;
+    return clamp(base + landPressure(s) * 0.10, 0.05, 0.85);
+  }
+  SK.prisonHireChance = prisonHireChance;
+
   function openPrison() {
     const s = SK.state;
     s.prisoners = s.prisoners || [];
@@ -10523,7 +10602,7 @@
       if (!g) return '';
       const cs = s.cities[rec.city];
       const chance = prisonEscapeChance(rec, cs);
-      const hireP = clamp(0.35 + (cha - 60) * 0.006 - (rec.loyal || 70) * 0.003, 0.05, 0.8);
+      const hireP = prisonHireChance(rec, cha);
       /* v5.28 — 제안한 세력이 이미 멸망했으면 그 자리에서 취소한다 (유령 세력 이름 방지) */
       let offer = rec.offer;
       if (offer && !offerFactionAlive(rec, g)) { offer = null; rec.offer = null; SK.save(); }
@@ -10557,7 +10636,7 @@
         if (!rec || rec.recruitTried) return;
         rec.recruitTried = true;
         const g = SK.GEN_BY_ID[rec.gid];
-        const p = clamp(0.35 + (cha - 60) * 0.006 - (rec.loyal || 70) * 0.003, 0.05, 0.8);
+        const p = prisonHireChance(rec, cha);
         if (Math.random() < p) {
           const hero = SK.makeHero(g.name, rec.city, joinLevelOf(g));
           if (hero) { hero.loyal = 55; hero.actedThisMonth = true; if (SK.addHero(s, hero)) s.fame += 2; }
@@ -11397,6 +11476,54 @@
       </div>`;
   }
   SK.govReportHtml = govReportHtml;
+
+  /* v6.11 — 개별 성 군량 고갈 억울함 해소 (월정산 2단계).
+     성별 순수지 계산 결과(rows)에서 적자 성을 찾아, 다른 내 성의 '잉여'에서
+     모자란 만큼만 옮긴다. 기증 성은 [앞으로 4개월 유지비 + 1,500]을 남기고,
+     길로 이어진 가까운 성을 먼저 본다(모자라면 먼 성에서도).
+     성과 성 사이의 내부 이동이므로 세력 전체 창고 총량은 그대로다. */
+  function relieveFoodShortage(rows) {
+    const log = [];
+    if (!rows || !rows.length) return log;
+    const reserveOf = (r) => Math.max(1500, Math.round((r.up || 0) * 4));
+    const deficits = rows.filter((r) => r.after < 0).sort((a, b) => a.after - b.after);
+    if (!deficits.length) return log;
+    deficits.forEach((d) => {
+      let need = -d.after;
+      if (need <= 0) return;
+      const nb = (SK.allNeighbors ? SK.allNeighbors(d.c.id) : []) || [];
+      const donors = rows.filter((r) => r !== d && (r.after - reserveOf(r)) >= 300)
+        .sort((a, b) => {
+          const na = nb.indexOf(a.c.id) >= 0 ? 0 : 1;
+          const nbv = nb.indexOf(b.c.id) >= 0 ? 0 : 1;
+          if (na !== nbv) return na - nbv;
+          return (b.after - reserveOf(b)) - (a.after - reserveOf(a));
+        });
+      const parts = [];
+      let moved = 0;
+      donors.forEach((dn) => {
+        if (need <= 0) return;
+        const spare = dn.after - reserveOf(dn);
+        if (spare < 300) return;
+        const give = Math.min(need, spare);
+        dn.after -= give;
+        d.after += give;
+        need -= give;
+        moved += give;
+        parts.push(`${dn.c.name} −${fmt(give)}`);
+      });
+      if (moved > 0) {
+        log.push({
+          to: d.c.name,
+          from: donors.slice(0, parts.length).map((x) => x.c.name).join(' · '),
+          amount: moved,
+          text: `군량 +${fmt(moved)}${parts.length ? ` (${parts.join(' · ')})` : ''}`,
+        });
+      }
+    });
+    return log;
+  }
+  SK.relieveFoodShortage = relieveFoodShortage;
 
   /* v5.11 — 성이 많아져도 피로하지 않게: 굶주리거나 금고가 빈 성은
      길로 이어진 여유 있는 내 성이 스스로 보급 수송한다 (태수 위임 공통 규칙). */
@@ -16910,6 +17037,12 @@
     /* v5.20 — 목록의 '군량 순'은 농원 비축(runSlots가 이미 각 성 창고에 넣은 양)까지 더한 값이어야
        상단 '월 군량'과 실제 창고 증감이 맞는다. (예전에는 유지비만 빠져 −193처럼 보였다) */
     foodNet += farmGain;
+    /* v6.11 — 군량 정산을 3단계로 나눈다 (개별 성 군량 고갈 억울함 해소)
+       ① 성마다 순수지(창고 + 수확 − 유지비)만 계산한다
+       ② 모자란 성은 다른 내 성의 잉여 군량에서 자동 보급한다 (relieveFoodShortage)
+       ③ 그래도 모자란 성만 페널티 — 처음 바닥난 성은 그 달은 '경고'만 하고,
+          다음 달까지 보급이 없을 때 민심·병력 손실을 준다(1턴 유예). */
+    const foodRows = [];
     SK.CITY_LIST.forEach((c) => {
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
@@ -16919,16 +17052,34 @@
       upkeep += up;
       const harv = harvestBy[c.id] || 0;
       foodNet += harv - up;
-      cs.food = Math.round((cs.food || 0) + harv - up);
-      if (cs.food < 0) {
-        if (!famine) famine = { short: 0, lost: 0, cities: [] };
-        famine.short += -cs.food;
-        famine.cities.push(c.name);
-        cs.food = 0;
-        cs.loyalty = clamp(cs.loyalty - ECON.famineLoyalty, 0, 100);
-        const lost = Math.round((cs.troops || 0) * ECON.famineDesert);
-        cs.troops = Math.max(0, (cs.troops || 0) - lost);
-        famine.lost += lost;
+      const before = Math.round(cs.food || 0);
+      foodRows.push({ c, cs, up, harv, before, after: before + harv - up });
+    });
+    /* ② 세력 전체(이웃·후방 성)의 잉여 군량으로 모자란 성을 먼저 메운다 */
+    const reliefLog = relieveFoodShortage(foodRows);
+    /* ③ 남은 적자만 페널티 · 첫 달은 경고 유예 */
+    const foodWarn = [];
+    foodRows.forEach((r) => {
+      const cs = r.cs;
+      if (r.after < 0) {
+        const short = -r.after;
+        if (cs.foodWarn) {
+          if (!famine) famine = { short: 0, lost: 0, cities: [] };
+          famine.short += short;
+          famine.cities.push(r.c.name);
+          cs.food = 0;
+          cs.loyalty = clamp(cs.loyalty - ECON.famineLoyalty, 0, 100);
+          const lost = Math.round((cs.troops || 0) * ECON.famineDesert);
+          cs.troops = Math.max(0, (cs.troops || 0) - lost);
+          famine.lost += lost;
+        } else {
+          cs.food = 0;
+          cs.foodWarn = true;
+          foodWarn.push({ name: r.c.name, short });
+        }
+      } else {
+        cs.food = r.after;
+        if (r.after > 0 && cs.foodWarn) delete cs.foodWarn;
       }
     });
     /* v5.11 — 굶주리거나 금고가 빈 성에 이웃 내 성이 자동 보급 수송 */
@@ -17036,6 +17187,9 @@
           <em>군량 +${fmt(harvest.total)}</em></div>` : ''}
         <div class="mr-row total"><span>군량 수지</span><b class="${foodNet >= 0 ? 'plus' : 'minus'}">${foodNet >= 0 ? '+' : '−'}${fmt(Math.abs(foodNet))}<em>전체 창고 ${fmt(SK.totalFood(s))}</em></b></div>
         ${(SK.totalFood(s) - foodStart) !== foodNet ? `<div class="mr-row"><span>이 달 실제 창고 <em>사건·거래 포함</em></span><b class="${SK.totalFood(s) - foodStart >= 0 ? 'plus' : 'minus'}">${SK.totalFood(s) - foodStart >= 0 ? '+' : '−'}${fmt(Math.abs(SK.totalFood(s) - foodStart))}<em>${fmt(foodStart)} → ${fmt(SK.totalFood(s))}</em></b></div>` : ''}
+        ${reliefLog.length ? `<div class="mr-auto"><p class="mr-auto-title">군량 긴급 보급 <em>다른 내 성의 잉여에서 자동으로 메웠습니다</em></p>
+          ${reliefLog.map((r) => `<div class="mr-auto-row"><b>${r.from} → ${r.to}</b><span>${r.text}</span></div>`).join('')}</div>` : ''}
+        ${foodWarn.length ? `<div class="mr-row famine"><span>${foodWarn.map((w) => w.name).join(' · ')} 군량 경고 <em>이번 달은 손실 없음 · 다음 달까지 보급하세요</em></span><b class="minus">민심 −${ECON.famineLoyalty} 예고</b></div>` : ''}
         ${famine ? `<div class="mr-row famine"><span>${famineNames(famine)} 군량 바닥!</span><b class="minus">민심 −${ECON.famineLoyalty} · 병력 −${fmt(famine.lost)} 이탈</b></div>` : ''}
         ${supplyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">이웃 성 자동 보급</p>
           ${supplyLog.map((r) => `<div class="mr-auto-row"><b>${r.from} → ${r.to}</b><span>${r.text}</span></div>`).join('')}</div>` : ''}
@@ -17122,7 +17276,10 @@
     /* v5.78 — 이번 달(또는 지난 달)에 문을 닫은 세력이 있으면 월정산 창보다 먼저
        코믹 멸망 속보를 차례로 띄우고, 배너를 다 넘기면 월정산을 연다. */
     const falls = SK.takeFallQueue ? SK.takeFallQueue(s) : [];
-    if (falls.length && SK.showFallBanners) SK.showFallBanners(falls, showReport);
+    /* v6.11 — 전투 중이면 멸망 속보·월정산을 전투가 끝난 뒤로 미룬다 */
+    if (falls.length && SK.showFallBanners && SK.battleLive()) {
+      if (SK.queuePopup) SK.queuePopup(() => SK.showFallBanners(falls, showReport));
+    } else if (falls.length && SK.showFallBanners) SK.showFallBanners(falls, showReport);
     else showReport();
     /* v5.25 — 월정산이 어떤 이유로든 일찍 닫혀도 행군·침공 사건을 다시 띄운다 */
     if (s.pendingMarch || s.pendingInvasion) armPendingWatch();

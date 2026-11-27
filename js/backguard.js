@@ -198,7 +198,7 @@
       pushGuard();
       return;
     }
-    SK.modal({
+    SK.modal({ battleOk: true,
       kicker: '뒤로가기',
       title: '게임을 종료하시겠습니까?',
       body: '<p class="modal-p">지금 나가면 마지막 저장 지점부터 다시 시작합니다.<br><span class="modal-sub">달이 바뀔 때 자동 저장되며, [메뉴 → 세이브 슬롯]에서 직접 저장할 수도 있습니다.</span></p>',
@@ -230,7 +230,7 @@
       return;
     }
     const done = function () { battleExitOpen = false; };
-    SK.modal({
+    SK.modal({ battleOk: true,
       kicker: '전장',
       title: '게임을 종료하시겠습니까?',
       body: '<p class="modal-p">지금 전투에서 나가면 이번 공격은 취소되고, 마지막 저장 지점부터 다시 시작합니다.<br><span class="modal-sub">계속 싸우거나, [후퇴]로 이번 공격을 포기하거나, 게임을 종료할 수 있습니다.</span></p>',

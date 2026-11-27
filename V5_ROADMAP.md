@@ -1,6 +1,15 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=150`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=151`
+
+## ✅ v6.11 — QA 3건: 개별 성 군량 자동 보급·1턴 경고 유예 · 전투 중 팝업 보류 큐 · 거점 8곳 이상 장수 수급 (2026-11-27 · `?v=151`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 군량 정산 3단계 | 성별 순수지 계산 → 모자란 성을 다른 내 성 **잉여**에서 자동 보급(주는 성은 4개월 유지비+1,500 보존, 가까운 성 우선) → 남은 적자만 페널티. **첫 달은 경고만**(`foodWarn`), 둘째 달 실제 민심 −3 · 병력 3% | `js/app.js` `advanceMonth`·`relieveFoodShortage`, 보고 `[군량 긴급 보급]`·`군량 경고` 줄 |
+| ② 팝업 보류 큐 | `SK.battleLive()` 중 `SK.modal` 은 창을 열지 않고 `SK.popupQueue`에 보류 → 전투 종료 시 `SK.flushPopups()`가 순서대로 연다(창 닫힘·armPendingWatch·멸망 속보 뒤에도) · 전투 자체 창은 `battleOk` | `js/app.js` `SK.battleLive`·`SK.flushPopups`·`SK.queuePopup`, `js/battle.js` `battleModal`·`closeBattle`, `js/tutorial.js`·`js/backguard.js` `battleOk` |
+| ③ 장수 수급 | `SK.landPressure` 8곳 0 → 20곳 1: 주점 간격 6→4개월 · 주점 자리 2→4 · 새 성 주점 3→4명 · 포로 설득 +10%p · 주점 등용 +4%p | `js/app.js` `landPressure`·`wanderInterval`·`runWanderers`·`refillTalents`·`recruitChance`·`prisonHireChance` |
+| ④ 검수 | `tools/v611_browser.py` **35항목 OK** · 스샷 `preview/v611/` | `tools/v611_browser.py` |
 
 ## ✅ v6.10c — 이세계 특전 영웅 DLC 3탄 21~30번 · **30인 완결** (2026-11-27 · `?v=150`, 상점은 여전히 **출시 전 비공개**)
 

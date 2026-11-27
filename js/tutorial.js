@@ -270,7 +270,7 @@
   }
 
   function welcome() {
-    SK.modal({
+    SK.modal({ battleOk: true,
       kicker: '🎓 3분 입문',
       title: '진류에서 허창까지 — 한 판으로 배우는 삼국지',
       body: '<div class="tut-intro">' +
@@ -334,7 +334,7 @@
   }
 
   function askExit() {
-    SK.modal({
+    SK.modal({ battleOk: true,
       kicker: '튜토리얼', title: '튜토리얼을 나갈까요?',
       body: '<p class="modal-p">지금까지의 입문 진행은 저장되지 않습니다. <b>본편 세이브는 그대로</b> 남아 있습니다.</p>',
       actions: [
@@ -386,7 +386,7 @@
     T.won = true; T.inBattle = false;
     document.body.classList.remove('tut-battle');
     T.step = 5; hideBanner();
-    SK.modal({
+    SK.modal({ battleOk: true,
       kicker: '🎓 입문 완료',
       title: '입문 완료! 이제 본편을 시작할까요?',
       body: '<div class="tut-done">' +
