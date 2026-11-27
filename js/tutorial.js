@@ -180,7 +180,10 @@
     if (T.step === 4 && T.inBattle) {
       var s = null;
       try { s = (g.SKBattle && g.SKBattle.debug && g.SKBattle.debug.state) ? g.SKBattle.debug.state() : null; } catch (e) { s = null; }
-      var fought = !!(s && (s.allyDone > 0 || s.turn > 1));
+      /* v6.8a — 턴이 넘어갔다는 것만으로 '싸웠다'고 보지 않는다. 실제로 적(또는 성문)에
+         피해를 넣었을 때만(allyHits > 0) 필살기/자동 안내로 넘어간다.
+         (예전에는 s.turn > 1 이라 두 번째 턴에 한 대도 안 때렸는데 안내가 바뀌었다) */
+      var fought = !!(s && s.allyHits > 0);
       return fought
         ? '<b>[⚡필살기]</b> 또는 <b>[⟳자동]</b>을 누르고 <b>[×3 배속]</b>으로 마무리하세요 — <b>고지대</b>에 서면 사거리·명중이 유리합니다'
         : '부대를 눌러 <b>파란 칸으로 이동</b> → <b>붉은 테두리 적</b>을 공격하세요 — <b>갈대밭</b>에 숨으면 적의 사격을 피할 수 있습니다';

@@ -2080,6 +2080,25 @@
         <div class="modal-actions"></div>
       </div>`;
     const actions = wrap.querySelector('.modal-actions');
+    /* v6.8a — 스크롤 힌트: 본문이 길어 아래가 가려졌을 때 그라데이션·화살표로 알린다.
+       (월정산처럼 긴 창에서 중요한 사건 요약이 화면 밖에 있는 걸 모르고 닫던 문제) */
+    if (opts.scrollHint) {
+      const hint = document.createElement('div');
+      hint.className = 'modal-scroll-hint';
+      hint.innerHTML = '<span>아래로 더 보기</span><b>⌄</b>';
+      wrap.querySelector('.modal').insertBefore(hint, actions);
+      const sync = () => {
+        const b = wrap.querySelector('.modal-body');
+        if (!b) return;
+        const more = b.scrollHeight - b.scrollTop - b.clientHeight > 12;
+        hint.classList.toggle('off', !more);
+      };
+      const b0 = wrap.querySelector('.modal-body');
+      if (b0) b0.addEventListener('scroll', sync, { passive: true });
+      requestAnimationFrame(sync);
+      setTimeout(sync, 280);
+      setTimeout(sync, 900);
+    }
     (opts.actions || [{ label: '닫기' }]).forEach((a) => {
       const b = document.createElement('button');
       b.className = 'btn ' + (a.primary ? 'btn-primary' : a.ghost ? 'btn-ghost' : 'btn-paper');
@@ -2222,7 +2241,11 @@
     const cfg = mapPickCfg;
     mapPickCfg = null;
     const els = pickBarEls();
-    if (els) els.bar.hidden = true;
+    if (els) {
+      els.bar.hidden = true;
+      const l = els.bar.querySelector('.pk-list');
+      if (l) { l.hidden = true; l.innerHTML = ''; }
+    }
     const scr = document.getElementById('screen-map');
     if (scr) scr.classList.remove('picking');
     if (window.SKMap && SKMap.setPick) { try { SKMap.setPick(null); } catch (e) { /* ignore */ } }
@@ -2307,6 +2330,34 @@
       els.count.textContent = `고를 수 있는 성 ${ids.length}곳`;
       els.bar.hidden = false;
       els.cancel.onclick = (e) => { e.stopPropagation(); cancelMapPick(); };
+      /* v6.8a — 지도 위 20px 배지를 직접 찍지 않아도 고를 수 있게, 고를 수 있는 성을
+         시트 안의 카드 목록으로도 보여 준다 (cfg.items 가 있을 때만). */
+      let listEl = els.bar.querySelector('.pk-list');
+      if (!listEl) {
+        listEl = document.createElement('div');
+        listEl.className = 'pk-list';
+        const foot = els.bar.querySelector('.pk-foot');
+        if (foot) els.bar.insertBefore(listEl, foot); else els.bar.appendChild(listEl);
+      }
+      const items = (cfg.items || []).filter((it) => it && it.id && ids.indexOf(it.id) >= 0);
+      if (items.length) {
+        const onPickCard = cfg.onPick;
+        listEl.hidden = false;
+        listEl.innerHTML = items.map((it) => `<button type="button" class="pk-card${it.hot ? ' hot' : ''}" data-id="${it.id}">
+          <b>${it.name}</b>${it.chip ? `<em>${it.chip}</em>` : ''}<span>${it.sub || ''}</span></button>`).join('');
+        listEl.querySelectorAll('.pk-card').forEach((b) => {
+          b.onclick = (e) => {
+            e.stopPropagation();
+            const id = b.dataset.id;
+            if (SK.sfx) SK.sfx.play('ui');
+            endMapPick();
+            if (onPickCard) onPickCard(id);
+          };
+        });
+      } else {
+        listEl.hidden = true;
+        listEl.innerHTML = '';
+      }
     }
     const scr = document.getElementById('screen-map');
     if (scr) scr.classList.add('picking');
@@ -5261,6 +5312,31 @@
      · 시설을 탭하면 건물명·비용·효과를 보여 주고 [짓기] [취소]를 거친다
        (예전에는 확인 없이 금이 바로 빠졌고, 같은 건물을 더 지을 때만 확인했다).
      ══════════════════════════════════════════════════════════════ */
+  /* v6.8a — 공터 건설 목록의 '기대 효과' 한 줄. 실제 코드(runSlots·slotMonthlyYield·crewGain)의
+     Lv.1·담당 없음(기본 효과 50%) 수치를 그대로 계산해 적는다 (같은 220금 건물들이 뭐가 다른지 바로). */
+  function slotBuildFx(cityId, k) {
+    const s = SK.state;
+    const c = CITY[cityId], cs = s && s.cities[cityId];
+    if (!c || !cs || !SLOT_DEFS[k]) return '';
+    const M = citySlotMul(c, cs);
+    const ob = officeBonusOf(cityId);
+    const mul = 0.5;                       // 담당 없음 — 기본 효과의 절반
+    const n1 = (v) => Math.round(Number(v) * 10) / 10;
+    const y = slotMonthlyYield(c, cs, { key: k, lv: 1 }, mul, M);
+    if (k === 'market') return `월 금 +${fmt(y.gold || 0)}`;
+    if (k === 'workshop') return `월 금 +${fmt(y.gold || 0)} · 담당 시 6개월에 보물 1개`;
+    if (k === 'farm') return `월 군량 +${fmt(y.food || 0)} · 10월 대수확 +${n1(ECON.harvestFarm * mul * 100)}%`;
+    if (k === 'barracks') return `월 병력 +${fmt(y.troops || 0)}`;
+    if (k === 'training') return `월 훈련도 +${n1(0.5 * mul * M.trnM * (1 + ob.tong))}`;
+    if (k === 'academy') return `수련 4명 · 1인당 월 EXP +${crewGain({ lv: 1 }, { tong: 60 })} · 17% 확률 능력 +1`;
+    if (k === 'patrol') return `월 치안 +${n1(1.1 * mul * M.obPatrolM)} · 민심 +${n1(0.25 * mul)}`;
+    if (k === 'wall') return `월 성벽 +${n1(0.6 * mul * M.wallM)} · 방첩(첩보·계략 차단) 최대 55%`;
+    if (k === 'tavern') return '담당 시 반값 등용 · 재야 소문 탐색';
+    if (k === 'lab') return '담당 시 월 1건 자동 첩보(3칸 이내)';
+    return '';
+  }
+  SK.slotBuildFx = slotBuildFx;
+
   function openBuildList(cityId, idx) {
     if (SK.corpsGuard && SK.corpsGuard(cityId)) return;
     SK.setPurse(cityId);
@@ -5275,7 +5351,8 @@
       const same = cs.slots.filter((x) => x.key === k).length;
       return `<button class="build-row" data-k="${k}">
         <img src="${bldSrc(def.icon, 1)}" onerror="${bldFallback(def.icon)}" alt="">
-        <div><b>${def.name}${same ? ` <em>이미 ${same}곳</em>` : ''}</b><span>${def.desc}</span></div>
+        <div><b>${def.name}${same ? ` <em>이미 ${same}곳</em>` : ''}</b><span>${def.desc}</span>
+          <span class="br-fx">Lv.1 기대 효과 — ${slotBuildFx(cityId, k)}</span></div>
         <em class="br-cost">금 ${fmt(ECON.buildNew)}${same ? ` · ${same + 1}채째` : ''}</em></button>`;
     }).join('');
     const m = SK.modal({
@@ -5311,6 +5388,7 @@
       body: `<div class="build-confirm">
           <div class="bc-row"><span>건물</span><b>${def.name}</b></div>
           <div class="bc-row"><span>비용</span><b>금 ${fmt(cost)}</b></div>
+          <div class="bc-row"><span>Lv.1 기대 효과</span><b>${slotBuildFx(cityId, k)}</b></div>
           <div class="bc-row"><span>지금 금고</span><b class="${short ? 'bad' : ''}">${fmt(s.gold)}${short ? ' — 금이 모자랍니다' : ` → ${fmt(s.gold - cost)}`}</b></div>
           <p class="bc-fx"><b>효과</b> ${def.desc}</p>
         </div>${extra}`,
@@ -11651,11 +11729,27 @@
       const ts = s.cities[id];
       chips[id] = isScouted(ts) ? shortNum(ts.troops) : '?';
     });
+    /* v6.8a — 시트 안 카드 목록: 성 이름 · 수비병 · 세력 · 출발 성. 지도 배지를 정확히 찍지 않아도
+       카드 한 번으로 출진 편성을 연다. */
+    const cards = ids.map((id) => {
+      const st2 = s.cities[id];
+      const c2 = CITY[id] || {};
+      const fi = SK.factionInfo(st2.owner) || {};
+      const known = isScouted(st2);
+      const fromId = fromOf[id] || origin;
+      return {
+        id,
+        name: c2.name || id,
+        chip: known ? `수비병 ${shortNum(st2.troops)}` : '수비병 ?',
+        sub: `${armyName(fi) || '재야'} · 성벽 ${Math.round(st2.def || 0)} · ${(CITY[fromId] || {}).name || ''}에서`,
+        hot: known && (st2.troops || 0) < (s.cities[origin].troops || 0) * 0.6,
+      };
+    });
     const ok = pickCityOnMap({
       kicker: `${CITY[origin].name} 출진`,
       title: '어느 적성을 칠까',
-      hint: `금빛으로 표시된 <b>${ids.length}</b>개 적성 중 하나를 누르세요. 배지는 수비병 수(미정찰은 ?)입니다. <b>길로 바로 이어진 인접 1칸</b> 거점에만 출진할 수 있습니다.`,
-      origin, ids, chips,
+      hint: `금빛으로 표시된 <b>${ids.length}</b>개 적성 중 하나를 누르거나 <b>아래 성 카드</b>를 누르세요. 배지는 수비병 수(미정찰은 ?)입니다. <b>길로 바로 이어진 인접 1칸</b> 거점에만 출진할 수 있습니다.`,
+      origin, ids, chips, items: cards,
       block: '이웃한(길로 직접 이어진) 적성에만 출진할 수 있습니다.',
       onPick: (id) => openDeploy(fromOf[id] || origin, id),
       onCancel: () => SK.openCity(origin),
@@ -11763,6 +11857,7 @@
         <div><span>출진 보급</span><b id="dp-supply">군량 0</b></div>
         <div><span>부대</span><b id="dp-units">0 / ${MAX_UNITS}</b></div>
       </div>
+      <div class="deploy-risk" id="dp-risk" hidden></div>
       <p class="deploy-tip">${SK.BATTLE_TYPES[bt].skill} 병력이 곧 부대의 HP입니다. 장수 줄을 눌러 출진을 켜고 끄고, −／＋로 병력을 1명씩 조절하세요(길게 누르면 빠르게 오릅니다).</p>
       <div class="deploy-section"><span>명장 출진</span><em>장수별 병력 조절 (최소 1,000)</em></div>
       <div class="deploy-list" id="deploy-list">${pool.map((h) => heroPickRow(h, pick[h.uid] != null, pick[h.uid] != null ? pick[h.uid] : baseTroops(h))).join('') || '<p class="empty-gens">주둔 장수가 없습니다. 병종 부대만으로 출진할 수 있습니다.</p>'}</div>
@@ -11805,6 +11900,8 @@
             SK.toast(`출진 보급 군량이 부족합니다 — ${SK.CITY[origin].name} 창고 ${fmt(s.cities[origin].food || 0)} / 필요 ${fmt(supply)}. [군량 상인]이나 이웃 성 수송으로 채우세요.`);
             return;
           }
+          /* v6.8a — 적이 1.5배 이상 많으면 한 번 더 확인하고 나간다 (첫 출진 전멸 경고) */
+          const launch = () => {
           s.cities[origin].food = Math.max(0, (s.cities[origin].food || 0) - supply);
           /* v5.88 — 시설에 배속된 장수도 이번 달 미행동이면 출진한다.
              출진을 확정하면 그 건물 배속만 자동으로 풀린다(장수는 성을 비운다). */
@@ -11839,6 +11936,31 @@
           if (window.SKMap) { try { SKMap.setScale(1.25); SKMap.focusCity(origin, true); } catch (e) { /* ignore */ } }
           SK.toast(`행군 시작 — ${turns}개월 뒤 ${tc.name} 도착 · 지도에 행군 부대가 표시됩니다`);
           if (releasedSlots.length) SK.toast(`시설 배속 해제 — ${releasedSlots.join(' · ')}`);
+          };
+          const riskWhole = (fc && fc.total ? fc.total : Math.round(ts.troops || 0));
+          const riskNow = riskWhole / Math.max(1, totalCost());
+          if (riskNow >= 1.5) {
+            SK.sfx.play('deny');
+            SK.modal({
+              kicker: '전력 열세', title: '이대로 출진할까요?',
+              body: `<div class="risk-confirm">
+                <p class="modal-p"><b>${tc.name}</b>의 적은 <b>${fmt(riskWhole)}</b>, 우리 출진 병력은 <b>${fmt(totalCost())}</b> — <b>${riskNow.toFixed(1)}배</b> 차이입니다.</p>
+                <ul class="tut-sl">
+                  <li><span class="tlx">이대로 가면 <b>전멸</b>하거나 큰 손실을 보고 물러날 수 있습니다.</span></li>
+                  <li><span class="tlx">성 밖으로 나온 적을 <b>요격</b>하거나 계략·이웃 성 전출로 수비병을 먼저 줄이세요.</span></li>
+                  <li><span class="tlx">부대는 <b>최대 ${MAX_UNITS}개</b>까지 — 지금 ${unitCount()}부대입니다.</span></li>
+                </ul>
+                <p class="modal-sub">쓸 수 있는 병력 ${fmt(avail)} · 지금 편성 ${fmt(totalCost())}</p>
+              </div>`,
+              actions: [
+                { label: '다시 편성', primary: true, onClick: () => { setTimeout(() => { if (SK.openDeployFor) SK.openDeployFor(origin, targetId); }, 120); } },
+                { label: '그래도 출진', onClick: () => { launch(); } },
+              ],
+              dismissible: true,
+            });
+            return;
+          }
+          launch();
         } },
       ],
     });
@@ -11853,6 +11975,34 @@
       if (supEl) { supEl.textContent = `군량 ${sup > 0 ? '−' : ''}${fmt(sup)}`; supEl.classList.toggle('bad', (s.cities[origin].food || 0) < sup); }
       m.el.querySelector('#dp-units').textContent = `${unitCount()} / ${MAX_UNITS}`;
       m.el.querySelector('#deploy-count').textContent = unitCount();
+      /* v6.8a — 출진 전력 비교: 우리가 데려가는 병력 vs 적 성 수비병(+전장 증원).
+         1.5배 이상 열세면 붉은 '전멸 위험' 배지로 명확히 경고한다. */
+      const riskEl = m.el.querySelector('#dp-risk');
+      if (riskEl) {
+        const ours = totalCost();
+        const whole = fc && fc.total ? fc.total : Math.round(ts.troops || 0);
+        const gar = Math.round(ts.troops || 0);
+        const ratio = ours > 0 ? whole / ours : 0;
+        let cls = 'idle', badge = '', txt = '';
+        if (!ours) txt = '출진 병력을 고르면 적 수비병과 비교해 드립니다.';
+        else if (ratio >= 2) {
+          cls = 'danger'; badge = '전멸 위험';
+          txt = `적 <b>${fmt(whole)}</b> vs 우리 <b>${fmt(ours)}</b> — <b>${ratio.toFixed(1)}배</b> 열세. 이대로 나가면 전멸하기 쉽습니다. 병력을 더 모으거나, 요격전·계략으로 수비병을 먼저 줄이세요.`;
+        } else if (ratio >= 1.5) {
+          cls = 'warn'; badge = '열세';
+          txt = `적 <b>${fmt(whole)}</b> vs 우리 <b>${fmt(ours)}</b> — <b>${ratio.toFixed(1)}배</b>. 성문·지형을 이용해도 손실이 큽니다.`;
+        } else if (ratio > 0 && ratio <= 0.8) {
+          cls = 'good'; badge = '우세';
+          txt = `적 <b>${fmt(whole)}</b> vs 우리 <b>${fmt(ours)}</b> — 우리가 <b>${(1 / ratio).toFixed(1)}배</b> 많습니다.`;
+        } else {
+          cls = 'even'; badge = '호각';
+          txt = `적 <b>${fmt(whole)}</b> vs 우리 <b>${fmt(ours)}</b> — 비슷합니다. 성벽·지형이 변수입니다.`;
+        }
+        const extra = (fc && fc.total > gar) ? `<em>성 수비 ${fmt(gar)} + 전장 증원 ${fmt(fc.total - gar)}</em>` : '';
+        riskEl.className = 'deploy-risk ' + cls;
+        riskEl.hidden = false;
+        riskEl.innerHTML = (badge ? `<b class="dr-badge">${badge}</b>` : '') + `<span>${txt}</span>${extra}`;
+      }
       m.el.querySelectorAll('.hero-pick').forEach((el) => {
         const uid = el.dataset.uid;
         if (el.dataset.locked === '1') {   // v5.80 — 이번 달 행동 완료 장수는 선택 대상이 아니다
@@ -11991,6 +12141,8 @@
   }
 
   SK.openDeploy = openDeploy;
+  /* v6.8a — 열세 확인창의 [다시 편성]에서 같은 편성 창을 다시 연다 */
+  SK.openDeployFor = openDeploy;
 
   /* ───────────── v5.6 — 행군 · 도중 요격전 ─────────────
      v5.15 — 성 공격은 행군을 거친다. 첫 달 길에서 요격전/대비를 거친다.
@@ -13094,6 +13246,45 @@
       if (SK.promoteMarchQueue) SK.promoteMarchQueue(s);
       if (s.pendingMarch && SK.openPendingMarch) SK.openPendingMarch();
     }, 380);
+    return true;
+  };
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.8a — 성하 야전 승리 뒤 '이번 달 물러난다(회군)'.
+     · 성은 못 빼앗지만 살아 돌아온 병력은 출발 성으로 그대로 돌아간다
+     · 적 수비병은 야전에서 줄어든 상태로 그대로 남는다 (다음 달 다시 치면 유리)
+     · 달·턴은 건드리지 않는다 — 다음 달을 눌러 평소처럼 월정산으로 이어진다
+     ══════════════════════════════════════════════════════════════ */
+  SK.fieldRetreat = function (marchId) {
+    const s = SK.state;
+    const m = marchId ? ((s && s.marches) || []).find((x) => x.id === marchId) : null;
+    if (!s) { if (SK.showMap) SK.showMap(); return false; }
+    const origin = m ? m.origin : null;
+    const st0 = origin && s.cities ? s.cities[origin] : null;
+    const home = (st0 && st0.owner === PF()) ? origin : fieldHome(origin);
+    const hs = (home && s.cities) ? s.cities[home] : null;
+    let back = 0;
+    const units = m ? (m.units || []) : [];
+    units.forEach((u) => { back += Math.max(0, Math.round(Number(u.troops) || 0)); });
+    units.forEach((u) => {
+      if (!u || u.kind !== 'hero' || !u.uid) return;
+      const h = (s.heroes || []).find((x) => x.uid === u.uid);
+      if (!h) return;
+      h.marchId = null; h.actedThisMonth = true;
+      if (hs) h.city = home;
+    });
+    if (hs && back > 0) hs.troops = clamp(Math.round((hs.troops || 0) + back), 0, cityCap(hs));
+    if (m) {
+      s.marches = (s.marches || []).filter((x) => x.id !== m.id);
+      marchQueueDrop(s, m.id);
+    }
+    if (s.pendingMarch && (!m || s.pendingMarch.marchId === m.id)) s.pendingMarch = null;
+    if (hs) s.purseCity = home;
+    SK.save();
+    if (SK.refreshHud) { try { SK.refreshHud(); } catch (e) { /* ignore */ } }
+    if (SK.showMap) SK.showMap();
+    SK.toast(hs ? `회군 — ${SK.CITY[home] ? SK.CITY[home].name : '본성'}으로 돌아왔습니다 · 병력 ${fmt(back)} 보존` : '회군했습니다');
+    setTimeout(() => { if (SK.chainPendingEvents) SK.chainPendingEvents(); }, 420);
     return true;
   };
 
@@ -16317,9 +16508,15 @@
     showMonthBanner(SK.dateLabel(s.eraYear || (195 + s.year), s.month));
     /* v5.96 — 월정산 세부 내정 로그 접기: 제목·건수만 보이고 본문은 <details>로 접는다 */
     const mrFold = (title, sub, chip, inner) => `<details class="mr-fold"><summary><span>${title}</span>${sub ? `<em>${sub}</em>` : ''}${chip ? `<i>${chip}</i>` : ''}</summary><div class="mr-fold-body">${inner}</div></details>`;
+    /* v6.8a — 월정산 위 요약의 '병력 증감'과 본문(징집·부상병·이탈) 숫자가 달라 보이던 문제.
+       징집·부상병·굶주림으로 설명되는 몫(troopKnown)과 그 밖의 변동(사건·전투·출진 귀환·수송 등)을
+       나누어 '이 달 실제 병력(변동분 → 최종)'을 본문 맨 아래에 명시한다. */
+    const troopKnown = Math.round(pop || 0) + Math.round(woundHeal || 0) - Math.round((famine && famine.lost) || 0);
+    const troopOther = Math.round(troopDelta - troopKnown);
     const showReport = () => SK.modal({
       delay: 900,
       dismissible: false,   // v5.25 — 바깥을 잘못 눌러 월정산이 닫혀도 뒤이을 사건(요격·침공·선택지)이 사라지지 않게
+      scrollHint: true,     // v6.8a — 아래에 더 있다는 것을 그라데이션·화살표로 바로 알린다
       kicker: SK.dateLabel(s.eraYear || (195 + s.year), s.month),
       title: '월정산',
       body: `<div class="month-report">
@@ -16357,6 +16554,8 @@
         ${!isHarvest ? `<p class="mr-note">다음 가을 대수확까지 ${monthsUntilHarvest(s)}개월 — 그때 1년치 군량이 한 번에 들어옵니다. 그 전에는 <b>시설 관리 → 농원 증축</b>과 [탐색]으로 버팁니다.</p>` : ''}
         <div class="mr-row"><span>징집 <em>성마다 실제로 늘어난 수비병</em></span><b>병 +${fmt(pop)}</b></div>
         ${woundHeal ? `<div class="mr-row"><span>부상병 회복</span><b class="plus">병 +${fmt(woundHeal)}</b></div>` : ''}
+        ${troopOther ? `<div class="mr-row"><span>그 밖의 변동 <em>사건·전투·출진 귀환·수송 등</em></span><b class="${troopOther > 0 ? 'plus' : 'minus'}">${troopOther > 0 ? '＋' : '−'}${fmt(Math.abs(troopOther))}</b></div>` : ''}
+        <div class="mr-row total"><span>이 달 실제 병력 <em>달 시작 → 달 끝</em></span><b class="${troopDelta >= 0 ? 'plus' : 'minus'}">${troopDelta >= 0 ? '＋' : '−'}${fmt(Math.abs(troopDelta))}<em>${fmt(troopsStart)} → ${fmt(troopsNow)}</em></b></div>
         ${growth.length ? `<div class="mr-grow">
           <p class="mr-grow-title">건물 현황 <em>성·건물별 실제 레벨과 공사 진행도</em></p>
           ${growth.slice(0, 6).map((g) => {

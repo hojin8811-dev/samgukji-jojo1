@@ -1,6 +1,19 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-24 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=112`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=145`
+
+## ✅ v6.8a — 본편 유저 입장 TOP 5 UX (2026-11-27 · `?v=145`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 출진 경고 | 편성 창 전력 비교(적 성 수비 + 전장 증원 vs 우리 출진) · 2배 이상 [전멸 위험] · 1.5배 이상 확인창 | `js/app.js` `openDeploy`·`refresh`·`launch` |
+| ② 야전 회군 | 성하 야전 승리 창에 [성문 앞 전력] 비교 + [이번 달 물러난다(회군)] | `js/battle.js` `interceptVictory`, `js/app.js` `SK.fieldRetreat` |
+| ③ 입문 | 성문 앞 1~3칸 근거리 스폰 · 안내 전환을 `allyHits > 0` 으로 | `js/battle.js` `tutorialSpawnSlots`, `js/tutorial.js` |
+| ④ 전장 | 이동 칸 밝은 파랑 판 + 바깥 윤곽 · 부대 스프라이트 히트박스 | `js/battle.js` `drawHighlights`·`unitSpriteAt`·`u._hit` |
+| ⑤ 기타 | 월정산 실제 병력·스크롤 힌트 · 공·사기 사유 · 일기토 [확인] 버튼 · 건설 기대 효과 · 출진 성 카드 | `js/app.js`·`js/battle.js`·`css/game.css` |
+| 검수 | `tools/v681_browser.py` 52항목 OK · 스샷 `preview/v681/` | `tools/v681_browser.py` |
+
+버전별 상세 이력은 `README.md` 맨 위가 정본입니다(이 진행표는 v5.90 이후 갱신이 밀려 있어 최신 이력은 README를 보세요).
 
 ## 📋 다음 패치 대기
 

@@ -459,8 +459,13 @@
       [meta.allyBase, meta.enemyBase].forEach((b) => { if (b) spawnTaken.add(b.x + ',' + b.y); });
       (meta.villages || []).forEach((v) => { if (v) spawnTaken.add(v.x + ',' + v.y); });
     }
+    /* v6.8a — 3분 입문은 성문 앞 근거리에서 시작한다 (예전에는 지도 맨 아래 본진에서
+       성문까지 10칸을 걸어 3~4턴이 이동만으로 날아갔다).
+       수성전·비공성 전장은 그대로 아래 SK.allySlots 를 쓴다. */
+    const tutSlots = (typeof window !== 'undefined' && window.SKTUT && window.SKTUT.active && !defense && isSiege)
+      ? tutorialSpawnSlots(tiles, cols, rows) : null;
     /* v5.90 — 배치 도우미에도 가로·세로를 함께 넘긴다 (직사각형 지도 대응) */
-    placeSide(allies, SK.allySlots(type, rings, cols, rows), 'ally',
+    placeSide(allies, tutSlots || SK.allySlots(type, rings, cols, rows), 'ally',
       Object.assign({ blocked: spawnTaken }, type === 'defense' ? { zones: defenseZoneSlots(tiles, meta, cols, rows) } : null));
     /* v5.81 — AI 진형: 탱커(검병·창병·등갑병)를 전열에, 원거리·보조를 후열에 세운다 */
     const DEPLOY_RANK = { geombyung: 0, changbyung: 1, deunggabyung: 0, mudoga: 2, yasubyung: 2, sanjeok: 2, sujeok: 2, gibi: 2, gunwoong: 3,
@@ -513,7 +518,10 @@
     /* v5.17 — 1×1 본진·마을. 수성전은 진영이 뒤집히므로 본진 자리도 바꿔 단다 */
     B.sites = [];
     if (meta) {
-      const allyPos = type === 'defense' ? meta.enemyBase : meta.allyBase;
+      /* v6.8a — 입문 근거리 스폰에서는 아군 본진 표식도 성문 앞에 세운다
+         (카메라 시작점·회복 거점이 부대와 함께 성문 앞에 오게) */
+      const allyPos = (tutSlots && tutSlots.length) ? { x: tutSlots[0][0], y: tutSlots[0][1] }
+        : (type === 'defense' ? meta.enemyBase : meta.allyBase);
       const enemyPos = type === 'defense' ? meta.allyBase : meta.enemyBase;
       if (allyPos) B.sites.push({ type: 'allyHQ', x: allyPos.x, y: allyPos.y, owner: 'ally' });
       if (enemyPos) B.sites.push({ type: 'enemyHQ', x: enemyPos.x, y: enemyPos.y, owner: 'enemy' });
@@ -982,6 +990,23 @@
   /* v6.0 — 목책(N)도 통행 불가라 부대 자리로 쓰지 않는다 */
   function passable(ch) { return ch !== 'C' && ch !== 'H' && ch !== 'N'; }
 
+  /* v6.8a — 3분 입문 전용 근거리 스폰: 바깥 성문 바로 아래(성 밖) 두세 줄에 아군을 세운다.
+     성문(y=G)에서 1~3칸 — 첫 턴에 바로 문을 두드리거나 성문으로 들어갈 수 있다. */
+  function tutorialSpawnSlots(tiles, cols, rows) {
+    let gy = -1;
+    for (let y = 0; y < rows; y++) {
+      if (tiles[y] && tiles[y].indexOf('G') >= 0) gy = Math.max(gy, y);
+    }
+    if (gy < 0) return null;
+    const cx = Math.floor(cols / 2);
+    const free = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows && passable(tiles[y][x]);
+    const out = [];
+    [gy + 1, gy + 2, gy + 3].forEach((y) => {
+      [-2, -1, 0, 1, 2].forEach((dx) => { if (free(cx + dx, y)) out.push([cx + dx, y]); });
+    });
+    return out.length ? out : null;
+  }
+
   /* v5.21 — 수성전 자리별 슬롯.
      · 외성: 가장 바깥 성벽(성문 줄) 안쪽 1~3칸 마당 — 성문 앞을 막는다
      · 망루: 망루(T) 칸과 그 사방 — 좌·우에서 성 밖을 쏜다
@@ -1324,7 +1349,12 @@
           if (lab) onTappedUnit(lab);
           else {
             const t = screenToTile(px, py);
-            onTileTap(t.x, t.y);
+            /* v6.8a — 그 칸에 부대가 없고 성문·망루도 아니면, 스프라이트 몸통을 눌렀는지 한 번 더 본다 */
+            const onUnit = B && B.units.some((o) => o.alive && o.x === t.x && o.y === t.y);
+            const special = (gateIntact() && gateTileAt(t.x, t.y)) || !!towerAt(t.x, t.y);
+            const spr = (!onUnit && !special) ? unitSpriteAt(px, py) : null;
+            if (spr) onTappedUnit(spr);
+            else onTileTap(t.x, t.y);
           }
         } else if (drag.on) {
           startInertia(drag.vx || 0, drag.vy || 0);
@@ -4172,14 +4202,14 @@
             addHeal(v, hh, u);
             addFloat((rxOf(v) + 0.5) * TILE, (ryOf(v) + 0.34) * TILE, '+' + hh, '#a8f0b8');
           } else {
-            moraleShift(v, -15);
+            moraleShift(v, -15, '군량고를 빼앗김');
           }
         });
         feed(`${u.name} — 군량고 점령! 아군 병력 회복 · 적 사기 −15`, mine ? 'good' : 'bad');
       } else {
         /* 무기고 — 그 진영 전 부대 공격 +10% (3턴) */
         B.units.forEach((v) => {
-          if (v.alive && v.side === u.side) v.buffs.atk = { v: 0.10, t: 3 };
+          if (v.alive && v.side === u.side) { v.buffs.atk = { v: 0.10, t: 3 }; v.whyAtk = '무기고 점령'; }
         });
         feed(`${u.name} — 무기고 점령! ${mine ? '아군' : '적군'} 전체 공격 +10% (3턴)`, mine ? 'good' : 'bad');
       }
@@ -4234,14 +4264,39 @@
     /* v5.39 — [공격] 모드에서는 파란 이동 범위를 깔지 않는다 (사거리 타일만 보이게) */
     if (reach && !healPick && mode !== 'attack') {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 380);
+      /* v6.8a — 이동 가능 칸을 '또렷한 파란 판 + 밝은 테두리'로 다시 그린다.
+         · 전에는 칸마다 얇은 테두리를 둘러, 축소한 화면에서 이웃 칸 테두리가 붙어 회청색 판처럼 보였다.
+         · 지금은 칸 전체를 파랗게 채우고, 이동 범위의 '바깥 윤곽'만 화면 굵기 고정(2.4px) 밝은 선으로 긋는다.
+         · 공격 사거리(붉은 바탕 #c42018 + 주황 테두리)와 색으로 확실히 갈린다. */
+      const tunits = [];
       reach.forEach((k) => {
         const [x, y] = k.split(',').map(Number);
-        ctx.fillStyle = `rgba(70,140,225,${0.20 + pulse * 0.10})`;
-        ctx.fillRect(x * TILE + 2, y * TILE + 2, TILE - 4, TILE - 4);
-        ctx.strokeStyle = 'rgba(120,190,255,0.55)';
-        ctx.lineWidth = 1.2;
-        ctx.strokeRect(x * TILE + 2.5, y * TILE + 2.5, TILE - 5, TILE - 5);
+        tunits.push([x, y]);
+        ctx.fillStyle = `rgba(58,150,255,${0.66 + pulse * 0.08})`;
+        ctx.fillRect(x * TILE + 1, y * TILE + 1, TILE - 2, TILE - 2);
+        /* 칸 경계 — 얇은 밝은 선으로 한 칸씩 구분 (축소해도 칸이 보이게) */
+        ctx.strokeStyle = 'rgba(226,244,255,0.55)';
+        ctx.lineWidth = Math.max(0.8, 1 / Math.max(0.3, cam.s));
+        ctx.strokeRect(x * TILE + 1, y * TILE + 1, TILE - 2, TILE - 2);
       });
+      /* 이동 범위 바깥 윤곽 — 화면에서 2.4px 이상 굵기로 유지 */
+      if (tunits.length) {
+        const inSet = new Set(tunits.map(([x, y]) => x + ',' + y));
+        ctx.save();
+        ctx.strokeStyle = `rgba(240,250,255,${0.92 + pulse * 0.08})`;
+        ctx.lineWidth = Math.max(1.6, 2.6 / Math.max(0.22, cam.s));
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        tunits.forEach(([x, y]) => {
+          const px = x * TILE, py = y * TILE;
+          if (!inSet.has(x + ',' + (y - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + TILE, py + 1); }
+          if (!inSet.has(x + ',' + (y + 1))) { ctx.moveTo(px, py + TILE - 1); ctx.lineTo(px + TILE, py + TILE - 1); }
+          if (!inSet.has((x - 1) + ',' + y)) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + TILE); }
+          if (!inSet.has((x + 1) + ',' + y)) { ctx.moveTo(px + TILE - 1, py); ctx.lineTo(px + TILE - 1, py + TILE); }
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
     }
     if (mode === 'attack' || mode === 'skillTarget') {
       /* v5.14 — 표시 사거리도 실제 판정(effRng, 지형 보너스 포함)과 같은 값을 쓴다 */
@@ -4735,8 +4790,14 @@
        탭하면 그 부대가 선택되게, 지금 그린 라벨 영역을 월드 좌표로 적어 둔다.
        (칸 안에 정확히 누르지 못해 선택이 풀리던 답답함 — 사용자 가이드) */
     u._tap = {
-      x0: bx - Math.max(bw, pillW) / 2 - 8, x1: bx + Math.max(bw, pillW) / 2 + 8,
-      y0: pillY - Math.round(16 * kNum), y1: barY + bh + 6,
+      x0: bx - Math.max(bw, pillW) / 2 - 10, x1: bx + Math.max(bw, pillW) / 2 + 10,
+      y0: pillY - Math.round(16 * kNum), y1: barY + bh + 8,
+    };
+    /* v6.8a — 부대 스프라이트 통째 힟박스(월드 좌표). 2×2로 뭉쳐 그린 부대도 그림 몸통을
+       누르면 그 부대가 집힌다 (칸 위쪽을 살짝 빚나가 누를 때 헛탭이 났다). */
+    u._hit = {
+      x0: bx - TILE * 0.5 - 8, x1: bx + TILE * 0.5 + 8,
+      y0: topY - 8, y1: by + 10,
     };
     ctx.save();
     if (showNum) {
@@ -6472,6 +6533,10 @@
           <span class="dh-txt" id="duel-deck">커맨드 1/5</span>
         </div>
         <div class="duel-cmds" id="duel-cmds"></div>
+        <div class="duel-done" id="duel-done" hidden>
+          <span id="duel-done-txt">일기토 결과</span>
+          <button type="button" id="duel-done-btn">확인 — 전장으로</button>
+        </div>
         <div class="duel-reward">승리: 사기 +18 · 본대 병력 10% 회복 · 패배: 10% 붕괴(생포) / 90% 사기 −22</div>
       </div>`;
     document.body.appendChild(root);
@@ -6491,13 +6556,22 @@
       fx: q('#duel-fx'), dmgA: q('#duel-dmg-a'), dmgD: q('#duel-dmg-d'),
       cmds: q('#duel-cmds'), dots: q('#duel-dots'), war: q('#duel-war'), deckTxt: q('#duel-deck'),
       named: q('#duel-named'), namedTag: q('#duel-named-tag'), namedTxt: q('#duel-named-txt'), namedBtn: q('#duel-named-auto'),
+      done: q('#duel-done'), doneTxt: q('#duel-done-txt'), doneBtn: q('#duel-done-btn'),
     };
+    /* v6.8a — 일기토가 끝나면 결과 버튼 하나로 확실하게 닫는다 */
+    if (duelEls.doneBtn) {
+      duelEls.doneBtn.onclick = (e) => { e.stopPropagation(); if (SK.sfx) SK.sfx.play('ui'); closeDuel(); };
+    }
     /* 커맨드 카드는 일기토를 열 때 그 장수의 무력에 맞춰 다시 그린다 (renderDuelDeck) */
     duelEls.auto.onclick = () => duelToggleAuto();
     /* v6.8 — 네임드 일기토의 [⏭ 자동 진행]: 원탭으로 나머지를 자동에 맡긴다 */
     duelEls.namedBtn.onclick = (e) => { e.stopPropagation(); duelNamedSkip(); };
     root.addEventListener('click', (e) => {
-      if (duel && duel.over) { e.preventDefault(); e.stopPropagation(); closeDuel(); }
+      /* v6.8a — 결과가 뜬 직후의 빗나간 탭(마지막 커맨드를 누른 손가락)에 결과 창이
+         곧바로 닫히지 않게 0.4초는 무시한다. 그 뒤에는 [확인 — 전장으로] 또는 화면 탭으로 닫힌다. */
+      if (duel && duel.over && (performance.now() - (duel.endedAt || 0) > 400)) {
+        e.preventDefault(); e.stopPropagation(); closeDuel();
+      }
     });
     return duelEls;
   }
@@ -6906,6 +6980,7 @@
     duel.over = true;
     duel.busy = false;
     duel.ended = winner;
+    duel.endedAt = performance.now();
     paintDuelNamed();
     if (duelEls) {
       duelEls.cmds.classList.add('done', 'busy');
@@ -6934,8 +7009,19 @@
       setDuelBanner('무승부', '', '다섯 합을 겨루었으나 승부가 나지 않았다');
       SK.sfx.play('deny');
     }
-    const hold = (duel.auto || autoSpeed >= 3) ? 900 : 2100;
-    dwait(closeDuel, hold);
+    const hold = (duel.auto || autoSpeed >= 3) ? 1400 : 0;
+    /* v6.8a — 5합/종료 뒤에는 [확인 — 전장으로] 버튼을 내민다.
+       수동 지휘 중에는 저절로 닫히지 않고 플레이어가 결과를 읽고 누른다. */
+    if (duelEls && duelEls.done) {
+      if (duelEls.doneTxt) {
+        duelEls.doneTxt.textContent = winner === 'a' ? '일기토 승리 — 사기 +18 · 본대 병력 10% 회복'
+          : winner === 'd' ? '일기토 패배 — 사기 −22 (10% 확률로 생포)'
+            : '무승부 — 다섯 합을 겨루고 양쪽이 물러섰다';
+      }
+      duelEls.done.hidden = false;
+      duelEls.root.classList.add('done');
+    }
+    if (hold) dwait(closeDuel, hold);
   }
 
   /* 일기토 결과를 본 전장에 적용한다 */
@@ -6945,7 +7031,7 @@
     const win = winner === 'a' ? duel.a : duel.d;
     const lose = winner === 'a' ? duel.d : duel.a;
     if (win.alive) {
-      moraleShift(win, 18);
+      moraleShift(win, 18, '일기토 승리');
       const heal = Math.round(win.maxHp * 0.10);
       const before = win.hp;
       win.hp = Math.min(win.maxHp, win.hp + heal);
@@ -6967,7 +7053,7 @@
         SK.sfx.play('drum');
         shakeScreen(6);
       } else {
-        moraleShift(lose, -22);
+        moraleShift(lose, -22, '일기토 패배');
         feed(`${lose.name} — 일기토 패배, 사기 −22`, 'bad');
       }
     }
@@ -6994,11 +7080,12 @@
       }
       try { e.fx.innerHTML = ''; } catch (err) { /* ignore */ }
       if (e.stage) e.stage.querySelectorAll('.duel-ghost').forEach((n) => n.remove());
+      if (e.done) e.done.hidden = true;
       e.root.classList.add('out');
       setTimeout(() => {
         if (!duelEls) return;
         duelEls.root.hidden = true;
-        duelEls.root.classList.remove('show', 'out');
+        duelEls.root.classList.remove('show', 'out', 'done');
         duelEls.fx.innerHTML = '';
       }, 240);
     }
@@ -7319,7 +7406,7 @@
     u.morale = 50;
     return kind;
   }
-  function moraleShift(u, d) {
+  function moraleShift(u, d, why) {
     if (!u || !u.alive || !d) return;
     const before = u.morale == null ? MORALE_BASE : u.morale;
     /* v5.81 — 백절불굴(고유 특기): 사기 감소 N% 경감 */
@@ -7329,9 +7416,17 @@
     const next = clamp(before + (d < 0 ? d * (1 - cut) : d), 0, u.moraleMax || 100);
     u.morale = Math.round(next * 10) / 10;
     const diff = u.morale - before;
+    /* v6.8a — 사기 변동 ‘사유’를 부대에 남긴다. 부대 카드 배지의 title과
+       사기 변화 풍선에 이유가 함께 보인다 (예: 전우 쓰러짐 · 측면 피격 · 숲 지형). */
+    const whyTxt = why || '전투 효과';
+    if (Math.abs(diff) >= 0.5) {
+      u.whyLast = { t: whyTxt, d: Math.round(diff), turn: B ? B.turn : 0 };
+    }
     if (Math.abs(diff) >= 3) {
-      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE,
-        `${diff > 0 ? '사기↑' : '사기↓'} ${Math.round(Math.abs(diff))}`, diff > 0 ? '#a8f0b8' : '#ff9a86');
+      const tag = `${diff > 0 ? '사기↑' : '사기↓'} ${Math.round(Math.abs(diff))} · ${whyTxt}`;
+      addFloat((rxOf(u) + 0.5) * TILE, (ryOf(u) + 0.1) * TILE, tag, diff > 0 ? '#a8f0b8' : '#ff9a86');
+      /* 큰 변화(±6 이상)는 전장 로그에도 사유와 함께 남긴다 */
+      if (Math.abs(diff) >= 6) feed(`${u.name} 사기 ${diff > 0 ? '+' : '−'}${Math.round(Math.abs(diff))} — ${whyTxt}`, diff > 0 ? 'good' : 'bad');
     }
     if (u.morale <= MORALE_LOW) moraleCollapse(u);
   }
@@ -7405,7 +7500,7 @@
     if (!a || !d || !d.alive) return;
     if (opts && opts.counterHit) return;      // 반격·추격에는 상태이상이 붙지 않는다
     const f = a.tfx || {};
-    if (f.moraleHit) moraleShift(d, -Math.max(2, Math.min(20, Math.round(f.moraleHit))));
+    if (f.moraleHit) moraleShift(d, -Math.max(2, Math.min(20, Math.round(f.moraleHit))), (f.title ? `특기 「${f.title}」` : '적 특기 위압'));
     if (f.stunHit && Math.random() < Math.min(0.35, f.stunHit / 100)) ailApply(d, 'stun', null);
     if (f.fearHit && kind === 'melee' && Math.random() < Math.min(0.5, f.fearHit / 100)) ailApply(d, 'fear', null);
     if (f.disarm && Math.random() < Math.min(0.5, f.disarm / 100)) {
@@ -7507,7 +7602,7 @@
         /* v5.32 — 기본 회복을 1→2로, 사기가 50 아래면 3으로 올린다.
            예전에는 사기 40에서 6턴을 버텨도 46밖에 안 올라, 한 번 꺾인 부대가 판 내내 회복하지 못했다. */
         const rg = (u.morale < 50 ? 3 : 2) + Math.round(Math.max(0, fxPct(u, 'moraleRegen')) * 10);
-        moraleShift(u, rg);
+        moraleShift(u, rg, '사기 자연 회복');
       }
       const cl = Math.max(0, fxPct(u, 'cleanse'));
       if (cl > 0 && Math.random() < cl) {
@@ -7561,6 +7656,42 @@
   }
   /* v5.30 — 지형·야간 조건 보정. 해동병법처럼 '수전·산악 지형에서 능력치 보정'인 보물은
      해당 지형에 설 때만 공·방에 붙는다. 야간(야영 기습전)은 B.night로 표시한다. */
+  /* v6.8a — 공격력·사기 변동 사유 목록. effAtk·calcDamage 안의 보정을 한 곳에서 풀어
+     "왜 공격력이 달라졌는가"를 전투 예고·부대 카드에 그대로 적는다. */
+  function atkModsOf(u, d) {
+    const out = [];
+    if (!u || !B) return out;
+    const ch = tileAt(u.x, u.y);
+    const trName = (SK.TERRAIN[ch] || {}).name || '지형';
+    const aff = SK.affinity ? SK.affinity(u.cls, ch) : null;
+    if (aff && aff.atk) out.push({ k: 'terrain', t: `${trName} 습성(병과 적성)`, v: Math.round(aff.atk * 1.3 * 1000) / 1000 });
+    if (d) {
+      const dch = tileAt(d.x, d.y);
+      if (ch === 'U' && dch !== 'U' && dch !== 'M') out.push({ k: 'terrain', t: '고지대에서 내려침', v: 0.15 });
+    }
+    const tb = typeBonus(u);
+    if (tb) out.push({ k: 'form', t: `${B.def.name} 진형`, v: Math.round(tb * 1.25 * 1000) / 1000 });
+    const b = buffVal(u, 'atk');
+    if (b) out.push({ k: 'buff', t: (u.whyAtk || '책략·거점 효과'), v: b });
+    const tf = terrFxPct(u);
+    if (tf) out.push({ k: 'passive', t: B.night ? '야간 특기·보물' : '지형 특기·보물', v: tf });
+    const m = moraleMul(u);
+    if (m !== 1) out.push({ k: 'morale', t: `사기 ${Math.round(u.morale == null ? MORALE_BASE : u.morale)}`, v: Math.round((m - 1) * 1000) / 1000 });
+    const tr = trainMul(u);
+    if (Math.abs(tr - 1) > 0.001) out.push({ k: 'train', t: `훈련도 ${Math.round(trainValOf(u))}`, v: Math.round((tr - 1) * 1000) / 1000 });
+    const bd = bondAllyMul(u);
+    if (Math.abs(bd - 1) > 0.001) out.push({ k: 'bond', t: '인연(친밀) 우군 인접', v: bd - 1 });
+    if (u.ail && u.ail.fear) out.push({ k: 'ail', t: '공포 상태이상', v: -0.2 });
+    if (u.aboard && u.cls !== 'sujeok') out.push({ k: 'boat', t: '조각배(수전)', v: -0.18 });
+    return out;
+  }
+  function modsText(mods, n) {
+    const list = (mods || []).filter((x) => Math.abs(x.v) >= 0.01);
+    if (!list.length) return '보정 없음';
+    return list.slice(0, n || 4).map((x) => `${x.t} ${x.v > 0 ? '+' : '−'}${Math.round(Math.abs(x.v) * 100)}%`).join(' · ');
+  }
+  SK.BattleMods = { atk: atkModsOf, text: modsText };
+
   function terrFxPct(u) {
     if (!B || !u) return 0;
     const ch = B.tiles[u.y] && B.tiles[u.y][u.x];
@@ -7924,6 +8055,8 @@
   function addMagicDamage(a, d, dmg) {
     if (a) statOf(a).dealt += dmg;
     if (d) statOf(d).taken += dmg;
+    /* v6.8a — 입문 안내용 '실제로 때렸나' 카운터 */
+    if (B && a && d && a.side === 'ally' && d.side === 'enemy' && dmg > 0) B.allyHits = (B.allyHits || 0) + 1;
   }
 
   /* v5.17 — 전투 불능은 더 이상 "전사"가 아니다. 15% 생포 / 85% 퇴각. */
@@ -7966,19 +8099,22 @@
       addFx({ kind: 'ring', x: (rxOf(d) + 0.5) * TILE, y: (ryOf(d) + 0.5) * TILE, life: 520, color: '255,214,120' });
     }
     /* v5.31 — 사기: 최대 병력의 15% 이상을 한 번에 잃으면 흔들린다 */
-    if (d.maxHp && dmg >= d.maxHp * 0.15) moraleShift(d, -4);
+    if (d.maxHp && dmg >= d.maxHp * 0.15) moraleShift(d, -4, '한 번에 큰 피해');
     if (wasAlive && d.hp <= 0) {
       /* v5.56 — 전우가 쓰러지면 **전장의 모든 아군 부대**가 흔들린다.
          (예전에는 3칸 안 아군만 −4라, 멀리 있던 부대는 "사기가 떨어졌다고 나오는데 그대로"였다)
          · 3칸 안 동료 −8 · 그 밖의 살아 있는 아군 −4 · 쓰러뜨린 쪽 +6 */
-      moraleShift(a, 6);
+      moraleShift(a, 6, '적 부대 격파');
       B.units.forEach((o) => {
         if (!o.alive || o === d || o.side !== d.side) return;
-        moraleShift(o, manh(o.x, o.y, d.x, d.y) <= 3 ? -8 : -4);
+        moraleShift(o, manh(o.x, o.y, d.x, d.y) <= 3 ? -8 : -4, '전우 쓰러짐');
       });
     }
     if (a) statOf(a).dealt += dmg;
     statOf(d).taken += dmg;
+    /* v6.8a — 입문 안내(필살기/자동 안내로 넘어가는 조건)는 턴 수가 아니라
+       '실제로 적에게 피해를 넣었는가'로 본다 */
+    if (a && d && a.side === 'ally' && d.side === 'enemy' && dmg > 0) B.allyHits = (B.allyHits || 0) + 1;
     /* v5.81 — 피의 갈증(고유 특기): 준 피해의 N%를 자기 병력으로 회복
        v5.82 — 혈전(고유 특기)도 같은 흡혈을 쓴다 */
     if (a && a.alive && dmg > 0) {
@@ -8195,6 +8331,21 @@
   function onTappedUnit(u) {
     if (!u || !B || B.over) return;
     onTileTap(u.x, u.y);
+  }
+  /* v6.8a — 스프라이트 몸통 힟박스 판정 (칸 좌표가 빗나가도 그림을 누르면 집힌다).
+     가까운 중심의 부대 하나만 돌려준다. */
+  function unitSpriteAt(px, py) {
+    if (!B) return null;
+    const w = screenToWorld(px, py);
+    let best = null, bestD = Infinity;
+    B.units.forEach((u) => {
+      if (!u.alive || !u._hit) return;
+      const r = u._hit;
+      if (w.x < r.x0 || w.x > r.x1 || w.y < r.y0 || w.y > r.y1) return;
+      const d = Math.abs(w.x - (r.x0 + r.x1) / 2) + Math.abs(w.y - (r.y0 + r.y1) / 2);
+      if (d < bestD) { bestD = d; best = u; }
+    });
+    return best;
   }
 
   function onTileTap(x, y) {
@@ -8531,6 +8682,18 @@
           ? `<div class="ap-row counter"><span>반격 피해</span><b>${cnt.dmg}</b><em>${d.name}의 반격 ${Math.round(cntMul * 100)}%${triBack.mul > 1 ? ` · ${triBack.label}` : ''}</em></div>`
           : `<div class="ap-row"><span>반격</span><b>없음</b><em>${dMin > 1 ? `${SK.josa(d.name, 'eun')} ${dMin}칸 안쪽을 못 쏩니다` : '사거리 밖'}</em></div>`}
         <div class="ap-row"><span>지형</span><b>${tr.name}</b><em>방어 ${tr.def >= 0 ? '+' : ''}${Math.round(tr.def * 100)}%</em></div>
+        ${(() => {
+          /* v6.8a — 공·사기 변동 사유를 예고 창에 그대로 적는다 (지형·진형·사기·버프…) */
+          const mods = atkModsOf(a, d).filter((x) => Math.abs(x.v) >= 0.01);
+          const mv = Math.round(a.morale == null ? MORALE_BASE : a.morale);
+          const mPct = Math.round((moraleMul(a) - 1) * 100);
+          const rows = [];
+          if (mods.length) {
+            rows.push(`<div class="ap-row mods"><span>공격 보정</span><b>${mods.slice(0, 3).map((x) => `${x.t} ${x.v > 0 ? '+' : '−'}${Math.round(Math.abs(x.v) * 100)}%`).join(' · ')}</b><em>${mods.length > 3 ? `${mods.length - 3}개 더` : '합산 적용'}</em></div>`);
+          }
+          rows.push(`<div class="ap-row"><span>사기</span><b>${mv}</b><em>공·방 ${mPct >= 0 ? '+' : ''}${mPct}%${a.whyLast && a.whyLast.t ? ` · 최근 ${a.whyLast.t} ${a.whyLast.d > 0 ? '+' : '−'}${Math.abs(a.whyLast.d)}` : ''}</em></div>`);
+          return rows.join('');
+        })()}
         ${fxRow}
         ${bondHtml}
         <p class="ap-note">${d.name} 병력 ${Math.round(d.hp).toLocaleString('ko-KR')} / ${Math.round(d.maxHp).toLocaleString('ko-KR')}</p>
@@ -8605,6 +8768,8 @@
     const land = () => {
       if (!B || B.over) { busy = false; return; }
       hitGate.hp = Math.max(0, hitGate.hp - hit);
+      /* v6.8a — 성문을 때린 것도 '실제 공격'으로 센다 (입문 안내) */
+      if (hit > 0 && a.side === gateAttackerSide()) B.allyHits = (B.allyHits || 0) + 1;
       addFloat(cx, cy - 8, '-' + hit, '#ffd08a');
       addFx({ kind: 'burst', x: cx, y: cy, life: 420, color: '226,180,72' });
       SK.sfx.play('hit');
@@ -9378,7 +9543,7 @@
           if (!B || B.over) { finish(0); return; }
           if (t.alive) {
             skillAilApply(u, t, sk);
-            if (sk.morale < 0) moraleShift(t, Math.max(-20, Number(sk.morale) || 0));
+            if (sk.morale < 0) moraleShift(t, Math.max(-20, Number(sk.morale) || 0), `계략 「${sk.name}」`);
           }
           const vs = sk.vsMount && (t.cls === 'gibi' || (SK.CLASSES[t.cls] && SK.CLASSES[t.cls].mount));
           if (vs) {
@@ -9415,7 +9580,7 @@
           const t = list[i++];
           if (!t.alive) { one(); return; }
           attackUnit(u, t, { mult: sk.power || 1, critBonus: sk.crit || 0, forceKind: 'arrow' }, () => {
-            if (t.alive) { skillAilApply(u, t, sk); if (sk.morale < 0) moraleShift(t, sk.morale); }
+            if (t.alive) { skillAilApply(u, t, sk); if (sk.morale < 0) moraleShift(t, sk.morale, `계략 「${sk.name}」`); }
             wait(one, 120);
           });
         };
@@ -9442,7 +9607,7 @@
           const src = isSelf ? (fxSelf || fxAlly) : fxAlly;
           if (!src) return;
           const tv = src.turns || 3;
-          if (src.atk) t.buffs.atk = { v: src.atk, t: tv };
+          if (src.atk) { t.buffs.atk = { v: src.atk, t: tv }; t.whyAtk = `계략 「${sk.name}」`; }
           if (src.def) t.buffs.def = { v: src.def, t: tv };
           if (src.morale) moraleShift(t, Math.max(0, Number(src.morale) || 0));
           addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.25) * TILE, src.atk ? '공격↑' : '방어↑', '#ffe0a0');
@@ -9537,7 +9702,7 @@
         /* v5.31 — 파천격(기절 35%)·방패돌진(기절 20%) */
         if (target.alive && B && !B.over) skillAilApply(u, target, sk);
         /* v5.60 — 패왕참·산채습격처럼 '적 사기 -N'이 붙은 강타 */
-        if (target.alive && B && !B.over && sk.morale < 0) moraleShift(target, Math.max(-20, Number(sk.morale) || 0));
+        if (target.alive && B && !B.over && sk.morale < 0) moraleShift(target, Math.max(-20, Number(sk.morale) || 0), `계략 「${sk.name}」`);
         if (n > 1 && target.alive && B && !B.over) {
           wait(() => { if (B && !B.over && target.alive) apply(n - 1); else finish(300); }, 160);
         } else {
@@ -9913,7 +10078,7 @@
           out.hits.push(t.name);
           ail(t);
           track(t);
-          if (t.alive && e.morale) moraleShift(t, e.morale);
+          if (t.alive && e.morale) moraleShift(t, e.morale, '필살기 위압');
           addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
         }, 80 + i * 90);
       });
@@ -9930,7 +10095,7 @@
           out.hits.push(t.name);
           ail(t);
           track(t);
-          if (t.alive && e.morale) moraleShift(t, e.morale);
+          if (t.alive && e.morale) moraleShift(t, e.morale, '필살기 위압');
           addFx({ kind: 'burst', x: (rxOf(t) + 0.5) * TILE, y: (ryOf(t) + 0.45) * TILE, life: 420, color: spec.c });
         }, 90 + i * 90);
       });
@@ -9961,7 +10126,7 @@
           }
           ail(t);
           track(t);
-          if (t.alive && e.morale) moraleShift(t, e.morale);
+          if (t.alive && e.morale) moraleShift(t, e.morale, '필살기 위압');
         }, 120 + i * 80);
       });
     } else if (e.k === 'buff') {
@@ -9974,7 +10139,7 @@
         if (b && b.evade) a.buffs.evade = { v: b.evade, t: tS };
         if (b && b.counter) a.buffs.counter = { v: b.counter, t: tS };
         if (b && b.magicDef) a.buffs.magicDef = { v: b.magicDef, t: tS };
-        if (e.morale) moraleShift(a, e.morale);
+        if (e.morale) moraleShift(a, e.morale, '필살기 고무');
         if (e.mp && e.mp.gain) a.mp = Math.min(a.maxMp, (a.mp || 0) + e.mp.gain);
         if (e.heal && e.heal.pct) {
           const hl = Math.round(a.maxHp * e.heal.pct);
@@ -10005,7 +10170,7 @@
         addHeal(aa, hl, u);
         if (e.clear) ailClear(aa, 3);
         if (e.atk) aa.buffs.atk = { v: e.atk, t: e.turns || 3 };
-        if (e.morale) moraleShift(aa, e.morale);
+        if (e.morale) moraleShift(aa, e.morale, '필살기 고무');
         out.hits.push(aa.name);
         addFloat((rxOf(aa) + 0.5) * TILE, (ryOf(aa) + 0.35) * TILE, '+' + hl, '#a8f0b8');
         addFx({ kind: 'heal', x: (rxOf(aa) + 0.5) * TILE, y: (ryOf(aa) + 0.5) * TILE, life: 680 });
@@ -10021,7 +10186,7 @@
         if (e.def || (db && db.def)) t.buffs.def = { v: (db && db.def) || e.def, t: tS };
         if (e.atk || (db && db.atk)) t.buffs.atk = { v: (db && db.atk) || e.atk, t: tS };
         if (db && db.move) { t.buffs.moveDown = { v: db.move, t: tS }; t.slow = 1; }
-        if (e.morale) moraleShift(t, e.morale);
+        if (e.morale) moraleShift(t, e.morale, '필살기 위압');
         ail(t);
         out.hits.push(t.name);
         addFloat((rxOf(t) + 0.5) * TILE, (ryOf(t) + 0.3) * TILE, '약화!', '#c9a6ff');
@@ -12700,7 +12865,7 @@
         </div>
         ${vgGold.gold ? `<p class="rm-village">마을 <b>${vgGold.count}</b>곳 점령 수당 — 금 <b>+${vgGold.gold.toLocaleString('ko-KR')}</b></p>` : ''}
         ${fled > 0 ? `<p class="rm-note">적 잔여 병력 ${fled.toLocaleString('ko-KR')}은 출발 성으로 쫓겨났습니다.</p>` : ''}
-        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 [포로 처리]에서 <b>등용</b>·<b>석방(몸값 금)</b>·<b>억류</b>(포로 명부 최대 6명) 중 고릅니다</em></div>` : ''}
       </div>`,
       actions: [{ label: prisoners.length ? '포로를 처리한다' : '지도로', primary: true, onClick: () => {
         closeBattle();
@@ -12856,11 +13021,22 @@
       SK.save();
       if (SK.refreshHud) SK.refreshHud();
       const after = ts ? Math.round(ts.troops || 0) : 0;
+      /* v6.8a — 성으로 밀어넣기 전에 '남은 병력 대 남은 수비병'을 나란히 보여 주고,
+         강행과 회군(이번 달 물러나기)을 함께 고를 수 있게 한다. */
+      const allyLeft = Math.round(survivors.reduce((a, u) => a + Math.max(0, u.hp || 0), 0));
+      const pushRatio = allyLeft > 0 ? after / allyLeft : 99;
+      const pushCls = pushRatio >= 2 ? 'danger' : (pushRatio >= 1.5 ? 'warn' : (pushRatio <= 0.8 ? 'good' : 'even'));
+      const pushTag = pushRatio >= 2 ? '성문을 뚫고 들어가도 전멸 위험'
+        : pushRatio >= 1.5 ? '성안이 더 많습니다 — 공성 손실이 큽니다'
+          : pushRatio <= 0.8 ? '성안보다 우리가 많습니다' : '호각입니다 — 성벽이 변수';
       SK.modal({
         kicker: '성하 야전 승리',
         title: `${(SK.CITY[fld.cityId] || {}).name || ''} 성하 돌파`,
         body: `<div class="result-modal win"><div class="rm-seal">승</div>
-          <p class="rm-line">성 밖으로 나온 적을 꺾었습니다. 성안 수비병이 <b>${before.toLocaleString('ko-KR')} → ${after.toLocaleString('ko-KR')}</b>으로 줄었습니다 — 이 달 바로 공성전으로 이어집니다.</p>
+          <p class="rm-line">성 밖으로 나온 적을 꺾었습니다. 성안 수비병이 <b>${before.toLocaleString('ko-KR')} → ${after.toLocaleString('ko-KR')}</b>으로 줄었습니다 — 이 달 바로 공성전으로 밀어넣거나, 물러날 수 있습니다.</p>
+          <div class="field-push ${pushCls}"><span class="fp-tag">성문 앞 전력</span>
+            <b>성안 수비병 ${after.toLocaleString('ko-KR')}</b><em>vs</em><b>우리 병력 ${allyLeft.toLocaleString('ko-KR')}</b>
+            <span class="fp-note">${pushTag}${pushRatio < 2 ? '' : ` (${pushRatio.toFixed(1)}배)`}</span></div>
           ${battleReportHTML({ mvp: true })}
           <div class="rm-rewards">
             <div><span>금</span><b>+${Math.round(B.rewards.gold).toLocaleString('ko-KR')}</b></div>
@@ -12869,12 +13045,19 @@
             <div><span>적 수비병</span><b>${after.toLocaleString('ko-KR')}</b></div>
           </div>
           ${gift ? `<p class="rm-village">요격전 성과 — ${gift.goals.indexOf('granary') >= 0 ? '군량고' : ''}${gift.goals.length > 1 ? '·' : ''}${gift.goals.indexOf('armory') >= 0 ? '무기고' : ''}를 끊었습니다. 이어지는 공성전에서 <b>성문 HP ${Math.round((1 - gift.gate) * 100)}% 감소 · 적 사기 −${gift.morale}</b>.</p>` : ''}
-          ${ts ? `<p class="rm-note">성벽 ${Math.round(ts.def || 0)} · 성안에 남은 수비병으로 성을 지킬 것입니다.</p>` : ''}</div>`,
-        actions: [{ label: '성으로 밀어넣는다', primary: true, onClick: () => {
-          closeBattle();
-          if (SK.afterFieldBattle) setTimeout(() => SK.afterFieldBattle(mid), 320);
-          else SK.showMap();
-        } }],
+          ${ts ? `<p class="rm-note">성벽 ${Math.round(ts.def || 0)} · 성안에 남은 수비병으로 성을 지킬 것입니다.<br>회군하면 이번 달은 성을 못 빼앗지만, 살아 돌아온 병력은 그대로 보존됩니다(적 수비병은 이미 줄어든 상태로 남습니다).</p>` : ''}</div>`,
+        actions: [
+          { label: '이번 달 물러난다(회군)', onClick: () => {
+            closeBattle();
+            if (SK.fieldRetreat) SK.fieldRetreat(mid);
+            else if (SK.showMap) SK.showMap();
+          } },
+          { label: '성으로 밀어넣는다', primary: true, onClick: () => {
+            closeBattle();
+            if (SK.afterFieldBattle) setTimeout(() => SK.afterFieldBattle(mid), 320);
+            else SK.showMap();
+          } },
+        ],
         dismissible: false,
       });
       return;
@@ -13115,6 +13298,7 @@
           <p>${g.tier === 'S' || g.tier === 'A' ? '이름난 장수라 쉽게 무릎을 굽히지 않습니다.' : '싸움에 진 자세로 고개를 숙이고 있습니다.'}</p>
         </div>
       </div>
+      <p class="prison-note"><b>생포</b>는 이 적 장수를 포로로 잡았다는 뜻입니다 — ① <b>등용</b>(매력 대결 ${Math.round(pRec * 100)}% 성공 시 충성 55의 우리 장수) ② <b>석방</b>(몸값 금 +${gold} · 명성 +3) ③ <b>포로 억류</b>(포로 명부 ${PRISON_CAP}명까지 · 3개월 탈출 불가 뒤엔 매달 탈출 판정). 금은 <b>석방할 때만</b> 들어옵니다.</p>
       <div class="prison-opts">
         <button class="prison-opt hire" data-p="hire"><b>등용</b><span>매력 대결 · 성공 ${Math.round(pRec * 100)}%</span></button>
         <button class="prison-opt free" data-p="free"><b>석방</b><span>금 +${gold} · 명성 +3</span></button>
@@ -13433,7 +13617,7 @@
         </div>` : ''}
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         <div class="rm-survivors">${survivors.map((u) => `<img class="${SK.tcls(u)}" src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
-        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 [포로 처리]에서 <b>등용</b>·<b>석방(몸값 금)</b>·<b>억류</b>(포로 명부 최대 6명) 중 고릅니다</em></div>` : ''}
         ${woundedAdd ? `<p class="rm-note">부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 ${c.name}에서 회복 중입니다 — 달이 바뀌면 돌아오고, [병영]에서 금으로 바로 치료할 수 있습니다.</p>` : ''}
         ${B.event ? `<p class="rm-event">특별 이벤트 — ${B.event.title} · 명성 +5</p>` : ''}
         ${siegeWreck ? `<p class="rm-war">전란 피해 — ${siegeWreck.turn}턴 공성${siegeWreck.gates ? ` · 성문 ${siegeWreck.gates}개 파괴` : ''} · 성벽 −${siegeWreck.def} · 농업 −${siegeWreck.agri} · 상업 −${siegeWreck.comm} · 치안 −${siegeWreck.order} · 인구 −${Math.round(siegeWreck.pop).toLocaleString('ko-KR')}${siegeWreck.wrecked ? ` · 시설 ${siegeWreck.wrecked}곳 Lv. 하락` : ''} · 내성 건물 경험치 −${Math.round((0.15 + 0.35 * siegeWreck.sev) * 100)}%<br><em>성을 오래 두드리면 함락해도 쓸모가 줄어듭니다. 다음에는 행군 길목에서 [요격]해 적을 먼저 꺾으십시오.</em></p>` : ''}
@@ -13593,7 +13777,7 @@
         ${levelUps.length ? `<div class="rm-levels">${levelUps.map((l) => `<span class="${l.promote ? 'promote' : ''}">${l.name} Lv.${l.lv}${l.promote ? ` · ${l.title} 승급!` : ' 달성'}</span>`).join('')}</div>` : ''}
         ${battleReportHTML({ mvp: true })}
         <div class="rm-survivors">${survivors.map((u) => `<img class="${SK.tcls(u)}" src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('')}</div>
-        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 처리합니다</em></div>` : ''}
+        ${prisoners.length ? `<div class="rm-prisoners"><span class="rp-tag">포로 ${prisoners.length}명</span>${prisoners.map((g) => `<img class="${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" title="${g.name}">`).join('')}<em>승리를 마치면 [포로 처리]에서 <b>등용</b>·<b>석방(몸값 금)</b>·<b>억류</b>(포로 명부 최대 6명) 중 고릅니다</em></div>` : ''}
         ${woundedAdd || (rfgInfo && rfgInfo.left) ? `<p class="rm-note">${woundedAdd ? `부상병 ${woundedAdd.toLocaleString('ko-KR')}명이 성에서 회복 중입니다. ` : ''}${rfgInfo && rfgInfo.home ? `${rfgInfo.home} 원군 ${Math.round(rfgInfo.left).toLocaleString('ko-KR')}명이 돌아갔습니다.` : ''}</p>` : ''}
         ${warDamage ? `<p class="rm-war">전란 피해 — 성벽 −${warDamage.def} · 농업 −${warDamage.agri} · 상업 −${warDamage.comm} · 치안 −${warDamage.order} · 내성 건물 경험치 −25%<br><em>성이 침공받으면 이겨도 성이 상합니다. 다음에는 성 밖에서 [요격]해 미리 막는 편이 이득입니다.</em></p>` : ''}
         <p class="rm-note">${dead.length ? '전사한 장수는 체력 1로 살아났습니다. ' : ''}민심 +2 · 성벽 −${warDamage ? warDamage.def : 6}</p></div>`,
@@ -14410,9 +14594,19 @@
             const pct = Math.round(b.v * 100);
             pills.push(`<span class="bf ${pct >= 0 ? 'good' : 'bad'}">${k === 'atk' ? '공' : '방'}${pct >= 0 ? '+' : ''}${pct}% (${b.t}턴)</span>`);
           });
-          /* v5.31 — 사기·상태이상·조각배 상태 */
+          /* v5.31 — 사기·상태이상·조각배 상태
+             v6.8a — 사기 변동 ‘사유’(왜 떨어졌/올랐는지)를 풍선·배지 title에 남긴다 */
           const mv = Math.round(u.morale == null ? 80 : u.morale);
-          pills.push(`<span class="bf ${mv >= 80 ? 'good' : 'bad'}">사기 ${mv}${mv >= 80 ? ' · 100%' : ` · 공·방 ${Math.round((moraleMul(u) - 1) * 100)}%`}</span>`);
+          const mWhy = (u.whyLast && u.whyLast.t) ? `최근 ${u.whyLast.t} ${u.whyLast.d > 0 ? '+' : '−'}${Math.abs(u.whyLast.d)}` : '변동 없음';
+          const mFacts = atkModsOf(u, null).filter((x) => ['morale', 'ail', 'terrain', 'form', 'buff', 'train'].indexOf(x.k) >= 0 && Math.abs(x.v) >= 0.01)
+            .map((x) => `${x.t} ${x.v > 0 ? '+' : '−'}${Math.round(Math.abs(x.v) * 100)}%`);
+          pills.push(`<span class="bf ${mv >= 80 ? 'good' : 'bad'}" title="${mWhy}${mFacts.length ? ' · ' + mFacts.join(' · ') : ''}">사기 ${mv}${mv >= 80 ? ' · 100%' : ` · 공·방 ${Math.round((moraleMul(u) - 1) * 100)}%`}</span>`);
+          /* v6.8a — 공격력 변동 사유 배지 (지형·진형·책략·거점·인연·조각배) */
+          const am = atkModsOf(u, null).filter((x) => Math.abs(x.v) >= 0.01);
+          if (am.length) {
+            const amTxt = am.map((x) => `${x.t} ${x.v > 0 ? '+' : '−'}${Math.round(Math.abs(x.v) * 100)}%`);
+            pills.push(`<span class="bf mods" title="${amTxt.join('\n')}">공 보정 ${am.length} · ${amTxt[0]}</span>`);
+          }
           if (u.ail) {
             Object.keys(AIL).forEach((k) => {
               const t = u.ail[k];
@@ -14527,6 +14721,7 @@
           ally: B.units.filter((u) => u.side === 'ally' && u.alive).length,
           enemy: B.units.filter((u) => u.side === 'enemy' && u.alive).length,
           allyDone: B.units.filter((u) => u.side === 'ally' && u.alive && u.acted).length,
+          allyHits: B.allyHits || 0,
           enemyDone: B.units.filter((u) => u.side === 'enemy' && u.alive && u.acted).length };
       },
       /* v6.0 — 검수용: 새 전략 지형·기믹 상태와 AI 판단 로그 */

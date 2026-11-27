@@ -832,7 +832,8 @@ b { font-weight: 700; }
 @keyframes blink { 50% { opacity: 0.35; } }
 
 /* ═══════════════ 모달 ═══════════════ */
-#modal-root { position: relative; z-index: 50; }
+/* v6.8a — 일기토(z=70)가 떠 있어도 그 위에 창이 뜨고 버튼이 눌리게 모달 층을 80으로 올린다 */
+#modal-root { position: relative; z-index: 80; }
 .modal-layer {
   position: fixed; inset: 0; background: rgba(24, 19, 9, 0.6); backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center; padding: 16px;
@@ -9214,3 +9215,124 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 .cdx-search { padding: 6px 9px; }
 .cdx-search #cdx-q-clear { width: 24px; height: 24px; font-size: 11px; }
 .cdx-more { min-height: 40px; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.8a — 본편 유저 입장 TOP 5 UX (390×844 모바일 우선)
+   ① 출진 전력 비교·전멸 경고 배지 · 성하 야전 뒤 회군 선택
+   ② 월정산 스크롤 힌트 · '이 달 실제 병력' 줄
+   ③ 공터 건설 기대 효과 숫자 · 출진 대상 카드 시트
+   ④ 일기토 결과 [확인 — 전장으로] 버튼 · 공격 보정 사유 배지
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 출진 편성 — 전력 비교 경고 ───────────────────────────────── */
+.deploy-risk {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+  margin: 6px 0 2px; padding: 7px 9px; border-radius: 10px;
+  border: 1px solid #d7c093; background: #fffaf0;
+  font-size: 10.5px; line-height: 1.45; color: #4a3d20; word-break: keep-all;
+}
+.deploy-risk[hidden] { display: none; }
+.deploy-risk .dr-badge {
+  flex: 0 0 auto; padding: 2px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 900; letter-spacing: -0.01em; color: #fff8e6;
+}
+.deploy-risk span { flex: 1 1 100%; min-width: 0; }
+.deploy-risk em { flex: 1 1 100%; font-style: normal; font-size: 9px; color: #7d6538; }
+.deploy-risk.idle { color: #7d6538; }
+.deploy-risk.even { border-color: #cbb277; background: #fff7e3; }
+.deploy-risk.even .dr-badge { background: #8a7448; }
+.deploy-risk.good { border-color: #7fb07f; background: #f0faef; }
+.deploy-risk.good .dr-badge { background: #2f6d34; }
+.deploy-risk.warn { border-color: #d9a13a; background: #fff4d9; }
+.deploy-risk.warn .dr-badge { background: #b57708; }
+.deploy-risk.danger { border-color: #c0392b; background: #fdecea; color: #7a1d12; }
+.deploy-risk.danger .dr-badge { background: linear-gradient(180deg, #d33b2a, #a01f12); box-shadow: 0 0 0 2px rgba(208, 60, 40, 0.18); }
+.deploy-risk.danger b { color: #8c1a10; }
+.risk-confirm .tut-sl { margin: 6px 0; }
+.risk-confirm .modal-sub { font-size: 10px; color: #8a7448; margin: 4px 0 0; }
+
+/* 성하 야전 승리 — 성문 앞 전력 비교 띠 */
+.field-push {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px;
+  margin: 7px 0; padding: 7px 9px; border-radius: 10px;
+  border: 1px solid #cbb277; background: #fff7e3;
+  font-size: 10.5px; color: #4a3d20; word-break: keep-all;
+}
+.field-push .fp-tag { flex: 0 0 auto; font-size: 9px; font-weight: 900; color: #8a5a12; letter-spacing: 0.02em; }
+.field-push b { font-size: 11.5px; color: #33280f; }
+.field-push em { font-style: normal; font-size: 9.5px; color: #8a7448; }
+.field-push .fp-note { flex: 1 1 100%; font-size: 9.5px; color: #7a4a12; }
+.field-push.warn { border-color: #d9a13a; background: #fff3d4; }
+.field-push.danger { border-color: #c0392b; background: #fdecea; }
+.field-push.danger .fp-note { color: #8c1a10; font-weight: 800; }
+.field-push.good { border-color: #7fb07f; background: #f0faef; }
+
+/* 생포 · 포로 처리 안내 한 줄 */
+.prison-note {
+  margin: 7px 0 2px; padding: 7px 9px; border-radius: 9px;
+  border: 1px dashed #cbb277; background: rgba(255, 250, 240, 0.9);
+  font-size: 10px; line-height: 1.5; color: #6b5228; word-break: keep-all;
+}
+.prison-note b { color: #8a5a12; }
+
+/* ── ② 월정산 스크롤 힌트 ─────────────────────────────────────── */
+.modal-scroll-hint {
+  position: relative; flex: 0 0 auto; margin: -20px 0 4px; height: 20px;
+  display: flex; align-items: flex-end; justify-content: center; gap: 3px;
+  pointer-events: none; opacity: 1; transition: opacity 0.22s;
+  background: linear-gradient(180deg, rgba(239, 224, 187, 0) 0%, rgba(237, 220, 184, 0.96) 62%);
+  font-size: 9.5px; font-weight: 900; color: #8a5a12; letter-spacing: 0.02em;
+}
+.modal-scroll-hint b { font-size: 11px; line-height: 1; animation: mrHintBounce 1.1s ease-in-out infinite; }
+.modal-scroll-hint.off { opacity: 0; }
+@keyframes mrHintBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+
+/* ── ③ 공터 건설 — Lv.1 기대 효과 줄 ───────────────────────────── */
+.build-row .br-fx {
+  display: block; margin-top: 1px; font-size: 9.5px; font-weight: 800;
+  color: #2f6d34; word-break: keep-all;
+}
+.build-row .br-fx::before { content: '▸ '; color: #7fb07f; }
+
+/* 출진 대상 고르기 — 시트 안 성 카드 목록 */
+.pk-list {
+  display: flex; gap: 5px; overflow-x: auto; overflow-y: hidden;
+  margin: 3px 0 1px; padding-bottom: 2px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.pk-list::-webkit-scrollbar { display: none; }
+.pk-list[hidden] { display: none; }
+.pk-card {
+  flex: 0 0 auto; min-width: 104px; max-width: 148px;
+  display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
+  padding: 6px 8px; border-radius: 10px; text-align: left;
+  border: 1px solid #c0a166; background: linear-gradient(180deg, #4a3a1c, #2e2410);
+  color: #f4e6c0;
+}
+.pk-card b { font-size: 12px; color: #ffe9b8; letter-spacing: -0.01em; }
+.pk-card em { font-style: normal; font-size: 10px; font-weight: 900; color: #ffd980; }
+.pk-card span { font-size: 8.5px; color: #bda679; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pk-card.hot { border-color: #8fd19c; box-shadow: 0 0 0 1px rgba(140, 220, 160, 0.25) inset; }
+.pk-card.hot em { color: #b6f0c2; }
+.pk-card:active { transform: translateY(1px); }
+
+/* ── ④ 일기토 결과 버튼 ───────────────────────────────────────── */
+.duel-done {
+  display: flex; align-items: center; gap: 6px; margin-top: 5px;
+  padding: 5px 6px; border-radius: 10px;
+  border: 1.5px solid #ffd980; background: linear-gradient(180deg, #4a3413, #2a1d0d);
+}
+.duel-done[hidden] { display: none; }
+.duel-done span { flex: 1; min-width: 0; font-size: 9.5px; font-weight: 800; color: #ffe9b8; word-break: keep-all; line-height: 1.35; }
+.duel-done button {
+  flex: 0 0 auto; min-height: 40px; padding: 8px 14px; border-radius: 9px;
+  border: 1.5px solid #ffe9a8; color: #2a1d0d; font-size: 12.5px; font-weight: 900;
+  background: linear-gradient(180deg, #ffe08a, #e0a12a);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.duel-done button:active { transform: translateY(1px); }
+/* 결과가 난 일기토도 [확인 — 전장으로]로 닫힌 뒤에 결산창이 뜬다 —
+   혹시 겹쳐도 모달 층(#modal-root z=80)이 위에 있어 버튼이 가려지지 않는다 */
+
+/* 부대 카드 — 공격 보정 사유 배지 */
+.uc-buffs .bf.mods { color: #6b4a12; background: rgba(214, 168, 70, 0.18); border-color: rgba(160, 118, 30, 0.45); }
