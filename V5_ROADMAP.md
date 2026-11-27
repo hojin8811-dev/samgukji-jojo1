@@ -1,6 +1,19 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=145`
+기준: 2026-11-27 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=146`
+
+## ✅ v6.9 — 이세계 특전 영웅 DLC 1탄 (2026-11-27 · `?v=146`, **출시 전 비공개**)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 데이터 | `data/dlc_heroes.json` — 1탄 10인(손오공·알렉산더·잔다르크·아서왕·무사시·칭기즈칸·클레오파트라·레오니다스·홍길동·전우치)의 고유 직업·고유 책략 3종·고유 필살기·S급 동급 스탯·상품 ID(`dlc_hero_01~10`)·가격 2,900원 | `data/dlc_heroes.json` |
+| ② 로더·분리 | 특전 영웅을 `SK.CLASSES`·`SK.SKILLS`·`SK.ULTIMATES`·`SK.ART`·`SK.GEN_BY_ID`에 등록하되 **`SK.GENERALS`에는 넣지 않는다**(주점·탐색·도감·AI 세력 완전 분리). `ensureData`에 로딩을 끼워 넣고 `showMap`마다 해금 영웅 로스터 합류 확인 | `js/dlc.js` |
+| ③ 해금·빌링 | `localStorage['unlockedDlc']` 개별 해금 · `[테스트 해금]` 토글 · `window.SK.DlcBilling`(`purchase`/`onPurchaseSuccess`/`onPurchaseFail`) + `window.AndroidBilling.purchase(productId)` 브리지 | `js/dlc.js` |
+| ④ 상점 UI | 지도 [✨ 특전] 알약 + 메뉴 항목 → 목판·비단 톤 모달. 1인 단품 카드(초상·직업·스탯·필살기·[2,900원 구매]·[테스트 해금]) + 상세 창(고유 책략·필살기 대사) | `js/dlc.js`, `css/game.css`, `index.html` |
+| ⑤ 비공개 게이트 | `DLC_PUBLIC = false` · `?dlc=1` 또는 `localStorage['dlcTestMode']='1'` 에서만 버튼·메뉴·상점이 뜬다(일반 유저에게는 완전히 숨김) | `js/dlc.js` `isDlcOpen()` |
+| ⑥ 전장 고유 치비 | 영웅별 전용 SD 전신 10종 + 영웅별 오라·발판 문양, 병종 스프라이트 재탕 없음. 병과 배지(`🐒 제천` 등)도 고유 | `js/battle.js` `drawDlcChibi`, `assets/units/dlc/` |
+| ⑦ 고유 효과 | 필살기 10종 실제 발동(관통·기절·혼란·반격·재행동·회복) · 율도국 의적 전리품 금 +25%·군량 +10% | `js/battle.js` `applyUlt`(기존 엔진), `startBattle` 전리품 |
+| ⑧ 검수 | `tools/v690_browser.py` 57항목 OK(비공개 게이트·상점 10장·초상 10장 로드·해금→로스터→실제 출진→전장 치비 10명→필살기 10종→세이브) · 스샷 `preview/v682/` | `tools/v690_browser.py` |
 
 ## ✅ v6.8a — 본편 유저 입장 TOP 5 UX (2026-11-27 · `?v=145`)
 
@@ -17,6 +30,7 @@
 
 ## 📋 다음 패치 대기
 
+- **이세계 특전 영웅 2탄(11~20)·3탄(21~30)** — 1탄의 틀(`data/dlc_heroes.json` 항목 추가 + `assets/portraits/dlc/`·`assets/units/dlc/` 그림)만 그대로 이어 붙이면 된다. 30명이 모이면 `DLC_PUBLIC = true`로 상점을 연다.
 - 2026-11-24에 킵해 둔 v5.89 후보 6종은 아래 ✅ v5.89에서 모두 반영했다. 다음 후보는 실플레이 제보를 받아 정한다.
 
 ## ✅ v5.89 — 배속 출진 핫픽스 · 포상/데려오기 · 보물 합산 · 요격 80% · 총도독 관전 (2026-11-24 · `?v=112`)

@@ -562,6 +562,12 @@
     if (B.sites && B.sites.length) B.objective = defense ? '성을 지켜라 — 적을 전멸시켜라' : '적 전멸';
     B.rewards.gold = intercept ? Math.round((intercept.troops || 2400) * 0.10 + 80) : Math.round(cityTroops * 0.16 + 320);
     B.rewards.food = intercept ? Math.round((intercept.troops || 2400) * 0.07 + 60) : Math.round(cityTroops * 0.11 + 240);
+    /* v6.9 — 율도국 의적(홍길동)이 출진한 전투는 전리품이 는다 (금 +25% · 군량 +10%) */
+    if (allies.some((u) => u.dlcLoot)) {
+      B.rewards.gold = Math.round(B.rewards.gold * 1.25);
+      B.rewards.food = Math.round(B.rewards.food * 1.1);
+      B.rewards.dlcLoot = true;
+    }
     anims.length = 0;
     fx.length = 0;
     floats.length = 0;
@@ -853,6 +859,8 @@
       /* v5.83 — 관리자 병과 편집의 지력(ji) 보정을 부대 지력에 더한다 (0이면 예전과 같다) */
       wu: h.wu + eq.war, ji: h.ji + eq.intel + (C.ji || 0), tong: h.tong + eq.leadership,
       portrait: h.portrait, unit: h.unit || CLASS_UNIT[h.cls], skills: SK.skillsFor(h.cls, h.lv),
+      /* v6.9 — 이세계 특전 영웅: 전장에서 병종 스프라이트 대신 고유 치비를 그린다 */
+      dlcKey: h.dlcId || null, dlcLoot: !!(C && C.loot),
       passive, pUsed: {}, x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 2, face: 1, expGain: 0,
       tfx,
       stat: { dealt: 0, taken: 0, heal: 0, kills: 0 },
@@ -4606,6 +4614,47 @@
     ctx.restore();
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     v6.9 — 이세계 특전 영웅 전장 치비 (dlc_01 ~ dlc_10)
+     · 병종 스프라이트를 재탕하지 않는다. 영웅마다 전용 SD
+       (assets/units/dlc/dlc_01~10.webp — 여의봉·근두운 / 장창·방패 / 성녀 깃발 /
+        엑스칼리버 성광 / 이도류 / 기마궁수 / 나일의 지팡이 / 스파르타 대방패 /
+        율도국 갓·보따리 / 도사 부채·부적)를 쓰고,
+       그 아래에 영웅별 오라와 발판 문양을 이 함수가 직접 그린다.
+     ══════════════════════════════════════════════════════════════════ */
+  const PI2 = Math.PI * 2;
+  function dlcCfg(u) {
+    return (u && u.dlcKey && SK.DLC && SK.DLC.chibiOf) ? SK.DLC.chibiOf(u.dlcKey) : null;
+  }
+  /* 영웅별 오라 — 같은 편성에서도 누가 누구인지 한눈에 (색은 dlc_heroes.json) */
+  function dlcAura(u, c, bx, by, h) {
+    if (!c || !c.aura) return;
+    const pulse = 0.20 + 0.09 * Math.sin(performance.now() / 320 + (u.x + u.y) * 1.3);
+    const g = ctx.createRadialGradient(bx, by - h * 0.45, 2, bx, by - h * 0.45, h * 0.72);
+    g.addColorStop(0, 'rgba(' + c.aura + ',' + pulse.toFixed(2) + ')');
+    g.addColorStop(0.6, 'rgba(' + c.aura + ',' + (pulse * 0.34).toFixed(2) + ')');
+    g.addColorStop(1, 'rgba(' + c.aura + ',0)');
+    ctx.save();
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(bx, by - h * 0.45, h * 0.62, h * 0.62, 0, 0, PI2);
+    ctx.fill();
+    /* 발판 문양 — 금빛 띠 두 줄이 천천히 돈다 */
+    const rr = TILE * 0.30;
+    ctx.strokeStyle = 'rgba(' + c.aura + ',0.55)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.ellipse(bx, by - 3, rr, rr * 0.42, 0, 0, PI2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,238,180,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(bx, by - 3, rr * 0.72, rr * 0.30, 0, 0, PI2); ctx.stroke();
+    ctx.restore();
+  }
+  /* 특전 영웅 한 명 그리기 — 오라 + 전용 SD (그림 크기·그림자는 다른 부대와 같은 규칙) */
+  function drawDlcChibi(u, c, img, box, dx, dy, dw, dh) {
+    dlcAura(u, c, dx + dw / 2, dy + dh, dh);
+    ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
+  }
+
   function drawUnit(u) {
     const ux = u.rx == null ? u.x : u.rx;
     const uy = u.ry == null ? u.y : u.ry;
@@ -4614,6 +4663,7 @@
     const img = unitImgFor(u);
     const tint = SIDE_TINT[u.side] || SIDE_TINT.enemy;
     const ready = img.complete && img.naturalWidth;
+    const dlc = dlcCfg(u);
     // 스프라이트를 보이는 높이 기준으로 통일 (넓은 말·공성차는 살짝 줄여 무게를 맞춘다)
     const box = ready ? unitBox(img) : { x: 0, y: 0, w: 3, h: 4 };
     /* v5.17 — 전직 단계마다 SD가 조금씩 커진다 */
@@ -4695,7 +4745,8 @@
         ctx.shadowColor = tier >= 3 ? 'rgba(255,208,90,0.95)' : (tier === 2 ? 'rgba(220,230,240,0.9)' : 'rgba(198,140,60,0.85)');
         ctx.shadowBlur = 6 + tier * 4;
       }
-      ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
+      if (dlc) drawDlcChibi(u, dlc, img, box, dx, dy, dw, dh);
+      else ctx.drawImage(img, box.x, box.y, box.w, box.h, dx, dy, dw, dh);
       if (u.flash > 0) {
         /* v6.6 — 히트 플래시: 첫 순간은 하얗게 번쩍이고, 곧바로 붉은 실루엣으로 꺼진다 */
         ctx.save();
@@ -4831,7 +4882,8 @@
     }
     ctx.restore();
     // 병과 배지 — [🐎 기병] 형태의 작은 칩을 HP 배지 왼쪽에 붙인다 (밀집하면 생략)
-    const badge = CLASS_BADGE[u.cls] || ['', SK.CLASSES[u.cls] ? SK.CLASSES[u.cls].name.slice(0, 2) : ''];
+    const dlcBadge = (SK.DLC && SK.DLC.badgeOf) ? SK.DLC.badgeOf(u.cls) : null;
+    const badge = CLASS_BADGE[u.cls] || dlcBadge || ['', SK.CLASSES[u.cls] ? SK.CLASSES[u.cls].name.slice(0, 2) : ''];
     /* v5.40 — 병과 배지를 HP 알약 '위 줄'에 따로 세운다.
        예전에는 알약 옆에 붙여, 부대가 나란히 서면(mid 부대) 옆 칸과 부딪혀 통째로 생략됐다.
        밀집·축소 시에는 한 글자(기·궁·창·군)로 줄여 언제나 병과가 보이게 한다. */
@@ -15053,6 +15105,29 @@
         foes.forEach((f, i) => rows.push({ n: f.name, x: 8 + (i % 6), y: 17 + Math.floor(i / 6) }));
         this.placeUnits(rows);
         return { allies: allies.length, foes: foes.length };
+      },
+      /* v6.9 — 특전 영웅 고유 필살기 검수 훅: 대상·사거리·사용 여부를 무시하고 바로 펼친다 */
+      ultForce(name, targetName) {
+        if (!B) return { ok: false, why: 'no-battle' };
+        const u = B.units.find((o) => o.name === name && o.alive);
+        if (!u) return { ok: false, why: 'no-unit' };
+        const spec = ultOf(u);
+        if (!spec) return { ok: false, why: 'no-ult', tier: unitTier(u) };
+        const tgt = targetName ? B.units.find((o) => o.name === targetName && o.alive) : null;
+        u.ultUsed = false; u.acted = false; u.mp = Math.max(u.maxMp || 0, 999);
+        const before = B.units.filter((o) => o.alive).map((o) => ({ n: o.name, side: o.side, hp: Math.round(o.hp),
+          atk: +(o.buffs.atk ? o.buffs.atk.v : 0).toFixed(2), def: +(o.buffs.def ? o.buffs.def.v : 0).toFixed(2),
+          counter: +(o.buffs.counter ? o.buffs.counter.v : 0).toFixed(2), morale: Math.round(o.morale || 0), ail: Object.keys(o.ail || {}) }));
+        castUlt(u, spec, tgt);
+        return { ok: true, n: spec.n, kind: spec.e && spec.e.k, used: !!u.ultUsed, before,
+          fx: (B.skillFxLog || []).slice() };
+      },
+      ultState(name) {
+        const u = B && B.units.find((o) => o.name === name);
+        if (!u) return null;
+        const spec = ultOf(u);
+        return { name: u.name, tier: unitTier(u), cls: u.cls, dlcKey: u.dlcKey || null,
+          ult: spec ? spec.n : null, used: !!u.ultUsed, dlcLoot: !!u.dlcLoot };
       },
       castResult(name) {
         if (!B) return null;

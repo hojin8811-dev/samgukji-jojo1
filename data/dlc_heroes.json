@@ -1,0 +1,350 @@
+{
+  "series": "이세계 특전 영웅",
+  "episode": 1,
+  "episodeTitle": "1탄 — 패왕과 전설",
+  "priceKRW": 2900,
+  "currency": "KRW",
+  "note": "본편 주점·탐색·도감과 완전히 분리된 유료 특전 영웅. 묶음 판매 없이 1인 단품(2,900원)만 판매한다. 능력치는 기존 S급 최상위권과 동급이고, 고유 직업·고유 필살기·고유 외형으로만 차별화한다.",
+  "heroes": [
+    {
+      "id": "dlc_01",
+      "productId": "dlc_hero_01",
+      "name": "손오공",
+      "title": "제천대성",
+      "job": "제천대성",
+      "cls": "dlc_wukong",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 92, "war": 97, "intel": 78, "politics": 58, "charm": 90 },
+      "desc": "돌원숭이에서 태어나 하늘을 뒤흔든 제천대성. 여의봉을 늘이고 줄여 성벽 너머까지 내리치며, 털을 불어 분신을 만들어 적진을 휩쓴다.",
+      "portrait": "assets/portraits/dlc/dlc_01.webp",
+      "classDef": {
+        "role": "돌격·광역",
+        "atk": 35, "def": 18, "mov": 5, "rng": 2, "minRng": 1, "mp": 26, "agi": 88,
+        "weapon": "staff",
+        "desc": "여의봉으로 2칸까지 내리치고, 주변을 한 번에 휩쓰는 광역 타격에 능하다."
+      },
+      "skills": [
+        { "key": "dlc1_s1", "name": "여의봉 회오리", "mp": 14, "unlockLv": 1, "kind": "power", "pattern": "range2", "power": 0.62, "maxTargets": 6, "morale": -5,
+          "desc": "주변 2칸(마름모) 적 전원에게 62% 타격 · 피격 적 사기 -5" },
+        { "key": "dlc1_s2", "name": "근두운", "mp": 10, "unlockLv": 1, "kind": "buffSelf", "eva": 0.2, "move": 1, "turns": 2,
+          "desc": "구름을 타고 회피 +20% · 이동력 +1 (2턴)" },
+        { "key": "dlc1_s3", "name": "천근추", "mp": 12, "unlockLv": 8, "kind": "power", "range": 2, "power": 1.7,
+          "desc": "여의봉을 천근 무게로 내리쳐 2칸 안 적 하나에게 170%" }
+      ],
+      "ultimate": {
+        "n": "제천대성", "q": "하늘도 땅도, 이 여의봉 앞에서는 고작 평평한 판일 뿐이다!",
+        "v": "dragon_cleave", "c": "255,206,90",
+        "e": { "k": "aoe", "m": 1.0, "r": 2, "ail": "stun", "ch": 0.3 },
+        "desc": "지점 반경 2칸의 적 전원에게 100% 강타 · 기절 30%"
+      },
+      "chibi": { "kind": "wukong", "skin": "#f0c49a", "hair": "#7b4a25", "cloth": "#b8342c", "trim": "#f2c651", "metal": "#e0b23c", "pants": "#6d2a22", "aura": "255,196,80", "badge": ["🐒", "제천"] }
+    },
+    {
+      "id": "dlc_02",
+      "productId": "dlc_hero_02",
+      "name": "알렉산더",
+      "title": "마케도니아 패왕",
+      "job": "마케도니아 패왕",
+      "cls": "dlc_alexander",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 96, "war": 92, "intel": 88, "politics": 84, "charm": 93 },
+      "desc": "동방 원정의 끝까지 진군한 마케도니아의 패왕. 장창 방진을 앞세운 돌격으로 적 전열을 정면에서 찢고, 성문 앞에서는 누구보다 먼저 창을 세운다.",
+      "portrait": "assets/portraits/dlc/dlc_02.webp",
+      "classDef": {
+        "role": "돌격·방진",
+        "atk": 35, "def": 20, "mov": 5, "rng": 2, "minRng": 1, "mp": 24, "agi": 76,
+        "weapon": "spear",
+        "desc": "긴 장창으로 2칸을 찌르고, 방진을 세워 아군 전체를 밀어 올린다."
+      },
+      "skills": [
+        { "key": "dlc2_s1", "name": "방진 돌격", "mp": 13, "unlockLv": 1, "kind": "power", "pattern": "line2", "power": 1.05, "dash": "behind",
+          "desc": "전방 2칸 일렬의 적을 105%로 밀어붙이고 적 뒤 칸으로 돌파" },
+        { "key": "dlc2_s2", "name": "마케도니아 방진", "mp": 16, "unlockLv": 1, "kind": "buffAllAllies", "atk": 0.12, "def": 0.12, "turns": 3, "morale": 6,
+          "desc": "전장 아군 전원 공격·방어 +12% (3턴) · 사기 +6" },
+        { "key": "dlc2_s3", "name": "장창 찌르기", "mp": 9, "unlockLv": 8, "kind": "power", "range": 2, "power": 1.5, "vsMount": 0.3,
+          "desc": "2칸 밖 적을 150%로 찌른다 · 기병에게 +30%" }
+      ],
+      "ultimate": {
+        "n": "방진 돌격", "q": "방진은 멈추지 않는다 — 네 전열은 여기서 끝이다!",
+        "v": "spear_storm", "c": "210,190,130",
+        "e": { "k": "line", "len": 3, "m": 1.45, "pierce": 0.3, "ail": "stun", "ch": 0.25 },
+        "desc": "3칸 직선 관통 145% · 방어 30% 무시 · 기절 25%"
+      },
+      "chibi": { "kind": "alexander", "skin": "#f0c49a", "hair": "#4a2f1c", "cloth": "#5a3b8c", "trim": "#e8c35a", "metal": "#c9a24a", "pants": "#4a3a6a", "aura": "190,160,255", "badge": ["🔱", "방진"] }
+    },
+    {
+      "id": "dlc_03",
+      "productId": "dlc_hero_03",
+      "name": "잔다르크",
+      "title": "오를레앙 성녀",
+      "job": "오를레앙 성녀",
+      "cls": "dlc_jeanne",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 90, "war": 84, "intel": 86, "politics": 72, "charm": 96 },
+      "desc": "백년전쟁의 불길 속에서 깃발 하나로 군을 이끈 성녀. 검보다 그 목소리가 강하고, 그 깃발 아래 선 아군은 몇 번이고 다시 일어선다.",
+      "portrait": "assets/portraits/dlc/dlc_03.webp",
+      "classDef": {
+        "role": "치유·고무",
+        "atk": 27, "def": 24, "mov": 4, "rng": 1, "minRng": 1, "mp": 46, "agi": 68,
+        "weapon": "sword",
+        "desc": "깃발로 아군을 고무하고 병력을 회복시키는 성전의 지휘관."
+      },
+      "skills": [
+        { "key": "dlc3_s1", "name": "성녀의 축복", "mp": 18, "unlockLv": 1, "kind": "healArea", "radius": 2, "healPct": 0.13, "morale": 8,
+          "desc": "주변 2칸 아군 전원 병력 13% 회복 · 사기 +8" },
+        { "key": "dlc3_s2", "name": "성전의 깃발", "mp": 14, "unlockLv": 1, "kind": "buffAreaAllies", "radius": 2, "atk": 0.2, "def": 0.1, "turns": 3, "morale": 8,
+          "desc": "주변 2칸 아군 공격 +20% · 방어 +10% (3턴) · 사기 +8" },
+        { "key": "dlc3_s3", "name": "치유의 기도", "mp": 10, "unlockLv": 8, "kind": "heal", "range": 2, "healPct": 0.18,
+          "desc": "2칸 안 아군 하나의 병력을 18% 회복" }
+      ],
+      "ultimate": {
+        "n": "오를레앙의 성휘", "q": "이 깃발 아래에 서 있는 한, 우리는 무너지지 않습니다!",
+        "v": "royal_aura", "c": "255,240,190",
+        "e": { "k": "heal", "p": 0.16, "r": 2, "clear": true, "atk": 0.12, "morale": 16 },
+        "desc": "반경 2칸 아군 병력 16% 회복 · 상태이상 해제 · 공격 +12% · 사기 +16"
+      },
+      "chibi": { "kind": "jeanne", "skin": "#f6d3b0", "hair": "#e8c86a", "cloth": "#3f5fa8", "trim": "#f3e7c0", "metal": "#d8dde6", "pants": "#2f4478", "aura": "255,244,200", "badge": ["✨", "성녀"] }
+    },
+    {
+      "id": "dlc_04",
+      "productId": "dlc_hero_04",
+      "name": "아서왕",
+      "title": "원탁의 기사왕",
+      "job": "원탁의 기사왕",
+      "cls": "dlc_arthur",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 94, "war": 93, "intel": 82, "politics": 88, "charm": 95 },
+      "desc": "돌에 꽂힌 검을 뽑은 소년 왕. 원탁의 기사들을 하나로 묶은 성광의 검 엑스칼리버로, 정면의 적을 한 줄로 베어 낸다.",
+      "portrait": "assets/portraits/dlc/dlc_04.webp",
+      "classDef": {
+        "role": "균형·관통",
+        "atk": 33, "def": 26, "mov": 4, "rng": 1, "minRng": 1, "mp": 32, "agi": 72,
+        "weapon": "sword",
+        "desc": "성검과 왕의 방패를 함께 쓰는 균형형 기사왕."
+      },
+      "skills": [
+        { "key": "dlc4_s1", "name": "성광참", "mp": 14, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.85,
+          "desc": "성광을 두른 일격 (185%)" },
+        { "key": "dlc4_s2", "name": "원탁의 맹세", "mp": 20, "unlockLv": 1, "kind": "buffAllAllies", "atk": 0.14, "def": 0.12, "turns": 3, "morale": 10,
+          "desc": "전장 아군 전원 공격 +14% · 방어 +12% (3턴) · 사기 +10" },
+        { "key": "dlc4_s3", "name": "왕의 방패", "mp": 8, "unlockLv": 8, "kind": "buffSelf", "def": 0.4, "turns": 3,
+          "desc": "자신의 방어 +40% (3턴)" }
+      ],
+      "ultimate": {
+        "n": "엑스칼리버 성광참", "q": "빛이여, 길을 열어라 — 엑스칼리버!",
+        "v": "dragon_cleave", "c": "255,248,200",
+        "e": { "k": "line", "len": 4, "m": 1.5, "pierce": 0.35, "crit": { "chance": 0.25, "mul": 1.6 } },
+        "desc": "4칸 직선 관통 150% · 방어 35% 무시 · 치명 25% (×1.6)"
+      },
+      "chibi": { "kind": "arthur", "skin": "#f3cba6", "hair": "#6b4526", "cloth": "#2f4f9a", "trim": "#f0c95c", "metal": "#e3bd63", "pants": "#263f7e", "aura": "255,244,180", "badge": ["⚔", "기사"] }
+    },
+    {
+      "id": "dlc_05",
+      "productId": "dlc_hero_05",
+      "name": "미야모토 무사시",
+      "title": "이도류 검성",
+      "job": "이도류 검성",
+      "cls": "dlc_musashi",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 86, "war": 97, "intel": 76, "politics": 52, "charm": 78 },
+      "desc": "두 자루를 함께 쥐고 싸우는 검성. 한 번 겨루면 반드시 두 번 베고, 그 두 번째를 흘려 보는 적은 드물다.",
+      "portrait": "assets/portraits/dlc/dlc_05.webp",
+      "classDef": {
+        "role": "연격·기동",
+        "atk": 36, "def": 17, "mov": 5, "rng": 1, "minRng": 1, "mp": 22, "agi": 92,
+        "weapon": "sword",
+        "desc": "두 자루로 두 번 베는 연격형 검객. 민첩이 높아 잘 피한다."
+      },
+      "skills": [
+        { "key": "dlc5_s1", "name": "이도류 연격", "mp": 12, "unlockLv": 1, "kind": "power", "range": 1, "power": 0.92, "hits": 2,
+          "desc": "두 번 연속으로 벤다 (각 92% · 합 184%)" },
+        { "key": "dlc5_s2", "name": "간파", "mp": 9, "unlockLv": 1, "kind": "buffSelf", "eva": 0.25, "atk": 0.1, "turns": 2,
+          "desc": "상대의 손끝을 읽는다 — 회피 +25% · 공격 +10% (2턴)" },
+        { "key": "dlc5_s3", "name": "오의 일도", "mp": 13, "unlockLv": 8, "kind": "power", "range": 1, "power": 1.8, "crit": 0.1,
+          "desc": "단번에 목을 노리는 일격 (180% · 치명 +10%)" }
+      ],
+      "ultimate": {
+        "n": "이도류 오의 · 쌍성", "q": "한 자루로 부족하면, 두 자루면 된다.",
+        "v": "shadow_blade", "c": "200,215,240",
+        "e": { "k": "combo", "m": 1.65, "n": 2 },
+        "desc": "적 1부대를 확정 2연격 (합계 165%)"
+      },
+      "chibi": { "kind": "musashi", "skin": "#eec49c", "hair": "#241a14", "cloth": "#38476e", "trim": "#d8dce4", "metal": "#aab4c4", "pants": "#2a3348", "aura": "170,190,230", "badge": ["🗡", "이도"] }
+    },
+    {
+      "id": "dlc_06",
+      "productId": "dlc_hero_06",
+      "name": "칭기즈칸",
+      "title": "초원의 칸",
+      "job": "초원의 칸",
+      "cls": "dlc_genghis",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 95, "war": 90, "intel": 88, "politics": 74, "charm": 86 },
+      "desc": "초원의 부족을 하나로 묶어 대륙을 달린 정복자. 말 위에서 쏘고, 쏜 자리에서 다시 달린다 — 그의 화살은 멈추지 않는다.",
+      "portrait": "assets/portraits/dlc/dlc_06.webp",
+      "classDef": {
+        "role": "기동·사격",
+        "atk": 30, "def": 16, "mov": 6, "rng": 3, "minRng": 1, "mp": 26, "agi": 82,
+        "weapon": "bow", "mount": true,
+        "desc": "말을 타고 3칸을 쏘며 달리는 기마궁수. 이동 6으로 전장을 가로지른다."
+      },
+      "skills": [
+        { "key": "dlc6_s1", "name": "기마사격", "mp": 9, "unlockLv": 1, "kind": "power", "range": 3, "power": 1.45,
+          "desc": "달리면서 3칸 밖의 적을 쏜다 (145%)" },
+        { "key": "dlc6_s2", "name": "초원의 질주", "mp": 8, "unlockLv": 1, "kind": "buffSelf", "move": 1, "eva": 0.15, "turns": 2,
+          "desc": "이동력 +1 · 회피 +15% (2턴)" },
+        { "key": "dlc6_s3", "name": "화살비", "mp": 14, "unlockLv": 8, "kind": "powerArea", "range": 3, "radius": 1, "power": 0.8,
+          "desc": "3칸 앞 지점 반경 1칸에 화살을 퍼붓는다 (부대당 80%)" }
+      ],
+      "ultimate": {
+        "n": "초원의 화살비", "q": "말을 멈추지 마라. 활시위도 멈추지 않는다!",
+        "v": "arrow_rain", "c": "230,210,150",
+        "e": { "k": "arrowAoe", "m": 0.85, "r": 1, "n": 2, "onKill": { "extraAction": true } },
+        "desc": "지점 반경 1칸에 화살 세례 (부대당 85%×2) · 처치하면 재행동"
+      },
+      "chibi": { "kind": "genghis", "skin": "#e8bd93", "hair": "#3a2718", "cloth": "#7a5432", "trim": "#c8a468", "metal": "#9c7a46", "pants": "#4e3520", "mount": "#8a5a34", "aura": "200,180,130", "badge": ["🏹", "초원"] }
+    },
+    {
+      "id": "dlc_07",
+      "productId": "dlc_hero_07",
+      "name": "클레오파트라",
+      "title": "나일의 여왕",
+      "job": "나일의 여왕",
+      "cls": "dlc_cleopatra",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 84, "war": 70, "intel": 92, "politics": 94, "charm": 97 },
+      "desc": "나일의 황금을 쥔 여왕. 칼 대신 눈빛과 향으로 적의 창끝을 돌리고, 전장의 흐름을 자기 자리로 끌어온다.",
+      "portrait": "assets/portraits/dlc/dlc_07.webp",
+      "classDef": {
+        "role": "계략·매혹",
+        "atk": 18, "def": 13, "mov": 4, "rng": 3, "minRng": 1, "mp": 60, "agi": 66,
+        "weapon": "fan",
+        "desc": "매혹과 저주로 적의 공격·방어를 무너뜨리는 계략형 여왕."
+      },
+      "skills": [
+        { "key": "dlc7_s1", "name": "매혹의 눈빛", "mp": 13, "unlockLv": 1, "kind": "debuffAtk", "range": 3, "radius": 2, "amount": -0.3, "turns": 3, "confuse": true,
+          "desc": "3칸 앞 지점 2칸 안 적 공격 -30% (3턴) · 혼란" },
+        { "key": "dlc7_s2", "name": "나일의 저주", "mp": 12, "unlockLv": 1, "kind": "debuffDef", "range": 3, "radius": 2, "amount": -0.28, "turns": 3, "morale": -6,
+          "desc": "주변 2칸 적 방어 -28% (3턴) · 사기 -6" },
+        { "key": "dlc7_s3", "name": "여왕의 치유", "mp": 12, "unlockLv": 8, "kind": "healArea", "radius": 2, "healPct": 0.14,
+          "desc": "주변 2칸 아군 병력 14% 회복" }
+      ],
+      "ultimate": {
+        "n": "나일의 매혹", "q": "이 향기를 맡은 자는, 이미 내 사람이다.",
+        "v": "petal_dance", "c": "255,170,210",
+        "e": { "k": "debuff", "atk": -0.3, "def": -0.15, "morale": -8, "r": 2, "turns": 3, "ail": "confuse", "ch": 0.65 },
+        "desc": "반경 2칸 적 전원 공격 -30% · 방어 -15% · 사기 -8 (3턴) · 혼란 65%"
+      },
+      "chibi": { "kind": "cleopatra", "skin": "#e8b98d", "hair": "#1c1a22", "cloth": "#f0e6d2", "trim": "#e8c457", "metal": "#d8b04a", "pants": "#d8cfae", "aura": "255,180,220", "badge": ["🐍", "여왕"] }
+    },
+    {
+      "id": "dlc_08",
+      "productId": "dlc_hero_08",
+      "name": "레오니다스",
+      "title": "스파르타 왕",
+      "job": "스파르타 왕",
+      "cls": "dlc_leonidas",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 93, "war": 94, "intel": 76, "politics": 66, "charm": 88 },
+      "desc": "삼백의 결사대로 좁은 길을 지킨 스파르타의 왕. 방패를 세우면 그 앞은 벽이 되고, 벽을 밀면 창이 돌아온다.",
+      "portrait": "assets/portraits/dlc/dlc_08.webp",
+      "classDef": {
+        "role": "철벽·반격",
+        "atk": 29, "def": 31, "mov": 4, "rng": 1, "minRng": 1, "mp": 20, "agi": 56,
+        "weapon": "spear",
+        "desc": "큰 방패로 버티며 반격하는 중장 보병. 성문과 좁은 길에서 특히 강하다."
+      },
+      "skills": [
+        { "key": "dlc8_s1", "name": "방패 밀치기", "mp": 11, "unlockLv": 1, "kind": "power", "pattern": "rowFront", "power": 0.85, "morale": -6,
+          "desc": "전방 가로 3칸의 적을 85%로 밀어낸다 · 사기 -6" },
+        { "key": "dlc8_s2", "name": "철벽 진형", "mp": 12, "unlockLv": 1, "kind": "buffAreaAllies", "radius": 2, "def": 0.25, "turns": 3, "morale": 8,
+          "desc": "주변 2칸 아군 방어 +25% (3턴) · 사기 +8" },
+        { "key": "dlc8_s3", "name": "결사의 창", "mp": 10, "unlockLv": 8, "kind": "power", "range": 2, "power": 1.6, "vsMount": 0.35,
+          "desc": "2칸 밖 적을 160%로 찌른다 · 기병에게 +35%" }
+      ],
+      "ultimate": {
+        "n": "철벽과 반격", "q": "이 방패 뒤를 넘보는 자는, 창을 받아라!",
+        "v": "iron_wall", "c": "230,160,120",
+        "e": { "k": "buff", "def": 0.35, "morale": 16, "r": 2, "turns": 3, "buff": { "counter": 0.5, "turns": 3 } },
+        "desc": "반경 2칸 아군 방어 +35% · 반격 +50% · 사기 +16 (3턴)"
+      },
+      "chibi": { "kind": "leonidas", "skin": "#e8b98d", "hair": "#3a2a1c", "cloth": "#a8322a", "trim": "#d8b04a", "metal": "#c08c3c", "pants": "#7a2a22", "aura": "230,140,110", "badge": ["🛡", "철벽"] }
+    },
+    {
+      "id": "dlc_09",
+      "productId": "dlc_hero_09",
+      "name": "홍길동",
+      "title": "율도국 의적",
+      "job": "율도국 의적",
+      "cls": "dlc_honggildong",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 88, "war": 92, "intel": 84, "politics": 70, "charm": 90 },
+      "desc": "탐관오리의 창고를 열고 백성에게 나눠 준 의적. 분신으로 적의 눈을 속이고, 이긴 전장에서는 남는 전리품까지 챙긴다.",
+      "portrait": "assets/portraits/dlc/dlc_09.webp",
+      "classDef": {
+        "role": "기습·약탈",
+        "atk": 34, "def": 16, "mov": 5, "rng": 1, "minRng": 1, "mp": 24, "agi": 90,
+        "weapon": "sword", "loot": 0.25,
+        "desc": "분신을 흩뿌려 기습하는 의적. 그가 나선 전투에서는 전리품(금·군량)이 늘어난다."
+      },
+      "skills": [
+        { "key": "dlc9_s1", "name": "의적의 기습", "mp": 10, "unlockLv": 1, "kind": "power", "range": 1, "power": 1.7, "crit": 0.15,
+          "desc": "뒤에서 덮치는 일격 (170% · 치명 +15%)" },
+        { "key": "dlc9_s2", "name": "분신 습격", "mp": 13, "unlockLv": 1, "kind": "powerArea", "range": 2, "radius": 1, "power": 0.85,
+          "desc": "2칸 앞 지점 반경 1칸에 분신이 몰려든다 (부대당 85%)" },
+        { "key": "dlc9_s3", "name": "율도국의 바람", "mp": 9, "unlockLv": 8, "kind": "buffSelf", "eva": 0.25, "move": 1, "turns": 2,
+          "desc": "회피 +25% · 이동력 +1 (2턴)" }
+      ],
+      "ultimate": {
+        "n": "분신 기습", "q": "한 놈이 셋으로 늘어난다 — 어느 쪽을 막겠느냐!",
+        "v": "shadow_blade", "c": "160,200,220",
+        "e": { "k": "hit", "m": 1.45, "onKill": { "heal": 0.15 } },
+        "desc": "적 1부대에게 145% 기습 · 처치하면 HP 15% 회복 (전리품 +25%)"
+      },
+      "chibi": { "kind": "honggildong", "skin": "#eec49c", "hair": "#241c16", "cloth": "#f2eee2", "trim": "#3f5a8c", "metal": "#8a9096", "pants": "#dfd8c6", "aura": "150,200,220", "badge": ["🎏", "의적"] }
+    },
+    {
+      "id": "dlc_10",
+      "productId": "dlc_hero_10",
+      "name": "전우치",
+      "title": "조선 도사",
+      "job": "조선 도사",
+      "cls": "dlc_jeonwoochi",
+      "tier": "S",
+      "price": 2900,
+      "stats": { "leadership": 82, "war": 78, "intel": 95, "politics": 88, "charm": 84 },
+      "desc": "부적 한 장으로 비를 부르고, 부채 한 번으로 적의 눈을 뒤집는 조선의 도사. 하늘의 날씨조차 그의 계략이 된다.",
+      "portrait": "assets/portraits/dlc/dlc_10.webp",
+      "classDef": {
+        "role": "계략·날씨",
+        "atk": 19, "def": 13, "mov": 4, "rng": 3, "minRng": 1, "mp": 62, "agi": 64,
+        "weapon": "fan",
+        "desc": "환술·뇌우로 적진을 어지럽히는 도사. 계략 피해와 혼란에 특화되어 있다."
+      },
+      "skills": [
+        { "key": "dlc10_s1", "name": "환술", "mp": 12, "unlockLv": 1, "kind": "debuffAtk", "range": 3, "radius": 2, "amount": -0.32, "turns": 3, "confuse": true,
+          "desc": "3칸 앞 지점 2칸 안 적 공격 -32% (3턴) · 혼란" },
+        { "key": "dlc10_s2", "name": "뇌우 부리기", "mp": 16, "unlockLv": 1, "kind": "magicArea", "range": 4, "radius": 2, "power": 300, "stun": 25,
+          "desc": "4칸 앞 지점 반경 2칸에 벼락을 떨어뜨린다 · 기절 25%" },
+        { "key": "dlc10_s3", "name": "축지법", "mp": 10, "unlockLv": 8, "kind": "buffAreaAllies", "radius": 2, "move": 1, "eva": 0.12, "turns": 2,
+          "desc": "주변 2칸 아군 이동력 +1 · 회피 +12% (2턴)" }
+      ],
+      "ultimate": {
+        "n": "환술 · 뇌우", "q": "구름아 내려라, 천둥아 울려라 — 네 눈은 이미 내 것이다.",
+        "v": "lightning_array", "c": "180,205,255",
+        "e": { "k": "magic", "p": 1.3, "r": 2, "ail": "confuse", "ch": 0.5 },
+        "desc": "지점 반경 2칸에 계략 폭발 (화계의 130% 위력) · 혼란 50%"
+      },
+      "chibi": { "kind": "jeonwoochi", "skin": "#f0c9a2", "hair": "#241c16", "cloth": "#f4f0e4", "trim": "#3f4f7a", "metal": "#9aa2ac", "pants": "#e6e0d0", "aura": "180,195,255", "badge": ["🌀", "도사"] }
+    }
+  ]
+}

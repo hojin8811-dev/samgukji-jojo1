@@ -9336,3 +9336,80 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 
 /* 부대 카드 — 공격 보정 사유 배지 */
 .uc-buffs .bf.mods { color: #6b4a12; background: rgba(214, 168, 70, 0.18); border-color: rgba(160, 118, 30, 0.45); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.9 — 이세계 특전 영웅 상점 (DLC 1탄) · 목판·금테·비단 톤
+   · 출시 전까지는 ?dlc=1 이나 localStorage 'dlcTestMode'='1' 일 때만 열린다.
+   · 390×844 세로 화면 기준 — 카드 한 장이 한 줄, 가로 넘침 없이 본문만 굴린다.
+   ══════════════════════════════════════════════════════════════════════ */
+.map-pill.dlc-pill { left: 8px; bottom: calc(80px + env(safe-area-inset-bottom)); border-color: rgba(240, 206, 120, 0.95); }
+.map-pill.dlc-pill .mp-n { background: #f0ce78; color: #2a1c07; }
+.map-pill.dlc-pill[hidden] { display: none !important; }
+
+.dlc-shop { display: flex; flex-direction: column; gap: 8px; }
+.dlc-head {
+  padding: 9px 10px; border-radius: 11px; border: 1px solid #b8862f;
+  background: linear-gradient(180deg, #3a2515, #24150c);
+  color: #f6e6bf; box-shadow: inset 0 1px 0 rgba(255, 232, 176, 0.2);
+}
+.dlc-head b { display: block; font-size: 13px; color: #ffe6a8; letter-spacing: -0.01em; }
+.dlc-head span { display: block; margin-top: 2px; font-size: 11px; font-weight: 800; color: #f0ce78; }
+.dlc-head em { display: block; margin-top: 4px; font-size: 10px; line-height: 1.45; color: #d9c39a; font-style: normal; }
+
+.dlc-card {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 9px;
+  padding: 8px; border-radius: 12px; border: 1px solid #d3b476;
+  background: linear-gradient(180deg, #fffaf0, #f4e6c8);
+  box-shadow: inset 0 1px 0 #fffdf6, 0 1px 4px rgba(96, 74, 34, 0.12);
+}
+.dlc-card.owned { border-color: #b8862f; background: linear-gradient(180deg, #fff5d8, #f0dcae); box-shadow: inset 0 1px 0 #fffdf4, 0 0 0 1px rgba(184, 134, 47, 0.35), 0 2px 7px rgba(120, 88, 30, 0.16); }
+.dlc-port { width: 64px; height: 74px; border-radius: 9px; overflow: hidden; background: #efe0c2; }
+.dlc-port > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; display: block; }
+.dlc-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.dlc-top { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.dlc-name { font-family: var(--serif); font-size: 15px; color: #2c2412; letter-spacing: -0.01em; }
+.dlc-tier { font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 6px; background: #d9261c; color: #fff4d6; }
+.dlc-job { font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 6px; background: #f3e2b8; border: 1px solid #c8a860; color: #6b4c14; }
+.dlc-own { font-size: 9.5px; font-weight: 900; padding: 1px 5px; border-radius: 6px; background: #2f7a4f; color: #eafbee; }
+.dlc-one { margin: 0; font-size: 9.5px; color: #7a6534; font-weight: 700; }
+.dlc-stats { display: flex; flex-wrap: wrap; gap: 3px; }
+.dlc-stats span { font-size: 9px; color: #5c4a22; background: #f6ebd2; border: 1px solid #dcc79a; border-radius: 5px; padding: 0 4px; line-height: 14px; }
+.dlc-stats b { color: #3a2c10; }
+.dlc-ult { margin: 1px 0 0; font-size: 10px; line-height: 1.4; color: #55432a; word-break: keep-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dlc-ult b { color: #8a5a12; }
+.dlc-acts { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.dlc-buy {
+  flex: 1 1 auto; min-width: 108px; padding: 7px 8px; border-radius: 9px; border: 1px solid #8c5a12;
+  background: linear-gradient(180deg, #e8bb55, #c8912c); color: #2a1a04; font-size: 11.5px; font-weight: 900;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 200, 0.7), 0 1px 3px rgba(60, 40, 10, 0.3);
+}
+.dlc-buy:active { transform: translateY(1px); }
+.dlc-buy.ok { background: linear-gradient(180deg, #fff3cf, #eeda9e); border-color: #b8862f; color: #5a3d0c; }
+.dlc-sw { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; font-weight: 800; color: #6b5730; cursor: pointer; }
+.dlc-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+.dlc-sw i { position: relative; width: 30px; height: 17px; border-radius: 9px; background: #cdbf9e; border: 1px solid #a8946a; transition: background 0.15s; flex: 0 0 auto; }
+.dlc-sw i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fffdf6; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); transition: left 0.15s; }
+.dlc-sw input:checked + i { background: #2f7a4f; border-color: #1f5a38; }
+.dlc-sw input:checked + i::after { left: 15px; }
+.dlc-foot { margin: 2px 0 0; font-size: 10px; line-height: 1.5; color: #7a6534; word-break: keep-all; }
+
+/* 상세 창 */
+.dlc-detail { display: flex; flex-direction: column; gap: 6px; }
+.dd-top { display: flex; gap: 10px; }
+.dd-top > div:last-child { min-width: 0; }
+.dd-top b { display: block; font-family: var(--serif); font-size: 17px; color: #2c2412; }
+.dd-top em { display: block; font-size: 10.5px; font-weight: 800; color: #8a5a12; font-style: normal; }
+.dd-desc { margin: 4px 0 0; font-size: 11px; line-height: 1.5; color: #4a3d20; word-break: keep-all; }
+.dd-line { margin: 0; font-size: 11px; color: #5a4522; line-height: 1.5; }
+.dd-line b { color: #3a2c10; }
+.dd-sec { margin-top: 2px; font-size: 10.5px; font-weight: 900; color: #8a5a12; letter-spacing: 0.04em; }
+.dd-skills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dd-skills li { padding: 5px 7px; border-radius: 8px; border: 1px solid #dcc79a; background: #fffaf0; display: flex; flex-direction: column; gap: 1px; }
+.dd-skills b { font-size: 11.5px; color: #2c2412; }
+.dd-skills i { float: right; font-size: 9.5px; font-weight: 800; color: #8a7448; font-style: normal; }
+.dd-skills span { font-size: 10px; line-height: 1.4; color: #5a4a2c; word-break: keep-all; }
+.dd-ult { padding: 7px 9px; border-radius: 9px; border: 1px solid #b8862f; background: linear-gradient(180deg, #fff4d2, #f2e0b2); }
+.dd-ult b { display: block; font-size: 12px; color: #7c4d0c; }
+.dd-ult span { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.45; color: #4a3d20; }
+.dd-ult em { display: block; margin-top: 4px; font-family: var(--serif); font-size: 10.5px; color: #8a7448; font-style: italic; }
+.menu-list .menu-dlc { color: #7c4d0c; }
