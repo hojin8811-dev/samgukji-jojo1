@@ -11515,6 +11515,7 @@
       if (moved > 0) {
         log.push({
           to: d.c.name,
+          toId: d.c.id,
           from: donors.slice(0, parts.length).map((x) => x.c.name).join(' · '),
           amount: moved,
           text: `군량 +${fmt(moved)}${parts.length ? ` (${parts.join(' · ')})` : ''}`,
@@ -11527,14 +11528,17 @@
 
   /* v5.11 — 성이 많아져도 피로하지 않게: 굶주리거나 금고가 빈 성은
      길로 이어진 여유 있는 내 성이 스스로 보급 수송한다 (태수 위임 공통 규칙). */
-  function autoSupplyNeighbors(s) {
+  function autoSupplyNeighbors(s, opts) {
     const rows = [];
+    /* v6.11 — 긴급 보급(relieveFoodShortage)을 이미 받은 성은 그 달 군랑을 한 번 더
+       옮기지 않는다 (보고에 같은 보급이 두 줄로 겹치고, 기증 성 창고가 통째로 비지 않게) */
+    const skipFood = (opts && opts.skipFood) || new Set();
     const upkeepPer = (cs) => Math.ceil((cs.troops || 0) / 1000 * ECON.upkeepPer1000);
     SK.CITY_LIST.forEach((c) => {
       const cs = s.cities[c.id];
       if (!cs || cs.owner !== PF()) return;
       const up = upkeepPer(cs);
-      const needFood = (cs.food || 0) < up * 2;
+      const needFood = !skipFood.has(c.id) && (cs.food || 0) < up * 2;
       const needGold = (cs.gold || 0) < 120;
       if (!needFood && !needGold) return;
       const donors = SK.allNeighbors(c.id).map((nid) => ({ id: nid, cs: s.cities[nid] }))
@@ -17082,8 +17086,9 @@
         if (r.after > 0 && cs.foodWarn) delete cs.foodWarn;
       }
     });
-    /* v5.11 — 굶주리거나 금고가 빈 성에 이웃 내 성이 자동 보급 수송 */
-    const supplyLog = autoSupplyNeighbors(s);
+    /* v5.11 — 굶주리거나 금고가 빈 성에 이웃 내 성이 자동 보급 수송
+       v6.11 — 세력 전체 잉여로 이미 긴급 보급한 성은 군랑을 또 보내지 않는다 */
+    const supplyLog = autoSupplyNeighbors(s, { skipFood: new Set(reliefLog.map((r) => r.toId).filter(Boolean)) });
     /* v5.11 — 억류 포로: 충성 하락 · 탈출 · 몸값 제안 */
     const prisonNews = SK.prisonTick(s);
     const foodAfter = SK.totalFood(s);
@@ -17189,7 +17194,7 @@
         ${(SK.totalFood(s) - foodStart) !== foodNet ? `<div class="mr-row"><span>이 달 실제 창고 <em>사건·거래 포함</em></span><b class="${SK.totalFood(s) - foodStart >= 0 ? 'plus' : 'minus'}">${SK.totalFood(s) - foodStart >= 0 ? '+' : '−'}${fmt(Math.abs(SK.totalFood(s) - foodStart))}<em>${fmt(foodStart)} → ${fmt(SK.totalFood(s))}</em></b></div>` : ''}
         ${reliefLog.length ? `<div class="mr-auto"><p class="mr-auto-title">군량 긴급 보급 <em>다른 내 성의 잉여에서 자동으로 메웠습니다</em></p>
           ${reliefLog.map((r) => `<div class="mr-auto-row"><b>${r.from} → ${r.to}</b><span>${r.text}</span></div>`).join('')}</div>` : ''}
-        ${foodWarn.length ? `<div class="mr-row famine"><span>${foodWarn.map((w) => w.name).join(' · ')} 군량 경고 <em>이번 달은 손실 없음 · 다음 달까지 보급하세요</em></span><b class="minus">민심 −${ECON.famineLoyalty} 예고</b></div>` : ''}
+        ${foodWarn.length ? `<div class="mr-row famine"><span>${foodWarn.map((w) => w.name).join(' · ')} 군량 경고 <em>이번 달은 손실 없음</em></span><b class="minus">민심 −${ECON.famineLoyalty} 예고</b></div>` : ''}
         ${famine ? `<div class="mr-row famine"><span>${famineNames(famine)} 군량 바닥!</span><b class="minus">민심 −${ECON.famineLoyalty} · 병력 −${fmt(famine.lost)} 이탈</b></div>` : ''}
         ${supplyLog.length ? `<div class="mr-auto"><p class="mr-auto-title">이웃 성 자동 보급</p>
           ${supplyLog.map((r) => `<div class="mr-auto-row"><b>${r.from} → ${r.to}</b><span>${r.text}</span></div>`).join('')}</div>` : ''}
