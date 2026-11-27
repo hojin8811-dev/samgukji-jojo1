@@ -9214,3 +9214,112 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 .cdx-search { padding: 6px 9px; }
 .cdx-search #cdx-q-clear { width: 24px; height: 24px; font-size: 11px; }
 .cdx-more { min-height: 40px; }
+
+/* ══════════════════════════════════════════════════════════════
+   v6.9 — 지력 설전(舌戰) 무대
+   · 일기토 모달·명령판(.duel-*)을 그대로 쓰고, 배경·명패·게이지·이펙트만 갈아 끼운다.
+   · 배경 = assets/bg/debate_bg.webp (고전 동양 궁궐 대전/서재 — 병풍·붉은 융단·청동 화로·
+     촛불·서책). 파일을 못 받으면 아래 CSS 그라데이션 대전 배경이 그대로 남는다.
+   ══════════════════════════════════════════════════════════════ */
+.duel-arena.debate {
+  background: radial-gradient(circle at 50% 30%, #45261a 0%, #24120c 72%, #100705 100%);
+}
+.duel-arena.debate .duel-stage {
+  background-image:
+    linear-gradient(180deg, rgba(24, 10, 5, 0.10) 0%, rgba(24, 10, 5, 0.04) 46%, rgba(18, 7, 3, 0.34) 100%),
+    url('../assets/bg/debate_bg.webp?v=145'),
+    radial-gradient(ellipse at 50% 112%, rgba(255, 198, 122, 0.26), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(180deg, #2a1710 0%, #3d2116 48%, #20100a 100%);
+  background-position: center 40%, center 40%, center bottom, center;
+  background-size: cover, cover, cover, cover;
+  background-repeat: no-repeat;
+  border-color: #c9a25c;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.62), inset 0 0 30px rgba(80, 24, 8, 0.42);
+}
+.duel-arena.debate .duel-badge {
+  background: linear-gradient(135deg, #2f6b5c, #1b4539); border-color: #a8e0c8; color: #eafff7;
+}
+.duel-arena.debate .duel-badge .dbl-ic svg { color: #d8fff0; }
+.duel-arena.debate .duel-turn { color: #ffe2a8; }
+.duel-arena.debate .duel-banner { border-color: #e0c27a; }
+.duel-arena.debate .duel-banner b { color: #ffe2a8; }
+.duel-arena.debate .duel-vs { color: #ffd98a; }
+/* 문관의 기세(멘탈) 게이지 — 아군은 청록(평정), 적은 주칠(열기) */
+.duel-arena.debate .duel-card .dc-hp-bar { background: #d8cbb0; }
+.duel-arena.debate .duel-card.ally .dc-hp-bar i { background: linear-gradient(90deg, #2f8f7a, #63d7b6); }
+.duel-arena.debate .duel-card.enemy .dc-hp-bar i { background: linear-gradient(90deg, #a7452c, #e07a58); }
+.duel-arena.debate .duel-card .dc-hp-bar i.low { background: linear-gradient(90deg, #c93b32, #eb6158); }
+.duel-arena.debate .duel-hint { background: rgba(110, 190, 160, 0.12); border-color: rgba(140, 210, 180, 0.34); }
+.duel-arena.debate .duel-hint .dh-war { color: #b8f0dc; }
+.duel-arena.debate .duel-hint .dh-war.peak { color: #e9fff8; text-shadow: 0 0 8px rgba(130, 240, 200, 0.85); }
+/* 설전 커맨드 아이콘 색 — 붓·부채·두루마리·눈·번개·인장 */
+.duel-arena.debate .duel-cmd[data-k="argue"] .dcmd-ico { color: #f4dcac; }
+.duel-arena.debate .duel-cmd[data-k="sophistry"] .dcmd-ico { color: #ff9f7a; }
+.duel-arena.debate .duel-cmd[data-k="calm"] .dcmd-ico { color: #8fe0c8; }
+.duel-arena.debate .duel-cmd[data-k="insight"] .dcmd-ico { color: #c79bff; }
+.duel-arena.debate .duel-cmd[data-k="rebut"] .dcmd-ico { color: #ffd166; }
+.duel-arena.debate .duel-cmd[data-k="d_ult"] .dcmd-ico { color: #ffb08a; }
+.duel-arena.debate .duel-cmd.ult { background: linear-gradient(180deg, #6d1c10, #3a0f08); border-color: #ffc46b; }
+.duel-arena.debate .duel-cmd.on { background: linear-gradient(180deg, #2f6b5c, #1d4a3e); border-color: #a8e0c8; box-shadow: 0 2px 8px rgba(120, 230, 190, 0.32); }
+.duel-arena.debate .duel-cmd.ult.on { background: linear-gradient(180deg, #8a2a12, #4a1207); }
+.duel-arena.debate .div-dots .dot.on { background: #8fe0c8; border-color: #d8fff0; box-shadow: 0 0 4px #8fe0c8; }
+.duel-arena.debate .div-dots .dot.ult.on { background: linear-gradient(180deg, #ffd66a, #e08a12); box-shadow: 0 0 6px rgba(255, 190, 70, 0.9); }
+.duel-arena.debate .duel-dmg { background: linear-gradient(135deg, #4a2a14, #7a3c12); border-color: #ffe0a8; box-shadow: 0 4px 16px rgba(255, 150, 60, 0.62); }
+.duel-arena.debate .duel-reward { color: #cbb894; }
+
+/* 말풍선 타격 — "정곡!" "궤변!" "논파!" "무엄하다!" 를 접점에 크게 찍는다 */
+.duel-fx-item.stamp {
+  width: auto; height: auto; z-index: 8; pointer-events: none;
+  font-size: 27px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.05;
+  color: #fff6de; white-space: nowrap; padding: 2px 10px 4px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(40, 18, 8, 0.86), rgba(16, 7, 3, 0.92));
+  border: 2px solid #ffd98a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 180, 90, 0.35);
+  transform: translate(-50%, -50%) rotate(-6deg);
+  animation: dbStamp 0.86s cubic-bezier(0.18, 1.5, 0.4, 1) both;
+}
+.duel-fx-item.stamp.big { font-size: 32px; border-width: 3px; }
+.duel-fx-item.stamp.tone-rebut { color: #ffe9a8; border-color: #ffd166; box-shadow: 0 6px 20px rgba(255, 150, 40, 0.5), 0 0 22px rgba(255, 190, 80, 0.42); }
+.duel-fx-item.stamp.tone-d_ult { color: #fff2d8; background: linear-gradient(180deg, rgba(150, 26, 10, 0.92), rgba(80, 10, 4, 0.94)); border-color: #ffc46b; }
+.duel-fx-item.stamp.tone-calm { color: #dcfff4; border-color: #8fe0c8; }
+.duel-fx-item.stamp.tone-insight { color: #f0e0ff; border-color: #c79bff; }
+@keyframes dbStamp {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-15deg) scale(1.45); }
+  22% { opacity: 1; transform: translate(-50%, -50%) rotate(-6deg) scale(1); }
+  68% { opacity: 1; transform: translate(-50%, -76%) rotate(-6deg) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -108%) rotate(-6deg) scale(0.94); }
+}
+/* 먹 획 — 칼바람(arc) 대신 붓자국이 그어진다 */
+.duel-fx-item.ink { width: 152px; height: 152px; animation: dbInkIn 0.62s ease-out both; }
+.duel-fx-item.ink.big { width: 188px; height: 188px; }
+.duel-fx-item.ink svg { transform: rotate(var(--a, 0deg)); }
+@keyframes dbInkIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(-8deg); }
+  26% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.24) rotate(2deg); }
+}
+/* 수별 큰 그림 — 먹·부채·두루마리·눈·번개·인장 */
+.fx-argue, .fx-sophistry, .fx-calm, .fx-insight, .fx-rebut, .fx-d_ult { animation: dvFlash 0.82s ease-out forwards; }
+.fx-argue .db-stroke { transform-origin: 90px 110px; animation: dbStroke 0.66s ease-out both; }
+@keyframes dbStroke { 0% { opacity: 0; transform: scale(0.6); } 34% { opacity: 0.92; transform: scale(1.02); } 100% { opacity: 0; transform: scale(1.16); } }
+.fx-sophistry .db-fan { transform-origin: 100px 176px; animation: dbFan 0.74s ease-out both; }
+@keyframes dbFan { 0% { opacity: 0.2; transform: rotate(-16deg) scale(0.82); } 40% { opacity: 0.9; } 100% { opacity: 0.14; transform: rotate(9deg) scale(1.08); } }
+.fx-sophistry .db-gust { animation: dbGust 0.5s ease-out both; }
+.fx-sophistry .db-gust.b { animation-delay: 0.1s; }
+@keyframes dbGust { 0% { opacity: 0; stroke-dasharray: 90; stroke-dashoffset: 90; } 45% { opacity: 1; } 100% { opacity: 0; stroke-dasharray: 90; stroke-dashoffset: 0; } }
+.fx-calm .db-rip1, .fx-calm .db-rip2 { transform-origin: 100px 100px; animation: dvRipple 0.8s ease-out both; }
+.fx-calm .db-rip2 { animation-delay: 0.12s; }
+.fx-insight .db-eye { transform-origin: 100px 100px; animation: dbEye 0.8s ease-out both; }
+@keyframes dbEye { 0% { opacity: 0.25; transform: scaleY(0.5); } 30% { opacity: 1; transform: scaleY(1.04); } 100% { opacity: 0.22; transform: scaleY(1); } }
+.fx-insight .db-gaze { transform-origin: 100px 100px; animation: dvRing 0.84s ease-out both; }
+.fx-rebut .db-bolt { transform-origin: 100px 100px; animation: dbBolt 0.74s ease-out both; }
+@keyframes dbBolt { 0% { opacity: 0.35; transform: scale(0.5) rotate(-12deg); } 30% { opacity: 1; transform: scale(1.04); } 100% { opacity: 0; transform: scale(1.4) rotate(6deg); } }
+.fx-d_ult .db-seal { transform-origin: 100px 100px; animation: dbSealSlam 0.82s ease-out both; }
+@keyframes dbSealSlam { 0% { opacity: 0; transform: scale(1.7) rotate(-8deg); } 24% { opacity: 1; transform: scale(0.94); } 40% { transform: scale(1); } 100% { opacity: 0.1; transform: scale(1.06); } }
+.fx-d_ult .db-boom { transform-origin: 100px 100px; animation: dvRipple 0.9s ease-out both; }
+@media (max-width: 400px) {
+  .duel-fx-item.stamp { font-size: 25px; padding: 2px 8px 3px; }
+  .duel-fx-item.stamp.big { font-size: 29px; }
+  .duel-fx-item.ink { width: 140px; height: 140px; }
+  .duel-fx-item.ink.big { width: 172px; height: 172px; }
+}
