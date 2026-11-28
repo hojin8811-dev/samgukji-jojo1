@@ -2453,6 +2453,7 @@
     const list = Object.keys(hops).filter((id) => {
       const st = s && s.cities ? s.cities[id] : null;
       if (!st || !CITY[id]) return false;
+      if (SK.isSealed && SK.isSealed(id)) return false;      // v6.14 — 봉인된 땅은 후보가 아니다
       const mine = st.owner === PF();
       if (o.skipMine !== false && mine) return false;
       if (o.enemyOnly && (mine || st.owner === 'neutral')) return false;
@@ -7245,6 +7246,7 @@
   /* 지도 적성 시트의 [정찰 보내기] — 맞닿은 내 성의 대기 장수 중에서 고른다 */
   SK.openScoutSheet = function (targetId) {
     const s = SK.state;
+    if (targetId && SK.isSealed && SK.isSealed(targetId)) { SK.sealedNote(targetId); return; }
     /* v5.58 — 첩보는 어느 지역이든 보낼 수 있다. 맞닿은 성이 아니어도 내 성 아무 곳에서
        대기 장수를 보낼 수 있게, 내 성을 '목표에서 가까운 순'으로 늘어놓는다 */
     const hops = cityHops(targetId, 999);
