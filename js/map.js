@@ -841,9 +841,12 @@
 
   function drawTerritory() {
     if (!terrCanvas || !SK.state) return;
+    /* v6.14 — 봉인된 땅은 어느 세력의 영토로도 칠하지 않는다 (안개 속 땅) */
+    const sealed0 = (SK.sealedSet ? SK.sealedSet(SK.state) : null);
     const list = SK.CITY_LIST.map((c) => {
       const t = SK.state.cities[c.id];
-      return { id: c.id, u: c.u * MAPW, v: c.v * MAPH, type: c.type, owner: t ? t.owner : 'neutral' };
+      const sealed = !!(sealed0 && sealed0.has(c.id));
+      return { id: c.id, u: c.u * MAPW, v: c.v * MAPH, type: c.type, owner: sealed ? 'neutral' : (t ? t.owner : 'neutral') };
     });
     const ownGrid = new Int16Array(GRID_W * GRID_H).fill(-1);
     const img = new ImageData(GRID_W, GRID_H);
@@ -1441,6 +1444,8 @@
       if (SK.toast) SK.toast(pickCfg.block);
       return;
     }
+    /* v6.14 — 봉인된 땅은 열리지 않는다 (안개 · 자물쇠) */
+    if (SK.isSealed && SK.isSealed(id)) { if (SK.sealedNote) SK.sealedNote(id); return; }
     const t = st(id);
     const mine = t.owner === playerFaction();
     if (mine) SK.openCity(id);
@@ -1458,21 +1463,24 @@
     }
     const pf = playerFaction();
     const info = SK.factionInfo || (() => ({ color: '#8d8d8d' }));
+    const sealedSet = (SK.sealedSet ? SK.sealedSet(SK.state) : null);
     marks.forEach((m) => {
       const t = st(m.id);
       if (!t) return;
       const f = info(t.owner);
+      const sealed = !!(sealedSet && sealedSet.has(m.id));
       m.el.style.setProperty('--fc', f.color || '#8d8d8d');
-      m.el.classList.toggle('neutral', t.owner === 'neutral');
+      m.el.classList.toggle('sealed', sealed);
+      m.el.classList.toggle('neutral', t.owner === 'neutral' || sealed);
       m.el.classList.toggle('mine', t.owner === pf);
-      m.el.classList.toggle('enemy', t.owner !== pf && t.owner !== 'neutral');
-      m.el.classList.toggle('target', t.owner !== pf && t.owner !== 'neutral'
+      m.el.classList.toggle('enemy', t.owner !== pf && t.owner !== 'neutral' && !sealed);
+      m.el.classList.toggle('target', !sealed && t.owner !== pf && t.owner !== 'neutral'
         && SK.allNeighbors(m.id).some((n) => SK.state.cities[n].owner === pf));
       const name = city(m.id).name;
       const lv = SK.cityLevel ? SK.cityLevel(t) : 1;
       if (m.lvEl && m.lvEl.textContent !== String(lv)) m.lvEl.textContent = String(lv);
       m.el.classList.toggle('lv-hi', lv >= 4);
-      m.el.title = `${name} ${lv}급 · ${f.name || ''}`;
+      m.el.title = sealed ? `${name} — 봉인된 땅 (내 대륙을 통일하면 열립니다)` : `${name} ${lv}급 · ${f.name || ''}`;
     });
     /* 세력이 바뀌었을 때만 영토를 다시 칠한다 */
     const sig = territorySignature();
@@ -1481,9 +1489,10 @@
     const hint = $('#map-hint');
     if (hint) {
       const f = info(pf);
-      hint.textContent = owned >= SK.CITY_LIST.length
-        ? '천하통일! 모든 거점이 내 깃발 아래 있습니다.'
-        : `${f.name || ''}의 거점 ${owned} / ${SK.CITY_LIST.length} · 성을 눌러 내정 · 붉은 테두리 적성에서 출진`;
+      hint.textContent = SK.mapHintText ? SK.mapHintText(SK.state, f.name || '', owned)
+        : (owned >= SK.CITY_LIST.length
+          ? '천하통일! 모든 거점이 내 깃발 아래 있습니다.'
+          : `${f.name || ''}의 거점 ${owned} / ${SK.CITY_LIST.length} · 성을 눌러 내정 · 붉은 테두리 적성에서 출진`);
     }
     paintPick();
     labelAnchorDirty = true;

@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.13 · 2026-11-28 · 라이브 `?v=153`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.14 · 2026-11-28 · 라이브 `?v=154`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 > **수익화 정책(광고 노출 규칙·무뽑기)과 유료 상품 5대 축은 §1-1에 사용자가 확정한 그대로 적혀 있다(2026-11-28 갱신: 전투 3판마다 5초 스킵 전면 광고 1회 + 광고 제거 패스). 협업 AI는 임의로 바꾸지 않는다.**
 
@@ -14,7 +14,7 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=153`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=154`) |
 | 규모(실측) | 거점 80(`data/cities.json`) · 장수 **901**(명부 `data/generals.json` **796** + 시나리오·재야 인물 105) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 **901**(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 30(1·2·3탄) + 편의·후원·세이브 슬롯 상품 6(출시 전 비공개)** |
 
 ---
@@ -41,11 +41,11 @@
 | ① 광고 제거 패스 | 전투 3판마다 1회 뜨는 5초 스킵 전면 광고를 영구 제거 | **미정** — 대화에서 3,900원안이 제안됐을 뿐 사용자가 가격을 확정한 적은 없다 | **미구현** — 광고 SDK·판 카운터·상품 코드 없음 |
 | ② 배속 패스 | 전투 배속 영구 해금(편의) | 미정 | **미구현** — 지금은 ×1~×4가 전부 무료(`js/battle.js` `speedPref`) |
 | ③ 편의성 패스 | 전체 성 일괄 내정·징병·보급 원터치 자동 내정 `pass_auto_city` | 3,900원 영구 | **구현 완료**(v6.9a) — `js/dlc.js` `GOODS` |
-| ④ 한국 패키지 | 한반도 전용 지도 + 한국 세력 스타팅 캠페인 DLC | 4,900원 | **기획 확정 · 미구현** — 코드·데이터 없음 |
+| ④ 한국 패키지 | 한반도 전용 지도 + 한국 세력 스타팅 캠페인 DLC | 4,900원 | **구현 완료**(v6.14) — `pack_korea` · `data/korea_campaign.json` · 시나리오 화면 [한반도 대난투] · 출시 전 비공개 |
 | ⑥ 세이브 슬롯 확장 | 2~5번 슬롯을 슬롯당 1,900원에 영구 개방(1번은 무료) | **1,900원** | **구현 완료**(v6.12) — `js/dlc.js` `GOODS`·`js/app.js` `openSaveSlots` |
 | ⑤ S급 특전 장수 단품 | 고유 일러스트·고유 치비·고유 직업/필살기 30인, **1인 단품만(묶음 판매 없음)** | 각 2,800원대(현재 정본 `price` **2,900원**) | **구현 완료**(v6.9~v6.10c) — `data/dlc_heroes.json`, 출시 전 비공개 |
 
-수익화 축은 이 5개 + **⑥ 세이브 슬롯 확장(v6.12 사용자 확정)** 이다. 여기에 구독·확률 상품·시즌 패스·새 광고 상품 같은 축을 새로 만들지 않는다.
+수익화 축은 이 5개 + **⑥ 세이브 슬롯 확장(v6.12 사용자 확정)** 이다. 여기에 구독·확률 상품·시즌 패스·새 광고 상품 같은 축을 새로 만들지 않는다. 2026-11-28 v6.14에서 ④ 한국 패키지가 구현 완료됐다(§6-7).
 
 > 구현 메모: `js/dlc.js` `GOODS`에는 위 5축 밖에 **`pack_supporter_once`(1,900원 개발자 응원 팩 — 👑 뱃지 + 초기 지원)** 이 이미 구현돼 있다. 5축에 넣을지 말지를 사용자가 아직 정하지 않았으므로 코드는 그대로 두고, 여기에 새 상품을 더할 때는 이 항목과 함께 정리한다.
 
@@ -75,7 +75,7 @@
 - 정본은 `js/dlc.js`의 `GOODS` 배열, 실행 엔진은 `js/app.js`의 `SK.runAutoCityAll`, 해금 판정은 `SK.DLC.hasPass('pass_auto_city')`(미해금이면 함수 자체가 `null`). 세부는 §6-2.
 - 편의 상품은 **게임을 이기게 만들지 않는다.** 전투력·승률·보상 배율·확률을 파는 새 상품은 이 축에 넣지 않는다.
 
-#### ④ 한국 패키지 — 4,900원 (기획 확정 · 미구현)
+#### ④ 한국 패키지 — 4,900원 (구현 완료, v6.14 · 2026-11-28)
 
 - **내용**: 한반도 전용 지도 + 한국 세력으로 시작하는 스타팅 캠페인 DLC. 기본판(중원)과 별개의 지도·캠페인이다.
 - **대칭 엔드 콘텐츠 규칙(핵심 균형 — 어기면 환불·반발 사유)**
@@ -83,8 +83,8 @@
   - 한국 패키지 구매자: 한반도를 통일하면 **중국 세력이 최종 보스**로 등장한다.
   - 즉 어느 쪽이든 "내 대륙을 통일하면 반대편 대륙의 보스가 온다"는 **같은 문법의 대칭 구조**다. 한쪽만 최종 보스를 갖는 구조로 만들지 않는다.
 - **기존 한국 콘텐츠는 기본판에 그대로 무료 유지** — 한국 영웅 30명(`SK.KOREA_S30`)·한반도 15거점·한국 세력 시너지·한국 보물은 이미 홍보된 맛보기다. 패키지는 이것을 빼앗거나 잠그지 않고 **별도 지도·캠페인으로 더한다.**(기존 무료 콘텐츠를 유료로 돌리는 변경 금지)
-- **구현 메모**: 지금 엔딩 판정은 `SK.checkUnification()` 한 곳이고 기준은 '80거점 또는 적대 세력 전멸'이며 한반도 거점이 그 80 안에 들어 있다. 이 정책을 넣으려면 '중원 통일 → 한국 보스 침공 → 최종 통일' 단계를 이 함수와 `SK.unifySnapshot()`에 넣어야 한다. 패키지 쪽은 한반도 전용 지도 데이터와 한국 세력 스타팅 캠페인이 새로 필요하다(현재 없음).
-- 상품 ID는 미정(출시 전 확정). 가격 4,900원.
+- **구현 완료(v6.14 `?v=154`)** — 상품 ID `pack_korea`(`js/dlc.js` `GOODS`, `kind: 'pack'`) · 캠페인 데이터 `data/korea_campaign.json`(id 914, 5개 한국 세력 + 중원 세력 + 두 보스) · 판정 `SK.bossGate`/`SK.triggerBoss` · 봉인 `SK.sealedSet`/`SK.isSealed`/`SK.sealedNote` · 지도에 안개+자물쇠 마커 · 세이브 필드 `campaignMode`·`koreaBoss`·`chinaBoss`. 상세는 §6-7.
+- 상품 ID는 **`pack_korea`로 확정**(2026-11-28 구현). 가격 4,900원 — 바꾸려면 사용자 확인.
 
 #### ⑤ S급 특전 장수 단품 30인 (구현 완료 · 출시 전 비공개)
 
@@ -95,20 +95,20 @@
 
 ### 가격·상품을 바꿀 때
 
-- **정본 3곳을 함께 맞춘다** — ① `data/dlc_heroes.json`(영웅 `productId`·`price`) ② `js/dlc.js` `GOODS`(편의·후원 상품) ③ `SK.DlcBilling.products()`/`kindOf()`(현재 32개 = 영웅 30 + 편의·후원 2). 상품을 더하면 ③도 함께 늘린다(한국 패키지·배속 패스를 넣을 때 여기부터).
+- **정본 3곳을 함께 맞춘다** — ① `data/dlc_heroes.json`(영웅 `productId`·`price`) ② `js/dlc.js` `GOODS`(편의·후원 상품) ③ `SK.DlcBilling.products()`/`kindOf()`(현재 **37개** = 영웅 30 + 편의·후원 2 + 세이브 슬롯 4 + 한국 패키지 1). 상품을 더하면 ③도 함께 늘린다(배속 패스를 넣을 때 여기부터).
 - **공개한 상품 ID는 바꾸지 않는다** — 결제 영수증·복원과 연결되고 Google Play는 같은 ID를 다시 등록할 수 없다.
 - **사용자 확인 없이 금지**: 가격 인상, 묶음 판매, 확률 상품, 구독 도입, **광고 노출 규칙 변경**(판마다 광고·배너 광고·내정 턴 광고 추가, 5초 스킵 제거), 기존 무료 콘텐츠의 유료화.
 - 스토어 설명·홍보글에서는 **"뽑기 없음"**을 전면에 내세우고, 광고는 **"전투 3판마다 5초, 바로 스킵, 하단 배너 없음, 패스로 영구 제거"**처럼 사실대로 적는다. **"완전 무광고"·"광고 없음" 문구는 쓰지 않는다**(확정된 정책과 어긋난다). 유료 요소는 "편의·확장 콘텐츠 단품"으로 적는다.
 
 ---
 
-## 2. 지금 상태 — 실제로 확인한 값 (2026-11-28 v6.13 기준)
+## 2. 지금 상태 — 실제로 확인한 값 (2026-11-28 v6.14 기준)
 
-- **최신 커밋**: `v6.13 — 천통 엔드게임 3종 (후일담·2회차·비동기 연무장) (?v=153)` — 2026-11-28 `main` HEAD
-- **`index.html`**: `css/game.css?v=153`, `js/*.js?v=153`(19개 — `js/arena.js` 추가), `manifest start_url "./index.html?v=153"`, 서비스워커 등록도 `sw.js?v=153`
-- **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
+- **최신 커밋**: `v6.14 — 한국·중원 분리 출시 (기본판 한국 보스 침공 + 한국 패키지 한반도 대난투) (?v=154)` — 2026-11-28 `main` HEAD
+- **`index.html`**: `css/game.css?v=154`, `js/*.js?v=154`(19개 — `js/arena.js` 포함, 새 JS 파일은 추가하지 않았다), `manifest start_url "./index.html?v=154"`, 서비스워커 등록도 `sw.js?v=154`
+- **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8·v6.13·v6.14가 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
-- **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1 — **1번 무료, 2~5번은 각 1,900원 해금**(v6.12, 이미 저장이 있으면 무료로 열림). v6.13 새 필드는 **`round`(회차, 기본 1)·`carryInfo`(계승 요약)** 두 개이고 옛 세이브는 `SK.load`가 1회차로 보정한다. 2회차 계승 데이터는 새 판을 시작할 때만 쓰는 별도 키 `samgukji-jojo-carry-v1`.
+- **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1 — **1번 무료, 2~5번은 각 1,900원 해금**(v6.12, 이미 저장이 있으면 무료로 열림). v6.13 새 필드는 **`round`(회차, 기본 1)·`carryInfo`(계승 요약)**, v6.14 새 필드는 **`campaignMode`(`jungwon`/`korea`, 옛 세이브는 `jungwon`으로 읽힘)·`koreaBoss`·`chinaBoss`** 다. 2회차 계승 데이터는 새 판을 시작할 때만 쓰는 별도 키 `samgukji-jojo-carry-v1`.
 - **오류 수집**: `index.html`이 `window.__errs`에 `error`·`unhandledrejection`을 모은다. 점검은 이 배열 길이 0으로 판정.
 
 ---
@@ -156,9 +156,9 @@
 | `admin.js` (75KB) | 관리자 모드 `?admin=1` |
 | `patch_v585_map_editor.js` (78KB) | 관리자 전장 타일 맵 에디터 + 천하 전략 지도 편집기 |
 
-### `data/` (런타임에 실제로 읽는 것)
+### | `data/` (런타임에 실제로 읽는 것)
 
-`dlc_heroes.json`(특전 영웅 1·2·3탄 30인) · `generals.json`(**796**) · `cities.json`(80) · `classes.json`(18, **런타임에 `SK.CLASSES`를 덮어씀**) · `treasures.json`(350) · `unique_passives.json`(**901**) · `scenarios.json`(4) · `historical_scenarios.json` · `bonds.json` · `tech_tree.json` · `events.json` · `domestic_events.json` · `quotes_and_ranks.json` · `hero_gags.json` · `korea_v523_art.json` · `*_art_manifest.json`(초상 매니페스트)
+`dlc_heroes.json`(특전 영웅 1·2·3탄 30인) · `korea_campaign.json`(**v6.14 한국 패키지 캠페인**) · `generals.json`(**796**) · `cities.json`(80) · `classes.json`(18, **런타임에 `SK.CLASSES`를 덮어씀**) · `treasures.json`(350) · `unique_passives.json`(**901**) · `scenarios.json`(4) · `historical_scenarios.json` · `bonds.json` · `tech_tree.json` · `events.json` · `domestic_events.json` · `quotes_and_ranks.json` · `hero_gags.json` · `korea_v523_art.json` · `*_art_manifest.json`(초상 매니페스트)
 
 ### `assets/`
 
@@ -170,6 +170,7 @@
 
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
+| **v6.14** | 11-28 | **한국·중원 분리 출시 (?v=154)** — ① **기본판(중원)**: 요동까지 62거점만 열고 한반도 18거점은 **봉인**(안개·🔒·출진·AI 잠금) → 중원 통일 시 **한국 보스 세력 침공**(한반도 18거점이 고구려 보스 땅으로 열리고 을지문덕·광개토대왕·척준경·이순신 등 정예 배치·병력 11,000~17,000) → 격파해야 최종 천통 ② **한국 패키지 `pack_korea` 4,900원**: 한반도(+요동) 19거점·한국 5세력 스타팅, 회랑(산해관·북평·계·남피·업·평원·진양)만 열림 → 한반도 통일 + **업·진양·평원** → **중국 보스전**(중원 54거점이 조조군 땅으로, 조조·사마의·여포·제갈량 정예) → 격파 시 최종 천통 ③ 봉인 마커·봉인 안내·지도 안내 줄·영토 미칠하기 · Billing **37종** · 세이브 필드 `campaignMode`·`koreaBoss`·`chinaBoss` · 검수 2묶음 **82항목 OK** |
 | **v6.13** | 11-28 | **천통 엔드게임 3종 (?v=153)** — ① **장수 후일담 크레딧**: 통일 엔딩 아래 조조·유비·제갈량·여포·이순신 등 최대 12줄의 코믹 후일담(90ms 시차 등장, 한자 0) + **다음 도전 배지**(다른 세력·한국 영웅) + [N회차 천하 대란 시작]·[내 통일 덱 코드 공유] ② **2회차 천하 대란(New Game+)**: 내 장수 최대 12명(레벨·능력치·특기·장비) + 보물 전부 계승, 적은 **전원 S급 특기·레벨 +2·공방 +8%·병력 +14%**(회차당), 지도 띠·표지·세이브 슬롯에 `N회차` 표기 ③ **비동기 연무장**: `SJG1-…` 덱 코드(장수 id·레벨·보물) + `?vs=` 링크로 **18×18 연무장 1:1 대전**(서버 0원, 성·영토·전적 무변화) · **전투 중 [후퇴] 확인창이 큐에 밀려 안 뜨던 버그 수정** · 검수 3묶음 66항목 OK |
 | **v6.12** | 11-28 | **대규모 업데이트 14건 (?v=152)** — ① 공성 문구 "성으로 공격한다" ② 캐릭터 머리 터치 히트박스(라벨→스프라이트→칸, 머리 위 0.22칸 여유, 겹치면 앞 부대) ③ 내정 말풍선 6종 개그톤(84줄) + 등용 거절·인용구 개그화(딱딱한 35줄 제거) ④ **총도독 출진·길목 요격도 [관전하기]/[자동결산]** ⑤ 위임 성·군단 창에서 [장수 자세히 보기] ⑥ 포상 후 스크롤 고정 ⑦ **B/C급 장수 200명 + 고유 특기 200종**(명부 596→796, 특기 701→901) ⑧ 인트로 아군 대사를 실제 참전 총대장이 ⑨ 관전 중 [⏸ 멈춤/▶ 재개] + 장수 정보 ⑩ **×1 배속 2배 느리게**(×2 100ms·×3 67ms·×4 50ms) ⑪ **[자동결산]은 전장 미진입·결과 창만** ⑫ 총도독 **최대 20성** ⑬ **세이브 슬롯 1번 무료·2~5번 각 1,900원** ⑭ 군단 성 장수 정지(auto=false) 수정 + 군단/AI 장수 전방 재배치·내정 균형 · 검수 4묶음 63항목 OK |
 | **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문과 주소 `&ending=1` 미리보기. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
@@ -211,7 +212,7 @@
 - **해금 상태**는 `localStorage['unlockedDlc'] = ["dlc_hero_01", ...]` 배열. 해금하면 그 영웅이 본성 로스터에 합류하고, 지도에 들어올 때마다 빠진 영웅을 다시 합류시킨다(새 게임도 마찬가지).
 - **상품·가격 정본은 `data/dlc_heroes.json`** — `productId`(`dlc_hero_01`~`dlc_hero_30`), `price`(2900), 이름·직업·필살기·`ep`(1·2·3). **1·2·3탄 30명이 모두 들어가 완결됐고**, `episodes`도 1·2·3탄 세 항목이다. 상점 특전 탭은 `0/30`이며 [전체/1탄/2탄/3탄] 필터로 10명씩 본다(`js/dlc.js` `epList`·`filterHTML`). 4탄을 더한다면 같은 파일에 `ep: 4` 항목과 `episodes` 한 줄, 그림 두 벌(초상·SD)을 이어 붙이면 된다.
 - **Google Play Billing 연결점**(네이티브 담당자용): `window.SK.DlcBilling`
-  - `products()` → **32개**(영웅 30 + 편의·후원 2) · `kindOf(id)` → `'hero' | 'pass' | 'supporter'`
+  - `products()` → **37개**(영웅 30 + 편의·후원 2 + 세이브 슬롯 4 + 한국 패키지 1) · `kindOf(id)` → `'hero' | 'pass' | 'supporter' | 'save_slot' | 'pack'`
   - `purchase(productId)` → `window.AndroidBilling.purchase(productId)` 호출(없으면 `'unavailable'`을 돌려주고 웹 안내창)
   - 결제 완료 시 앱이 **`SK.DlcBilling.onPurchaseSuccess(productId)`**, 취소·실패 시 **`SK.DlcBilling.onPurchaseFail(productId, reason)`** 를 부르면 해금·로스터 합류·토스트까지 끝난다.
 - **출시할 때**: `js/dlc.js`의 `DLC_PUBLIC = false` → `true` 로 바꾸고 `?v=`를 올려 배포하면 전체 공개된다. **30명 목록은 이번 v6.10c로 다 채워 두었으니, 공개 시점만 정하면 된다.**
@@ -263,7 +264,7 @@
 - **총도독 20성** — `CORPS_CITY_MAX`(군단 하나) = `CORPS_TOTAL_MAX`(합산) = 20. `SK.corpsAttachCity(s, corpsId, cityId)`가 유일한 편입 경로(전투 승리도 이 함수를 부른다, `B.corpsId`).
 - **총도독 출진은 큐** — 달 바꿈 중에는 창을 못 띄우므로 `runCorpsTurn`이 `s.corpsBattleQueue`에 `{corpsId, from, target, troops}`를 넣고, `SK.chainPendingEvents()`가 월정산 뒤 `SK.openCorpsBattle()`로 **[자동결산]/[관전하기]** 를 묻는다. 고르면 `SK.startCorpsBattle(item, {skip|spectate})`.
 - **군단 성 장수가 멈추던 원인은 `cs.auto === false`** — 자동 내정이 그 성을 건너뛰어 장수 전원이 놀았다. `runCorpsTurn`이 매달 `cs.auto = true`로 되돌리고, 태수·군사를 앉히고, 후방(장수 4명↑)에서 전방(장수 3명 미만)으로 **달 최대 2명** 옮긴다. 적 AI는 `SK.aiMoveGenerals(s, news)`가 세력당 달 3명까지 옮긴다.
-- **세이브 슬롯 상품** — `save_slot_2`~`save_slot_5`(각 1,900원, `kind:'save_slot'`). `SK.slotUnlocked(i)` = `i<=1 || 구매 || 이미 저장 있음`. 구매는 `SK.buySaveSlot(i)` → `SK.DlcBilling.purchase`, 웹은 창의 **[테스트 해금]**. Billing 상품은 **36개**(영웅 30 + 편의·후원·슬롯 6).
+- **세이브 슬롯 상품** — `save_slot_2`~`save_slot_5`(각 1,900원, `kind:'save_slot'`). `SK.slotUnlocked(i)` = `i<=1 || 구매 || 이미 저장 있음`. 구매는 `SK.buySaveSlot(i)` → `SK.DlcBilling.purchase`, 웹은 창의 **[테스트 해금]**. Billing 상품은 **37개**(영웅 30 + 편의·후원·슬롯 6 + 한국 패키지 1, v6.14).
 - **B/C급 200명** — `data/generals.json` id 597~796(위·촉·오·군웅, B 80·C 120) + `data/unique_passives.json`에 같은 이름 200종. `SK.rebalanceTiers`가 다시 등급을 매기므로 **새 장수의 능력치를 바꾸면 B/C 분포가 흔들린다** — 넣은 뒤 `SK.TIER_COUNT`로 확인한다. 초상은 없으면 병과 초상으로 떨어져 404가 없다.
 - **검수** — `tools/v612_browser.py`(35) · `v612_browser2.py`(13) · `v612_browser3.py`(10) · `v612_browser4.py`(5) = **63항목**, 실행은 `bash tools/v612_run.sh tools/v612_browser.py`(로컬 서버 + playwright). 스샷 `preview/v612/`.
 
@@ -287,6 +288,26 @@
 - 진입: 지도 `#btn-arena-pill`(높이는 dlc·자동 내정 pill 유무에 따라 CSS `:has()`로 밀린다) · 지도 ☰ 메뉴 · 통일 엔딩 버튼. `?vs=코드` 링크로 오면 저장을 자동으로 이어받아 연무장을 바로 연다(저장이 없으면 안내 창 → [천하 시작] 후 지도에서 그 덱과 겨룬다 — `PEND_KEY`). 지도에 처리할 사건(행군 도착·침공)이 떠 있으면 한 번 묻고 연다.
 - **전투 중 [후퇴] 버그**: v6.11 팝업 보류 큐가 `SK.confirmRetreat` 창까지 잡아 두어 후퇴가 먹지 않았다 → 그 창만 `battleOk: true`로 열도록 고쳤다(arena와 무관하게 본편에도 적용).
 - 검수: `tools/v613_smoke.py`(33) · `tools/v613_browser.py`(19) · `tools/v613_browser3.py`(14) = **66항목**, 스샷 `preview/v613/`. 로컬 서버·playwright 실행 시 `LD_LIBRARY_PATH=/workspace/tmp/libs/usr/lib/x86_64-linux-gnu:/workspace/tmp/libs/lib/x86_64-linux-gnu`가 필요하다(브라우저 의존 라이브러리).
+
+## 6-7. v6.14 — 한국 · 중원 분리 출시 (2026-11-28 · `?v=154`)
+
+두 캠페인은 **같은 문법의 대칭 구조**다 — "내 대륙을 통일하면 반대편 대륙의 보스가 온다".
+
+| 캠페인 | 시작 | 내 대륙(열린 땅) | 통일하면 |
+| --- | --- | --- | --- |
+| 기본판 `jungwon` (무료) | 중원 28세력 | **요동 포함 비(非)한국 62거점** · 한반도 18거점 봉인 | **한국 보스 세력 침공**(`koreaBoss`) |
+| 한국 패키지 `korea` (4,900원) | 한반도+요동 19거점 · 한국 5세력 | **한반도 + 회랑 7곳**(산해관·북평·계·남피·업·평원·진양) · 중원 54거점 봉인 | 한반도 통일 + **업·진양·평원** → **중국 보스전**(`chinaBoss`) |
+
+- **모드**: `s.campaignMode`(`'jungwon'|'korea'`). `SK.campaignModeOf(s)`로 읽고, 옛 세이브는 자동으로 `jungwon`이다. `newState`가 `sc.mode === 'korea'`일 때만 `korea`로 시작한다.
+- **봉인 판정은 `SK.sealedSet(s)` 한 곳** — 반환은 `Set`(거점 id). 기본판은 `SK.CITY[].region === '한국'`인 18거점, 한국 패키지는 비한국 거점 중 회랑 7곳을 뺀 54거점. **플레이어가 이미 가진 성은 봉인하지 않는다**(옛 세이브 보호). 성을 하나 차지할 때마다 다시 계산하며 `SK.sealClear()`로 캐시를 비운다.
+- **막는 곳**: 지도 마커(`onMarker` → `SK.sealedNote`) · 영토 칠하기(`drawTerritory`가 봉인 거점을 neutral로) · `SK.openCitySheet` · `SK.openSortiePrep`의 `isEnemy` · `SK.openDeploy` · `AI aiAttackPlan`(출발·목표 둘다) · `SK.planPlayerInvasion` · `SK.enemyNeighborsOf`(총도독 목표) · `SK.surrenderReady`(봉인이 남아 있으면 일괄 항복 금지).
+- **보스 판정은 `SK.bossGate(s)`** — 기본판: 비한국 거점 전부 차지 → `'korea'`. 한국 패키지: 한반도 전부 + `KOREA_GATEWAYS`(업 `ye`·진양 `jinyang`·평원 `pingyuan`) → `'china'`. 전 거점을 이미 가졌으면(일괄 항복) `null`.
+- **소환은 `SK.triggerBoss(side)`** — ⑴ `s.koreaBoss`/`s.chinaBoss = { at, fid }` ⑵ 봉인 해제 ⑶ 그 대륙의 남은 거점을 보스 세력(기본판 `goguryeo`, 한국 패키지 `caocao`)으로 넘김 ⑷ 성벽 +14 · 훈련도 78 · 병력 `perCity`(수도 17,000 / 중도시 13,500 / 소도시 11,500 / 관문·요새 12,500) ⑸ 정예 장수를 **성마다 최소 1명**(큰 성부터 2·3명) ⑹ 멸망한 세력 정리(`pruneLandlessFactions`) ⑺ 침공 창(`SK.showBossEvent`).
+- **정본 데이터는 `data/korea_campaign.json`** — `mode`·`factions`(시나리오 형식)·`bosses.korea`/`bosses.china`(faction·lord·intro·elites·perCity·defAdd·train). 정예 명단이나 보스 병력을 바꾸려면 이 파일만 고친다. `SK.loadKoreaCampaign()`이 `SK.HIST`에 id 914로 붙인다(연표·`histById` 호환).
+- **상품**: `js/dlc.js` `GOODS`의 `pack_korea`(`kind: 'pack'`, 4,900원). `SK.DLC.hasKorea()` / `SK.DLC.hasPack('pack_korea')`. 해금은 `grantGoods`·`revokeGoods`·`SK.DlcBilling.onPurchaseSuccess('pack_korea')`. **Billing 상품은 37종**(영웅 30 + 편의·후원 2 + 세이브 슬롯 4 + 한국 패키지 1).
+- **UI**: 시나리오 화면의 **[한반도 대난투] 카드**(`#sc-pack-korea`, 미해금이면 `locked` + 4,900원 + 안내 창), 세력 화면은 `openFactionPicker(sc, {korea:true})`로 **한국 5세력만**(입문 추천 고구려). 지도 범례에 **봉인(안개)** 한 줄, 지도 안내 줄은 `SK.mapHintText`. 엔딩에는 `sn.boss`로 "한국(중국) 보스 세력까지 꺾은 끝에 얻은 천하" 한 줄.
+- **검수**: `python3 tools/v614_browser.py`(68항목) · `python3 tools/v614_browser2.py`(14항목, 실제 출진→다음 달 도착→전장→후퇴 포함) = **82항목**, 스샷 `preview/v614/`. 로컬 서버·playwright 실행 시 `LD_LIBRARY_PATH=/workspace/tmp/libs/usr/lib/x86_64-linux-gnu:/workspace/tmp/libs/lib/x86_64-linux-gnu`가 필요하다.
+- **남은 일(후보)**: 보스 세력의 첫 침공을 이벤트 창에서 바로 예약하기(지금은 다음 달 AI 판단에 맡김) · 한국 패키지 전용 배경 그림/지도 연출 · 봉인 구역 전용 BGM.
 
 ## 6. 작업 마칠 때 체크리스트
 

@@ -21,6 +21,22 @@
      · pass_auto_city — 3,900원 영구. 전체 성 원터치 자동 내정.
      · pack_supporter_once — 1,900원 계정당 1회. 👑 후원자 뱃지 + 초기 지원. */
   var GOODS = [
+    /* v6.14 — 한국 패키지 (4,900원 · 사용자 확정). 반대편 대륙(한반도)에서 시작하는
+       스타팅 캠페인이다. 기본판의 '중원 통일 → 한국 보스 침공' 무료 엔드 콘텐츠는
+       그대로 두고, 이 상품은 방향이 반대인 캠페인을 더한다(대칭 엔드 규칙).
+       기존 무료 한국 영웅·보물·시너지는 빼앗지 않는다. */
+    {
+      productId: 'pack_korea', kind: 'pack', ic: '🇰🇷',
+      name: '한국 패키지', price: 4900, tag: '확장 콘텐츠 · 영구',
+      one: '한반도 전용 지도 + 한국 세력 스타팅 캠페인',
+      bullets: [
+        '한반도(+요동) 19거점에서 고구려·백제·신라·고려·조선 중 하나로 시작',
+        '한반도를 통일하고 서진해 업·진양·평원 세 관문을 넘으면 중국 보스전 개막',
+        '중원 최강 보스(조조·사마의·여포·제갈량)까지 격파하면 최종 천하통일',
+        '기본판의 한국 영웅 30명·한국 보물·시너지는 무료 그대로 — 잠그지 않습니다',
+      ],
+      foot: '계정에 영구 적용 · 기본판(중원)과 무료 한국 보스전은 그대로',
+    },
     {
       productId: 'pass_auto_city', kind: 'pass', ic: '⚡',
       name: '자동 내정 패스', price: 3900, tag: '편의성 · 영구',
@@ -347,6 +363,9 @@
     if (g.kind === 'pass') {
       syncAutoPill();
       if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 해금 — 지도·성 화면의 [⚡ 전체 자동 내정]을 쓰세요.');
+    } else if (g.kind === 'pack') {
+      /* v6.14 — 한국 패키지: 새로 시작의 시나리오 화면에 [한반도 대난투] 카드가 열린다 */
+      if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 해금 — [새로 시작] → [한반도 대난투]에서 한국 세력을 고르세요.');
     } else if (g.kind === 'save_slot') {
       /* v6.12 — 세이브 슬롯 상품: 슬롯만 열고 다른 보상은 없다 */
       if (SK.toast && !(opts && opts.silent)) SK.toast('『' + g.name + '』 해금 — 세이브·불러오기 창에서 바로 쓸 수 있습니다.');
@@ -368,6 +387,8 @@
     if (g.kind === 'pass') {
       syncAutoPill();
       if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — 전체 자동 내정 버튼이 숨겨집니다.');
+    } else if (g.kind === 'pack') {
+      if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — [한반도 대난투] 캠페인이 다시 잠깁니다.');
     } else if (g.kind === 'save_slot') {
       if (SK.toast && !(opts && opts.silent)) SK.toast('테스트 해금을 껐습니다 — 이 슬롯은 다시 잠깁니다. (이미 저장한 데이터는 그대로 남습니다)');
     } else {
@@ -541,7 +562,9 @@
     if (owned) {
       btn = g.kind === 'supporter'
         ? '<button class="dlc-buy done" type="button" disabled>감사합니다!</button>'
-        : '<button class="dlc-buy ok" type="button" disabled>보유 중 — 지도·성 화면 ⚡</button>';
+        : (g.kind === 'pack'
+          ? '<button class="dlc-buy ok" type="button" disabled>보유 중 — [새로 시작] → 한반도 대난투</button>'
+          : '<button class="dlc-buy ok" type="button" disabled>보유 중 — 지도·성 화면 ⚡</button>');
     } else {
       btn = '<button class="dlc-buy" type="button" data-act="buy" data-prod="' + g.productId + '">' + price + '원 구매</button>';
     }
@@ -857,6 +880,8 @@
   /* ─────────────────────────── 『자동 내정 패스』 버튼 ───────────────────────────
      해금한 계정에만 지도 pill 과 성 화면 띠 버튼을 보인다. 미해금·일반 유저에게는 hidden. */
   function hasPass(pid) { return isUnlocked(pid || 'pass_auto_city'); }
+  /* v6.14 — 한국 패키지 보유 여부 (한반도 캠페인 잠금 해제) */
+  function hasPack(pid) { return isUnlocked(pid || 'pack_korea'); }
   function syncAutoPill() {
     var on = hasPass('pass_auto_city');
     var pill = document.getElementById('btn-auto-city');
@@ -914,6 +939,8 @@
     goods: function () { return GOODS.slice(); },
     goodsOf: goodsOf,
     hasPass: hasPass,
+    hasPack: hasPack,
+    hasKorea: function () { return hasPack('pack_korea'); },
     isSupporter: function () { return isUnlocked('pack_supporter_once'); },
     grantGoods: grantGoods,
     revokeGoods: revokeGoods,
@@ -938,6 +965,9 @@
       /* v6.12 — 세이브 슬롯 검수용 */
       saveSlotOn: function (n) { return grantGoods('save_slot_' + n); },
       saveSlotOff: function (n) { return revokeGoods('save_slot_' + n); },
+      /* v6.14 — 한국 패키지 검수용 */
+      packOn: function () { return grantGoods('pack_korea'); },
+      packOff: function () { return revokeGoods('pack_korea'); },
     },
   };
   SK.DlcBilling = Billing;

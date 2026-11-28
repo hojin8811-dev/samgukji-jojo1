@@ -9926,3 +9926,135 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 .arena-arrive b { font-family: var(--serif); font-size: 13px; color: #7c261c; }
 .arena-arrive span { font-size: 10px; font-weight: 800; color: #8a5c12; }
 @media (max-width: 360px) { .arena-heroes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v6.14 — 한국 · 중원 분리 출시 (한국 패키지 pack_korea)
+   · 지도: 봉인된 땅(안개 + 자물쇠)
+   · 시나리오 화면: [한반도 대난투] 패키지 카드
+   · 보스 침공 창 · 봉인 안내 · 통일 엔딩의 보스 한 줄
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 지도 봉인 마커 ── */
+.marker.sealed { z-index: 1; }
+.marker.sealed::before {
+  content: '';
+  position: absolute; left: 50%; bottom: calc(var(--ih, 22px) * -0.42);
+  width: calc(var(--ih, 22px) * 2.5); height: calc(var(--ih, 22px) * 2.5);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(28, 36, 48, 0.58) 0%, rgba(28, 36, 48, 0.3) 44%, rgba(28, 36, 48, 0) 72%);
+  pointer-events: none;
+}
+.marker.sealed .m-icon { filter: grayscale(0.82) brightness(0.62) contrast(0.95); opacity: 0.86; }
+.marker.sealed .m-flag { opacity: 0.34; }
+.marker.sealed .m-label { color: #c9d2dc; opacity: 0.82; }
+.marker.sealed .m-label::after { content: ' 🔒'; font-size: 0.86em; opacity: 0.95; }
+.marker.sealed:active .m-icon { transform: translateX(-50%) scale(0.97); }
+
+/* ── ② 시나리오 화면 · 한국 패키지 카드 ── */
+.scbn.pack {
+  border-color: #6f8f9e;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(255, 252, 240, 0.66), transparent 46%),
+    radial-gradient(ellipse 26% 40% at 74% 90%, rgba(158, 120, 62, 0.12), transparent 70%),
+    linear-gradient(100deg, #dfe9ee 0%, #f2e6c8 34%, #f7ecd4 66%, #e9d8b2 100%);
+}
+.scbn.pack .scbn-body { width: 60%; padding: 6px 24px 6px 2px; gap: 4px; }
+.scbn.pack .scbn-art {
+  inset: 0 auto 0 0; width: 46%;
+  background:
+    radial-gradient(circle at 26% 26%, rgba(214, 236, 245, 0.42), transparent 46%),
+    radial-gradient(circle at 10% 84%, rgba(120, 170, 190, 0.34), transparent 60%),
+    linear-gradient(135deg, #24414f 0%, #35586a 46%, #5e8b99 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 58%, rgba(0, 0, 0, 0.4) 82%, transparent 98%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 58%, rgba(0, 0, 0, 0.4) 82%, transparent 98%);
+}
+.scbn.pack .pk-flag {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 52px; height: 52px; display: grid; place-items: center;
+  border-radius: 12px;
+  font-family: var(--serif); font-size: 26px; font-weight: 900; color: #f4e7c2;
+  background: linear-gradient(160deg, #8a2f24, #5d1b13);
+  border: 2px solid #d3ac56;
+  box-shadow: inset 0 0 0 1px rgba(255, 232, 168, 0.4), 0 3px 8px rgba(0, 0, 0, 0.42);
+}
+.scbn.pack .scbn-year {
+  background-color: #2b4a58; border-color: #a9c7d3; color: #eef7fb;
+  font-size: 12px; min-width: 0; height: 25px; padding: 0 10px; border-radius: 13px;
+  letter-spacing: 0.01em;
+}
+.scbn.pack .scbn-name { color: #1d2b33; }
+.scbn.pack .scbn-sub { color: #3d5a67; font-size: 9px; }
+.scbn.pack .scbn-meta { color: #4f7484; font-size: 8px; }
+.scbn.pack.locked { border-style: dashed; border-color: #7d8f99; }
+.scbn.pack.locked .pk-flag { filter: grayscale(0.4) brightness(0.92); }
+.scbn.pack.locked .scbn-year { background-color: #4a5860; border-color: #b3c2ca; }
+
+/* ── ③ 봉인 안내 · 패키지 소개 창 ── */
+.pack-seal-note, .pack-korea-intro { display: flex; flex-direction: column; gap: 7px; }
+.pack-seal-note .psn-seal, .pack-korea-intro .pki-seal {
+  align-self: center; width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 10px; font-family: var(--serif); font-size: 22px; font-weight: 900;
+  color: #f2e7c8; background: linear-gradient(160deg, #46525e, #2b333c);
+  border: 2px solid #9fb0ba; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.pack-korea-intro .pki-seal { background: linear-gradient(160deg, #8a2f24, #5d1b13); border-color: #d3ac56; }
+.psn-list, .pki-list { margin: 0; padding-left: 15px; display: flex; flex-direction: column; gap: 3px; }
+.psn-list li, .pki-list li { font-size: 10.5px; line-height: 1.45; color: #4a3a1c; word-break: keep-all; }
+
+/* ── ④ 보스 침공 창 ── */
+.boss-open { display: flex; flex-direction: column; gap: 8px; }
+.boss-open .bo-hero {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 10px 10px 9px; border-radius: 12px;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 12%, rgba(255, 255, 255, 0.18), transparent 70%),
+    linear-gradient(180deg, #3a2b46 0%, #241a2e 100%);
+  border: 2px solid #b8483a;
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 160, 0.24), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.boss-open.china .bo-hero {
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 12%, rgba(255, 255, 255, 0.18), transparent 70%),
+    linear-gradient(180deg, #35242b 0%, #22161a 100%);
+}
+.boss-open .bo-hero img {
+  width: 62px; height: 62px; border-radius: 10px; object-fit: cover; object-position: 50% 18%;
+  border: 2px solid #d3ac56; background: #1b1620;
+}
+.boss-open .bo-hero .bo-seal {
+  position: absolute; right: 8px; top: 8px;
+  width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px;
+  font-family: var(--serif); font-size: 14px; font-weight: 900; color: #f6e6c2;
+  background: linear-gradient(160deg, #8a2f24, #4d130d); border: 1px solid #d3ac56;
+}
+.boss-open .bo-hero b {
+  font-family: var(--serif); font-size: 15px; font-weight: 900; color: #ffe9b8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.boss-open .bo-hero em { font-style: normal; font-size: 9.5px; font-weight: 800; color: #d9c79c; }
+.boss-open .bo-lead { margin: 0; font-size: 10.5px; line-height: 1.5; color: #4a3a1c; word-break: keep-all; }
+.boss-open .bo-line {
+  margin: 0; padding: 6px 9px; border-radius: 8px; border-left: 3px solid #b8483a;
+  background: #fdf3e2; font-family: var(--serif); font-size: 11px; font-weight: 800;
+  color: #7c261c; word-break: keep-all;
+}
+.boss-open .bo-list { margin: 0; padding-left: 15px; display: flex; flex-direction: column; gap: 3px; }
+.boss-open .bo-list li { font-size: 10.5px; line-height: 1.45; color: #4a3a1c; word-break: keep-all; }
+.boss-open .bo-foot { margin: 0; font-size: 9px; line-height: 1.4; color: #8a7448; word-break: keep-all; }
+
+/* ── ⑤ 통일 엔딩 — 보스 격파 한 줄 ── */
+.unify-boss {
+  margin: 0 0 6px; padding: 6px 9px; border-radius: 8px; text-align: center;
+  font-size: 10px; line-height: 1.45; color: #5a3410; word-break: keep-all;
+  background: linear-gradient(180deg, #fff3d6, #f0dcae); border: 1px solid #c9a24a;
+}
+.unify-boss b { color: #8a1f14; }
+
+@media (max-width: 360px) {
+  .scbn.pack .scbn-body { width: 64%; padding-right: 14px; }
+  .scbn.pack .pk-flag { width: 44px; height: 44px; font-size: 22px; }
+}
+
+/* v6.14 — 지도 범례: 봉인된 땅 */
+.lg.sealed { background: #46525e; border: 1px solid #c2ccd4; box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.55); }

@@ -825,6 +825,11 @@
       /* v6.13 — 회차(New Game+). 1회차가 기본, 2회차부터 적이 강화된다 */
       round: 1,
       carryInfo: null,
+      /* v6.14 — 캠페인 모드. 'jungwon' = 기본판(중원), 'korea' = 한국 패키지(한반도).
+         koreaBoss/chinaBoss 는 반대편 대륙 보스가 깨어났는지 기억한다(봉인 해제 깃발). */
+      campaignMode: (sc && sc.mode === 'korea') ? 'korea' : 'jungwon',
+      koreaBoss: null,
+      chinaBoss: null,
     };
     SK.CITY_LIST.forEach((c) => enforceStartLevel(cities[c.id], c));
     if (sc) {
@@ -2543,6 +2548,25 @@
   }
   SK.loadScenarios = loadScenarios;
 
+  /* v6.14 — 한국 패키지 캠페인(한반도 스타팅). data/korea_campaign.json 한 장이
+     시나리오 형식(factions 배열)을 그대로 들고 있어 resolveScenario 가 그대로 읽는다.
+     SK.HIST 뒤에 붙여 histById(914) 로 저장된 판의 연표를 다시 찾을 수 있게 한다. */
+  async function loadKoreaCampaign() {
+    if (SK.KOREA_CAMPAIGN) return true;
+    try {
+      const res = await fetch('data/korea_campaign.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      SK.KOREA_CAMPAIGN = j;
+      if (!SK.HIST.some((sc) => Number(sc.id) === Number(j.id))) SK.HIST.push(j);
+      return true;
+    } catch (e) {
+      console.warn('한국 패키지 캠페인 데이터를 불러오지 못했습니다.', e);
+      return false;
+    }
+  }
+  SK.loadKoreaCampaign = loadKoreaCampaign;
+
   async function loadCities() {
     if (SK.CITY_LIST.length) return true;
     try {
@@ -2784,6 +2808,7 @@
   async function ensureData() {
     if (!SK.CITY_LIST.length) await loadCities();
     if (!SK.SCENARIOS.length) await loadScenarios();
+    if (!SK.KOREA_CAMPAIGN) await loadKoreaCampaign();
     if (!SK._classesLoaded) await loadClasses();
     if (!SK.EVENTS.length) await loadEvents();
     if (!SK.GENERALS.length) await loadGenerals();
@@ -2931,6 +2956,54 @@
     });
   }
 
+  /* v6.14 — 한국 패키지 캠페인 카드 · 진입 (시나리오 화면) */
+  function koreaCampaign() { return SK.KOREA_CAMPAIGN || null; }
+  function koreaPackOwned() { return !!(SK.DLC && SK.DLC.hasKorea && SK.DLC.hasKorea()); }
+  SK.koreaCampaign = koreaCampaign;
+  SK.koreaPackOwned = koreaPackOwned;
+  function koreaPackCardHtml() {
+    const j = koreaCampaign();
+    if (!j) return '';
+    const owned = koreaPackOwned();
+    const price = (SK.DLC && SK.DLC.priceOf) ? SK.DLC.priceOf('pack_korea') : '4,900원';
+    return `<button class="scbn pack${owned ? ' on' : ' locked'}" id="sc-pack-korea" type="button">
+        <span class="scbn-art pack-art"><span class="pk-flag">韓</span></span>
+        <span class="scbn-body">
+          <span class="scbn-year">한국 패키지${owned ? ' · 보유' : ' · ' + price}</span>
+          <span class="scbn-name">한반도 대난투</span>
+          <span class="scbn-sub">한반도 전용 지도 · 한국 세력 스타팅</span>
+          <span class="scbn-meta">한반도 통일 → 중원 중국 보스전${owned ? '' : ' · 🔒'}</span>
+        </span>
+        <span class="scbn-go" aria-hidden="true">›</span>
+      </button>`;
+  }
+  function openPackKoreaShop() {
+    const price = (SK.DLC && SK.DLC.priceOf) ? SK.DLC.priceOf('pack_korea') : '4,900원';
+    const open = !!(SK.DLC && SK.DLC.isOpen && SK.DLC.isOpen());
+    SK.modal({
+      kicker: '한국 패키지 · ' + price,
+      title: '한반도에서 시작하는 캠페인',
+      body: `<div class="pack-korea-intro"><span class="pki-seal">韓</span>
+        <p class="modal-p">한반도 전용 지도에서 <b>고구려 · 백제 · 신라 · 고려 · 조선</b> 중 하나로 시작합니다.
+        한반도를 통일하고 서진해 <b>업 · 진양 · 평원</b> 세 관문을 차지하면 <b>중국 보스전</b>이 열리고,
+        그 보스(조조 · 사마의 · 여포 · 제갈량)까지 격파하면 최종 천하통일입니다.</p>
+        <ul class="pki-list">
+          <li>기본판(중원)은 <b>무료 그대로</b> — 중원을 통일하면 <b>한국 보스가 침공</b>하는 엔드 콘텐츠도 무료입니다.</li>
+          <li>이 패키지는 방향이 반대인 캠페인을 더합니다. 한국 영웅 30명 · 보물 · 시너지는 잠그지 않습니다.</li>
+        </ul></div>`,
+      actions: open
+        ? [{ label: '닫기' }, { label: '상점에서 보기', primary: true, onClick: () => { if (SK.DLC && SK.DLC.openShop) SK.DLC.openShop(); } }]
+        : [{ label: '닫기', primary: true }],
+    });
+  }
+  function openKoreaCampaign() {
+    const j = koreaCampaign();
+    if (!j) { SK.toast('한국 패키지 데이터를 불러오지 못했습니다.'); return; }
+    if (!koreaPackOwned()) { openPackKoreaShop(); return; }
+    openFactionPicker(j, { korea: true });
+  }
+  SK.openKoreaCampaign = openKoreaCampaign;
+
   function openScenarioPicker() {
     if (!SK.HIST.length) { beginScenario(null, null); return; }
     const list = $('#scenario-list');
@@ -2947,10 +3020,12 @@
         </span>
         <span class="scbn-go" aria-hidden="true">›</span>
       </button>` : '';
-      list.innerHTML = act1 + SOON_ACTS.map(soonCard).join('');
+      list.innerHTML = act1 + koreaPackCardHtml() + SOON_ACTS.map(soonCard).join('');
       list.scrollTop = 0;
       const btn = list.querySelector('.scbn[data-sc]');
       if (btn) btn.onclick = () => openFactionPicker(open);
+      const pkBtn = list.querySelector('#sc-pack-korea');
+      if (pkBtn) pkBtn.onclick = () => openKoreaCampaign();
       list.querySelectorAll('.scbn[data-soon]').forEach((b) => {
         b.onclick = () => SK.toast(`${b.dataset.soon}은 새 컨텐츠 준비중입니다. 곧 업데이트됩니다!`);
       });
@@ -3012,18 +3087,31 @@
      유비군은 영안(촉)에서 시작해 초반 적 침공이 덜 들어오고, 관우·장비·조운 같은
      S·A급 장수가 명부에 가득해 첫 판을 익히기에 가장 편하다. */
   const RECO_FACTION = 'liubei';
-  function openFactionPicker(sc) {
+  /* v6.14 — 한국 캠페인의 입문 추천: 북방 강자 고구려(광개토대왕) */
+  const KOREA_RECO_FACTION = 'goguryeo';
+  function openFactionPicker(sc, pickOpts) {
+    const koreaOnly = !!(pickOpts && pickOpts.korea);
     const res = SK.resolveScenario(sc);
-    const facs = Object.keys(res ? res.factions : {}).filter((k) => k !== 'neutral' && res.factions[k].cities.length)
-      .map((k) => res.factions[k])
+    let facs = Object.keys(res ? res.factions : {}).filter((k) => k !== 'neutral' && res.factions[k].cities.length);
+    /* v6.14 — 한국 패키지 캠페인은 한국 세력 중에서만 고른다 */
+    if (koreaOnly) {
+      facs = facs.filter((k) => SK.factionGroup(k) === '한국');
+    } else {
+      /* v6.14 — 기본판(중원)은 중원 세력으로 시작한다. 한국 세력은 한반도가 봉인(다음 보스)이라
+         1성으로 고립되므로 목록에서 뺀다 — 한국 세력 스타팅은 한국 패키지 캠페인 몫이다. */
+      facs = facs.filter((k) => SK.factionGroup(k) !== '한국');
+    }
+    facs = facs.map((k) => res.factions[k])
       .sort((a, b) => {
         /* 입문 추천 세력을 목록 맨 위에 세우고, 나머지는 거점 수 순 */
-        const ra = a.id === RECO_FACTION ? 0 : 1, rb = b.id === RECO_FACTION ? 0 : 1;
+        const topId = koreaOnly ? KOREA_RECO_FACTION : RECO_FACTION;
+        const ra = a.id === topId ? 0 : 1, rb = b.id === topId ? 0 : 1;
         if (ra !== rb) return ra - rb;
         return b.cities.length - a.cities.length;
       });
     /* v5.98 — 입문 추천 = 유비군 (없는 시대면 거점이 가장 많은 세력) */
-    const recId = facs.some((f) => f.id === RECO_FACTION) ? RECO_FACTION : (facs.length ? facs[0].id : null);
+    const recId = facs.some((f) => f.id === (koreaOnly ? KOREA_RECO_FACTION : RECO_FACTION))
+      ? (koreaOnly ? KOREA_RECO_FACTION : RECO_FACTION) : (facs.length ? facs[0].id : null);
     const list = $('#faction-list');
     if (list) {
       list.innerHTML = facs.map((f) => factionScreenCard({
@@ -3263,6 +3351,7 @@
             <li><b>세력</b> ${f.name || '-'} · ${f.lord || '-'}</li>
             <li><b>수도</b> ${cap ? cap.name : '-'} · <b>영지</b> ${(f.cities || []).length}곳</li>
             <li><b>목표</b> 살아남는 건 하나뿐 — 옆 성부터 하나씩!</li>
+            ${sc && sc.mode === 'korea' ? '<li><b>캠페인</b> 한반도 통일 → 업·진양·평원 → 중국 보스전</li>' : ''}
           </ul>
           ${carryRes ? `<p class="sc-carry">🔁 <b>${s.round}회차 천하 대란</b> — 직전 천하의 장수 <b>${carryRes.added + carryRes.upgraded}명</b>이 보물과 함께 수도에 합류했습니다. 적 장수는 전원 S급 특기로 무장합니다.</p>` : ''}
           ${sc && sc.historyNote ? `<p class="sc-summary">${sc.historyNote}</p>` : ''}
@@ -3504,8 +3593,8 @@
       eh.classList.toggle('done', s.month === ECON.harvestMonth);
       eh.title = `10월 가을 대수확 예상 군량 +${fmt(harv)}`;
     }
-    $('#map-hint').textContent = owned >= SK.CITY_LIST.length ? `천하통일! 모든 거점이 ${fname}의 깃발 아래 있습니다.` :
-      `${fname} 거점 ${owned} / ${SK.CITY_LIST.length} · 다음 달에 세수·봉급·군량 유지비가 정산됩니다.`;
+    const hintEl = $('#map-hint');
+    if (hintEl) hintEl.textContent = mapHintText(s, fname, owned);
   };
   /* v5.95 — 금·군량이 바뀌는 '그 순간' 상단(지도·성 화면) 숫자를 다시 칠한다.
      금고 setter가 부르므로 포상·성 승격·등용·건설·사건 등 어느 경로로 소비하든 빠짐없이 갱신된다.
@@ -3587,6 +3676,8 @@
   SK.openCitySheet = function (id) {
     const c = CITY[id];
     const st = SK.state.cities[id];
+    /* v6.14 — 봉인된 거점은 정보 대신 '왜 못 가는지'를 보여 준다 */
+    if (st && st.owner !== PF() && SK.isSealed && SK.isSealed(id)) { SK.sealedNote(id); return; }
     const f = SK.factionInfo(st.owner);
     const mine = st.owner === PF();
     const scouted = mine || isScouted(st);
@@ -12198,7 +12289,9 @@
       else if (SK.corpsGuard) { SK.corpsGuard(origin); return; }
     }
     if (!origin) { SK.toast('출진할 아군 거점이 없습니다.'); return; }
-    const isEnemy = (id) => !!s.cities[id] && s.cities[id].owner !== PF();
+    /* v6.14 — 봉인된 땅은 목표가 될 수 없다 */
+    if (targetId && SK.isSealed && SK.isSealed(targetId)) { SK.sealedNote(targetId); return; }
+    const isEnemy = (id) => !!s.cities[id] && s.cities[id].owner !== PF() && !(SK.isSealed && SK.isSealed(id));
     const isAlly = (id) => !!s.cities[id] && s.cities[id].owner === PF();
     /* v5.87b — 출진은 SK.ROADS·SK.SEALANES로 직접 이어진 인접 1칸뿐이다.
        v5.71의 '아군 거점을 한 칸 거쳤다가 2칸 건너 치기'는 없앴다 —
@@ -12966,11 +13059,330 @@
   }
   SK.sealNeutralCities = sealNeutralCities;
 
+  /* ══════════════════════════════════════════════════════════════
+     v6.14 — 한국 · 중원 분리 출시 (한국 패키지 pack_korea)
+     ──────────────────────────────────────────────────────────────
+     · 기본판(중원 모드 · campaignMode 'jungwon')
+       요동까지가 내 대륙이다. 한반도 18거점은 지도에서 봉인(안개)이고,
+       중원(요동 포함)을 모두 차지하면 '한국 보스 세력 침공'이 발동하며
+       한반도가 열리고 한국 명장 보스 세력이 등장한다. 그 보스까지 격파하면
+       최종 천하통일(v6.13 후일담 크레딧 + 2회차 천하 대란).
+     · 한국 패키지(한국 모드 · campaignMode 'korea')
+       한반도(+요동)에서 한국 세력으로 시작한다. 중원은 봉인이고, 회랑
+       (산해관 · 북평 · 계 · 남피 · 업 · 평원 · 진양)만 열려 있다.
+       한반도를 통일하고 업 · 진양 · 평원 세 관문을 차지하면 '중국 보스전'이
+       발동하며 중원 전체가 보스 땅으로 열린다. 그 보스까지 이기면 최종 통일.
+     · 두 모드는 같은 문법의 대칭 구조다 — "내 대륙을 통일하면 반대편 대륙의
+       보스가 온다". 한쪽만 최종 보스를 갖지 않는다.
+     · 봉인된 땅은 지도 표시 · 출진 · AI 모두 막는다. 옛 세이브가 이미 가진
+       성은 봉인하지 않으므로 기존 저장을 빼앗지 않는다.
+     ══════════════════════════════════════════════════════════════ */
+  const MODE_JUNGWON = 'jungwon', MODE_KOREA = 'korea';
+  /* 중원 → 한반도로 넘어가는 회랑. 이 일곱 곳만 한국 캠페인에서 처음부터 열린다.
+     (요동 → 산해관 → 북평 → 계 → 남피 → 업/평원, 업 → 진양) */
+  const KOREA_CORRIDOR = ['shanhaiguan', 'beiping', 'ji', 'nanpi', 'ye', 'pingyuan', 'jinyang'];
+  /* 한국 캠페인에서 '중국 보스전'을 여는 세 관문 (사용자 확정: 업 12 · 진양 9 · 평원 17) */
+  const KOREA_GATEWAYS = ['ye', 'jinyang', 'pingyuan'];
+
+  function campaignModeOf(s) {
+    s = s || SK.state;
+    return (s && s.campaignMode === MODE_KOREA) ? MODE_KOREA : MODE_JUNGWON;
+  }
+  SK.campaignModeOf = campaignModeOf;
+  function koreaCityIds() { return SK.CITY_LIST.filter((c) => c.region === '한국').map((c) => c.id); }
+  function nonKoreaCityIds() { return SK.CITY_LIST.filter((c) => c.region !== '한국').map((c) => c.id); }
+  SK.koreaCityIds = koreaCityIds;
+  SK.nonKoreaCityIds = nonKoreaCityIds;
+
+  /* 봉인된 거점 집합 — 성 1곳을 차지할 때마다 다시 계산한다(가벼운 메모) */
+  let sealCacheKey = '', sealCacheSet = null;
+  /* v6.14 — v6.13 이전에 '한국 세력'으로 시작한 옛 세이브는 분리 이전 그대로 둔다.
+     (그 세이브에는 봉인도, 한국 보스도 없다 — 80거점 천통을 예전처럼 노린다) */
+  function legacyKoreaPlayer(s) {
+    s = s || SK.state;
+    return !!(s && s.playerFaction && SK.factionGroup(s.playerFaction) === '한국');
+  }
+  SK.legacyKoreaPlayer = legacyKoreaPlayer;
+  function sealedSet(s) {
+    s = s || SK.state;
+    if (!s || !s.cities || !SK.CITY_LIST.length) return sealCacheSet || new Set();
+    const pf = s.playerFaction;
+    let mineN = 0;
+    SK.CITY_LIST.forEach((c) => { const cs = s.cities[c.id]; if (cs && cs.owner === pf) mineN += 1; });
+    const key = [campaignModeOf(s), s.koreaBoss ? 1 : 0, s.chinaBoss ? 1 : 0, mineN, SK.CITY_LIST.length].join('|');
+    if (key === sealCacheKey && sealCacheSet) return sealCacheSet;
+    const out = new Set();
+    const mode = campaignModeOf(s);
+    if (mode === MODE_JUNGWON && legacyKoreaPlayer(s)) {
+      sealCacheKey = key; sealCacheSet = out;
+      return out;
+    }
+    if (mode === MODE_KOREA) {
+      if (!s.chinaBoss) {
+        SK.CITY_LIST.forEach((c) => {
+          if (c.region === '한국') return;                 // 한반도(+요동)는 내 대륙
+          if (KOREA_CORRIDOR.indexOf(c.id) >= 0) return;    // 회랑은 전선 확장 대상
+          const cs = s.cities[c.id];
+          if (cs && cs.owner === pf) return;               // 옛 세이브가 이미 가진 성은 지킨다
+          out.add(c.id);
+        });
+      }
+    } else if (!s.koreaBoss) {
+      SK.CITY_LIST.forEach((c) => {
+        if (c.region !== '한국') return;                   // 중원(요동 포함)은 내 대륙
+        const cs = s.cities[c.id];
+        if (cs && cs.owner === pf) return;
+        out.add(c.id);
+      });
+    }
+    sealCacheKey = key; sealCacheSet = out;
+    return out;
+  }
+  SK.sealedSet = sealedSet;
+  function isSealed(id) { return sealedSet(SK.state).has(String(id)); }
+  SK.isSealed = isSealed;
+  function sealClear() { sealCacheKey = ''; sealCacheSet = null; }
+  SK.sealClear = sealClear;
+
+  /* 봉인된 땅 안내 — 지도에서 누르면 왜 못 가는지 한 창으로 알려 준다 */
+  function sealedNote(id) {
+    const s = SK.state;
+    if (!s) return;
+    const c = SK.CITY[id] || {};
+    const name = c.name || '이 거점';
+    if (campaignModeOf(s) === MODE_KOREA) {
+      SK.modal({
+        kicker: '봉인된 중원', title: `${name} — 아직 길이 열리지 않았습니다`,
+        body: `<div class="pack-seal-note"><span class="psn-seal">封</span>
+          <p class="modal-p">한국 패키지 캠페인은 <b>한반도</b>에서 시작합니다. 중원은 안개에 잠겨 있고,
+          서쪽 <b>회랑</b>(산해관 · 북평 · 계 · 남피 · 업 · 평원 · 진양)만 열려 있습니다.</p>
+          <ul class="psn-list">
+            <li>한반도를 통일한 뒤 <b>업 · 진양 · 평원</b> 세 관문을 차지하세요.</li>
+            <li>그 순간 <b>중국 보스전</b>이 열리고 중원 전체가 보스 땅이 됩니다.</li>
+          </ul></div>`,
+        actions: [{ label: '닫기', primary: true }],
+      });
+      return;
+    }
+    SK.modal({
+      kicker: '봉인된 한반도', title: `${name} — 안개에 잠겨 있습니다`,
+      body: `<div class="pack-seal-note"><span class="psn-seal">封</span>
+        <p class="modal-p">기본판(중원)은 <b>요동까지</b>가 내 대륙입니다. 한반도 18거점은 지금 봉인되어 있습니다.</p>
+        <ul class="psn-list">
+          <li><b>중원을 모두 통일</b>하면 <b>한국 보스 세력이 침공</b>하며 이 땅이 열립니다.</li>
+          <li>한국 보스까지 격파하면 최종 천하통일입니다.</li>
+          <li>한반도에서 시작하고 싶다면 <b>한국 패키지</b>(4,900원) 캠페인을 고르세요.</li>
+        </ul></div>`,
+      actions: [{ label: '닫기', primary: true }],
+    });
+  }
+  SK.sealedNote = sealedNote;
+
+  /* 지도 안내 줄 — 봉인이 있으면 '내 대륙 몇 / 몇'과 다음 목표를 함께 적는다 */
+  function mapHintText(s, fname, owned) {
+    s = s || SK.state;
+    if (!s || !SK.CITY_LIST.length) return '';
+    const total = SK.CITY_LIST.length;
+    if (owned >= total) return `천하통일! 모든 거점이 ${fname}의 깃발 아래 있습니다.`;
+    const sealed = sealedSet(s);
+    if (!sealed.size) return `${fname} 거점 ${owned} / ${total} · 다음 달에 세수·봉급·군량 유지비가 정산됩니다.`;
+    const pf = s.playerFaction;
+    const openN = SK.CITY_LIST.filter((c) => !sealed.has(c.id)).length;
+    const myN = SK.CITY_LIST.filter((c) => !sealed.has(c.id) && s.cities[c.id] && s.cities[c.id].owner === pf).length;
+    if (campaignModeOf(s) === MODE_KOREA) {
+      return `${fname} ${myN}/${openN} · 중원 ${sealed.size}곳 봉인 — 업·진양·평원을 차지하면 보스전`;
+    }
+    return `${fname} ${myN}/${openN} · 한반도 ${sealed.size}곳 봉인 — 중원 통일 시 한국 보스 침공`;
+  }
+  SK.mapHintText = mapHintText;
+
+  /* ── 보스 설정 · 대륙 판정 ── */
+  function bossCfg(side) {
+    const d = (SK.KOREA_CAMPAIGN && SK.KOREA_CAMPAIGN.bosses) || {};
+    return d[side] || {};
+  }
+  SK.bossCfg = bossCfg;
+
+  /* 내 대륙을 다 차지했는가 — 차지했으면 깨워야 할 보스의 이름을 돌려준다 */
+  function bossGate(s) {
+    s = s || SK.state;
+    if (!s || !s.cities) return null;
+    const pf = s.playerFaction;
+    const owned = (id) => !!(s.cities[id] && s.cities[id].owner === pf);
+    /* 이미 전 거점을 가졌으면(일괄 항복 등) 부를 보스가 없다 */
+    if (SK.CITY_LIST.length && SK.CITY_LIST.every((c) => owned(c.id))) return null;
+    if (campaignModeOf(s) === MODE_JUNGWON) {
+      if (s.koreaBoss) return null;
+      if (legacyKoreaPlayer(s)) return null;   // 옛 한국 세력 세이브는 예전처럼 80거점 천통
+      const core = nonKoreaCityIds();
+      if (!core.length || !core.every(owned)) return null;
+      return 'korea';
+    }
+    if (s.chinaBoss) return null;
+    const kor = koreaCityIds();
+    if (!kor.length || !kor.every(owned)) return null;
+    if (!KOREA_GATEWAYS.every(owned)) return null;
+    return 'china';
+  }
+  SK.bossGate = bossGate;
+
+  /* 세력 항목이 지도에 없으면(FACTION_COLOR/MARK 만 남았으면) 다시 세운다 */
+  function ensureFactionEntry(s, fid, side) {
+    if (!s.factions) s.factions = {};
+    const cfg = bossCfg(side);
+    const base = SK.FACTIONS[fid] || {};
+    let f = s.factions[fid];
+    if (!f) {
+      f = s.factions[fid] = { id: fid, cities: [], generals: [], allies: [], enemies: [], capital: null };
+    }
+    f.name = f.name || base.name || cfg.name || String(fid);
+    f.lord = cfg.lord || f.lord || base.lord || '';
+    f.mark = f.mark || SK.FACTION_MARK[fid] || String(f.name).replace(/군$/, '').charAt(0) || '보';
+    f.color = f.color || SK.FACTION_COLOR[fid] || base.color || '#8b8677';
+    f.allies = f.allies || []; f.enemies = f.enemies || [];
+    f.generals = f.generals || []; f.cities = f.cities || [];
+    return f;
+  }
+
+  /* ── 보스 소환 ──
+     봉인된 대륙을 한 세력의 땅으로 넘기고, 병력·성벽·훈련도를 올리고,
+     정예 장수를 성마다 앉힌다(수도부터). 이 함수는 판당 한 번만 돈다. */
+  function bossFactionId(side, s) {
+    const cfg = bossCfg(side);
+    const want = cfg.faction || (side === 'korea' ? 'goguryeo' : 'caocao');
+    if (want !== s.playerFaction) return want;
+    /* 안전망 — 플레이어가 그 세력이면(옛 세이브) 다른 세력을 보스로 세운다 */
+    const alts = side === 'korea' ? ['baekje', 'silla', 'goryeo', 'joseon'] : ['liubei', 'sunquan', 'dongzhuo'];
+    return alts.find((id) => id !== s.playerFaction) || want;
+  }
+  function triggerBoss(side, opts) {
+    const s = SK.state;
+    if (!s) return false;
+    if (side === 'korea' ? s.koreaBoss : s.chinaBoss) return false;
+    const cfg = bossCfg(side);
+    const fid = bossFactionId(side, s);
+    const regionIds = (side === 'korea' ? koreaCityIds() : nonKoreaCityIds())
+      .filter((id) => s.cities[id] && s.cities[id].owner !== s.playerFaction);
+    if (!regionIds.length) return false;      // 넘겨줄 땅이 없으면 보스를 부르지 않는다
+    const f = ensureFactionEntry(s, fid, side);
+    if (side === 'korea') s.koreaBoss = { at: s.turn || 1, fid };
+    else s.chinaBoss = { at: s.turn || 1, fid };
+    sealClear();
+    const per = cfg.perCity || {};
+    const mul = Number(cfg.troopMul) || 1;
+    const defAdd = Number(cfg.defAdd) || 10;
+    const train = Number(cfg.train) || 76;
+    regionIds.forEach((id) => {
+      const cs = s.cities[id];
+      const c = SK.CITY[id] || {};
+      cs.owner = fid;
+      cs.genIds = [];
+      cs.bandit = false;
+      cs.auto = true;
+      cs.scoutedUntil = 0;
+      cs.wounded = 0;
+      if (!Array.isArray(cs.slots)) ensureSlots(cs, c);
+      const floor = per[c.type] || per.town || 11000;
+      cs.troops = Math.round(Math.max(Number(cs.troops) || 0, floor) * mul);
+      cs.def = Math.min(150, Math.round((Number(cs.def) || 60) + defAdd));
+      cs.train = Math.max(Number(cs.train) || 50, train);
+      cs.loyalty = Math.max(Number(cs.loyalty) || 50, 60);
+      cs.order = Math.max(Number(cs.order) || 50, 55);
+    });
+    /* 정예 장수 — 큰 성(수도 → 중도시 순)부터 세 명씩 앉힌다 */
+    const elites = (cfg.elites || []).map((n) => SK.GEN_BY_NAME[SK.normName ? SK.normName(n) : n]).filter(Boolean);
+    const bossCities = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === fid)
+      .sort((a, b) => ((b.type === 'capital') - (a.type === 'capital'))
+        || ((b.type === 'mid') - (a.type === 'mid')) || (b.baseTroops - a.baseTroops));    let ei = 0;
+    const addG = (c) => {
+      if (ei >= elites.length || !c) return;
+      const cs = s.cities[c.id];
+      cs.genIds = cs.genIds || [];
+      const g = elites[ei]; ei += 1;
+      if (g && cs.genIds.indexOf(g.id) < 0) cs.genIds.push(g.id);
+    };
+    /* 1차 — 성마다 최소 한 명, 2·3차 — 큰 성(수도 → 중도시)부터 한 명 더 */
+    bossCities.forEach(addG);
+    bossCities.forEach(addG);
+    bossCities.forEach(addG);
+    while (ei < elites.length && bossCities.length) addG(bossCities[0]);
+    const names = [];
+    (f.generals || []).forEach((n) => { const nm = SK.normName ? SK.normName(n) : n; if (nm && names.indexOf(nm) < 0) names.push(nm); });
+    elites.forEach((g) => { if (names.indexOf(g.name) < 0) names.push(g.name); });
+    if (f.lord && names.indexOf(f.lord) < 0) names.unshift(f.lord);
+    f.generals = names;
+    if (cfg.lord && cfg.faction === fid) f.lord = cfg.lord;
+    if (!f.capital || s.cities[f.capital].owner !== fid) f.capital = bossCities.length ? bossCities[0].id : f.capital;
+    if (typeof syncFactionCities === 'function') syncFactionCities(s);
+    /* 봉인된 땅을 잃은 세력은 지도에서 정리한다 */
+    if (SK.pruneLandlessFactions) { try { SK.pruneLandlessFactions(s); } catch (e) { /* ignore */ } }
+    sealClear();
+    s.aiNews = (s.aiNews || []).concat([{ kind: 'invasion', text: side === 'korea'
+      ? `${SK.josa(f.name || '한국', 'i')} 침공했습니다 — 한반도 ${regionIds.length}거점의 봉인이 풀렸습니다`
+      : `중국 보스전 개막 — ${f.name || '중원 연합'}이 중원 ${regionIds.length}거점을 차지했습니다` }]).slice(-6);
+    try { SK.save(); } catch (e) { /* ignore */ }
+    SK.refreshHud();
+    if (window.SKMap && SKMap.refresh) { try { SKMap.refresh(); } catch (e) { /* ignore */ } }
+    try {
+      if (window.skTrack) window.skTrack('boss_event', { side, mode: campaignModeOf(s), month: Math.max(1, s.turn || 1) });
+    } catch (e) { /* ignore */ }
+    if (!(opts && opts.silent)) setTimeout(() => showBossEvent(side), 240);
+    return true;
+  }
+  SK.triggerBoss = triggerBoss;
+
+  function showBossEvent(side) {
+    const s = SK.state;
+    if (!s) return;
+    const cfg = bossCfg(side);
+    const mark = side === 'korea' ? s.koreaBoss : s.chinaBoss;
+    const fid = (mark && mark.fid) || cfg.faction;
+    const f = (s.factions && s.factions[fid]) || {};
+    const cities = SK.CITY_LIST.filter((c) => s.cities[c.id] && s.cities[c.id].owner === fid);
+    const lord = f.lord || cfg.lord || '';
+    const g = lord ? SK.GEN_BY_NAME[lord] : null;
+    const lordSrc = g ? SK.ptSrc(SK.genPortrait(g)) : (f.mark ? '' : '');
+    const eliteTxt = (cfg.elites || []).slice(0, 8).join(' · ');
+    const intro = cfg.intro || '';
+    const head = side === 'korea' ? '한국 보스 세력 침공!' : '중국 보스전 개막!';
+    const lead = side === 'korea'
+      ? '중원을 모두 차지했습니다. 그 순간, 봉인되어 있던 한반도의 안개가 걷히고 한국 명장들이 깨어났습니다.'
+      : '한반도를 통일하고 서쪽 세 관문(업 · 진양 · 평원)을 넘었습니다. 이제 중원 최강의 보스 세력이 문을 엽니다.';
+    const fname = f.name || cfg.name || (side === 'korea' ? '한국' : '중원');
+    SK.sfx.play('victory');
+    if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
+    SK.modal({
+      kicker: side === 'korea' ? '봉인 해제 · 한반도' : '봉인 해제 · 중원',
+      title: head, wide: true, dismissible: false,
+      body: `<div class="boss-open ${side}">
+        <div class="bo-hero">
+          ${lordSrc ? `<img src="${lordSrc}" alt="${lord}">` : ''}
+          <span class="bo-seal">${side === 'korea' ? '韓' : '華'}</span>
+          <b>${fname}</b>
+          <em>${lord ? `군주 ${lord}` : '보스 세력'}</em>
+        </div>
+        <p class="bo-lead">${lead}</p>
+        ${intro ? `<p class="bo-line">“${intro}”</p>` : ''}
+        <ul class="bo-list">
+          <li>보스 땅 <b>${cities.length}거점</b>의 봉인이 풀렸습니다 — 지도에서 바로 보입니다.</li>
+          <li>정예 장수 — <b>${eliteTxt}</b></li>
+          <li>이 세력까지 격파하면 <b>최종 천하통일</b>입니다 (후일담 크레딧 · 2회차 천하 대란).</li>
+        </ul>
+        <p class="bo-foot">한국 패키지(4,900원) 캠페인은 반대 방향으로 진행됩니다 — 한반도에서 시작해 중원 보스를 부릅니다.</p>
+      </div>`,
+      actions: [{ label: '맞서 싸운다', primary: true, onClick: () => { if (SK.showMap) SK.showMap(); } }],
+    });
+  }
+  SK.showBossEvent = showBossEvent;
+
   SK.checkUnification = function (force) {
     const s = SK.state;
     if (!s) return false;
     if (s.unified && !force) return false;
     if (ownedCount(s) < 1) return false;                 // 거점이 하나도 없으면 통일이 아니다
+    /* v6.14 — 내 대륙을 다 먹었으면 곧바로 끝내지 않고 반대편 보스를 깨운다 */
+    const gate = force ? null : bossGate(s);
+    if (gate) { triggerBoss(gate); return false; }
     if (hostileCities(s).length) return false;           // 아직 칠 적이 남아 있다
     if (ownedCount(s) < SK.CITY_LIST.length && !sealNeutralCities(s)) return false;
     if (ownedCount(s) < SK.CITY_LIST.length) return false;
@@ -13033,6 +13445,8 @@
       gPct: Number(q.gPct) || 0, tPct: Number(q.tPct) || 0,
       sealedFactions: ((s.surrenderSealed && s.surrenderSealed.factions) || []).slice(0, 6),
       neutralSealed: Math.max(0, Number(s.neutralSealed) || 0),
+      /* v6.14 — 어느 쪽 대륙 보스를 꺾고 얻은 천하인가 */
+      boss: s.koreaBoss ? 'korea' : (s.chinaBoss ? 'china' : ''),
       spokes: ranked.slice(0, 5).map((h) => h.name),
     };
   }
@@ -13351,6 +13765,7 @@
         <div class="unify-rank">${sn.grade}급 · ${rank}</div>
       </div>
       <p class="unify-period">${sn.startLabel} → <b>${sn.endLabel}</b> · <b>${sn.months}개월</b>의 난투</p>
+      ${sn.boss ? `<p class="unify-boss">${sn.boss === 'korea' ? '韓' : '華'} <b>${sn.boss === 'korea' ? '한국 보스 세력' : '중국 보스 세력'}</b>까지 꺾은 끝에 얻은 천하입니다 — 봉인 너머의 대륙까지 내 깃발 아래.</p>` : ''}
       <div class="unify-report">
         <div><span>통일 시점</span><b>${sn.endLabel}</b></div>
         <div><span>소요 기간</span><b>${sn.months}개월</b></div>
@@ -13535,6 +13950,8 @@
   /* 지금 뜨일 형세인가 (쿨다운·조건 포함) */
   function surrenderReady(s) {
     if (!s || s.over || s.unified) return null;
+    /* v6.14 — 봉인된 대륙(다음 보스)이 남아 있으면 일괄 항복으로 끝내지 않는다 */
+    if (SK.sealedSet && SK.sealedSet(s).size) return null;
     const st = surrenderStanding(s);
     if (st.mine < SURRENDER_NEED) return null;
     if (!st.factions.length) return null;            // 남은 세력이 없으면(재야 정리만) 뜨지 않는다
@@ -14794,6 +15211,8 @@
     let best = null;
     owned.forEach((a) => {
       const as = s.cities[a.id];
+      /* v6.14 — 봉인된 땅에서는 나가지 않는다 (보스 침공 뒤에 열린다) */
+      if (SK.isSealed && SK.isSealed(a.id)) return;
       const strength = (as.troops || 0) - AI_CITY_RESERVE;
       if (strength < 1600) return;
       /* v6.12 — 전쟁만 좇지 않는다: 훈련도가 바닥인 성은 이번 달은 내정·훈련에 쓰고
@@ -14802,6 +15221,7 @@
       SK.allNeighbors(a.id).forEach((tid) => {
         const ts = s.cities[tid];
         if (!ts || ts.owner === fid || ts.owner === PF()) return;
+        if (SK.isSealed && SK.isSealed(tid)) return;      // v6.14 — 봉인된 땅은 치지 않는다
         /* v5.72 — 동맹·휴전 중인 AI 세력의 성은 후보에서 뺀다 */
         if (aiPactLive(s, fid, ts.owner)) return;
         const ratio = strength / cityPower(ts);
@@ -14916,6 +15336,7 @@
     SK.CITY_LIST.forEach((pc) => {
       if (s.cities[pc.id].owner !== PF()) return;
       if (pendingTargets.has(pc.id)) return;
+      if (SK.isSealed && SK.isSealed(pc.id)) return;
       /* v5.35 — 방금 막아낸 성은 석 달 쉰다 */
       const lastRep = s.cities[pc.id].lastRepelledTurn;
       if (typeof lastRep === 'number' && (turn - lastRep) < INVASION_CITY_QUIET) return;
@@ -14924,6 +15345,7 @@
       adj.forEach((aid) => {
         const as = s.cities[aid];
         if (!as || as.owner === PF() || as.owner === 'neutral') return;
+        if (SK.isSealed && SK.isSealed(aid)) return;     // v6.14 — 봉인된 땅에서는 오지 않는다
         if (s.truce && s.truce[as.owner] > turn) return;
         const strength = (as.troops || 0) - AI_CITY_RESERVE;
         if (strength < 800) return;
@@ -16654,7 +17076,8 @@
   }
   function enemyNeighborsOf(cityId) {
     const s = SK.state;
-    return SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF());
+    return SK.allNeighbors(cityId).filter((n) => s.cities[n] && s.cities[n].owner !== PF()
+      && !(SK.isSealed && SK.isSealed(n)));
   }
 
   function openCorpsPanel() {
