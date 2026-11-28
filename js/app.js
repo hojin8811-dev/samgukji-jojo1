@@ -5040,6 +5040,84 @@
        사용자 요청 2026-11-25 "관문도 요새처럼 바꾸고" */
   const SLOT_MAX = { capital: 10, mid: 8, town: 6, pass: 5, fortress: 5 };
   SK.SLOT_MAX = SLOT_MAX;
+  /* ══════════════════════════════════════════════════════════════
+     v6.14b — 시설 레벨별 내정 상한 (사용자 합의 2026-11-28)
+     · 농원 Lv ↔ 농업(agri) · 시장 Lv ↔ 상업(comm) · 순찰소 Lv ↔ 치안(order) · 성벽 Lv ↔ 성벽(def)
+     · Lv.1 60 · Lv.2 75 · Lv.3 90 · Lv.4~5 100
+     · 그 시설이 없는 성은 Lv.1(60)로 본다 — 소도시는 순찰소·성벽이 기본으로 없으므로
+       치안·성벽을 더 올리려면 공터에 그 시설을 먼저 지어야 한다.
+     · 이미 상한보다 높게 시작한 성(성도 85 · 낙양 88 · 장안 84 …)은 수치를 깎지 않는다.
+       상한에 '닿은' 것으로 보고 더 오르지 않게만 막는다(화면에는 '상한 위'로 적는다).
+     ══════════════════════════════════════════════════════════════ */
+  const DOM_CAP_STEPS = [60, 75, 90, 100, 100];
+  const DOM_CAP_FAC = { agri: 'farm', comm: 'market', order: 'patrol', def: 'wall' };
+  const DOM_CAP_NAME = { agri: '농업', comm: '상업', order: '치안', def: '성벽' };
+  function domCapSlot(cs, stat) {
+    const fk = DOM_CAP_FAC[stat];
+    if (!fk || !cs || !Array.isArray(cs.slots)) return null;
+    return cs.slots.find((sl) => sl && sl.key === fk) || null;
+  }
+  function domCapLv(cs, stat) {
+    const sl = domCapSlot(cs, stat);
+    return clamp(sl ? (Number(sl.lv) || 1) : 1, 1, 5);
+  }
+  function domCapOf(cs, stat) { return DOM_CAP_STEPS[domCapLv(cs, stat) - 1]; }
+  function domCapFacName(stat) { return (SLOT_DEFS[DOM_CAP_FAC[stat]] || {}).name || '시설'; }
+  /* 상한에 닿았는가 — 상한보다 높게 시작한 성도 '닿은' 것으로 본다(수치는 깎지 않는다) */
+  function domCapped(cs, stat) { return (Number(cs[stat]) || 0) >= domCapOf(cs, stat); }
+  function domRoomOf(cs, stat) { return Math.max(0, domCapOf(cs, stat) - (Number(cs[stat]) || 0)); }
+  /* 오르는 값을 상한에서 멈춘다 — 내려가지는 않는다 */
+  function domGrow(cur, add, cap) {
+    const c = Number(cur) || 0;
+    if (!add || add < 0) return c;
+    return Math.min(100, Math.max(c, Math.min(cap, c + add)));
+  }
+  /* 화면용 한 줄 — '농원 Lv.1 상한 60' */
+  function domCapLabel(cs, stat) {
+    const sl = domCapSlot(cs, stat);
+    return `${domCapFacName(stat)} ${sl ? `Lv.${domCapLv(cs, stat)}` : '없음(Lv.1)'} 상한 ${domCapOf(cs, stat)}`;
+  }
+  /* 막힌 이유 — 명령 가드·조언 안내·상세창이 같은 문장을 쓴다 */
+  function domCapWhy(cs, stat) {
+    const cap = domCapOf(cs, stat);
+    const cur = Math.round(Number(cs[stat]) || 0);
+    const lv = domCapLv(cs, stat);
+    const fac = domCapFacName(stat);
+    const sl = domCapSlot(cs, stat);
+    const head = `${fac} ${sl ? `Lv.${lv}` : '미건설(Lv.1)'} 상한(${cap})`;
+    const next = lv < 5 ? `${fac} Lv.${lv + 1} 상한(${DOM_CAP_STEPS[lv]})` : `${fac} 최고 상한(100)`;
+    return cur > cap
+      ? `${head} — 지금 ${DOM_CAP_NAME[stat]} ${cur}, 상한 위입니다. ${next}으로 증축해야 더 오릅니다.`
+      : `${head} 도달 — 지금 ${DOM_CAP_NAME[stat]} ${cur}. ${next}으로 증축해야 더 올릴 수 있습니다.`;
+  }
+  /* 상한에 막혀 내정을 못 할 때 월정산·자동 내정이 쓰는 한 줄 (없으면 빈 문자열) */
+  function domCapIdleNote(cs) {
+    const hit = Object.keys(DOM_ACT_STAT).filter((k) => domCapped(cs, DOM_ACT_STAT[k]));
+    const growHit = ['agri', 'comm', 'order', 'def'].filter((st) => domCapped(cs, st));
+    const list = (hit.length ? hit : []).map((k) => domCapLabel(cs, DOM_ACT_STAT[k]));
+    const uniq = Array.from(new Set(list.length ? list : growHit.map((st) => domCapLabel(cs, st))));
+    return uniq.length ? `${uniq.slice(0, 2).join(' · ')}에 닿아 증축이 필요합니다` : '';
+  }
+  /* 내정 명령 키 → 상한이 걸리는 수치 (farm=개간 · trade=상업 · repair=성벽 보수) */
+  const DOM_ACT_STAT = { farm: 'agri', trade: 'comm', repair: 'def' };
+  function domActBlocked(cs, key) {
+    const stat = DOM_ACT_STAT[key];
+    return stat ? domCapped(cs, stat) : false;
+  }
+  SK.DOM_CAP_STEPS = DOM_CAP_STEPS;
+  SK.DOM_CAP_FAC = DOM_CAP_FAC;
+  SK.DOM_CAP_NAME = DOM_CAP_NAME;
+  SK.DOM_ACT_STAT = DOM_ACT_STAT;
+  SK.domCapSlot = domCapSlot;
+  SK.domCapLv = domCapLv;
+  SK.domCapOf = domCapOf;
+  SK.domCapped = domCapped;
+  SK.domRoomOf = domRoomOf;
+  SK.domGrow = domGrow;
+  SK.domCapLabel = domCapLabel;
+  SK.domCapWhy = domCapWhy;
+  SK.domActBlocked = domActBlocked;
+  SK.domCapIdleNote = domCapIdleNote;
   const SLOT_DEFAULT = {
     capital: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
     mid: ['market', 'farm', 'barracks', 'training', 'patrol', 'wall'],
@@ -5414,6 +5492,12 @@
         const ep = slotExpRatio(sl);
         const full = sl.lv >= 5 || ep >= 1;
         const dep = slotDeputy(cityId, sl);
+        /* v6.14b — 이 건물이 정하는 내정 수치가 상한에 닿았으면 카드에 '상한' 배지를 단다 */
+        const capStat = { market: 'comm', farm: 'agri', patrol: 'order', wall: 'def' }[sl.key];
+        const capOn = capStat ? domCapped(cs, capStat) : false;
+        const capBadge = capOn
+          ? `<b class="sc-cap" title="${domCapWhy(cs, capStat)}">상한 ${domCapOf(cs, capStat)}</b>`
+          : '';
         /* v5.40 — 공방 제작 진행도 · 성벽 방첩률을 카드에서 바로 보여 준다 */
         const extra = sl.key === 'workshop'
           ? `<i class="sc-craft">제작 ${sl.craft || 0}/${CRAFT_MONTHS}${g ? '' : ' 정지'}</i>`
@@ -5424,7 +5508,7 @@
           <div class="sc-main">
             <div class="sc-top"><b>${def.name}</b>${extra}<em>Lv.${sl.lv}</em></div>
             <div class="sc-exp${full && sl.lv < 5 ? ' full' : ''}"><i style="width:${Math.round(Math.min(1, ep) * 100)}%"></i></div>
-            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : (sl.key === 'academy' ? `<em class="sc-trainee">수련생 ${academyTraineesOf(sl).length}/${ACADEMY_MAX}명</em>` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`)}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN && sl.key !== 'academy') ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key))) ? `<i class="sc-demolish off" data-fixed="${i}" role="button" tabindex="0" title="${typeName(c.type)} 고정 시설은 철거할 수 없습니다">고정</i>` : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
+            <div class="sc-owner ${dep ? 'pair' : ''}">${g ? `<img class="sc-face ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">${g.name}` : (sl.key === 'academy' ? `<em class="sc-trainee">수련생 ${academyTraineesOf(sl).length}/${ACADEMY_MAX}명</em>` : `<em>담당 없음 · ${SLOT_HALF[sl.key] || '효과 50%'}</em>`)}${dep ? `<span class="sc-dep"><img class="sc-face ${SK.tcls(dep)}" src="${SK.ptSrc(dep.portrait)}" alt="">${dep.name}</span>` : (g ? '<em class="sc-dep-empty">부장 없음</em>' : '')}${(!g && readyN && sl.key !== 'academy') ? '<b class="sc-need">배속</b>' : ''}${full && sl.lv < 5 ? '<b class="sc-up">증축</b>' : ''}${capBadge}${(isFortLike(c) && (sl.fixed || isFortFixedKey(sl.key))) ? `<i class="sc-demolish off" data-fixed="${i}" role="button" tabindex="0" title="${typeName(c.type)} 고정 시설은 철거할 수 없습니다">고정</i>` : `<i class="sc-demolish" data-demolish="${i}" role="button" tabindex="0">철거</i>`}</div>
           </div></button>`;
       }).join('')}</div>
       <p class="slot-note">건물을 누르면 증축·배속·수입을 봅니다. 성 그림의 이름표를 눌러도 같은 창이 열립니다.</p>`;
@@ -5796,6 +5880,21 @@
         })() : ''}
         ${ownerCard}
         ${depCard}
+        ${(() => {
+          /* v6.14b — 이 시설이 정하는 내정 상한 (수도창이 아니라 증축의 이유를 바로 보이게) */
+          const stat = { market: 'comm', farm: 'agri', patrol: 'order', wall: 'def' }[sl.key];
+          if (!stat) return '';
+          const cap = domCapOf(cs, stat), cur = Math.round(Number(cs[stat]) || 0);
+          const on = cur >= cap;
+          const nextTxt = sl.lv < 5 ? `Lv.${sl.lv + 1}(상한 ${DOM_CAP_STEPS[sl.lv]})` : '최고 상한 100';
+          return `<div class="slot-capbox${on ? ' on' : ''}">
+            <div class="scb-head"><b>내정 상한 — ${DOM_CAP_NAME[stat]}</b><span>${cur} / ${cap}</span></div>
+            <i class="scb-bar"><s style="width:${Math.max(2, Math.min(100, Math.round(cur / cap * 100)))}%"></s></i>
+            <p>${on
+              ? `${def.name} Lv.${sl.lv} 상한은 <b>${cap}</b>입니다 — 지금 ${DOM_CAP_NAME[stat]} <b>${cur}</b>${cur > cap ? ', 상한 위' : ', 상한에 닿음'}. ${def.name}을 <b>${nextTxt}</b>로 올리면 더 오릅니다.`
+              : `${def.name} Lv.${sl.lv}까지 <b>${DOM_CAP_NAME[stat]} ${cap}</b>입니다 — ${nextTxt}로 올리면 상한이 오릅니다.`}</p>
+          </div>`;
+        })()}
         ${sl.lv < 5 ? `<div class="slot-expbox">
           <div class="se-head"><b>시설 경험</b><span>${ep} / ${needEp}</span></div>
           <div class="se-bar"><i style="width:${Math.round(Math.min(1, ep / needEp) * 100)}%"></i></div>
@@ -6196,6 +6295,10 @@
       const officeB = officeBonusOf(c.id);
       const obTrainM = 1 + officeB.tong;   /* v5.48 — 통솔: 병영 징병량 + 연병장·훈련 */
       const M = citySlotMul(c, cs);
+      /* v6.14b — 시설 담당 장수가 밀어 올리는 내정도 시설 Lv 상한에서 멈춘다 */
+      const capA = domCapOf(cs, 'agri'), capC = domCapOf(cs, 'comm');
+      const capO = domCapOf(cs, 'order'), capD = domCapOf(cs, 'def');
+      const before = { agri: Number(cs.agri) || 0, comm: Number(cs.comm) || 0 };
       let craft = null;                // v5.40 — 공방 제작 (6개월에 보물 1개)
       if (cs.order == null) cs.order = 55;
       cs.slots.forEach((sl) => {
@@ -6246,12 +6349,15 @@
       if (troops) cs.troops = clamp(cs.troops + troops, 0, cityCap(cs));
       if (train) cs.train = clamp((cs.train == null ? 50 : cs.train) + train, 0, 100);
       if (loyalty) cs.loyalty = clamp(cs.loyalty + loyalty, 0, 100);
-      if (order) cs.order = clamp(cs.order + order, 0, 100);
+      if (order) cs.order = domGrow(cs.order, order, capO);
       /* 순찰소가 없으면 치안이 조금씩 풀린다 — 관아 머리의 무력이 높으면 더 늦게 풀린다 */
       else cs.order = clamp(cs.order - 0.5 * (1 - officeB.wu * 0.5), 0, 100);
-      if (def) cs.def = clamp(cs.def + def, 0, 100);
-      if (agri) cs.agri = clamp((cs.agri || 0) + agri, 0, 100);
-      if (comm) cs.comm = clamp((cs.comm || 0) + comm, 0, 100);
+      if (def) cs.def = domGrow(cs.def, def, capD);
+      if (agri) cs.agri = domGrow(cs.agri, agri, capA);
+      if (comm) cs.comm = domGrow(cs.comm, comm, capC);
+      /* 상한에서 잘린 뒤의 실제 증가만 보고한다 */
+      agri = Math.round((Number(cs.agri) || 0) - before.agri);
+      comm = Math.round((Number(cs.comm) || 0) - before.comm);
       if (gold || food || troops || grow.length || agri || comm || craft) {
         log.push({ city: c.name, gold, food, troops, grow, agri, comm, merit, craft });
       }
@@ -8446,8 +8552,8 @@
   /* ── v5.8 물음표 도움말 — 민심·치안·훈련도·대수확·세율 옆의 ? 버튼 ── */
   const HELP_TIPS = {
     loyal: { t: '민심', lines: ['백성이 다스림을 따르는 마음입니다. 세수와 인구가 민심을 따라 오르내립니다.', '40 아래로 떨어지면 소란이 나 병력이 줄고, 70을 넘으면 세수 15%가 붙습니다. [관아 → 백성 위로]로 올립니다.', '<b>치안과 함께 60을 넘으면 인구가 더 빨라지고, 둘 다 90이면 인구 증가가 최대 1.7배</b>까지 붙습니다.'] },
-    order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.', '<b>민심과 함께 60을 넘으면 인구가 빨리 늘고, 둘 다 90이면 최대 1.7배</b> — 다스림이 고를수록 사람이 모입니다.'] },
-    wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>, <b>관아 머리의 지력이 최대 +6%</b>를 더하지만, 모두 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.'] },
+    order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.', '<b>민심과 함께 60을 넘으면 인구가 빨리 늘고, 둘 다 90이면 최대 1.7배</b> — 다스림이 고를수록 사람이 모입니다.', '<b>시설 상한</b> — 치안은 <b>순찰소 Lv</b>이 정합니다: Lv.1 <b>60</b> · Lv.2 <b>75</b> · Lv.3 <b>90</b> · Lv.4~5 <b>100</b>. 순찰소가 없는 성(소도시 등)은 Lv.1(60)로 보고, 상한에 닿으면 순찰소를 지어 올려야 더 오릅니다.'] },
+    wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>, <b>관아 머리의 지력이 최대 +6%</b>를 더하지만, 모두 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.', '<b>시설 상한</b> — 성벽 수치는 <b>성벽 Lv</b>이 정합니다: Lv.1 <b>60</b> · Lv.2 <b>75</b> · Lv.3 <b>90</b> · Lv.4~5 <b>100</b>. 이미 상한보다 높게 시작한 성(장안·낙양·성도 등)은 수치를 깎지 않고 그대로 두며, 성벽을 증축해야 더 보수할 수 있습니다.'] },
     train: { t: '훈련도', lines: [
       '이 성 병사들의 숙련도입니다. <b>전장에서는 50이 기준(100%)</b>이고, 50을 중심으로 <b>연속 비례</b>해서 공·방이 오르내립니다. <b>100 → 공·방 +12% · 치명 +4%p</b>, 75 → +6%, 50 → 0%, 25 → −5%, 0 → −10%.',
       '<b>[병영 → 훈련]</b> 또는 연병장으로 올립니다. 출진할 때 이 수치가 부대 훈련도로 그대로 넘어갑니다.',
@@ -8456,8 +8562,8 @@
     harvest: { t: '10월 대수확', lines: ['한 해 군량은 10월에 한 번에 들어옵니다. 농업도·민심·농원 Lv가 많을수록 많이 걷습니다.', '그 전까지는 <b>농원 증축(시설 관리)</b>·[탐색]·[군량 상인]으로 버티고, 병력 유지비는 매달 나갑니다.'] },
     tax: { t: '세율', lines: ['세금을 많이 걷으면 금은 빨리 모이지만 민심이 달마다 떨어집니다.', '낮게 두면 당장 금은 줄어도 민심이 올라 다음 달 세수와 인구가 늘어납니다.'] },
     pop: { t: '인구', lines: ['인구가 많을수록 <b>최대 병력 상한(인구의 17%)</b>과 <b>월 세수</b>가 커집니다.', '민심이 높으면 매달 인구가 빨리 늘고, 전쟁·기근·낮은 민심이면 줄어듭니다.', '<b>민심·치안이 함께 60을 넘는 순간부터 인구 증가가 비례해 붙고, 둘 다 90 이상이면 최대 1.7배(＋70%)</b>까지 빨라집니다. 인구 상한은 성 등급이 정합니다.', '<b>주둔병이 최대 병력까지 가득 차면</b> 징병은 멈추지만, 그동안 <b>인구가 ×1.35~×1.50으로 더 빨리</b> 늘어나 상한이 올라갑니다(병영 Lv.5 ×1.50 · 병영이 없으면 ×1.35). 민심·치안 가속과 함께 적용됩니다.'] },
-    agri: { t: '농업', lines: ['<b>10월 대수확 때 들어오는 군량(쌀) 양</b>을 키웁니다.', '<b>시설 관리 → 농원 증축</b>이나 [농원] 담당 배속, 장수 내정(개간)으로 올립니다.'] },
-    comm: { t: '상업', lines: ['<b>매달 들어오는 금(세금) 수입</b>을 키웁니다.', '[상업 진흥]이나 [시장] 담당 배속으로 올립니다.'] },
+    agri: { t: '농업', lines: ['<b>10월 대수확 때 들어오는 군량(쌀) 양</b>을 키웁니다.', '<b>시설 관리 → 농원 증축</b>이나 [농원] 담당 배속, 장수 내정(개간)으로 올립니다.', '<b>시설 상한</b> — 농업은 <b>농원 Lv</b>이 정합니다: Lv.1 <b>60</b> · Lv.2 <b>75</b> · Lv.3 <b>90</b> · Lv.4~5 <b>100</b>. 상한에 닿으면 개간이 막히니 농원을 증축하세요(농원이 없는 성은 Lv.1인 60).'] },
+    comm: { t: '상업', lines: ['<b>매달 들어오는 금(세금) 수입</b>을 키웁니다.', '[상업 진흥]이나 [시장] 담당 배속으로 올립니다.', '<b>시설 상한</b> — 상업은 <b>시장 Lv</b>이 정합니다: Lv.1 <b>60</b> · Lv.2 <b>75</b> · Lv.3 <b>90</b> · Lv.4~5 <b>100</b>. 상한에 닿으면 상업 명령이 막히니 시장을 증축하세요.'] },
     office: { t: '관아 — 성의 본부', lines: [
       '관아는 <b>시설 칸(6/8/10)을 쓰지 않는 성의 본부 건물</b>입니다. 본성은 <b>군주</b>가, 지성은 임명한 <b>태수</b>가 자동으로 관아 머리에 앉습니다(태수가 없으면 [태수 임명]으로 배속).',
       '머리 자리에 앉았다고 그 달 행동을 잠그지는 않습니다 — 군주·태수는 내정도 출진도 그대로 할 수 있습니다.',
@@ -8590,10 +8696,12 @@
   /* v5.9 시안 A — 내정 탭: 2열 막대 카드(+ 하단 요약은 #city-info) */
   function devCard(o) {
     const delta = o.delta ? `<em class="dc-delta ${o.delta.charAt(0) === '+' ? 'up' : 'down'}">${o.delta}</em>` : '';
+    /* v6.14b — 시설 상한을 값 오른쪽에 '/60'으로 붙이고, 상한에 닿으면 색으로 알린다 */
+    const cap = o.cap ? `<i class="dc-cap${o.capped ? ' on' : ''}" title="${o.capped ? `시설 상한(${o.cap})에 닿았습니다 — 시설을 증축해야 더 오릅니다` : `시설 상한 ${o.cap}`}">/${o.cap}</i>` : '';
     return `<div class="dev-card${o.warn ? ' warn' : ''}">
       <svg class="dc-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-${o.icon}"></use></svg>
       <div class="dc-main">
-        <div class="dc-row"><span class="dc-label">${o.label}${o.help ? helpDot(o.help) : ''}</span><b class="dc-val">${o.val}</b>${delta}</div>
+        <div class="dc-row"><span class="dc-label">${o.label}${o.help ? helpDot(o.help) : ''}</span><b class="dc-val">${o.val}${cap}</b>${delta}</div>
         <i class="dc-bar"><em style="width:${Math.max(2, Math.min(100, Math.round(o.pct)))}%;background:${o.color}"></em></i>
       </div>
     </div>`;
@@ -8619,11 +8727,11 @@
       </div>
       <div class="dev-grid">
         ${devCard({ label: '인구', icon: 'pop', val: fmt(Math.round(cs.pop)), delta: `${pd >= 0 ? '+' : '−'}${fmt(Math.abs(pd))}/월`, pct: popCap ? cs.pop / popCap * 100 : 0, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'pop' })}
-        ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'agri' })}
+        ${devCard({ label: '농업', icon: 'agri', val: Math.round(cs.agri), pct: cs.agri, color: 'linear-gradient(90deg,#5f8b34,#8cbb54)', help: 'agri', cap: domCapOf(cs, 'agri'), capped: domCapped(cs, 'agri') })}
         ${devCard({ label: '민심', icon: 'loyal', val: Math.round(cs.loyalty), pct: cs.loyalty, color: 'linear-gradient(90deg,#a8443a,#d97a63)', help: 'loyal', warn: cs.loyalty < 40 })}
-        ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm' })}
-        ${devCard({ label: (isFortLike(c) ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall' })}
-        ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40 })}
+        ${devCard({ label: '상업', icon: 'comm', val: Math.round(cs.comm), pct: cs.comm, color: 'linear-gradient(90deg,#b8862f,#e8c268)', help: 'comm', cap: domCapOf(cs, 'comm'), capped: domCapped(cs, 'comm') })}
+        ${devCard({ label: (isFortLike(c) ? '성벽 ×2' : '성벽'), icon: 'wall', val: Math.round(cs.def), pct: cs.def, color: 'linear-gradient(90deg,#5b7387,#8fa8bd)', help: 'wall', cap: domCapOf(cs, 'def'), capped: domCapped(cs, 'def') })}
+        ${devCard({ label: '치안', icon: 'order', val: Math.round(order), pct: order, color: 'linear-gradient(90deg,#3f6b8a,#7fb0cf)', help: 'order', warn: order < 40, cap: domCapOf(cs, 'order'), capped: domCapped(cs, 'order') })}
       </div>${transitStripHtml(cityId)}`;
     const info = $('#city-info');
     if (info) {
@@ -9623,30 +9731,38 @@
     farm: { name: '개간', run(cityId, actor) {
       const s = SK.state; const st = s.cities[cityId];
       if (s.gold < 100) return fail('금이 부족합니다. (필요 금 100)');
+      /* v6.14b — 농원 Lv 상한에 닿았으면 턴·금을 쓰지 않고 이유를 알려 준다 */
+      if (domCapped(st, 'agri')) return fail(domCapWhy(st, 'agri'));
       /* v5.82 — 개간가(고유 특기): 이 성의 개간·농업 효과 +N% */
       const farmDom = 1 + cityPassivePct(cityId, 'farm');
       const m = polMul(cityId, actor) * farmDom;
-      const agri = Math.max(2, Math.round(6 * m));
+      const capAgri = domCapOf(st, 'agri');
+      const roomAgri = domRoomOf(st, 'agri');
+      const agri = Math.min(roomAgri, Math.max(2, Math.round(6 * m)));
       const food = Math.round(300 * m);
       s.gold -= 100; s.food += food;
-      st.agri = clamp(st.agri + agri, 0, 100);
+      st.agri = clamp(st.agri + agri, 0, capAgri);
       st.pop = Math.round(st.pop * 1.01);
       let msg = `개간 완료 — 농업 +${agri}, 군량 +${fmt(food)}, 인구 +${fmt(Math.round(st.pop * 0.01))}`;
       let hot = `농업 +${agri}`;
-      if (roll(0.22)) { const extra = Math.round(160 * m); s.food += extra; st.agri = clamp(st.agri + 2, 0, 100); hot = `농업 +${agri + 2}`; msg += ` · 대풍년! 군량 +${fmt(extra)}`; }
+      if (roll(0.22)) { const extra = Math.round(160 * m); const bonus = Math.min(2, Math.max(0, roomAgri - agri)); s.food += extra; st.agri = clamp(st.agri + bonus, 0, capAgri); hot = `농업 +${agri + bonus}`; msg += ` · 대풍년! 군량 +${fmt(extra)}`; }
       return { msg, hotKey: 'farm', hot, exp: 12 };
     } },
     trade: { name: '상업', run(cityId, actor) {
       const s = SK.state; const st = s.cities[cityId];
       if (s.food < 80) return fail('군량이 부족합니다. (필요 미 80)');
+      /* v6.14b — 시장 Lv 상한 */
+      if (domCapped(st, 'comm')) return fail(domCapWhy(st, 'comm'));
       const m = polMul(cityId, actor);
-      const comm = Math.max(2, Math.round(6 * m));
+      const capComm = domCapOf(st, 'comm');
+      const roomComm = domRoomOf(st, 'comm');
+      const comm = Math.min(roomComm, Math.max(2, Math.round(6 * m)));
       const gold = Math.round(240 * m);
       s.food -= 80; s.gold += gold;
-      st.comm = clamp(st.comm + comm, 0, 100);
+      st.comm = clamp(st.comm + comm, 0, capComm);
       let msg = `상업 완료 — 상업 +${comm}, 금 +${fmt(gold)}`;
       let hot = `상업 +${comm}`;
-      if (roll(0.2)) { const extra = Math.round(200 * m); s.gold += extra; st.comm = clamp(st.comm + 2, 0, 100); hot = `상업 +${comm + 2}`; msg += ` · 대상인 방문! 금 +${fmt(extra)}`; }
+      if (roll(0.2)) { const extra = Math.round(200 * m); const bonus = Math.min(2, Math.max(0, roomComm - comm)); s.gold += extra; st.comm = clamp(st.comm + bonus, 0, capComm); hot = `상업 +${comm + bonus}`; msg += ` · 대상인 방문! 금 +${fmt(extra)}`; }
       return { msg, hotKey: 'trade', hot, exp: 12 };
     } },
     recruit: { name: '징병', run(cityId, actor) {
@@ -9740,16 +9856,20 @@
       const s = SK.state; const st = s.cities[cityId];
       if (s.gold < 120) return fail('금이 부족합니다. (필요 금 120)');
       if (st.def >= 100) return fail('성벽이 이미 완벽합니다.');
+      /* v6.14b — 성벽 Lv 상한. 이미 시작 성벽이 높은 성은 더 오르지 않는다 */
+      if (domCapped(st, 'def')) return fail(domCapWhy(st, 'def'));
       const m = polMul(cityId, actor);
       const wPct = 1 + (SK.techPct ? SK.techPct('wallPct') : 0) / 100;
       /* v5.40 — 정책·보물의 성벽 보수 배율 (전시 체제 +10%) */
       const wM = 1 + (policyFxOf(st).wall || 0);
-      const up = Math.max(3, Math.round(9 * m * wPct * wM));
-      s.gold -= 120; st.def = clamp(st.def + up, 0, 100);
+      const capDef = domCapOf(st, 'def');
+      const roomDef = domRoomOf(st, 'def');
+      const up = Math.min(roomDef, Math.max(3, Math.round(9 * m * wPct * wM)));
+      s.gold -= 120; st.def = clamp(st.def + up, 0, capDef);
       st.loyalty = clamp(st.loyalty + 1, 0, 100);
       let msg = `보수 완료 — 성벽 +${up}, 민심 +1`;
       let hot = `성벽 +${up}`;
-      if (roll(0.2)) { st.def = clamp(st.def + 3, 0, 100); hot = `성벽 +${up + 3}`; msg += ' · 좋은 석재 +3'; }
+      if (roll(0.2)) { const bonus = Math.min(3, Math.max(0, roomDef - up)); st.def = clamp(st.def + bonus, 0, capDef); hot = `성벽 +${up + bonus}`; msg += ' · 좋은 석재' + (bonus ? ` +${bonus}` : ''); }
       return { msg, hotKey: 'repair', hot, exp: 12 };
     } },
   };
@@ -11438,13 +11558,14 @@
     if (cs.troops < cap * 0.7 && s.gold >= 150 && s.food >= 120 && cs.pop > 12000 && once('recruit')) return 'recruit';
     /* v5.56 — 징병으로 훈련도가 내려갔거나 72 아래면 훈련을 먼저 챙긴다 */
     if ((cs.trainAlert || trNow < 72) && s.gold >= 80 && once('train')) return 'train';
-    if (cs.def < 65 && s.gold >= 120 && once('repair')) return 'repair';
-    if (s.food < upkeepOf(s) * 4 && s.gold >= 100 && once('farm')) return 'farm';   // v5.4 — 유지비 4개월치 아래면 비상 개간
-    if (s.gold < 6000 && s.food >= 80 && (n.trade || 0) < 2) return 'trade';
-    if (cs.def < 92 && s.gold >= 120 && once('repair')) return 'repair';
+    /* v6.14b — 시설 상한에 닿은 내정(개간·상업·보수)은 고르지 않는다 */
+    if (cs.def < 65 && s.gold >= 120 && once('repair') && !domActBlocked(cs, 'repair')) return 'repair';
+    if (s.food < upkeepOf(s) * 4 && s.gold >= 100 && once('farm') && !domActBlocked(cs, 'farm')) return 'farm';   // v5.4 — 유지비 4개월치 아래면 비상 개간
+    if (s.gold < 6000 && s.food >= 80 && (n.trade || 0) < 2 && !domActBlocked(cs, 'trade')) return 'trade';
+    if (cs.def < 92 && s.gold >= 120 && once('repair') && !domActBlocked(cs, 'repair')) return 'repair';
     if (s.gold >= 80 && once('train')) return 'train';
     if (cs.loyalty < 70 && s.gold >= 100 && once('comfort')) return 'comfort';
-    if (s.gold >= 100 && (n.farm || 0) < 2) return 'farm';
+    if (s.gold >= 100 && (n.farm || 0) < 2 && !domActBlocked(cs, 'farm')) return 'farm';
     return null;
   }
 
@@ -11527,7 +11648,7 @@
       const at = (rows[0] && rows[0][1] === 'comfort' && rows[0][0]) ? 1 : 0;
       rows.splice(at, 0, [true, 'train']);
     }
-    const hit = rows.find((r) => r[0]);
+    const hit = rows.find((r) => r[0] && !domActBlocked(cs, r[1]));
     return hit ? hit[1] : null;
   }
 
@@ -11604,7 +11725,9 @@
         if (!actor) { idle = '일할 장수가 남지 않았습니다'; break; }
         const key = chooseAutoAction(c.id, done);
         if (!key) {
-          idle = (s.gold < 200) ? '군자금 200 미만이라 아껴 두었습니다' : '지금 시킬 내정이 없습니다';
+          /* v6.14b — 시설 상한 때문에 할 일이 없어진 경우는 그 이유를 적는다 */
+          const capHit = domCapIdleNote(cs);
+          idle = (s.gold < 200) ? '군자금 200 미만이라 아껴 두었습니다' : (capHit || '지금 시킬 내정이 없습니다');
           break;
         }
         const name = AUTO_ACT_NAME[key] || (CMDS[key] && CMDS[key].name) || '내정';
@@ -11892,7 +12015,10 @@
         const actor = cityGens(c.id).find((g) => !g.actedThisMonth && !SK.researchOf(g));
         if (!actor) { idle = '대기 중인 장수가 없습니다'; break; }
         const key = chooseDelegatedAction(c.id, done);
-        if (!key) { idle = (s.gold < 150 ? '이 성 군자금이 모자랍니다' : '지금 시킬 내정이 없습니다'); break; }
+        if (!key) {
+          idle = (s.gold < 150 ? '이 성 군자금이 모자랍니다' : (domCapIdleNote(cs) || '지금 시킬 내정이 없습니다'));
+          break;
+        }
         const res = key === 'comfort' ? comfortCity(c.id, actor) : CMDS[key].run(c.id, actor);
         if (key === 'comfort') {
           if (!res || !res.ok) { idle = '군자금이 모자라 백성 위로를 못 했습니다'; break; }
@@ -12095,7 +12221,16 @@
   function buildAdvice(sit) {
     const { s, cs, ready, foes, cap, talents } = sit;
     const items = [];
-    const push = (o) => { if (!items.some((x) => x.key === o.key)) items.push(o); };
+    /* v6.14b — 시설 상한에 닿은 내정은 권하지 않고, 이유를 모아 창 아래에 적는다 */
+    const capNotes = [];
+    const push = (o) => {
+      if (domActBlocked(cs, o.key)) {
+        const stat = DOM_ACT_STAT[o.key];
+        if (stat && !capNotes.some((n) => n.stat === stat)) capNotes.push({ stat, key: o.key, text: domCapWhy(cs, stat) });
+        return;
+      }
+      if (!items.some((x) => x.key === o.key)) items.push(o);
+    };
     const topFoe = foes[0] || null;
     const weakFoe = foes.slice().sort((a, b) => a.troops - b.troops)[0] || null;
     const capGap = cap - cs.troops;
@@ -12171,7 +12306,7 @@
         body: `민심 ${Math.round(cs.loyalty)} · 병력 ${fmt(cs.troops)}/${fmt(cap)} · 성벽 ${Math.round(cs.def)} · 금 ${fmt(s.gold)} · 군량 ${fmt(s.food)}. 급한 곳은 없으니 훈련으로 장수들을 키우십시오.`,
         label: '병영 · 훈련 (금 80)', short: '훈련' });
     }
-    return items.slice(0, 4);
+    return (() => { const top = items.slice(0, 4); top.capNotes = capNotes; return top; })();
   }
 
   const TONE_LABEL = { urgent: '급함', warn: '주의', info: '권장', good: '기회' };
@@ -12182,6 +12317,7 @@
     if (!adv) { openAdvisorPick(cityId); return; }
     if (!sit.cs.advisor) { sit.cs.advisor = adv.uid; SK.save(); }
     const items = buildAdvice(sit);
+    const capNotes = items.capNotes || [];
     const top = items[0];
     const c = CITY[cityId];
     const rows = items.map((it) => `<div class="advice-row ${it.tone}">
@@ -12189,6 +12325,10 @@
         <p>${it.body}</p>
         <span class="advice-go">${it.label}</span>
       </div>`).join('');
+    /* v6.14b — 상한에 걸린 내정 안내 (누르면 [시설] 탭에서 증축하라고 알린다) */
+    const capHtml = capNotes.length
+      ? `<div class="advice-cap"><b>시설 상한</b>${capNotes.map((n) => `<p>${n.text}</p>`).join('')}</div>`
+      : '';
     SK.modal({
       kicker: `${c.name} 군사 조언`,
       title: `${adv.name}의 조언`,
@@ -12203,6 +12343,7 @@
           ${sit.foes.length ? ` · 이웃 적성 ${sit.foes.map((f) => `${f.name}(${fmt(f.troops)})`).join(' · ')}` : ' · 이웃에 적성이 없습니다'}
           ${sit.talents.length ? ` · 주점 인재 ${sit.talents.length}명` : ''}</p>
         <div class="advice-list">${rows}</div>
+        ${capHtml}
         <p class="office-note">조언은 행동력을 쓰지 않습니다. 진행을 누를 때만 장수 한 명의 이번 달 행동이 쓰입니다.</p>
       </div>`,
       wide: true,
@@ -15638,16 +15779,21 @@
       const trNow = st.train == null ? 50 : Math.round(st.train);
       st.train = clamp(trNow + (trNow < 72 ? 3 : 1) + Math.round(3 * boost), 0, 100);
       st.pop = Math.round((st.pop || 10000) * (1.003 + 0.004 * boost));
-      if (st.def < 95 && Math.random() < 0.4 + 0.35 * boost) {
-        st.def = Math.min(100, st.def + (boost > 0.5 && Math.random() < 0.4 ? 2 : 1));
+      /* v6.14b — AI도 같은 시설 상한을 쓴다. AI 성은 시설을 직접 올리지 않으므로
+         세력이 커진 만큼(boost 0→1) 시설 Lv을 1→5로 함께 올려 잡는다.
+         →초반 Lv.1(상한 60)·중반 Lv.2~3·후반 Lv.4~5(상한 100)로 예전 성장 곡선을 지킨다. */
+      const aiFacLv = clamp(1 + Math.round(boost * 4), 1, 5);
+      const aiDomCap = DOM_CAP_STEPS[aiFacLv - 1];
+      if (st.def < Math.min(95, aiDomCap) && Math.random() < 0.4 + 0.35 * boost) {
+        st.def = domGrow(st.def, boost > 0.5 && Math.random() < 0.4 ? 2 : 1, Math.min(100, aiDomCap));
       }
-      /* 내정 — 농업·상업·치안 (중후반엔 95를 넘어 100까지) */
-      const pollCap = 95 + Math.round(5 * boost);
+      /* 내정 — 농업·상업·치안 (시설 상한 안에서) */
+      const pollCap = Math.min(95 + Math.round(5 * boost), aiDomCap);
       const pollP = 0.62 + 0.3 * boost;
-      if (st.agri < pollCap) st.agri = clamp(Math.round((st.agri || 50) + (Math.random() < pollP ? 1 : 0)), 0, 100);
-      if (st.comm < pollCap) st.comm = clamp(Math.round((st.comm || 50) + (Math.random() < pollP ? 1 : 0)), 0, 100);
+      if (st.agri < pollCap) st.agri = domGrow(st.agri || 50, Math.random() < pollP ? 1 : 0, pollCap);
+      if (st.comm < pollCap) st.comm = domGrow(st.comm || 50, Math.random() < pollP ? 1 : 0, pollCap);
       const oq = st.order == null ? 55 : st.order;
-      if (oq < 92) st.order = clamp(Math.round(oq + (Math.random() < 0.45 + 0.3 * boost ? 1 : 0)), 0, 100);
+      if (oq < Math.min(92, aiDomCap)) st.order = domGrow(oq, Math.random() < 0.45 + 0.3 * boost ? 1 : 0, Math.min(100, aiDomCap));
       if (st.loyalty < 82 && Math.random() < 0.35) st.loyalty = clamp(st.loyalty + 1, 0, 100);
       /* 장수 성장 — 경험치·공훈치·레벨업 */
       aiGenBook(st);
@@ -17436,10 +17582,14 @@
       ids.forEach((id) => {
         const c = SK.CITY[id], cs = s.cities[id];
         if (!c || !cs) return;
-        if ((cs.gold || 0) >= 380 && (cs.agri < 92 || cs.comm < 92)) {
+        /* v6.14b — 군단 자동 내정도 시설 Lv 상한 안에서만 오른다 */
+        const capA = domCapOf(cs, 'agri'), capC = domCapOf(cs, 'comm');
+        if ((cs.gold || 0) >= 380 && (cs.agri < Math.min(92, capA) || cs.comm < Math.min(92, capC))) {
           cs.gold -= 150;
-          if (cs.agri <= cs.comm) cs.agri = clamp((cs.agri || 0) + 4, 0, 100);
-          else cs.comm = clamp((cs.comm || 0) + 4, 0, 100);
+          if (cs.agri >= Math.min(92, capA)) cs.comm = domGrow(cs.comm, 4, capC);
+          else if (cs.comm >= Math.min(92, capC)) cs.agri = domGrow(cs.agri, 4, capA);
+          else if (cs.agri <= cs.comm) cs.agri = domGrow(cs.agri, 4, capA);
+          else cs.comm = domGrow(cs.comm, 4, capC);
           developed += 1;
         }
         const room = Math.max(0, cityCap(cs) - Math.round(cs.troops || 0));
@@ -18082,13 +18232,13 @@
       st.troops = clamp(st.troops + draftGain, 0, cityCap(st));
       pop += Math.max(0, Math.round(st.troops - troopsBefore));
       st.pop = Math.min(cityPopCap(c), st.pop);
-      if (st.def < 100 && Math.random() < 0.25) st.def = clamp(st.def + 1, 0, 100);
+      if ((st.def < Math.min(100, domCapOf(st, 'def'))) && Math.random() < 0.25) st.def = domGrow(st.def, 1, domCapOf(st, 'def'));
       /* v5.40 — 정책의 매달 민심 (농업 +2 · 전시 -1) + 보물 민심(+N% → 그 확률로 +1) */
       st.loyalty = clamp(st.loyalty + (Math.random() < 0.5 ? 1 : -1) + taxRate.loyal + (pfxMonth.loyalty || 0), 0, 100);
       if (Math.random() < Math.min(0.4, cityTfx(c.id, 'loyalty', 40) / 100)) st.loyalty = clamp(st.loyalty + 1, 0, 100);
       // 엉망인 성은 조금씩 스스로 회복한다
-      if (st.agri < 45 && Math.random() < 0.3) st.agri = clamp(st.agri + 1, 0, 100);
-      if (st.comm < 45 && Math.random() < 0.3) st.comm = clamp(st.comm + 1, 0, 100);
+      if (st.agri < Math.min(45, domCapOf(st, 'agri')) && Math.random() < 0.3) st.agri = domGrow(st.agri, 1, domCapOf(st, 'agri'));
+      if (st.comm < Math.min(45, domCapOf(st, 'comm')) && Math.random() < 0.3) st.comm = domGrow(st.comm, 1, domCapOf(st, 'comm'));
     });
     /* v5.12 — 대상인: 시장이 큰 성을 우선으로 가끔 찾아와 2개월 머문다.
        (남은 달은 grandMerchant에 저장. 군량 특가 + 보물 판매) */

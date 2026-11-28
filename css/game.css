@@ -10091,3 +10091,36 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 #screen-city.corps-locked .city-pane[data-pane="generals"] .ap-delegate { opacity: .5; filter: grayscale(.4); cursor: not-allowed; }
 /* display:flex 를 주면 [hidden] 기본 규칙을 이긴다 → 숨김은 따로 못박는다 (일반 전투에 관전 바가 남지 않게) */
 .spectate-bar[hidden] { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v6.14b — 시설 레벨별 내정 상한 표시
+   · 내정 카드 값 옆 '/60' · 시설 카드 '상한 60' 배지
+   · 시설 상세창의 상한 막대 · 조언 창의 상한 안내
+   ═══════════════════════════════════════════════════════════════ */
+.city-dev .dc-val .dc-cap { margin-left: 1px; font-family: var(--sans, sans-serif); font-size: 9px; font-weight: 800;
+  font-style: normal; color: #8a7448; letter-spacing: -0.02em; }
+.city-dev .dc-val .dc-cap.on { color: #8a3a20; }
+/* 시설 카드 배지 — [증축] 알약과 같은 크기, 상한에 닿으면 먹빛 테두리 */
+.sc-owner .sc-cap { margin-left: auto; flex: 0 0 auto; font-size: 7px; font-weight: 900; color: #7c2f22;
+  background: #f7ddc9; border: 1px solid #c9896f; border-radius: 6px; padding: 0 3px; white-space: nowrap; line-height: 1.35; }
+.sc-owner .sc-cap + .sc-up, .sc-owner .sc-up + .sc-cap { margin-left: 3px; }
+.sc-owner .sc-up { margin-left: auto; }
+.sc-owner .sc-up ~ .sc-cap { margin-left: 3px; }
+/* 시설 상세창 상한 막대 */
+.slot-capbox { margin: 6px 0 2px; padding: 6px 8px; border-radius: 8px; background: rgba(246, 238, 218, 0.8);
+  border: 1px dashed rgba(150, 120, 60, 0.45); }
+.slot-capbox.on { background: rgba(250, 231, 214, 0.9); border-color: rgba(168, 68, 58, 0.5); }
+.slot-capbox .scb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.slot-capbox .scb-head b { font-size: 9.5px; color: #4a3a1a; }
+.slot-capbox .scb-head span { font-size: 9px; font-weight: 900; color: #7a5a1c; }
+.slot-capbox.on .scb-head span { color: #a8443a; }
+.slot-capbox .scb-bar { display: block; height: 5px; border-radius: 3px; background: #d8c8a2; overflow: hidden; margin: 3px 0 2px; }
+.slot-capbox .scb-bar s { display: block; height: 100%; text-decoration: none; background: linear-gradient(90deg, #8f6f28, #c9a24e); }
+.slot-capbox.on .scb-bar s { background: linear-gradient(90deg, #a8443a, #d98a70); }
+.slot-capbox p { margin: 2px 0 0; font-size: 9px; line-height: 1.45; color: #6d5a30; }
+.slot-capbox p b { color: #8a3a20; }
+/* 조언 창 상한 안내 */
+.advice-cap { margin: 6px 0 2px; padding: 6px 8px; border-radius: 8px; background: rgba(250, 231, 214, 0.75);
+  border: 1px dashed rgba(168, 68, 58, 0.45); }
+.advice-cap > b { display: block; font-size: 9.5px; color: #8a3a20; margin-bottom: 2px; }
+.advice-cap p { margin: 0; font-size: 9px; line-height: 1.45; color: #6d4a34; }
