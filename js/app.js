@@ -6060,6 +6060,13 @@
     /* v5.10 — 주점 배속 자동 탐색은 주점 레벨만큼 보너스를 얻는다 (최대 +50%) */
     const boost = clamp((opts && opts.boost) || 0, 0, 0.5);
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    /* v6.9b — 탐색 랜덤 인카운터. 매력 80+ 10% 설전 · 무력 80+ 5% 일기토.
+       걸리면 이번 탐색의 사건은 인카운터 하나이고(금·군량·보물 보상 없음),
+       주점 배속 자동 탐색(opts가 있는 호출)은 고를 사람이 없으니 열지 않는다. */
+    if (!opts) {
+      const enc = encRoll(cityId, actor);
+      if (enc) return { ok: true, kind: 'encounter', enc };
+    }
     /* v5.12 — 탐색 실패. 장수의 (지력+매력)/2 가 낮을수록 산길을 헤맨다.
        90+ 5% · 70 18% · 50 36% · 주점 보너스가 있으면 실패가 줄어든다. */
     const avg = actor ? (effStat(actor, 'ji') + effStat(actor, 'cha')) / 2 : 60;
@@ -6175,11 +6182,17 @@
       const picked = pool.filter((g) => sel.has(g.uid));
       if (!picked.length) { SK.toast('보낼 장수를 체크하세요.'); return; }
       const out = [];
+      const encs = [];            // v6.9b — 인카운터는 결과 창을 닫은 뒤 차례로 연다
       let freedN = 0;
       picked.forEach((actor) => {
         const freed = consumeDispatch(cityId, actor);
         if (freed) freedN += 1;
         const res = explore(cityId, actor);
+        if (res && res.kind === 'encounter' && res.enc) {
+          SK.gainExp(actor, 26);
+          encs.push({ actor, enc: res.enc });
+          return;
+        }
         if (!res || !res.ok) {
           out.push({ name: actor.name, kind: 'fail', title: '탐색 실패', text: '', gain: (res && res.msg) || '아무것도 찾지 못했습니다', fail: true, freed });
           return;
@@ -6191,26 +6204,33 @@
       SK.save(); SK.refreshHud();
       SK.openCity(cityId);
       SK.sfx.play('coin');
-      /* 한 명만 보냈으면 그 장수의 사연을 한 창에 그대로 보여 준다 (탭을 없앤 대신 결은 그대로) */
-      if (out.length === 1) {
-        const r = out[0];
+      /* v6.9b — 인카운터가 걸린 장수가 있으면 그 사건을 먼저 차례로 겪고,
+         끝난 뒤에 나머지 장수의 탐색 결과 창을 연다 */
+      const showSummary = () => {
+        if (!out.length) return;
+        /* 한 명만 보냈으면 그 장수의 사연을 한 창에 그대로 보여 준다 (탭을 없앤 대신 결은 그대로) */
+        if (out.length === 1) {
+          const r = out[0];
+          SK.modal({
+            kicker: `${CITY[cityId].name} 탐색 · ${r.name}`, title: r.title,
+            body: `<div class="explore-card ${r.kind}"><p>${r.text || r.gain}</p>${r.text ? `<b>${r.gain}</b>` : ''}${r.freed ? `<em class="ex-duty">${r.freed} 배속을 풀고 내보냈습니다</em>` : ''}</div>`,
+            actions: [{ label: '확인', primary: true }],
+          });
+          return;
+        }
+        const good = out.filter((r) => !r.fail).length;
         SK.modal({
-          kicker: `${CITY[cityId].name} 탐색 · ${r.name}`, title: r.title,
-          body: `<div class="explore-card ${r.kind}"><p>${r.text || r.gain}</p>${r.text ? `<b>${r.gain}</b>` : ''}${r.freed ? `<em class="ex-duty">${r.freed} 배속을 풀고 내보냈습니다</em>` : ''}</div>`,
-          actions: [{ label: '확인', primary: true }],
-        });
-        return;
-      }
-      const good = out.filter((r) => !r.fail).length;
-      SK.modal({
-        kicker: `${CITY[cityId].name} 탐색 · ${out.length}명`, title: '탐색 결과',
-        body: `<p class="talent-note"><b>${out.length}명</b>을 한 번에 보냈습니다 — 성과 ${good}건${freedN ? ` · 건물 담당 ${freedN}명은 배속을 풀고 나갔습니다` : ''}. 보낸 장수는 이번 달 행동을 마쳤습니다.</p>
+          kicker: `${CITY[cityId].name} 탐색 · ${out.length}명`, title: '탐색 결과',
+          body: `<p class="talent-note"><b>${out.length}명</b>을 한 번에 보냈습니다 — 성과 ${good}건${freedN ? ` · 건물 담당 ${freedN}명은 배속을 풀고 나갔습니다` : ''}. 보낸 장수는 이번 달 행동을 마쳤습니다.</p>
           <div class="exr-list">${out.map((r) => `<div class="exr-row ${r.fail ? 'fail' : ''}">
             <b>${r.name}</b>
             <div><span>${r.title}</span><em>${r.gain}</em></div>
           </div>`).join('')}</div>`,
-        actions: [{ label: '확인', primary: true }],
-      });
+          actions: [{ label: '확인', primary: true }],
+        });
+      };
+      if (encs.length) { runExploreEncounters(cityId, encs, showSummary); return; }
+      showSummary();
     };
 
     const render = (m) => {
@@ -6219,14 +6239,14 @@
           <button id="ex-none">선택 해제</button>
           <b id="ex-count">${sel.size}명 선택</b>
         </div>`;
-      const note = `<p class="talent-note"><b>보낼 장수를 체크하고 아래 [탐색 보내기]를 누르세요.</b> 한 명만 체크해도 그대로 한 명 탐색입니다. 탐색은 금이 들지 않고, 고른 장수마다 이번 달 행동을 씁니다. 매력·지력이 높을수록 보물·인재를 더 잘 찾습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.</p>`;
+      const note = `<p class="talent-note"><b>보낼 장수를 체크하고 아래 [탐색 보내기]를 누르세요.</b> 한 명만 체크해도 그대로 한 명 탐색입니다. 탐색은 금이 들지 않고, 고른 장수마다 이번 달 행동을 씁니다. 매력·지력이 높을수록 보물·인재를 더 잘 찾습니다. 건물 담당 중인 장수를 고르면 그 배속은 지금 풀립니다.<br><b>매력 80 이상</b>이면 10% 확률로 재야 장수와 <b>설전</b>, <b>무력 80 이상</b>이면 5% 확률로 <b>일기토</b>가 벌어집니다 — 이기면 그 장수가 아군이 됩니다(설전 승리 충성 100 · 일기토 승리 충성 55).</p>`;
       const cards = pool.map((g, i) => {
         const on = sel.has(g.uid);
         return `<button class="target-card ex-pick ${on ? 'on' : ''}" data-pick="${g.uid}">
           <span class="ex-check ${on ? 'on' : ''}">✓</span>
           <img class="tc-portrait gold ${SK.tcls(g)}" src="${SK.ptSrc(g.portrait)}" alt="">
           <div class="tc-main"><b>${g.name}${i === 0 ? ' <em class="duty-reco">추천</em>' : ''}</b>
-            <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span></div>
+            <span>${SK.CLASSES[g.cls].name} · Lv.${g.lv}${dutyTail(cityId, g)}</span>${encTagHtml(g)}</div>
           <div class="tc-troops"><span>매력 ${g.cha} · 지력 ${g.ji}</span><b class="tc-state${g.actedThisMonth ? ' done' : ''}">${g.actedThisMonth ? '이번 달 완료' : '파견 가능'}</b></div>
           <span class="tc-go">▸</span></button>`;
       }).join('');
@@ -6270,6 +6290,305 @@
     render(m);
   }
   SK.openExplore = openExplore;
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.9b — 탐색 랜덤 인카운터 (매력 설전 10% · 무력 일기토 5%)
+     · [탐색]을 보낸 장수의 매력이 80 이상이면 10%, 무력이 80 이상이면 5%
+       확률로 재야 장수와 마주친다(둘 다면 설전을 먼저 굴리고, 한 번에 한 사건).
+     · 설전 승리 → 그 재야 장수가 아군으로(충성 100, 주점 등용과 같은 합류)
+       일기토 승리 → 충성 55로 합류(무력으로 굴복시킨다)
+     · 패배·무승부 → 등용 없이 끝(꽝). 인카운터가 뜬 탐색은 그 달의 사건이
+       이것 하나이므로 금·군량·보물 같은 기존 탐색 보상은 나오지 않는다.
+     · 주점 배속 자동 탐색(opts가 있는 explore 호출)은 고를 사람이 없으므로 열지 않는다.
+     · 검수 훅: SK.encounter = { odds, thresholds, pool, roll, open, debug }
+     ══════════════════════════════════════════════════════════════ */
+  const ENC = {
+    charmMin: 80,      /* 매력 80 이상 — S급 대부분 · A급 상당수 */
+    warMin: 80,        /* 무력 80 이상 — S급 무장 · A급 맹장 */
+    charmRate: 0.10,
+    warRate: 0.05,
+    gauge: 60,         /* 기세·HP */
+    rounds: 3,         /* 최대 3합 */
+  };
+  const ENC_TIER_W = { S: 1, A: 2, B: 3, C: 3 };   /* 재야 후보 가중치 — S급은 드물게 */
+  let encRng = Math.random;
+  const encClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /* 탐색 카드에 붙는 인카운터 배지 */
+  function encTagHtml(g) {
+    const cha = effStat(g, 'cha'), wu = effStat(g, 'wu');
+    const t = [];
+    if (cha >= ENC.charmMin) t.push('<em class="ex-enc-tag">설전 10%</em>');
+    if (wu >= ENC.warMin) t.push('<em class="ex-enc-tag duel">일기토 5%</em>');
+    return t.length ? `<span class="ex-enc-tags">${t.join('')}</span>` : '';
+  }
+
+  /* 설전 상대는 말이 통하는 지장(문관) — 아니면 지력 70 이상 */
+  function encDebateFit(g) {
+    const cls = SK.genClass(g);
+    if (cls === 'chaeksa' || cls === 'pungsusa' || cls === 'dosa' || cls === 'muhui' || cls === 'gunakdae') return true;
+    return (g.intel || 0) >= 70;
+  }
+
+  /* 재야 후보 — ① 아직 어느 세력에도 속하지 않은 재야(같은 계열 → 같은 권역)
+     ② 주점·은거 소문으로 기다리는 재야 장수. 190년처럼 ①이 비어 있어도
+     성에 앉아 있는 인재를 산길에서 마주칠 수 있게 해 사건이 늘 살아 있게 한다. */
+  function encPool(cityId, type) {
+    const s = SK.state;
+    if (!s) return [];
+    const list = [];
+    const seen = new Set();
+    const push = (g) => { if (g && g.id != null && !seen.has(g.id)) { seen.add(g.id); list.push(g); } };
+    if (SK.choiceTalentPool) {
+      let free = SK.choiceTalentPool(s, false);
+      if (!free.length) free = SK.choiceTalentPool(s, true);
+      free.forEach(push);
+    }
+    Object.keys(s.cities || {}).forEach((cid) => {
+      const cs = s.cities[cid];
+      ((cs && cs.talents) || []).forEach((id) => {
+        const g = SK.GEN_BY_ID[id];
+        if (g && SK.debutOk(g, eraYearOf(s)) && !SK.isDead(g.id, g.name)) push(g);
+      });
+    });
+    if (!list.length) return [];
+    const fit = list.filter((g) => (type === 'debate' ? encDebateFit(g) : (g.war || 0) >= 70));
+    return fit.length ? fit : list;
+  }
+
+  function encPickFoe(cityId, type) {
+    const pool = encPool(cityId, type);
+    if (!pool.length) return null;
+    const tw = pool.map((g) => ENC_TIER_W[g.tier] || 2);
+    let r = encRng() * tw.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < pool.length; i++) { r -= tw[i]; if (r <= 0) return pool[i]; }
+    return pool[pool.length - 1];
+  }
+
+  /* 탐색 한 번에 인카운터가 열리는가 — 매력 설전 10% · 무력 일기토 5%를 따로 굴리고,
+     둘 다 걸리면 설전을 먼저 연다(한 번의 탐색에 한 사건만) */
+  function encRoll(cityId, actor) {
+    if (!actor) return null;
+    const cha = effStat(actor, 'cha');
+    const wu = effStat(actor, 'wu');
+    const hitD = cha >= ENC.charmMin && encRng() < ENC.charmRate;
+    const hitW = wu >= ENC.warMin && encRng() < ENC.warRate;
+    if (hitD) {
+      const g = encPickFoe(cityId, 'debate');
+      if (g) return { type: 'debate', gid: g.id };
+    }
+    if (hitW) {
+      const g = encPickFoe(cityId, 'duel');
+      if (g) return { type: 'duel', gid: g.id };
+    }
+    return null;
+  }
+
+  /* 설전 3수 — 지력·매력 판정 / 일기토 3수 — 무력 판정
+     아이콘은 폰마다 같은 모양이 나오게 이모지 대신 SVG로 그린다(v5.92 규칙) */
+  const ENC_ICON = {
+    argue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
+    wit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.2"/><path d="M8.6 14c1 1.8 5.8 1.8 6.8 0"/><circle cx="9.4" cy="9.8" r="1" fill="currentColor" stroke="none"/><circle cx="14.6" cy="9.8" r="1" fill="currentColor" stroke="none"/></svg>',
+    quibble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 14c2.6-7 5.2 7 7.8 0S16 21 18.6 14 21 9 21 9"/><path d="M18 7.4h3v3"/></svg>',
+    strike: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 3.6l6.8 6.8-7.6 7.6-4.2 1.4 1.4-4.2z"/><path d="M4.6 19.4l2.6-2.6"/></svg>',
+    feint: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3.2 8h9.6M3.2 12h13.6M3.2 16h7.6"/><path d="M18.6 12l3-0.2"/></svg>',
+    counter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 2.8l7.2 2.6v6.1c0 4.2-3 7.1-7.2 8.7-4.2-1.6-7.2-4.5-7.2-8.7V5.4L12 2.8z"/><path d="M8.6 12.4l2.4 2.4 4.4-4.6" stroke-linecap="round"/></svg>',
+  };
+  const ENC_DEBATE_MOVES = [
+    { k: 'argue', name: '정론', ico: ENC_ICON.argue, stat: 'ji', mod: 0.06, mul: 1, tip: '지력 · 안정' },
+    { k: 'wit', name: '해학', ico: ENC_ICON.wit, stat: 'cha', mod: 0.02, mul: 1, tip: '매력 · 유연' },
+    { k: 'quibble', name: '궤변', ico: ENC_ICON.quibble, stat: 'both', mod: -0.06, mul: 1.3, tip: '지력·매력 · 도박' },
+  ];
+  const ENC_DUEL_MOVES = [
+    { k: 'strike', name: '강공', ico: ENC_ICON.strike, stat: 'wu', mod: 0.08, mul: 1, tip: '무력 · 정면' },
+    { k: 'feint', name: '견제', ico: ENC_ICON.feint, stat: 'wu', mod: 0, mul: 1, tip: '무력 · 무난' },
+    { k: 'counter', name: '반격', ico: ENC_ICON.counter, stat: 'wu', mod: -0.05, mul: 1.35, tip: '무력 · 한 방' },
+  ];
+
+  /* 인카운터가 걸린 장수를 차례로 겪고, 다 끝나면 done(탐색 결과 창)을 부른다 */
+  function runExploreEncounters(cityId, list, done) {
+    let i = 0;
+    const next = () => {
+      if (i >= list.length) { if (done) done(); return; }
+      const it = list[i++];
+      openEncounter(cityId, it.actor, it.enc, next);
+    };
+    next();
+  }
+  SK.runExploreEncounters = runExploreEncounters;
+
+  function openEncounter(cityId, actor, enc, done) {
+    const s = SK.state;
+    const g = enc && SK.GEN_BY_ID[enc.gid];
+    const finish = () => { if (done) done(); };
+    if (!s || !actor || !g) { finish(); return; }
+    const c = CITY[cityId];
+    const isDebate = enc.type === 'debate';
+    const moves = isDebate ? ENC_DEBATE_MOVES : ENC_DUEL_MOVES;
+    const foeStat = isDebate ? { ji: (g.intel || 60), cha: (g.charm || 60) } : { wu: (g.war || 60) };
+    const myStat = isDebate ? { ji: effStat(actor, 'ji'), cha: effStat(actor, 'cha') } : { wu: effStat(actor, 'wu') };
+    const clsName = (SK.CLASSES[SK.genClass(g)] || {}).name || '장수';
+    const st = {
+      hpA: ENC.gauge, hpD: ENC.gauge, round: 1, over: false,
+      line: isDebate
+        ? `${c.name} 산길에서 ${josa(g.name, 'eul')} 만났습니다. “어허, 이 산길에 웬 손님이지?” — 말재주로 마음을 열어 볼까요?`
+        : `${c.name} 외곽에서 ${josa(g.name, 'i')} 창을 세우고 길을 막았습니다. “지나가려면 이 몸과 겨뤄 보시오!” — 무력으로 붙어 봅니다.`,
+    };
+
+    const m = SK.modal({
+      kicker: `${c.name} 탐색 · ${isDebate ? '설전 인카운터' : '일기토 인카운터'}`,
+      title: `${isDebate ? '설전' : '일기토'} — ${g.name}`,
+      wide: true, dismissible: false,
+      body: '<div id="enc-root"></div>',
+      actions: [],
+    });
+    const root = m.el.querySelector('#enc-root');
+
+    /* 판정에 쓰는 능력치 — 궤변만 지력·매력 평균 */
+    function statOf(mv, side) {
+      const src = side === 'me' ? myStat : foeStat;
+      if (mv.stat === 'both') return ((src.ji || 0) + (src.cha || 0)) / 2;
+      return src[mv.stat] || 60;
+    }
+    function chanceOf(mv) {
+      return encClamp(0.5 + (statOf(mv, 'me') - statOf(mv, 'foe')) * 0.013 + (mv.mod || 0), 0.15, 0.88);
+    }
+
+    const bar = (who, hp, cls) => `<div class="enc-g ${cls}"><span>${who}</span>`
+      + `<div class="enc-bar"><i style="width:${encClamp(Math.round((hp / ENC.gauge) * 100), 0, 100)}%"></i></div>`
+      + `<b>${Math.max(0, Math.round(hp))}</b></div>`;
+
+    function renderFight() {
+      const btns = moves.map((mv) => `<button class="enc-mv" data-mv="${mv.k}">
+          <span class="enc-mv-ico">${mv.ico}</span><b>${mv.name}</b>
+          ${isDebate ? `<span class="enc-mv-pct">${Math.round(chanceOf(mv) * 100)}%</span>` : ''}
+          <em>${mv.tip}</em></button>`).join('');
+      root.innerHTML = `<div class="enc ${isDebate ? 'debate' : 'duel'}">
+        <div class="enc-foe">
+          <img class="enc-pt ${SK.tcls(g)}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+          <div class="enc-foe-main"><b>${g.name}</b><span>${clsName} · ${g.tier}급 재야</span>
+            <em>${isDebate ? `지력 ${g.intel} · 매력 ${g.charm}` : `무력 ${g.war}`}</em></div>
+          <span class="enc-tag">${isDebate ? '설전' : '일기토'}</span>
+        </div>
+        <p class="enc-say">${st.line}</p>
+        ${bar(actor.name, st.hpA, 'me')}${bar(g.name, st.hpD, 'foe')}
+        <div class="enc-mv-row">${btns}</div>
+        <p class="enc-hint">${isDebate
+          ? '지력·매력으로 판정합니다 — 유리한 말재주를 고르세요.'
+          : '무력으로 판정합니다 — 이기면 재야 장수가 충성 55로 합류합니다.'} <b>${st.round} / ${ENC.rounds}합</b></p>
+      </div>`;
+      root.querySelectorAll('[data-mv]').forEach((b) => { b.onclick = () => play(b.dataset.mv); });
+    }
+
+    function play(k) {
+      const mv = moves.filter((x) => x.k === k)[0];
+      if (!mv || st.over) return;
+      SK.sfx.play('ui');
+      const a = statOf(mv, 'me'), b = statOf(mv, 'foe');
+      const win = encRng() < chanceOf(mv);
+      let dA = 0, dD = 0;
+      if (win) {
+        dD = Math.round(encClamp(20 + (a - b) * 0.2, 11, 34) * (mv.mul || 1));
+        dA = Math.round(encClamp(4 + Math.max(0, b - a) * 0.08, 1, 9));
+        st.line = isDebate
+          ? `${mv.ico} ${josa(actor.name, 'i')} ${mv.name}${hasBatchim(mv.name) ? '으로' : '로'} 몰아붙였습니다 — ${josa(g.name, 'i')} “크윽, 말문이…” (상대 기세 −${dD})`
+          : `${mv.ico} ${actor.name}의 ${mv.name}! 칼날이 스쳤습니다 — ${josa(g.name, 'i')} 한 걸음 물러섭니다. (상대 HP −${dD})`;
+      } else {
+        dA = Math.round(encClamp(19 + (b - a) * 0.2, 10, 32));
+        dD = Math.round(encClamp(4 + Math.max(0, a - b) * 0.08, 1, 9));
+        st.line = isDebate
+          ? `${mv.ico} ${josa(g.name, 'i')} 되받아쳤습니다 — “그 논리라면 내일 비가 오겠군.” (내 기세 −${dA})`
+          : `${mv.ico} 한 발 늦었습니다 — ${josa(g.name, 'i')} 파고들어 ${josa(actor.name, 'i')} 밀립니다. (내 HP −${dA})`;
+      }
+      st.hpA = Math.max(0, st.hpA - dA);
+      st.hpD = Math.max(0, st.hpD - dD);
+      st.round += 1;
+      const aDead = st.hpA <= 0, dDead = st.hpD <= 0;
+      if (aDead || dDead || st.round > ENC.rounds) { resolve(); return; }
+      renderFight();
+    }
+
+    function resolve() {
+      st.over = true;
+      const aDead = st.hpA <= 0, dDead = st.hpD <= 0;
+      let outcome;
+      if (dDead && !aDead) outcome = 'win';
+      else if (aDead && !dDead) outcome = 'lose';
+      else if (aDead && dDead) outcome = 'draw';
+      else outcome = st.hpD < st.hpA ? 'win' : st.hpD > st.hpA ? 'lose' : 'draw';
+      const joined = outcome === 'win' ? recruit() : false;
+      renderResult(outcome === 'win' && !joined ? 'draw' : outcome, joined);
+    }
+
+    /* 승리 — 그 재야 장수가 그 자리에서 아군이 된다 */
+    function recruit() {
+      const hero = makeHero(g.name, cityId, joinLevelOf(g));
+      if (!hero) return false;
+      hero.loyal = isDebate ? 100 : 55;
+      if (!SK.addHero(s, hero)) return false;
+      /* 주점·은거 소문 명단에서 같은 인물을 뺀다 */
+      Object.keys(s.cities || {}).forEach((cid) => {
+        const cs2 = s.cities[cid];
+        if (cs2 && Array.isArray(cs2.talents)) cs2.talents = cs2.talents.filter((id) => String(id) !== String(g.id));
+      });
+      s.fame = (s.fame || 0) + (isDebate ? 3 : 4);
+      if (isDebate) actor.ji = encClamp((actor.ji || 60) + 1, 1, 100);
+      else actor.wu = encClamp((actor.wu || 60) + 1, 1, 100);
+      SK.save(); SK.refreshHud();
+      return true;
+    }
+
+    function renderResult(outcome, joined) {
+      const head = outcome === 'win' ? (isDebate ? '설전 승리!' : '일기토 승리!')
+        : outcome === 'draw' ? '무승부' : (isDebate ? '말이 통하지 않았다' : '일기토 패배');
+      const body = outcome === 'win'
+        ? (isDebate
+          ? `${josa(g.name, 'i')} “허, 제법인걸요. 이야기를 더 듣고 싶어졌습니다.”라며 함께 가겠다고 합니다.<br>설전에 감복해 <b>충성 100</b>으로 합류했습니다.`
+          : `${josa(g.name, 'i')} 무릎을 꿇습니다. “…강하군요. 이 몸, 따르겠습니다.”<br>무력에 굴복해 <b>충성 55</b>로 합류했습니다 — [포상]으로 마음을 잡으십시오.`)
+        : outcome === 'draw'
+          ? (isDebate ? '막상막하였습니다. 서로 고개만 끄덕이고 헤어졌습니다.' : '칼이 맞부딪힐 뿐 승부가 나지 않았습니다.')
+            + '<br>등용은 없던 일이 되었습니다(꽝).'
+          : (isDebate ? '상대의 말재주에 밀렸습니다. “다음에 다시 이야기하지.” — 발길을 돌립니다.'
+            : '상대의 창이 더 빨랐습니다. 흙을 털고 돌아섭니다.')
+            + '<br>등용은 없던 일이 되었습니다(꽝).';
+      const rows = outcome === 'win'
+        ? `<div class="enc-rows"><span>명성 <b>+${isDebate ? 3 : 4}</b></span><span>${isDebate ? '지력' : '무력'} <b>+1</b></span><span>충성 <b>${isDebate ? 100 : 55}</b></span><span>합류 <b>${g.name}</b></span></div>`
+        : `<div class="enc-rows"><span>등용 <b>없음</b></span><span>${isDebate ? '지력' : '무력'} <b>변동 없음</b></span></div>`;
+      root.innerHTML = `<div class="enc ${isDebate ? 'debate' : 'duel'} over">
+        <p class="enc-res-head ${outcome}">${head}</p>
+        <div class="enc-foe">
+          <img class="enc-pt ${SK.tcls(g)}${outcome === 'win' ? ' on' : ''}" src="${SK.ptSrc(SK.genPortrait(g))}" alt="">
+          <div class="enc-foe-main"><b>${g.name}</b><span>${clsName} · ${g.tier}급 재야</span>
+            <em>${isDebate ? `지력 ${g.intel} · 매력 ${g.charm}` : `무력 ${g.war}`}</em></div>
+          <span class="enc-tag">${isDebate ? '설전' : '일기토'}</span>
+        </div>
+        <p class="enc-say">${body}</p>
+        ${rows}
+        <button class="btn btn-primary enc-ok" id="enc-ok">확인</button>
+      </div>`;
+      const ok = root.querySelector('#enc-ok');
+      /* 합류가 있었으면 성 화면 장수 목록·HUD를 다시 그려 새 장수가 바로 보이게 한다 */
+      if (ok) ok.onclick = () => { m.close(); if (joined && SK.openCity) SK.openCity(cityId); setTimeout(finish, 80); };
+    }
+
+    renderFight();
+  }
+  SK.openEncounter = openEncounter;
+
+  /* 검수·디버그 훅 — 브라우저에서 인카운터를 강제로 열거나 확률을 세어 볼 수 있다 */
+  SK.encounter = {
+    odds: { charmRate: ENC.charmRate, warRate: ENC.warRate },
+    thresholds: { charmMin: ENC.charmMin, warMin: ENC.warMin },
+    gauge: ENC.gauge,
+    rounds: ENC.rounds,
+    pool: encPool,
+    roll: encRoll,
+    open: openEncounter,
+    tagHtml: encTagHtml,
+    /* 검수에서 난수를 고정하거나 확률을 셀 때 */
+    setRng: (fn) => { encRng = typeof fn === 'function' ? fn : Math.random; },
+    resetRng: () => { encRng = Math.random; },
+  };
 
   /* ═══════════ v5.12 — 징병 · 훈련도 장수를 직접 고른다 ═══════════
      탐색·등용과 같은 방식: 대기 장수가 먼저, 건물 담당은 아래.

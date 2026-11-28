@@ -9323,3 +9323,65 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
   .duel-fx-item.ink { width: 140px; height: 140px; }
   .duel-fx-item.ink.big { width: 172px; height: 172px; }
 }
+
+/* ══════════ v6.9b — 탐색 랜덤 인카운터 (매력 설전 10% · 무력 일기토 5%) ══════════
+   · 탐색 카드의 [설전 10%]/[일기토 5%] 배지 + 인카운터 창(상대 카드·기세 게이지·3수 버튼·결과)
+   · 인카운터 창은 modal-actions를 비우고 본문 안 [확인]만 쓴다 → 빈 액션 줄을 감춘다 */
+.modal-actions:empty { display: none; }
+.ex-enc-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.ex-enc-tag { font-style: normal; font-size: 9px; font-weight: 900; letter-spacing: -0.01em;
+  padding: 1px 5px; border-radius: 999px; color: #24523a; background: #e2f2e6; border: 1px solid #9cc9a8; }
+.ex-enc-tag.duel { color: #5a2c10; background: #ffe7cd; border-color: #dcae7d; }
+.enc { display: flex; flex-direction: column; gap: 8px; }
+.enc-foe { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 11px;
+  border: 1px solid #d7c093; background: linear-gradient(180deg, #fffaf0, #f4e8d0); }
+.enc.duel .enc-foe { border-color: #d3a37c; background: linear-gradient(180deg, #fff7ec, #f6e4cd); }
+.enc-pt { width: 54px; height: 54px; border-radius: 10px; object-fit: cover; object-position: 50% 18%;
+  background: #efe2c6; flex: 0 0 auto; border: 1.5px solid #d8b25c; }
+.enc.over .enc-pt.on { box-shadow: 0 0 0 2px #f0cd76, 0 0 10px rgba(240, 205, 118, 0.55); }
+.enc-foe-main { flex: 1 1 auto; min-width: 0; }
+.enc-foe-main b { display: block; font-family: var(--serif); font-size: 15px; color: #2c2412; letter-spacing: 0.01em; }
+.enc-foe-main span { display: block; font-size: 10px; color: #7c6636; font-weight: 700; }
+.enc-foe-main em { display: block; font-style: normal; font-size: 10.5px; color: #8a5a12; font-weight: 800; margin-top: 1px; }
+.enc-tag { flex: 0 0 auto; font-size: 9.5px; font-weight: 900; letter-spacing: 0.05em; padding: 3px 8px;
+  border-radius: 999px; color: #24422a; background: #dff0e2; border: 1px solid #9dc7a7; }
+.enc.duel .enc-tag { color: #4a2410; background: #ffe2c8; border-color: #d9a373; }
+.enc-say { margin: 0; font-size: 11.5px; line-height: 1.55; color: #4a3a1a; padding: 8px 10px;
+  border-radius: 10px; background: #fffdf7; border: 1px dashed #d7c093; }
+.enc-g { display: flex; align-items: center; gap: 6px; }
+.enc-g > span { flex: 0 0 60px; font-size: 10.5px; font-weight: 800; color: #4a3a1a;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.enc-bar { flex: 1 1 auto; height: 11px; border-radius: 999px; background: #e8dcc0;
+  border: 1px solid #cbb488; overflow: hidden; }
+.enc-bar i { display: block; height: 100%; border-radius: 999px; transition: width 0.32s ease; }
+.enc-g.me .enc-bar i { background: linear-gradient(90deg, #2f7a58, #6fce9c); }
+.enc-g.foe .enc-bar i { background: linear-gradient(90deg, #a3352e, #eb6158); }
+.enc-g b { flex: 0 0 24px; text-align: right; font-size: 11px; color: #33280f; font-variant-numeric: tabular-nums; }
+.enc-mv-row { display: flex; gap: 6px; }
+.enc-mv { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 7px 3px 6px; border-radius: 11px; border: 1px solid #c9a86f; cursor: pointer;
+  background: linear-gradient(180deg, #fffaf0, #f2e2c2); box-shadow: 0 2px 0 rgba(120, 90, 40, 0.16);
+  -webkit-tap-highlight-color: transparent; }
+.enc-mv:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(120, 90, 40, 0.16); }
+.enc-mv .enc-mv-ico { font-size: 16px; line-height: 1.15; }
+.enc-mv b { font-size: 12.5px; color: #33280f; letter-spacing: -0.02em; }
+.enc-mv-pct { font-size: 10px; font-weight: 900; color: #8a5a12; background: #fbf0d6;
+  border: 1px solid #e0c58c; border-radius: 6px; padding: 0 4px; line-height: 1.45; }
+.enc-mv em { font-style: normal; font-size: 9px; line-height: 1.25; color: #8a7448; text-align: center; }
+.enc-hint { margin: 0; font-size: 10px; line-height: 1.45; color: #877349; text-align: center; }
+.enc-hint b { color: #6d5525; }
+.enc-res-head { margin: 2px 0 0; text-align: center; font-family: var(--serif); font-size: 24px;
+  letter-spacing: 0.02em; color: #2c2412; }
+.enc-res-head.win { color: #a8741a; text-shadow: 0 1px 0 #fff4d2; }
+.enc-res-head.lose { color: #8a4a32; }
+.enc-res-head.draw { color: #6b5a34; }
+.enc-rows { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.enc-rows span { font-size: 10px; color: #6d5525; background: #fbf0d6; border: 1px solid #e0c58c;
+  border-radius: 8px; padding: 2px 7px; }
+.enc-rows b { color: #3a2c10; }
+.enc-ok { width: 100%; }
+/* v6.9b — 인카운터 수 아이콘(이모지 대신 SVG) 크기 */
+.enc-mv-ico svg { width: 18px; height: 18px; display: block; }
+.enc-mv-ico { color: #8a5a12; }
+.enc.duel .enc-mv-ico { color: #a3352e; }
+.enc-say svg { width: 13px; height: 13px; vertical-align: -2px; color: #8a5a12; }
