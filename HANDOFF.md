@@ -295,7 +295,7 @@
 
 | 캠페인 | 시작 | 내 대륙(열린 땅) | 통일하면 |
 | --- | --- | --- | --- |
-| 기본판 `jungwon` (무료) | 중원 28세력 | **요동 포함 비(非)한국 62거점** · 한반도 18거점 봉인 | **한국 보스 세력 침공**(`koreaBoss`) |
+| 기본판 `jungwon` (무료) | 중원 23세력(한국 세력은 목록에서 빠짐) | **요동 포함 비(非)한국 62거점** · 한반도 18거점 봉인 | **한국 보스 세력 침공**(`koreaBoss`) |
 | 한국 패키지 `korea` (4,900원) | 한반도+요동 19거점 · 한국 5세력 | **한반도 + 회랑 7곳**(산해관·북평·계·남피·업·평원·진양) · 중원 54거점 봉인 | 한반도 통일 + **업·진양·평원** → **중국 보스전**(`chinaBoss`) |
 
 - **모드**: `s.campaignMode`(`'jungwon'|'korea'`). `SK.campaignModeOf(s)`로 읽고, 옛 세이브는 자동으로 `jungwon`이다. `newState`가 `sc.mode === 'korea'`일 때만 `korea`로 시작한다.
@@ -305,6 +305,7 @@
 - **소환은 `SK.triggerBoss(side)`** — ⑴ `s.koreaBoss`/`s.chinaBoss = { at, fid }` ⑵ 봉인 해제 ⑶ 그 대륙의 남은 거점을 보스 세력(기본판 `goguryeo`, 한국 패키지 `caocao`)으로 넘김 ⑷ 성벽 +14 · 훈련도 78 · 병력 `perCity`(수도 17,000 / 중도시 13,500 / 소도시 11,500 / 관문·요새 12,500) ⑸ 정예 장수를 **성마다 최소 1명**(큰 성부터 2·3명) ⑹ 멸망한 세력 정리(`pruneLandlessFactions`) ⑺ 침공 창(`SK.showBossEvent`).
 - **정본 데이터는 `data/korea_campaign.json`** — `mode`·`factions`(시나리오 형식)·`bosses.korea`/`bosses.china`(faction·lord·intro·elites·perCity·defAdd·train). 정예 명단이나 보스 병력을 바꾸려면 이 파일만 고친다. `SK.loadKoreaCampaign()`이 `SK.HIST`에 id 914로 붙인다(연표·`histById` 호환).
 - **상품**: `js/dlc.js` `GOODS`의 `pack_korea`(`kind: 'pack'`, 4,900원). `SK.DLC.hasKorea()` / `SK.DLC.hasPack('pack_korea')`. 해금은 `grantGoods`·`revokeGoods`·`SK.DlcBilling.onPurchaseSuccess('pack_korea')`. **Billing 상품은 37종**(영웅 30 + 편의·후원 2 + 세이브 슬롯 4 + 한국 패키지 1).
+- **세력 선택**: `openFactionPicker(sc, {korea:true})`면 한국 5세력만, 아니면 **한국 세력을 뺀 중원 23세력**만 뜬다. 옛 세이브가 한국 세력이면 `SK.legacyKoreaPlayer`로 봉인·보스를 걷어 예전 80거점 천통을 그대로 둔다.
 - **UI**: 시나리오 화면의 **[한반도 대난투] 카드**(`#sc-pack-korea`, 미해금이면 `locked` + 4,900원 + 안내 창), 세력 화면은 `openFactionPicker(sc, {korea:true})`로 **한국 5세력만**(입문 추천 고구려). 지도 범례에 **봉인(안개)** 한 줄, 지도 안내 줄은 `SK.mapHintText`. 엔딩에는 `sn.boss`로 "한국(중국) 보스 세력까지 꺾은 끝에 얻은 천하" 한 줄.
 - **검수**: `python3 tools/v614_browser.py`(68항목) · `python3 tools/v614_browser2.py`(14항목, 실제 출진→다음 달 도착→전장→후퇴 포함) = **82항목**, 스샷 `preview/v614/`. 로컬 서버·playwright 실행 시 `LD_LIBRARY_PATH=/workspace/tmp/libs/usr/lib/x86_64-linux-gnu:/workspace/tmp/libs/lib/x86_64-linux-gnu`가 필요하다.
 - **남은 일(후보)**: 보스 세력의 첫 침공을 이벤트 창에서 바로 예약하기(지금은 다음 달 AI 판단에 맡김) · 한국 패키지 전용 배경 그림/지도 연출 · 봉인 구역 전용 BGM.
