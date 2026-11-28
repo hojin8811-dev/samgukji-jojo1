@@ -3114,8 +3114,31 @@ function steppeMap() {
     villages: [[6, 10], [17, 10], [cx, 15]] });
 }
 
+/* ── v6.13 — 천하 연무장(비동기 유저 덱 대전): 18×18 격자 연무장 ──
+   서버 없이 코드로만 겨루는 1:1 대전 무대. 좌우 대칭으로 네 기둥 고지대와
+   가운데 마당을 두어 어느 쪽이든 같은 지형 이점을 쓸 수 있게 했다. */
+function arenaMap() {
+  const n = 18, cx = 9;
+  const g = mkGrid(n, n, 'P');
+  /* 남북으로 난 길과 가운데 연무 마당 */
+  vline(g, cx - 1, 1, n - 2, 'R'); vline(g, cx, 1, n - 2, 'R');
+  hline(g, 8, 1, n - 2, 'R'); hline(g, 9, 1, n - 2, 'R');
+  fillRect(g, 7, 10, 7, 10, 'D');
+  /* 네 귀의 고지대(관중석 언덕) — 먼저 올라간 쪽이 사거리·방어 이점 */
+  [[4, 5], [13, 5], [4, 12], [13, 12]].forEach(([x, y]) => blob(g, x, y, 1, 'U', x * 31 + y * 17));
+  /* 좌우 숲과 갈대밭 — 화공·엄폐 자리 */
+  blob(g, 2, 8, 1, 'F', 901); blob(g, 15, 9, 1, 'F', 902);
+  blob(g, 3, 14, 1, 'J', 903); blob(g, 14, 3, 1, 'J', 904);
+  /* 바깥 울타리 산지 (연무장 경계) */
+  paint(g, [[0, 0], [0, 1], [1, 0], [17, 17], [17, 16], [16, 17], [0, 17], [1, 16], [0, 16], [17, 0], [16, 0], [17, 1]], 'M');
+  return finishMap('__arena', g, { ally: [cx, n - 2], enemy: [cx, 1],
+    villages: [[4, 9], [13, 8]] });
+}
+
 SK.MAPS = {};
 plainMap(); fordMap(); mountainMap(); forestMap(); gorgeMap(); campMap(); navalMap(); fortressMap();
+/* v6.13 — 천하 연무장 18×18 */
+arenaMap();
 siegeMap(1); siegeMap(2); siegeMap(3);
 /* v6.0 — 신규 전장 6종 (수상 공성·산성 공략·보급대 습격·나루터 부교·북방 초원) */
 siegeNavalMap(1); siegeNavalMap(2); siegeNavalMap(3);
@@ -3221,6 +3244,11 @@ SK.BATTLE_TYPES = {
     desc: '좁은 부교를 사이에 두고 나루를 다툰다',
     objective: '부교를 건너 적을 전멸시켜라',
     skill: '부교는 좁아 길이 막힌다. 좌우 갈대밭은 화공에 잘 탄다.' },
+  /* v6.13 — 천하 연무장: 유저 덱 코드끼리 겨루는 18×18 비동기 대전 */
+  arena: { name: '연무장', hanja: '', map: '__arena', img: 'plain',
+    desc: '유저 덱과 18×18 연무장에서 1:1로 겨룬다',
+    objective: '상대 덱을 전멸시켜라',
+    skill: '코드 하나로 겨루는 연무 — 양쪽 모두 같은 지형에서 시작합니다.' },
   /* 북방 초원·목책전: 넓은 초원과 목책 진지 */
   steppe: { name: '북방 초원·목책전', hanja: '', map: '__steppe', img: 'steppe',
     desc: '넓은 초원에서 목책 진지를 무너뜨린다',

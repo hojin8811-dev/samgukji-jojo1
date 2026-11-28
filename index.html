@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <title>삼국지-꼬마영웅 난타전</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=152" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=153" />
 <meta name="apple-mobile-web-app-title" content="삼국지-꼬마영웅 난타전" />
-<link rel="stylesheet" href="css/game.css?v=152" />
-<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=152" />
+<link rel="stylesheet" href="css/game.css?v=153" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=153" />
 </head>
 <body>
 <!-- ═══ 그림 아이콘 모음 (한자 대신 쓰는 인라인 SVG) ═══ -->
@@ -262,7 +262,7 @@
       <button id="btn-map-menu" class="icon-btn" aria-label="메뉴">☰</button>
     </header>
 
-    <div class="date-ribbon"><span id="map-date">190년 1월</span><i></i><span id="map-season" class="season-chip">봄</span><i></i><span id="map-rank" class="rank-chip">현령</span><i></i><span id="map-fame">명성 0</span><i></i><button id="btn-map-intro" class="ribbon-guide" type="button" aria-label="입문 가이드 열기">📖 입문</button></div>
+    <div class="date-ribbon"><span id="map-date">190년 1월</span><i></i><span id="map-season" class="season-chip">봄</span><span id="map-round" class="round-chip" hidden>2회차</span><i></i><span id="map-rank" class="rank-chip">현령</span><i></i><span id="map-fame">명성 0</span><i></i><button id="btn-map-intro" class="ribbon-guide" type="button" aria-label="입문 가이드 열기">📖 입문</button></div>
 
     <!-- v5.4 — 월 수지 줄: 순금 · 군량 · 다음 가을 대수확까지 (누르면 경제 현황) -->
     <button id="econ-strip" class="econ-strip" aria-label="경제 현황 보기">
@@ -282,6 +282,10 @@
       <!-- v5.63 — 세력일람: 살아 있는 세력을 성 수 순으로 -->
       <button id="btn-faction-list" class="map-pill" type="button" aria-label="세력일람 열기" title="세력일람 — 살아 있는 세력의 성·장수·휴전">
         <span class="mp-ic" aria-hidden="true">🚩</span><span class="mp-tx">세력일람</span><b class="mp-n" id="faction-pill-n">0</b>
+      </button>
+      <!-- v6.13 — 천하 연무장: 유저 덱 코드(?vs=) 1:1 비동기 대전 -->
+      <button id="btn-arena-pill" class="map-pill arena-pill" type="button" aria-label="천하 연무장 열기" title="천하 연무장 — 내 덱 코드로 1:1 비동기 대전">
+        <span class="mp-ic" aria-hidden="true">⚔️</span><span class="mp-tx">연무장</span><b class="mp-n" id="arena-pill-n">0</b>
       </button>
       <!-- v5.75 — 총도독(군단) 위임: 지도에서 바로 연다 -->
       <button id="btn-corps-pill" class="map-pill corps-pill" type="button" aria-label="총도독 군단 열기" title="총도독(군단) — 3~5성을 맡겨 자동 내정·수송·출진">
@@ -549,34 +553,35 @@
   window.addEventListener('error', function (e) { window.__errs.push(String((e && e.message) || e)); });
   window.addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + String(e && e.reason)); });
 </script>
-<script src="js/mapgeo.js?v=152"></script>
-<script src="js/mapmask.js?v=152"></script>
-<script src="js/city_geo.js?v=152"></script>
-<script src="js/data.js?v=152"></script>
-<script src="js/comedy_v64b.js?v=152"></script>
-<script src="js/ult_v582.js?v=152"></script>
-<script src="js/patch_v584.js?v=152"></script>
-<script src="js/bgm.js?v=152"></script>
-<script src="js/sfx.js?v=152"></script>
-<script src="js/app.js?v=152"></script>
-<script src="js/dlc.js?v=152"></script>
-<script src="js/map.js?v=152"></script>
-<script src="js/battle.js?v=152"></script>
-<script src="js/tutorial.js?v=152"></script>
-<script src="js/expedition.js?v=152"></script>
-<script src="js/backguard.js?v=152"></script>
-<script src="js/admin.js?v=152"></script>
+<script src="js/mapgeo.js?v=153"></script>
+<script src="js/mapmask.js?v=153"></script>
+<script src="js/city_geo.js?v=153"></script>
+<script src="js/data.js?v=153"></script>
+<script src="js/comedy_v64b.js?v=153"></script>
+<script src="js/ult_v582.js?v=153"></script>
+<script src="js/patch_v584.js?v=153"></script>
+<script src="js/bgm.js?v=153"></script>
+<script src="js/sfx.js?v=153"></script>
+<script src="js/app.js?v=153"></script>
+<script src="js/dlc.js?v=153"></script>
+<script src="js/map.js?v=153"></script>
+<script src="js/battle.js?v=153"></script>
+<script src="js/tutorial.js?v=153"></script>
+<script src="js/expedition.js?v=153"></script>
+<script src="js/arena.js?v=153"></script>
+<script src="js/backguard.js?v=153"></script>
+<script src="js/admin.js?v=153"></script>
 <!-- v5.86 — 민첩(병과 agi+무력 보정) 명중·회피 · 운(매력) 상태저항·치명 · 관리자 숨은 스탯
      (전투 계산은 js/battle.js v5.86 블록, 편집 UI는 js/admin.js — admin=1 에서만) -->
 <!-- v5.85 — 관리자 전장맵·천하맵 에디터 (admin=1 에서만 동작, 일반 주소는 아무것도 만들지 않음) -->
 <!-- v5.86a — 전장맵 [💾 내 맵 저장] 슬롯: 여러 새 맵 보관·불러오기·삭제 (같은 관리자 파일 안, admin=1 에서만) -->
 <!-- v5.86b — 커스텀(에디터) 전장은 통이미지 대신 칠한 타일(강물·다리·성벽·성문…)을 그대로 직접 렌더링
      (battle.js v5.86b B.customTilesRender · 정식 12종 전장은 battle_*.webp 그대로) -->
-<script src="js/patch_v585_map_editor.js?v=152"></script>
+<script src="js/patch_v585_map_editor.js?v=153"></script>
 <script>/* v5.50 — 통과(cache-free) 서비스 워커 등록: 크롬 '앱 설치'(주소창 없는 standalone) 요건 */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?v=152').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
+      navigator.serviceWorker.register('./sw.js?v=153').catch(function () { /* 설치 환경 아니면 조용히 넘어간다 */ });
     });
   }
 </script>

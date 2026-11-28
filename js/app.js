@@ -822,6 +822,9 @@
       /* v6.10 — 천하통일 결산용: 판을 시작한 연월 · 전투 전적(전투/승) */
       startedAt: { year: sc ? Number(sc.year) : 200, month: 0 },
       rec: { battles: 0, wins: 0 },
+      /* v6.13 — 회차(New Game+). 1회차가 기본, 2회차부터 적이 강화된다 */
+      round: 1,
+      carryInfo: null,
     };
     SK.CITY_LIST.forEach((c) => enforceStartLevel(cities[c.id], c));
     if (sc) {
@@ -1754,6 +1757,9 @@
       s.rec = (s.rec && typeof s.rec === 'object')
         ? { battles: Math.max(0, Number(s.rec.battles) || 0), wins: Math.max(0, Number(s.rec.wins) || 0) }
         : { battles: 0, wins: 0 };
+      /* v6.13 — 회차(New Game+). 옛 세이브는 1회차 */
+      s.round = Math.max(1, Math.min(99, Math.round(Number(s.round) || 1)));
+      if (!s.carryInfo || typeof s.carryInfo !== 'object') s.carryInfo = null;
       /* v5.75 — 총도독 군단 저장 형식 보정 (옛 저장에는 없다) */
       s.corps = Array.isArray(s.corps) ? s.corps.filter((c) => c && Array.isArray(c.cityIds)) : [];
       /* v5.88 — 수송·장수 이동 대기열·건설 기록 (옛 저장에는 없다) */
@@ -1964,6 +1970,7 @@
       const owned = SK.CITY_LIST.filter((c) => s.cities && s.cities[c.id] && s.cities[c.id].owner === s.playerFaction).length;
       const lordG = f.lord ? SK.GEN_BY_NAME[f.lord] : null;
       return { faction: f.name || '', lord: f.lord || '', date: SK.dateLabel(s.eraYear || 190, s.month || 0, s), cities: owned,
+        round: Math.max(1, Math.round(Number(s.round) || 1)),
         portrait: lordG ? SK.genPortrait(lordG) : 'caocao', tier: SK.tierOfPerson(lordG), savedAt: '자동 저장' };
     } catch (e) { return null; }
   };
@@ -1974,6 +1981,7 @@
     return { faction: f.name || '세력', lord: f.lord || '', color: f.color || '#8a6a2c',
       portrait: lordG ? SK.genPortrait(lordG) : 'caocao', tier: SK.tierOfPerson(lordG),
       date: SK.dateLabel(s.eraYear || 190, s.month || 0, s), cities: owned,
+      round: Math.max(1, Math.round(Number(s.round) || 1)),
       savedAt: new Date().toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) };
   }
   SK.saveTo = function (i) {
@@ -2058,7 +2066,7 @@
       <span class="ss-no">${label}</span>
       ${has ? `<img class="ss-pt ${SK.tcls(info.tier || SK.tierOfPerson(info.lord))}" src="${SK.ptSrc(info.portrait || 'caocao')}" alt="">` : '<span class="ss-pt empty">＋</span>'}
       <div class="ss-main">${has
-        ? `<b>${info.faction || '세력'}${info.lord ? ` · ${info.lord}` : ''}</b><span>${info.date} · 거점 ${info.cities}곳</span><em>${info.savedAt}</em>`
+        ? `<b>${info.faction || '세력'}${info.lord ? ` · ${info.lord}` : ''}</b><span>${info.date} · 거점 ${info.cities}곳${info.round > 1 ? ` · <em class="ss-round">${info.round}회차</em>` : ''}</span><em>${info.savedAt}</em>`
         : `<b>빈 슬롯</b><span>${idx > 1 && slotPurchased(idx) ? '해금됨 — 저장할 수 있습니다' : '저장하면 여기에 군주와 연월이 표시됩니다'}</span>`}</div>
       <div class="ss-btns">
         ${!isAuto ? `<button class="ss-save" data-save="${idx}" title="저장">저장</button>` : ''}
@@ -2899,6 +2907,30 @@
       </button>`;
   }
 
+  /* v6.13 — 2회차 계승 예정이면 시나리오·세력 화면 위에 배지를 띄운다 */
+  function paintCarryBanner() {
+    const c = carryGet();
+    ['screen-scenario', 'screen-faction'].forEach((id) => {
+      const scr = document.getElementById(id);
+      if (!scr) return;
+      let el = scr.querySelector('.carry-banner');
+      if (!c) { if (el) el.hidden = true; return; }
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'carry-banner';
+        const top = scr.querySelector('.sc-top');
+        if (top && top.parentNode === scr) scr.insertBefore(el, top.nextSibling);
+        else scr.insertBefore(el, scr.firstChild);
+      }
+      el.hidden = false;
+      el.innerHTML = `<b>🔁 ${c.round}회차 천하 대란</b>
+        <span>${c.from.faction || '직전 천하'} 통일의 드림팀 <b>${c.heroes.length}명</b> · 보물 <b>${(c.treasures || []).length}점</b>을 들고 시작합니다</span>
+        <button type="button" class="cb-off">계승 취소</button>`;
+      const off = el.querySelector('.cb-off');
+      if (off) off.onclick = () => { carryClear(); paintCarryBanner(); SK.toast('계승을 취소했습니다 — 새 천하를 처음부터 시작합니다.'); };
+    });
+  }
+
   function openScenarioPicker() {
     if (!SK.HIST.length) { beginScenario(null, null); return; }
     const list = $('#scenario-list');
@@ -2924,6 +2956,8 @@
       });
     }
     SK.show('screen-scenario');
+    /* v6.13 — 계승(2회차) 배지 */
+    paintCarryBanner();
     /* v5.81 — 시나리오 화면에서도 난이도(보통/어려움/패왕)를 고른다 */
     renderDiffRow();
     const back = $('#btn-scenario-back');
@@ -3008,6 +3042,8 @@
     const nt = $('#fx-note'); if (nt) nt.textContent = SC_NOTE[sc.year] || sc.subtitle || '';
     renderDiffRow();
     SK.show('screen-faction');
+    /* v6.13 — 세력을 고르는 동안에도 계승 배지를 유지 */
+    paintCarryBanner();
     const back = $('#btn-faction-back');
     if (back) back.onclick = () => openScenarioPicker();
   }
@@ -3185,6 +3221,13 @@
 
   function beginScenario(sc, factionId) {
     SK.state = newState(sc, factionId);
+    /* v6.13 — 2회차 천하 대란: 직전 회차의 드림팀·보물을 새 판에 얹는다 */
+    const carry = carryGet();
+    let carryRes = null;
+    if (carry) {
+      try { carryRes = applyCarry(SK.state, carry); } catch (e) { carryRes = null; }
+      carryClear();
+    }
     SK.save();
     /* v5.66a — GA4: 세력을 골라 새 게임을 시작했을 때 */
     try {
@@ -3221,6 +3264,7 @@
             <li><b>수도</b> ${cap ? cap.name : '-'} · <b>영지</b> ${(f.cities || []).length}곳</li>
             <li><b>목표</b> 살아남는 건 하나뿐 — 옆 성부터 하나씩!</li>
           </ul>
+          ${carryRes ? `<p class="sc-carry">🔁 <b>${s.round}회차 천하 대란</b> — 직전 천하의 장수 <b>${carryRes.added + carryRes.upgraded}명</b>이 보물과 함께 수도에 합류했습니다. 적 장수는 전원 S급 특기로 무장합니다.</p>` : ''}
           ${sc && sc.historyNote ? `<p class="sc-summary">${sc.historyNote}</p>` : ''}
         </div>`,
         actions: [{ label: '가즈아 — 시작!', primary: true }],
@@ -3417,6 +3461,14 @@
       const sName = SK.seasonOf(s.month);
       se.textContent = sName;
       se.title = `${sName} 계절`;
+    }
+    /* v6.13 — 2회차 이상이면 지도 띠에 'N회차 천하 대란' 배지를 띄운다 */
+    const rd = $('#map-round');
+    if (rd) {
+      const rr = roundOf(s);
+      rd.hidden = rr <= 1;
+      rd.textContent = `${rr}회차`;
+      rd.title = `${rr}회차 천하 대란 — 적 장수 전원 S급 특기 · 회차별 레벨·병력 보정`;
     }
     const owned = SK.CITY_LIST.filter((c) => s.cities[c.id].owner === PF()).length;
     const aliveN = Object.keys(s.factions || {}).filter((fid) => fid !== 'neutral'
@@ -13030,6 +13082,242 @@
     return `<div class="unify-fx" aria-hidden="true">${parts.join('')}</div>`;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     v6.13 — 천통 엔드게임: ① 장수 후일담 크레딧 ② 2회차 천하 대란
+     · 통일 엔딩 아래에 장수별 코믹 후일담을 크레딧처럼 붙이고,
+       다음 도전(다른 세력·한국 영웅) 배지와 [2회차 천하 대란 시작]·[내 통일 덱 코드 공유]를 단다.
+     · 2회차는 내가 키운 장수(레벨·능력치·특기)와 보물을 들고 새 회차로 넘어가고,
+       적 장수 전원이 S급 특기 + 회차별 레벨·병력 보정을 받는다(battle.js).
+     ══════════════════════════════════════════════════════════════ */
+  const AFTERSTORY = {
+    '조조': '천하를 얻고 마침내 꿀잠을 잤다. 베개는 의천검 대신 푹신한 것으로 바꿨다.',
+    '하후돈': '외눈 안경 브랜드를 런칭했다. 슬로건은 “한쪽만 봐도 충분히 잘 보입니다”.',
+    '하후연': '천 리를 뛰는 배송 서비스를 열었다. 다음 날 아침이면 어디든 닿는다.',
+    '유비': '짚신 장사를 다시 열어 대박이 났다. 관우·장비는 1호점 점장이 되었다.',
+    '관우': '수염 관리 유튜버로 전향해 구독자 100만을 찍었다. 조회수도 청룡급.',
+    '장비': '큰 소리 내지 않는 명상 교실을 열었다. 3일 만에 폐업했다.',
+    '제갈량': '마침내 정시에 퇴근했다. 다음 날 야근이 없다는 사실에 두 번 놀랐다.',
+    '조운': '아이 구하는 전문 구조대를 차렸다. 칠 진을 뚫는 솜씨는 그대로다.',
+    '여포': '천하무쌍 헬스장을 개업했다. 적토마는 로또 대신 러닝머신 담당이다.',
+    '초선': '춤 학원을 열어 전국에 지점을 냈다. 수강생은 모두 발끝만 본다.',
+    '손권': '강동 수영장을 인수했다. 호랑이 두 마리가 안전요원으로 근무 중이다.',
+    '주유': '불꽃놀이 축제를 기획해 대성공을 거뒀다. 소방서와는 아직 사이가 나쁘다.',
+    '손상향': '궁술 동아리를 만들어 전국 대회를 휩쓸었다. 상대 팀은 과녁만 봤다.',
+    '사마의': '은퇴를 선언한 날부터 세 번이나 복귀 기자회견을 열었다.',
+    '원소': '가문 자랑 대회를 열었으나 우승은 늘 남의 집안이었다.',
+    '동탁': '다이어트 예능에 출연해 3개월 만에 하차했다. 이유는 비밀이다.',
+    '마초': '서량 승마 교실을 열었다. 낙마 사고 0건, 말이 더 얌전해졌다.',
+    '황충': '백발 궁술 강좌를 열었다. 백 걸음 백 발, 칠판까지 맞힌다.',
+    '이순신': '거북선 크루즈 사업을 시작했다. 승선객은 전원 “학익진 자리”를 요구한다.',
+    '계백': '황산벌 관광 안내소를 열었다. 해설이 너무 진지해 관광객이 조용해진다.',
+    '을지문덕': '살수에서 낚시 교실을 연다. 물고기가 먼저 항복한다고 한다.',
+    '척준경': '철퇴 대신 프라이팬을 들고 요리사가 되었다. 설거지는 아무도 못 말린다.',
+    '김유신': '통일 이후 화합 축제를 기획했다. 초대장은 옛 적장에게도 보냈다.',
+  };
+  const AFTERSTORY_POOL = [
+    '천하통일 이후 첫 휴가를 떠났다. 목적지는 물론 우리 성이다.',
+    '전쟁이 끝나자 매일 아침잠을 잤다. 그런데 아침잠이 더 힘들단다.',
+    '마을 아이들에게 전쟁 놀이를 가르쳤다. 규칙이 너무 복잡해 다들 도망갔다.',
+    '명예 훈장을 받고 액자에 걸었다. 벽지 색과 안 어울린다고 다시 걸었다.',
+    '간식 값을 아끼려고 3년을 모았다. 그런데 간식이 더 비싸졌다.',
+    '성 80개 관리 일을 그만두고 밭을 갈기 시작했다. 요즘 제일 행복하다.',
+    '새로 연 가게 이름이 “천하통일 분식”. 메뉴는 김밥 두 줄이다.',
+    '전쟁 때 쓴 갑옷을 리폼해 우산꽂이로 만들었다.',
+    '매일 아침 성벽 위에 올라가 노을을 본다. 적이 없어서 좋단다.',
+    '동료들과 회식을 열었다. 계산은 늘 제일 센 사람이 했다.',
+    '천하 지도를 벽에 붙여 놓고 하루에 한 번씩 “다 내 거야”라고 중얼거린다.',
+    '말에게도 퇴직금을 줬다. 말은 당근 열 개를 요구했다.',
+    '일기토 상대를 찾아 전국을 돌았으나 아무도 나서지 않았다.',
+    '새 취미는 낚시. 강에 앉아 있으면 옛 전우들이 자꾸 떠오른단다.',
+    '통일 기념 노래를 녹음했다. 음원 순위는 99위였는데 만족한단다.',
+    '요즘은 아무도 안 때리고 아무 데도 안 뺏는다. 그게 제일 어렵다.',
+  ];
+
+  function afterstoryOf(name) {
+    if (!name) return '';
+    if (AFTERSTORY[name]) return AFTERSTORY[name];
+    return AFTERSTORY_POOL[hashStr('af' + name) % AFTERSTORY_POOL.length];
+  }
+  SK.afterstoryOf = afterstoryOf;
+
+  function afterstoryList(sn) {
+    const s = SK.state;
+    const heroes = (s && s.heroes ? s.heroes : []).slice();
+    const ranked = heroes.sort((a, b) => ((SK.meritOf(b) || 0) - (SK.meritOf(a) || 0)) || ((b.lv || 1) - (a.lv || 1)));
+    const out = [];
+    const seen = {};
+    const push = (n) => {
+      if (!n || seen[n]) return;
+      seen[n] = 1;
+      if (!(SK.GEN_BY_NAME && SK.GEN_BY_NAME[n])) return;
+      out.push(n);
+    };
+    /* ① 시대의 주역들 — 통일한 천하의 얼굴 */
+    ['조조', '유비', '손권', '여포', '제갈량', '관우', '조운', '하후돈', '이순신'].forEach(push);
+    /* ② 내 휘하 주력 — 공훈·레벨 상위 */
+    ranked.forEach((h) => push(h.name));
+    return out.slice(0, 12);
+  }
+  SK.afterstoryList = afterstoryList;
+
+  /* ── 회차(New Game+) ── */
+  function roundOf(s) {
+    s = s || SK.state;
+    const n = Math.round(Number(s && s.round) || 1);
+    return Math.max(1, Math.min(99, n));
+  }
+  SK.roundOf = roundOf;
+  function roundTag(s) {
+    const r = roundOf(s);
+    return r > 1 ? `${r}회차 천하 대란` : '';
+  }
+  SK.roundTag = roundTag;
+
+  /* 2회차 이상 적 장수의 S급 특기 풀 (고유 특기 중 tier S·전투형) */
+  let ROUND_S_POOL = null;
+  function roundSPool() {
+    if (ROUND_S_POOL) return ROUND_S_POOL;
+    const out = [];
+    Object.keys(SK.PASSIVES || {}).forEach((k) => {
+      const p = SK.PASSIVES[k];
+      if (!p || p.tier !== 'S') return;
+      if (p.trigger && p.trigger !== 'passive') return;
+      if (p.kind === 'domestic' || p.role === 'domestic') return;
+      if (p.v582 && /^d_/.test(String(p.v582))) return;
+      out.push(p);
+    });
+    ROUND_S_POOL = out.length ? out : null;
+    return ROUND_S_POOL;
+  }
+  function roundPassiveOf(name, round) {
+    const pool = roundSPool();
+    if (!pool || !pool.length) return null;
+    return pool[hashStr(String(name || '') + ':r' + (Number(round) || 2)) % pool.length];
+  }
+  SK.roundPassiveOf = roundPassiveOf;
+
+  /* ── 계승(캐리) — 내 드림팀과 보물을 새 회차로 ── */
+  const CARRY_KEY = 'samgukji-jojo-carry-v1';
+  const CARRY_MAX_HERO = 12;
+  const CARRY_TIER = { S: 4, A: 3, B: 2, C: 1 };
+  function carryCandidates(s) {
+    s = s || SK.state;
+    const list = (s && s.heroes ? s.heroes : []).filter((h) => h && h.genId);
+    const score = (h) => (CARRY_TIER[h.tier] || 0) * 1000 + (Number(h.lv) || 1) * 10;
+    list.sort((a, b) => score(b) - score(a));
+    return list.slice(0, CARRY_MAX_HERO);
+  }
+  SK.carryCandidates = carryCandidates;
+  function makeCarry(s) {
+    s = s || SK.state;
+    if (!s) return null;
+    const f = (s.factions || {})[s.playerFaction] || {};
+    const heroes = carryCandidates(s).map((h) => ({
+      genId: h.genId, name: h.name, cls: h.cls, lv: Math.max(1, Number(h.lv) || 1),
+      exp: Number(h.exp) || 0, tierLv: Number(h.tierLv) || 0, tier: h.tier || '',
+      wu: Number(h.wu) || 0, ji: Number(h.ji) || 0, tong: Number(h.tong) || 0,
+      pol: Number(h.pol) || 0, cha: Number(h.cha) || 0,
+      equip: Object.assign({}, h.equip || {}),
+    }));
+    const tids = [];
+    (s.treasures || []).forEach((id) => { const n = Number(id); if (n && tids.indexOf(n) < 0) tids.push(n); });
+    heroes.forEach((h) => Object.keys(h.equip).forEach((k) => {
+      const n = Number(h.equip[k]);
+      if (n && tids.indexOf(n) < 0) tids.push(n);
+    }));
+    return {
+      v: 1, round: roundOf(s) + 1, at: Date.now(),
+      from: { faction: f.name || '', lord: f.lord || '', round: roundOf(s),
+        date: SK.dateLabel ? SK.dateLabel(s.eraYear || 190, s.month || 0, s) : '', months: Number(s.turn) || 1 },
+      heroes: heroes, treasures: tids,
+    };
+  }
+  SK.makeCarry = makeCarry;
+  function carrySet(c) { try { localStorage.setItem(CARRY_KEY, JSON.stringify(c)); } catch (e) { /* ignore */ } }
+  function carryGet() {
+    try {
+      const raw = localStorage.getItem(CARRY_KEY);
+      const o = raw ? JSON.parse(raw) : null;
+      if (!o || o.v !== 1 || !Array.isArray(o.heroes)) return null;
+      return o;
+    } catch (e) { return null; }
+  }
+  function carryClear() { try { localStorage.removeItem(CARRY_KEY); } catch (e) { /* ignore */ } }
+  SK.carryGet = carryGet;
+  SK.carryClear = carryClear;
+  SK.carrySet = carrySet;
+
+  /* 계승 적용 — 새 회차 상태에 내 장수·보물을 얹는다 */
+  function applyCarry(s, c) {
+    if (!s || !c || !Array.isArray(c.heroes)) return null;
+    s.round = Math.max(2, Math.min(99, Number(c.round) || 2));
+    s.carryInfo = { from: c.from || {}, heroes: c.heroes.length, treasures: (c.treasures || []).length, round: s.round };
+    s.treasures = Array.isArray(s.treasures) ? s.treasures : [];
+    (c.treasures || []).forEach((id) => {
+      const n = Number(id);
+      if (n && s.treasures.indexOf(n) < 0 && (!SK.TREASURE_BY_ID || SK.TREASURE_BY_ID[n])) s.treasures.push(n);
+    });
+    const cap = s.playerCapital || s.lastCity;
+    let added = 0, upgraded = 0;
+    c.heroes.forEach((h0) => {
+      const g = (SK.GEN_BY_ID && SK.GEN_BY_ID[h0.genId]) || (SK.GEN_BY_NAME && SK.GEN_BY_NAME[h0.name]);
+      if (!g) return;
+      let h = (s.heroes || []).find((x) => x.genId === g.id);
+      if (!h) {
+        h = makeHero(g.name, cap, 1);
+        if (!h) return;
+        h.carry = true;
+        SK.addHero(s, h);
+        added += 1;
+      } else upgraded += 1;
+      h.carry = true;          // 계승 장수 표식 (명부에서 '계승' 으로 보인다)
+      h.lv = clamp(Math.round(Number(h0.lv) || 1), 1, 30);
+      h.exp = Math.max(0, Number(h0.exp) || 0);
+      h.tierLv = Math.max(0, Number(h0.tierLv) || 0);
+      ['wu', 'ji', 'tong', 'pol', 'cha'].forEach((k) => { if (Number(h0[k])) h[k] = Number(h0[k]); });
+      if (h0.tier) h.tier = h0.tier;
+      h.loyal = 100;
+      h.city = cap;
+      h.hp = SK.maxHpOf(h.cls, h.lv);
+      h.mp = SK.maxMpOf(h.cls, h.lv);
+      h.equip = h.equip || {};
+      Object.keys(h0.equip || {}).forEach((k) => {
+        const id = Number(h0.equip[k]);
+        if (id && (!SK.TREASURE_BY_ID || SK.TREASURE_BY_ID[id])) h.equip[k] = id;
+      });
+    });
+    return { added: added, upgraded: upgraded };
+  }
+  SK.applyCarry = applyCarry;
+
+  /* 통일 엔딩의 [2회차 천하 대란 시작] — 계승을 챙기고 세력 다시 고르기로 넘긴다 */
+  function openNextRound() {
+    const s = SK.state;
+    if (!s) return;
+    const c = makeCarry(s);
+    if (!c) { startGame(true); return; }
+    SK.modal({
+      kicker: `${roundOf(s) + 1}회차 · 천하 대란`, title: '내 드림팀을 들고 다시 시작할까',
+      body: `<div class="nr-wrap">
+        <p class="modal-p">새 회차에서는 <b>내가 키운 장수 ${c.heroes.length}명</b>(레벨·능력치·특기 그대로)과 <b>보물 ${c.treasures.length}점</b>이 그대로 따라옵니다. 세력과 시나리오는 새로 고릅니다.</p>
+        <ul class="nr-list">
+          <li>내 장수는 <b>수도에 합류</b>해 처음부터 함께합니다(보물 장착도 그대로).</li>
+          <li>적 장수는 <b>전원 S급 특기</b>를 들고 <b>레벨·병력이 회차만큼 오릅니다</b> — 내 드림팀으로 깨는 맛입니다.</li>
+          <li>배지는 지도·세이브에 <b>${roundOf(s) + 1}회차 천하 대란</b>으로 남습니다.</li>
+        </ul>
+        <p class="nr-note">지금 세이브는 새 회차로 넘어갑니다. 명예의 전당 기록은 그대로 남습니다.</p>
+      </div>`,
+      actions: [
+        { label: '닫기' },
+        { label: `${roundOf(s) + 1}회차 시작`, primary: true, onClick: () => {
+          carrySet(c);
+          startGame(true);
+        } },
+      ],
+    });
+  }
+  SK.openNextRound = openNextRound;
+
   function showUnification() {
     const s = SK.state;
     if (!s) return;
@@ -13046,10 +13334,14 @@
     const sealLines = [];
     if (sn.sealedFactions.length) sealLines.push(`마지막은 칼이 아니라 <b>항복</b>이었습니다 — ${sn.sealedFactions.join(' · ')}이(가) 문을 열었습니다.`);
     if (sn.neutralSealed) sealLines.push(`재야 호족 <b>${sn.neutralSealed}곳</b>도 스스로 깃발을 내렸습니다.`);
+    /* v6.13 — 장수 후일담 크레딧 (엔딩 직후에 이어지는 코믹 에필로그) */
+    const afterRows = afterstoryList(sn).map((n, i) => `<div class="uc-row" style="--i:${i}">
+        <img src="${unifyPic(n)}" alt="">
+        <div><b>${n}</b><span>${afterstoryOf(n)}</span></div></div>`).join('');
     SK.sfx.play('victory');
     if (window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
-    SK.modal({
-      kicker: '大業 · 천하통일', title: '', wide: true, scrollHint: true,
+    const m = SK.modal({
+      kicker: roundOf(s) > 1 ? `大業 · ${roundOf(s)}회차 천하통일` : '大業 · 천하통일', title: '', wide: true, scrollHint: true,
       body: `<div class="unify-hero">
         ${unifyFxHtml()}
         <span class="unify-emblem">${sn.mark}</span>
@@ -13077,6 +13369,19 @@
       </div>` : ''}
       ${speechHtml ? `<div class="unify-speech"><p class="us-head">장수들의 한마디 <em>천하통일을 축하하며</em></p>${speechHtml}</div>` : ''}
       ${sealLines.length ? `<p class="unify-seal-line">${sealLines.join('<br>')}</p>` : ''}
+      <div class="unify-credits">
+        <p class="uc-head">장수 후일담 <em>천하통일 이후, 다들 뭐 하고 살까</em></p>
+        <div class="uc-list">${afterRows}</div>
+      </div>
+      <div class="unify-next">
+        <span class="un-badge">다음 도전 배지</span>
+        <b>다음엔 다른 세력 또는 한국 영웅(이순신 등)으로 통일 도전!</b>
+        <p class="un-sub">${sn.factionName} 통일의 기록은 남았습니다. 이제 내 드림팀을 들고 <b>${roundOf(s) + 1}회차 천하 대란</b>에 나가 보세요 — 적 장수 전원이 S급 특기로 무장합니다.</p>
+        <div class="un-btns">
+          <button type="button" class="un-btn primary" id="unify-next-round">🔁 ${roundOf(s) + 1}회차 천하 대란 시작</button>
+          <button type="button" class="un-btn" id="unify-share-deck">📤 내 통일 덱 코드 공유</button>
+        </div>
+      </div>
       <p class="unify-note">인물 도감 ${sn.gPct.toFixed(1)}% · 보물 도감 ${sn.tPct.toFixed(1)}%. 도감은 다음 회차에도 이어집니다 — 아직 만나지 못한 장수와 보물을 모아 보십시오.</p>`,
       actions: [
         { label: '🏆 명예의 전당 기록 & 새 천하', primary: true, onClick: () => {
@@ -13084,8 +13389,9 @@
           const pad = (n) => (n < 10 ? '0' + n : '' + n);
           SK.hallAdd(Object.assign({}, sn, {
             at: d.getTime(),
+            round: roundOf(s),
             dateText: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`,
-            ver: 'v6.10',
+            ver: 'v6.13',
           }));
           setTimeout(() => SK.openHall({ fresh: true }), 260);
         } },
@@ -13093,6 +13399,18 @@
       ],
       dismissible: false,
     });
+    if (m && m.el) {
+      const b1 = m.el.querySelector('#unify-next-round');
+      if (b1) b1.onclick = () => { m.close(); setTimeout(openNextRound, 220); };
+      const b2 = m.el.querySelector('#unify-share-deck');
+      if (b2) {
+        b2.onclick = () => {
+          const code = (SK.Arena && SK.Arena.myCode) ? SK.Arena.myCode() : '';
+          if (!code) { SK.toast('덱 코드를 만들지 못했습니다.'); return; }
+          SK.Arena.copy(code, '내 통일 덱 코드를 복사했습니다 — 친구에게 보내면 이 천하 그대로 겨룹니다.');
+        };
+      }
+    }
   }
   SK.showUnification = showUnification;
 
@@ -13138,7 +13456,7 @@
       const rate = (r.rate == null) ? '전적 기록 없음' : `${r.wins}/${r.battles}승 · 승률 ${r.rate}%`;
       return `<div class="hall-row g-${r.grade || 'B'}">
         <span class="hr-grade">${r.grade || 'B'}</span>
-        <div class="hr-main"><b>${r.factionName || '천하'}${r.lordName ? ` <i>${r.lordName}</i>` : ''}</b>
+        <div class="hr-main"><b>${r.factionName || '천하'}${r.lordName ? ` <i>${r.lordName}</i>` : ''}${r.round > 1 ? ` <i>${r.round}회차</i>` : ''}</b>
           <span>${r.endLabel || ''} 통일 · ${r.months || 1}개월 · ${rate}</span>
           <span>장수 ${r.heroN || 0}명 · 보물 ${r.treasureN || 0}점${r.mvp && r.mvp.name ? ` · MVP ${r.mvp.name}` : ''}${r.dateText ? ` · ${r.dateText}` : ''}</span></div>
       </div>`;
@@ -14788,6 +15106,8 @@
     /* v5.81 — 난이도: 어려움 +1, 패왕 +2 */
     if (s && s.difficulty === 'hard') lv += 1;
     else if (s && s.difficulty === 'king') lv += 2;
+    /* v6.13 — 2회차 이상: 회차마다 적 장수 레벨 +2 */
+    lv += Math.max(0, (roundOf(s) - 1) * 2);
     return clamp(Math.round(lv), 1, 30);
   }
   SK.enemyGenLevel = enemyGenLevel;
@@ -17709,6 +18029,7 @@
         <button data-m="guide">📖 입문 가이드 — 자원·건물·출진 1분</button>
         <button data-m="codex">도감 · 인물·보물 수집</button>
         <button data-m="roster">장수 명부 · 보물 · 배치</button>
+        <button data-m="arena">⚔️ 천하 연무장 (내 덱 코드로 1:1 대전)</button>
         <button data-m="slots">세이브 슬롯 (5칸 + 자동)</button>
         <button data-m="help">조작법 보기</button>
         <button data-m="reset">처음부터 시작</button>
@@ -17722,6 +18043,7 @@
         if (k === 'guide') SK.openIntroGuide({});
         if (k === 'codex') SK.openCodex();
         if (k === 'roster') SK.openRoster();
+        if (k === 'arena') { if (SK.Arena) SK.Arena.open(); else SK.toast('연무장을 아직 불러오지 못했습니다.'); }
         if (k === 'help') SK.showHelp();
         if (k === 'slots') SK.openSaveSlots('save');
         if (k === 'reset') {
@@ -17929,6 +18251,11 @@
   function bind() {
     const has = SK.hasSave();
     $('#btn-continue').hidden = !has;
+    /* v6.13 — 표지 이어하기 버튼에 회차 표기 (2회차 이상이면) */
+    try {
+      const m = has && SK.autoSlotInfo ? SK.autoSlotInfo() : null;
+      if (m && Number(m.round) > 1) $('#btn-continue').textContent = `이어하기 · ${m.round}회차 천하 대란`;
+    } catch (e) { /* ignore */ }
     $('#btn-start').onclick = () => startGame(true);
     /* v5.98 — 표지 [🎓 튜토리얼 (3분 입문)] — 본편 세이브와 분리된 1:1 입문 모드 */
     const tutBtn = $('#btn-tutorial');
@@ -18008,7 +18335,9 @@
     if (rk) { rk.style.cursor = 'pointer'; rk.onclick = () => openRank(); }
     /* v5.23 — 전장 뒤로가기도 상단 ‹ 버튼과 똑같이 이 확인을 띄운다 */
     SK.confirmRetreat = function () {
-      SK.modal({ title: '후퇴할까요?', body: '<p class="modal-p">전투에서 물러나면 이번 공격은 실패합니다.</p>', actions: [
+      /* v6.13 — 전투 중에는 창이 보류 큐로 밀려 [후퇴]가 아무 반응이 없었다.
+         전투 자체의 확인창이므로 battleOk 로 곧바로 연다. */
+      SK.modal({ battleOk: true, title: '후퇴할까요?', body: '<p class="modal-p">전투에서 물러나면 이번 공격은 실패합니다.</p>', actions: [
         { label: '계속 싸운다' }, { label: '후퇴', onClick: () => { if (window.SKBattle) SKBattle.retreat(); } },
       ] });
     };

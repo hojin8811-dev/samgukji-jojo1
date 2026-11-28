@@ -206,14 +206,17 @@
     holdQ.length = 0;
     closeGenInfo();   // v5.53 — 앞 전투의 《장수 정보》 창이 새 전장에 남지 않게
     const s = SK.state;
+    /* v6.13 — 비동기 연무장(?vs= 덱 코드 대전): 성·영토와 무관한 1:1 격자 대전.
+       양쪽 부대를 덱 코드에서 세우고, 승패 함수도 점령·보상 없이 끝난다. */
+    const arena = opts.arena || null;
     const target = SK.CITY[opts.targetId];
     const defense = opts.defense || null;
     const type = opts.type || SK.battleTypeFor(target);
     /* v5.66a — GA4: 전투 진입(공성·수성·요격·야전·관문) */
     try { if (window.skTrack) window.skTrack('battle_start', { battle_type: type }); } catch (e) { /* ignore */ }
-    const def = SK.BATTLE_TYPES[type];
+    const def = SK.BATTLE_TYPES[type] || SK.BATTLE_TYPES.siege;
     /* v5.97 — 이 전투를 다시 열 때 필요한 최소 정보만 남긴다 (이탈 복구용 스냅샷) */
-    const snapOpts = snapOptsOf(opts, type);
+    const snapOpts = arena ? null : snapOptsOf(opts, type);
     /* v5.11 — 공성·수성 통일: 같은 성이면 공격/방어 모두 같은 성벽 맵을 쓴다.
        도시 등급이 높을수록 성벽이 1중 → 2중 → 3중으로 겹친다. */
     /* v6.0 — 수상 공성·산성 공략도 공성 계열이다 (성문·성벽·겹성벽 규칙을 그대로 쓴다) */
@@ -237,7 +240,8 @@
     /* v5.33 — 요격 출진은 '아군 성'에서 벌어지므로 targetId의 주인이 곧 아군이다.
        침공군 세력(intercept.faction)을 먼저 본다 — 예전에는 유비 성을 요격하면
        적 부대 이름이 '유비 무도가대'처럼 아군 세력으로 붙었다(사용자 제보). */
-    const faction = defense ? defense.faction
+    const faction = arena ? 'neutral'
+      : defense ? defense.faction
       : ((opts.intercept && opts.intercept.faction) ? opts.intercept.faction : s.cities[opts.targetId].owner);
     const bossInfo = bossOfFaction(faction);
     const intercept = opts.intercept || null;
@@ -314,7 +318,14 @@
         enemies.push(u);
       });
     }
-    for (let i = 0; !surv && i < enemyCount; i++) {
+    /* v6.13 — 연무장은 성 수비병을 세우지 않는다. 상대 덱(장수 id·레벨·보물)에서 부대를 세운다 */
+    if (arena) {
+      (arena.deck || []).forEach((e, i) => {
+        const u = makeArenaEnemy(e, i);
+        if (u) enemies.push(u);
+      });
+    }
+    for (let i = 0; !surv && !arena && i < enemyCount; i++) {
       if (defGens[i]) {
         /* v5.81 — 성마다 S·A급 에이스에게 병력을 몰아준다 (S ×1.35 · A ×1.2, 후열 B·C는 ×0.85) */
         const gt = defGens[i].tier;
@@ -352,7 +363,7 @@
     });
     /* v5.81 — 난이도(어려움·패왕): 적 부대 스펙 상향. 아군 부대에는 붙이지 않는다. */
     const diffNow = SK.diffOf ? SK.diffOf(s) : null;
-    if (diffNow && diffNow.stat && diffNow.stat !== 1) {
+    if (!arena && diffNow && diffNow.stat && diffNow.stat !== 1) {
       const mul = diffNow.stat;
       enemies.forEach((u) => {
         u.atk = u.atk * mul;
@@ -360,6 +371,22 @@
         u.maxHp = Math.round(u.maxHp * mul);
         u.hp = Math.round(u.hp * mul);
         u.train = Math.min(100, Math.round((u.train || 60) * (1 + (mul - 1) * 0.5)));
+      });
+    }
+    /* v6.13 — 2회차 이상 '천하 대란': 적 장수 전원이 S급 특기를 들고 레벨·병력·훈련도가 오른다.
+       연무장(?vs=)은 양쪽이 똑같은 조건으로 겨루는 자리라 이 보정을 붙이지 않는다. */
+    const roundNow = (!arena && SK.roundOf) ? SK.roundOf(s) : 1;
+    if (roundNow > 1) {
+      const rm = 1 + 0.08 * (roundNow - 1);
+      const rt = 1 + 0.14 * (roundNow - 1);
+      enemies.forEach((u) => {
+        u.atk = u.atk * rm;
+        u.def = u.def * rm;
+        u.maxHp = Math.round(u.maxHp * rt);
+        u.hp = u.maxHp;
+        u.train = Math.min(100, Math.round((u.train || 60) + 4 * (roundNow - 1)));
+        const rp = SK.roundPassiveOf ? SK.roundPassiveOf(u.name, roundNow) : null;
+        if (rp) u.passive = rp;
       });
     }
     /* v5.65 — 실제로 세운 적 부대의 총병력 (편성·도착 카드의 예측과 같은 수) */
@@ -427,6 +454,7 @@
       acted: false, over: false, log: [], faction, rewards: { gold: 0, food: 0 }, gate: gateInit, gates: gates, rings: rings, towers: [],
       introLines: buildIntro(type, target, faction, bossInfo, defGens, SK.pickEvent(target, defGens), intercept, allyVoice),
       _snapOpts: snapOpts,
+      arena: arena,           // v6.13 — 연무장 대전 표식 (승패·결산이 이 표식을 먼저 본다)
       event: SK.pickEvent(target, defGens),
       objective: defense ? '성을 지켜라 — 적을 전멸시켜라' : def.objective, started: false, moveAnim: null, deployed: opts.units, introDone: false,
       bondSeen: {}, intercept, marchId: opts.marchId || null, defense: defense, lastStand: !!opts.lastStand,
@@ -586,7 +614,7 @@
     });
     B.units.forEach((u) => { if (u.tier == null) u.tier = SK.tierForLv(u.lv); });
     /* v5.16 — 전장에서 마주친 적 장수를 도감에 조우로 남긴다 */
-    if (SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
+    if (!arena && SK.codexMeet) SK.codexMeet(enemies.filter((u) => u.genId != null).map((u) => u.genId));
     B.objective = defense ? SK.BATTLE_TYPES.defense.objective : def.objective;
     /* v5.38 — 본진 점령이 즉시 승패가 아니므로 목표는 '전멸' 하나로 정리한다 */
     if (B.sites && B.sites.length) B.objective = defense ? '성을 지켜라 — 적을 전멸시켜라' : '적 전멸';
@@ -597,6 +625,15 @@
       B.rewards.gold = Math.round(B.rewards.gold * 1.25);
       B.rewards.food = Math.round(B.rewards.food * 1.1);
       B.rewards.dlcLoot = true;
+    }
+    /* v6.13 — 연무장: 성·보상·영토와 무관한 무대. 이름·목표·인트로를 연무장 것으로 바꾼다 */
+    if (arena) {
+      B.name = '천하 연무장';
+      B.event = null;
+      B.objective = '상대 덱을 전멸시켜라 — 승패만 남는 연무';
+      B.rewards = { gold: 0, food: 0 };
+      B.wallDefMul = 1;
+      B.introLines = arenaIntroLines(arena, allies);
     }
     anims.length = 0;
     fx.length = 0;
@@ -630,7 +667,7 @@
     /* v5.27 — 전투 중에 앱을 닫거나 새로고침해도 출진 병력이 허공으로 사라지지 않게
        '전투 중' 표식을 저장해 둔다. 복귀하면 SK.load가 병력을 출발 성으로 돌려준다. */
     try {
-      if (SK.state) {
+      if (SK.state && !arena) {
         SK.state.battleInProgress = {
           origin: opts.origin || opts.targetId, targetId: opts.targetId, type,
           troops: (opts.units || []).reduce((a, u) => a + (u.troops || 0), 0),
@@ -961,6 +998,60 @@
       x: 0, y: 0, acted: false, alive: true, buffs: {}, items: 1, face: -1,
       train: trainOf(lv, g.tier),
     };
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     v6.13 — 천하 연무장(비동기 덱 코드 대전)
+     · 상대 덱은 { g: 장수 id, lv, t: [보물 id…] } 만 들고 온다 (서버·DB 없음).
+     · 내 부대는 평소처럼 내 장수(h.uid)로 서고, 상대는 이 함수가 만든다.
+     · 승패는 arenaFinish 하나로 끝나고 성·영토·보물·전적에 아무것도 남기지 않는다.
+     ══════════════════════════════════════════════════════════════ */
+  function makeArenaEnemy(e, i) {
+    const g = (SK.GEN_BY_ID && SK.GEN_BY_ID[e && e.g]) || null;
+    if (!g) return null;
+    const lv = clamp(Math.round(Number(e.lv) || 1), 1, 30);
+    /* 장비(보물) — 내 부대와 같은 함수로 능력치·전장 효과를 환산한다 */
+    let eq = { war: 0, intel: 0, leadership: 0, charm: 0, politics: 0, move: 0, rng: 0 };
+    let tfx = null;
+    if (e.t && e.t.length && SK.TREASURE_BY_ID) {
+      const fake = { equip: {} };
+      const slots = ['weapon', 'armor', 'mount'];
+      e.t.forEach((id, k) => { if (SK.TREASURE_BY_ID[id]) fake.equip[slots[k] || ('x' + k)] = id; });
+      eq = SK.equipBonus ? SK.equipBonus(fake) : eq;
+      tfx = SK.heroTreasureFx ? SK.heroTreasureFx(fake) : null;
+    }
+    const g2 = Object.assign({}, g, {
+      _lv: lv,
+      war: (Number(g.war) || 60) + (eq.war || 0),
+      leadership: (Number(g.leadership) || 60) + (eq.leadership || 0),
+      intel: (Number(g.intel) || 60) + (eq.intel || 0),
+    });
+    const per = SK.troopForNamed ? SK.troopForNamed(lv) : 2000;
+    const u = makeNamedEnemy(g2, per, false);
+    if (!u) return null;
+    u.id = 'ar' + i;
+    u.arena = true;
+    if (tfx) u.tfx = tfx;
+    u.mov = Math.min(9, (u.mov || 4) + (eq.move || 0));
+    if (u.rng > 1 && eq.rng) u.rng += eq.rng;
+    u.face = -1;
+    return u;
+  }
+
+  /* 연무장 인트로 — 서로의 대표 장수가 한 마디씩 */
+  function arenaIntroLines(arena, allies) {
+    const lead = (allies || []).slice().sort((a, b) => (b.lv || 1) - (a.lv || 1))[0] || null;
+    const op = (arena.deck || [])[0] || null;
+    const opG = op && SK.GEN_BY_ID ? SK.GEN_BY_ID[op.g] : null;
+    const lines = [];
+    if (lead) {
+      lines.push({ who: lead.name, hanja: '', pt: lead.portrait, side: 'ally',
+        text: '연무장에 불을 켜라! 상대는 코드 한 줄로 온다는데, 직접 봐야 알겠지.' });
+    }
+    lines.push({ who: arena.label || '상대 덱', hanja: '', side: 'enemy',
+      pt: opG ? SK.genPortrait(opG) : (CLASS_PORTRAIT.chaeksa || ''),
+      text: `${arena.label || '어느 천하'}의 드림팀이다. 겨눠 봐라 — 진짜 실력은 여기서 나온다!` });
+    return lines;
   }
 
   function makeEnemy(i, type, faction, per) {
@@ -13791,8 +13882,60 @@
   }
 
   /* ───────────── 승패 ───────────── */
+  /* v6.13 — 연무장 결산: 성·영토·보물·전적에 아무것도 쓰지 않는다 (연습 대전) */
+  function arenaFinish(win) {
+    if (!B || B.over) return;
+    B.over = true;
+    clearBattleProgress();
+    const arena = B.arena || {};
+    try { SK.sfx.play(win ? 'victory' : 'defeat'); } catch (e) { /* ignore */ }
+    if (win && window.JojoBGM) { try { JojoBGM.play('victory'); } catch (e) { /* ignore */ } }
+    const mine = B.units.filter((u) => u.side === 'ally');
+    const theirs = B.units.filter((u) => u.side === 'enemy');
+    const mineAlive = mine.filter((u) => u.alive);
+    const thAlive = theirs.filter((u) => u.alive);
+    const dealt = mine.reduce((a, u) => a + ((u.stat && u.stat.dealt) || 0), 0);
+    const taken = mine.reduce((a, u) => a + ((u.stat && u.stat.taken) || 0), 0);
+    const kills = mine.reduce((a, u) => a + ((u.stat && u.stat.kills) || 0), 0);
+    const rounds = Math.max(1, Number(B.turn) || 1);
+    const fmtN = (n) => Math.round(Number(n) || 0).toLocaleString('ko-KR');
+    const myName = (SK.state && SK.state.factions && SK.state.factions[SK.playerFaction()] || {}).name || '내 덱';
+    const opName = arena.label || '상대 덱';
+    const strip = (arr) => arr.map((u) => `<img class="${SK.tcls(u)}" src="${SK.ptSrc(u.portrait)}" title="${u.name}">`).join('');
+    const line = win
+      ? ['연무 승리!', `상대 덱을 모두 쓰러뜨렸습니다. 자랑할 만한 승부였습니다.`,
+        '코드 하나면 서버 없이도 이렇게 겨룹니다 — 친구에게 내 덱 코드를 보내 보세요.']
+      : ['연무 패배', `상대 덱의 ${thAlive.length}부대가 아직 서 있습니다.`, '편성을 바꾸거나 레벨을 올린 뒤 다시 격돌해 보세요.'];
+    battleModal({
+      kicker: `천하 연무장 · ${myName} vs ${opName}`,
+      title: line[0],
+      body: `<div class="result-modal ${win ? 'win' : 'lose'}">
+        <div class="rm-seal">${win ? '승' : '패'}</div>
+        <p class="rm-reason">${B.winReason ? `종료 사유: ${B.winReason} · ` : ''}${rounds}턴</p>
+        <p class="rm-line">${line[1]}</p>
+        <div class="rm-rewards">
+          <div><span>내 잔존</span><b>${mineAlive.length} / ${mine.length}</b></div>
+          <div><span>상대 잔존</span><b>${thAlive.length} / ${theirs.length}</b></div>
+          <div><span>격파</span><b>${kills}부대</b></div>
+          <div><span>주고받은 피해</span><b>${fmtN(dealt)} / ${fmtN(taken)}</b></div>
+        </div>
+        <div class="rm-survivors">${strip(mineAlive)}</div>
+        ${thAlive.length ? `<div class="rm-prisoners"><span class="rp-tag">남은 상대</span>${strip(thAlive)}</div>` : ''}
+        <p class="rm-note">${line[2]}</p>
+      </div>`,
+      actions: [
+        { label: '🗺️ 지도로', onClick: () => { closeBattle(); SK.showMap(); } },
+        { label: '📤 내 덱 코드', onClick: () => { closeBattle(); if (SK.Arena) setTimeout(() => SK.Arena.open(), 320); } },
+        { label: '🔁 다시 격돌', primary: true, onClick: () => { closeBattle(); if (SK.Arena) setTimeout(() => SK.Arena.replay(), 320); } },
+      ],
+      dismissible: false,
+    });
+  }
+
   function victory() {
     if (B.over) return;
+    /* v6.13 — 연무장은 점령·보상 없이 결산만 */
+    if (B.arena) { B.winReason = B.winReason || '상대 전멸'; arenaFinish(true); return; }
     if (B.intercept) { if (B.intercept.invasion) { invasionInterceptVictory(); return; } interceptVictory(); return; }
     if (B.defense) { defenseVictory(); return; }
     if (SK.recBattle) SK.recBattle(true);   // v6.10 — 천하통일 결산 전적
@@ -14010,6 +14153,8 @@
 
   function defeat() {
     if (B.over) return;
+    /* v6.13 — 연무장 패배도 결산만 (병력·금·포로·부상병 없음) */
+    if (B.arena) { B.winReason = B.winReason || '아군 전멸'; arenaFinish(false); return; }
     if (B.intercept) { if (B.intercept.invasion) { invasionInterceptDefeat(); return; } interceptDefeat(); return; }
     if (B.defense) { defenseDefeat(); return; }
     if (SK.recBattle) SK.recBattle(false);   // v6.10 — 천하통일 결산 전적
@@ -14239,6 +14384,8 @@
     }
     /* v5.7 — 수성전에서 물러나면 성을 내주는 것과 같다 */
     if (B.defense) { defenseDefeat(); return; }
+    /* v6.13 — 연무장 후퇴 = 연무 패배 (성·병력·금에 아무 영향 없음) */
+    if (B.arena) { B.winReason = '후퇴'; arenaFinish(false); return; }
     /* v5.98 — 튜토리얼 후퇴: 행군 없이 연 전장이라 병력을 잃지 않고 진류로 돌려보낸 뒤
        다시 도전할 수 있게 한다 (입문에서 병력을 날리고 막혀 버리지 않게) */
     if (typeof window !== 'undefined' && window.SKTUT && window.SKTUT.active) {

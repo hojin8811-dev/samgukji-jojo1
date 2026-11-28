@@ -1,6 +1,6 @@
 # 인수인계 — 《삼국지-꼬마영웅 난타전》 (`samgukji-jojo1`)
 
-> 기준 **v6.12 · 2026-11-28 · 라이브 `?v=152`** (최신 커밋 해시는 `git log -1 --oneline`)
+> 기준 **v6.13 · 2026-11-28 · 라이브 `?v=153`** (최신 커밋 해시는 `git log -1 --oneline`)
 > 이 문서는 "바로 이어서 개발"용 요약본입니다. 버전별 상세 이력은 `README.md`, 예전(v5.75) 상세 인수인계서는 `HANDOFF_ARCHIVE_v575.md`, 복붙용 지시서는 `HANDOFF_PROMPT.md`에 있습니다.
 > **수익화 정책(광고 노출 규칙·무뽑기)과 유료 상품 5대 축은 §1-1에 사용자가 확정한 그대로 적혀 있다(2026-11-28 갱신: 전투 3판마다 5초 스킵 전면 광고 1회 + 광고 제거 패스). 협업 AI는 임의로 바꾸지 않는다.**
 
@@ -14,7 +14,7 @@
 | 화면 | 표지 → 천하 지도 → 성 내정 → 격자 전장 (모바일 **세로 390×844** 우선) |
 | 기술 | **정적 HTML/CSS/JS만.** 빌드 도구·프레임워크·번들러 없음. 데이터는 `fetch()`로 `data/*.json` 로드 |
 | 저장소·배포 | `https://github.com/hojin8811-dev/samgukji-jojo1` · 브랜치 `main` = GitHub Pages 루트. push하면 몇 초~수십 초 뒤 반영. CI·워크플로 없음 |
-| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=152`) |
+| 라이브 | `https://hojin8811-dev.github.io/samgukji-jojo1/` (캐시 버스터 `?v=153`) |
 | 규모(실측) | 거점 80(`data/cities.json`) · 장수 **901**(명부 `data/generals.json` **796** + 시나리오·재야 인물 105) · 병과 18(`data/classes.json`, 군주 포함 19) · 보물 350(`data/treasures.json`) · 고유 특기 **901**(`data/unique_passives.json`) · 시나리오 4 · 18×18 격자 전장 · **특전 영웅 30(1·2·3탄) + 편의·후원·세이브 슬롯 상품 6(출시 전 비공개)** |
 
 ---
@@ -102,13 +102,13 @@
 
 ---
 
-## 2. 지금 상태 — 실제로 확인한 값 (2026-11-27 기준)
+## 2. 지금 상태 — 실제로 확인한 값 (2026-11-28 v6.13 기준)
 
-- **최신 커밋**: `v6.12 — 대규모 업데이트 14건 (관전·총도독 20성·세이브 슬롯·B/C급 200명) (?v=152)` — 2026-11-28 `main` HEAD
-- **`index.html`**: `css/game.css?v=152`, `js/*.js?v=152`(18개 — `js/dlc.js` 포함), `manifest start_url "./index.html?v=152"`, 서비스워커 등록도 `sw.js?v=152`
+- **최신 커밋**: `v6.13 — 천통 엔드게임 3종 (후일담·2회차·비동기 연무장) (?v=153)` — 2026-11-28 `main` HEAD
+- **`index.html`**: `css/game.css?v=153`, `js/*.js?v=153`(19개 — `js/arena.js` 추가), `manifest start_url "./index.html?v=153"`, 서비스워커 등록도 `sw.js?v=153`
 - **초상 캐시는 따로 관리**: `js/data.js`의 `SK.ASSET_V = '140'`. 캐시 버스터 `?v=`와 별개이므로, **초상 파일을 실제로 덮어썼을 때만** `ASSET_V`를 올린다(그림을 안 바꿨으면 `?v=`만 올린다 — v6.8이 그 예).
 - **`sw.js`**: 캐시를 쌓지 않는 **통과형(network)** 서비스워커. `CACHE` 상수 없음, 파일 주석에 배포별 이력만 남는다.
-- **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1 — **1번 무료, 2~5번은 각 1,900원 해금**(v6.12, 이미 저장이 있으면 무료로 열림).
+- **세이브**: `localStorage` 키 `samgukji-jojo-v4-save`, 저장 데이터는 `version: 5` 검사(`SK.load`). 화면상 슬롯 5칸 + 자동 저장 1 — **1번 무료, 2~5번은 각 1,900원 해금**(v6.12, 이미 저장이 있으면 무료로 열림). v6.13 새 필드는 **`round`(회차, 기본 1)·`carryInfo`(계승 요약)** 두 개이고 옛 세이브는 `SK.load`가 1회차로 보정한다. 2회차 계승 데이터는 새 판을 시작할 때만 쓰는 별도 키 `samgukji-jojo-carry-v1`.
 - **오류 수집**: `index.html`이 `window.__errs`에 `error`·`unhandledrejection`을 모은다. 점검은 이 배열 길이 0으로 판정.
 
 ---
@@ -151,6 +151,7 @@
 | `battle.js` (820KB) | 대형 격자 전장(24/28/32 팬·줌·미니맵) — 이동·공격·책략·AI·**일기토** |
 | `tutorial.js` (21KB) | 3분 입문 튜토리얼(1:1 모드) |
 | `expedition.js` (148KB) | 원정 《삼국이분다》 — 1~3막 30관문·랭킹전·장비·보스 토벌 |
+| `arena.js` (18KB) | **v6.13 천하 연무장** — 덱 코드 인코딩/디코딩(`SJG1-`, base64url+체크섬)·내 덱 선택 창·`?vs=` 링크 도착 처리·지도 pill. 전투는 `battle.js`의 `type:'arena'` 경로를 그대로 쓴다 |
 | `backguard.js` (16KB) | 안드로이드 뒤로가기(popstate) 이탈 방지 |
 | `admin.js` (75KB) | 관리자 모드 `?admin=1` |
 | `patch_v585_map_editor.js` (78KB) | 관리자 전장 타일 맵 에디터 + 천하 전략 지도 편집기 |
@@ -169,6 +170,7 @@
 
 | 커밋 | 날짜 | 내용 |
 | --- | --- | --- |
+| **v6.13** | 11-28 | **천통 엔드게임 3종 (?v=153)** — ① **장수 후일담 크레딧**: 통일 엔딩 아래 조조·유비·제갈량·여포·이순신 등 최대 12줄의 코믹 후일담(90ms 시차 등장, 한자 0) + **다음 도전 배지**(다른 세력·한국 영웅) + [N회차 천하 대란 시작]·[내 통일 덱 코드 공유] ② **2회차 천하 대란(New Game+)**: 내 장수 최대 12명(레벨·능력치·특기·장비) + 보물 전부 계승, 적은 **전원 S급 특기·레벨 +2·공방 +8%·병력 +14%**(회차당), 지도 띠·표지·세이브 슬롯에 `N회차` 표기 ③ **비동기 연무장**: `SJG1-…` 덱 코드(장수 id·레벨·보물) + `?vs=` 링크로 **18×18 연무장 1:1 대전**(서버 0원, 성·영토·전적 무변화) · **전투 중 [후퇴] 확인창이 큐에 밀려 안 뜨던 버그 수정** · 검수 3묶음 66항목 OK |
 | **v6.12** | 11-28 | **대규모 업데이트 14건 (?v=152)** — ① 공성 문구 "성으로 공격한다" ② 캐릭터 머리 터치 히트박스(라벨→스프라이트→칸, 머리 위 0.22칸 여유, 겹치면 앞 부대) ③ 내정 말풍선 6종 개그톤(84줄) + 등용 거절·인용구 개그화(딱딱한 35줄 제거) ④ **총도독 출진·길목 요격도 [관전하기]/[자동결산]** ⑤ 위임 성·군단 창에서 [장수 자세히 보기] ⑥ 포상 후 스크롤 고정 ⑦ **B/C급 장수 200명 + 고유 특기 200종**(명부 596→796, 특기 701→901) ⑧ 인트로 아군 대사를 실제 참전 총대장이 ⑨ 관전 중 [⏸ 멈춤/▶ 재개] + 장수 정보 ⑩ **×1 배속 2배 느리게**(×2 100ms·×3 67ms·×4 50ms) ⑪ **[자동결산]은 전장 미진입·결과 창만** ⑫ 총도독 **최대 20성** ⑬ **세이브 슬롯 1번 무료·2~5번 각 1,900원** ⑭ 군단 성 장수 정지(auto=false) 수정 + 군단/AI 장수 전방 재배치·내정 균형 · 검수 4묶음 63항목 OK |
 | **v6.10** | 11-27 | **80거점 천하통일 엔딩** — 판정을 '80거점 또는 적대 세력 전멸'로 넓히고(남은 재야 호족 성은 스스로 문을 연 것으로 흡수) **금빛 꽃가루·폭죽 + 금박 타이틀 + 결산표 8칸(통일 시점·소요 기간·전투 승률·거점·장수·보물·명성·등급 S/A/B) + MVP 장수 카드 + 장수 코믹 축사 3~4명**을 단 엔딩 창으로 갈아엎었다. **`s.rec`(전투/승)** 를 승패 함수 8곳이 세고, **[🏆 명예의 전당 기록 & 새 천하]**는 `localStorage['samgukji-jojo-hall-of-fame']`에 최대 20건을 쌓아 표지 **[🏆 명예의 전당 (n)]**에서 다시 본다. `window.SK_QA.triggerEnding()` 점검 문과 주소 `&ending=1` 미리보기. 세이브 새 필드는 `startedAt`·`rec`·`neutralSealed`(옛 세이브는 `SK.load`가 보정) |
 | **v6.10b** | 11-27 | **이세계 특전 영웅 DLC 2탄**(11~20번, 출시 전 비공개) — `data/dlc_heroes.json`에 10인 추가(`dlc_hero_11~20`·2,900원·`ep:2`·`episodes`) · 고유 직업·고유 책략 3종·고유 필살기(아킬레우스 관통·헤라클레스 광역 강타·토르 연쇄 번개·오딘 회피 무시·로빈 7칸 화살비·란슬롯 3연격·멀린 화염/빙결·나폴레옹 6칸 포격·카이사르 전장 방패진·한니발 코끼리 공포 돌진) · 상점 특전 탭 **0/20** + [전체/1탄/2탄] 필터·탄 머리 · 초상 10장(`assets/portraits/dlc/dlc_11~20.webp`)·전장 SD 10종(`assets/units/dlc/`)·`dlcAccent()` 표식 · 엔진에 `chain` 필살기·`ignoreEvade`·`e.rng`(6·7칸) 추가 · `?v=149`
@@ -264,6 +266,27 @@
 - **세이브 슬롯 상품** — `save_slot_2`~`save_slot_5`(각 1,900원, `kind:'save_slot'`). `SK.slotUnlocked(i)` = `i<=1 || 구매 || 이미 저장 있음`. 구매는 `SK.buySaveSlot(i)` → `SK.DlcBilling.purchase`, 웹은 창의 **[테스트 해금]**. Billing 상품은 **36개**(영웅 30 + 편의·후원·슬롯 6).
 - **B/C급 200명** — `data/generals.json` id 597~796(위·촉·오·군웅, B 80·C 120) + `data/unique_passives.json`에 같은 이름 200종. `SK.rebalanceTiers`가 다시 등급을 매기므로 **새 장수의 능력치를 바꾸면 B/C 분포가 흔들린다** — 넣은 뒤 `SK.TIER_COUNT`로 확인한다. 초상은 없으면 병과 초상으로 떨어져 404가 없다.
 - **검수** — `tools/v612_browser.py`(35) · `v612_browser2.py`(13) · `v612_browser3.py`(10) · `v612_browser4.py`(5) = **63항목**, 실행은 `bash tools/v612_run.sh tools/v612_browser.py`(로컬 서버 + playwright). 스샷 `preview/v612/`.
+
+## 6-6. v6.13 — 천통 엔드게임 3종 (2026-11-28 · `?v=153`)
+
+**① 장수 후일담 크레딧**
+- 정본은 `js/app.js`의 `AFTERSTORY`(이름별 한 줄) · `AFTERSTORY_POOL`(휘하 일반 장수용 16줄). `afterstoryList()`가 **시대 주역 9인 → 내 휘하 공훈 상위** 순으로 최대 12명을 고르고, `afterstoryOf(이름)`이 문구를 고른다(이름이 표에 없으면 해시로 풀에서 고른다). 문구를 고치려면 그 두 표만 본다.
+- 엔딩 창(`SK.showUnification`) 본문 끝에 `.unify-credits`(크레딧) + `.unify-next`(다음 도전 배지·버튼)가 들어간다. 두 인라인 버튼은 `#unify-next-round` · `#unify-share-deck`이며 `showUnification`이 모달을 받은 뒤 직접 연결한다.
+
+**② 2회차 천하 대란 (New Game+)**
+- 회차는 `s.round` 하나. `SK.roundOf(s)`가 읽고 `SK.roundTag(s)`가 `N회차 천하 대란` 문구를 만든다. `SK.load`가 옛 세이브를 1로 보정한다.
+- 계승: `SK.makeCarry(s)`가 등급×1000+레벨×10 순으로 **최대 12명**(`CARRY_MAX_HERO`)의 `{genId, lv, exp, tierLv, wu/ji/tong/pol/cha, equip}`와 보유 보물 id 전부를 담아 `localStorage['samgukji-jojo-carry-v1']`에 넣는다. `beginScenario` → `applyCarry(newState, carry)`가 수도에 합류시키고 장비를 다시 걸고 `h.carry = true`를 찍은 뒤 그 키를 지운다. 세력 화면의 `계승 취소`는 이 키를 지우기만 한다.
+- 표기: 지도 날짜 띠 `#map-round`(`refreshHud`가 그림) · 표지 `#btn-continue` 라벨(`bind`) · 세이브 슬롯 `metaOf`/`autoSlotInfo`의 `round` → `.ss-round` · 시나리오·세력 화면 `.carry-banner`(`paintCarryBanner`).
+- 적 보정은 두 곳: ① `js/battle.js`의 round 블록(적 전원 `u.atk/def ×(1+0.08(n−1))` · `maxHp ×(1+0.14(n−1))` · 훈련도 +4(n−1) · `SK.roundPassiveOf`로 **S급 특기 교체**) ② `SK.enemyGenLevel`의 `+(n−1)*2`(성 주둔 장수 레벨). **연무장(?vs=)은 이 보정을 받지 않는다** — 양쪽이 같은 조건으로 겨루는 자리다.
+- `SK.roundPassiveOf`의 풀은 `SK.PASSIVES` 중 `tier === 'S' && trigger === 'passive'`이고 내정 전용(`d_…`)을 뺀 30여 종이다(코드에서 매번 다시 모은다).
+
+**③ 비동기 천하 연무장 (`?vs=` 덱 코드)**
+- 코드는 `js/arena.js` 한 파일. 형식은 헤더 주석에 그대로 적어 두었다(버전 1 · 회차 · 이름(UTF-8≤18B) · 인원 · 장수별 id(2B)/레벨(1B)/보물 수(1B)+id(2B)×n · 체크섬 1B → base64url → `SJG1-…`). **이름은 UTF-8 글자 경계에서 자르고, 디코딩은 base64url·표준 base64 둘 다 받는다.**
+- 전투는 `SK.startBattle({ type:'arena', arena:{ deck, label, round } })`. `js/battle.js`에서 `arena` 표식이 있으면 ① 성 수비병 대신 `makeArenaEnemy`가 덱 장수를 세우고(보물은 `SK.equipBonus`·`SK.heroTreasureFx`로 환산) ② 도감 조우·난이도·회차 보정을 건너뛰고 ③ `victory`/`defeat`/`retreat`이 맨 먼저 `arenaFinish(win|false)`로 빠져 **성·금·군량·보물·전적·부상병·포로를 건드리지 않는다** ④ `battleInProgress`·이탈 복구 스냅샷을 만들지 않는다.
+- 새 무대는 `js/data.js`의 `arenaMap()`이 만드는 **18×18 `__arena`**(가운데 마당·네 귀 고지대·마을 2). `SK.BATTLE_TYPES.arena`. 배경 그림은 `plain`을 재사용한다.
+- 진입: 지도 `#btn-arena-pill`(높이는 dlc·자동 내정 pill 유무에 따라 CSS `:has()`로 밀린다) · 지도 ☰ 메뉴 · 통일 엔딩 버튼. `?vs=코드` 링크로 오면 저장을 자동으로 이어받아 연무장을 바로 연다(저장이 없으면 안내 창 → [천하 시작] 후 지도에서 그 덱과 겨룬다 — `PEND_KEY`). 지도에 처리할 사건(행군 도착·침공)이 떠 있으면 한 번 묻고 연다.
+- **전투 중 [후퇴] 버그**: v6.11 팝업 보류 큐가 `SK.confirmRetreat` 창까지 잡아 두어 후퇴가 먹지 않았다 → 그 창만 `battleOk: true`로 열도록 고쳤다(arena와 무관하게 본편에도 적용).
+- 검수: `tools/v613_smoke.py`(33) · `tools/v613_browser.py`(19) · `tools/v613_browser3.py`(14) = **66항목**, 스샷 `preview/v613/`. 로컬 서버·playwright 실행 시 `LD_LIBRARY_PATH=/workspace/tmp/libs/usr/lib/x86_64-linux-gnu:/workspace/tmp/libs/lib/x86_64-linux-gnu`가 필요하다(브라우저 의존 라이브러리).
 
 ## 6. 작업 마칠 때 체크리스트
 
