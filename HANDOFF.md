@@ -322,7 +322,7 @@
 - **명령 가드는 `CMDS.farm`·`CMDS.trade`·`CMDS.repair` 맨 앞의 `domCapped` 검사** — 상한이면 `fail(domCapWhy(...))`로 끝내 턴·금을 쓰지 않는다. 상한 근처면 증가분을 `domRoomOf`로 잘라 상한까지만 오른다(대풍년·대상인·좋은 석재 보너스 포함).
 - **자동 내정은 상한에 걸린 일을 아예 고르지 않는다** — `domActBlocked(cs, key)`를 `chooseAutoAction`(태수)·`chooseDelegatedAction`(군사 위임·자동 내정 패스·관전 모드)에 걸었다. 할 일이 없어진 이유는 `domCapIdleNote(cs)`가 월정산에 `농원 Lv.1 상한 60 · 성벽 Lv.1 상한 60에 닿아 증축이 필요합니다`로 남긴다.
 - **AI는 시설 Lv을 따로 올리지 않으므로** `runAiDomestic`이 `aiFacLv = clamp(1 + round(boost*4), 1, 5)`로 잡는다(boost = `aiLateBoost`). 초반 Lv.1(60) → 후반 Lv.4~5(100)이라 후반 AI의 농업·상업·치안·성벽 성장 곡선은 v6.14a와 같다.
-- **처음 상태의 성벽**: 초기 성벽이 60~96(관문 +8 · 요새 +6)이라 **어느 성이나 Lv.1 상한(60)에 닿아 있다.** 성벽 보수가 다시 열리는 시점은 60~74인 성 35곳 = Lv.2, 75~89인 성 36곳 = Lv.3, 90 이상 9곳 = Lv.4다. (사용자가 이 곡선을 더 부드럽게 원하면 `DOM_CAP_STEPS`를 성벽만 따로 두는 식으로 조정한다 — 예: 75/85/92/100/100.)
+- **처음 상태의 성벽**: 새 게임 기준 성벽은 60~88이라 **80거점 모두 Lv.1 상한(60)에 닿아 있다.** 성벽 보수가 다시 열리는 시점은 60~74인 62곳 = Lv.2(75), 75~88인 18곳 = Lv.3(90). 치안은 초기 56~69라 60 위인 성은 순찰소 Lv.2가 필요하고, 농업·상업은 초기 13~40이라 60까지는 그대로 오른다. (사용자가 이 곡선을 더 부드럽게 원하면 `DOM_CAP_STEPS`를 성벽만 따로 두는 식으로 조정한다 — 예: 75/85/92/100/100.)
 - **도시 등급·성 증축과의 관계**: `cityLevel`·`cityDevAvg`가 농업·상업·성벽을 읽으므로, 시설을 올리지 않으면 도시 Lv과 **성 증축 조건(중도시 minDev 70)** 이 늦어진다. `doCityUpgrade`의 성벽 +3은 시설 상한과 무관한 구조 보너스로 그대로 둔다.
 - **검수**: `python3 tools/v614b_browser.py`(42항목 — 상한 표·명령 가드·매달 성장·AI·다섯 화면 표시·옛 세이브) · `python3 tools/v614b_regress.py`(17항목 — 새 게임→내정→다음 달×3→출진→전장→승리) · 스크린샷 `preview/v614b/`. playwright 실행 시 `LD_LIBRARY_PATH=/workspace/tmp/libs/usr/lib/x86_64-linux-gnu:/workspace/tmp/libs/lib/x86_64-linux-gnu`.
 

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 상한 규칙 | 농업←농원 · 상업←시장 · 치안←순찰소 · 성벽←성벽, **Lv.1 60 · Lv.2 75 · Lv.3 90 · Lv.4~5 100** | `js/app.js` `DOM_CAP_STEPS`·`domCapOf`·`domGrow` |
 | 없는 시설 | 시설이 없는 성(소도시의 순찰소·성벽 등)은 Lv.1(60)로 계산 | `domCapLv` |
-| 대도시 보호 | 상한보다 높게 시작한 성은 **깎지 않고** 성장만 멈춘다(상한 위 = '상한 도달' 판정) | `domCapped`·`domCapWhy` |
+| 대도시 보호 | 상한보다 높게 시작한 성은 **깎지 않고** 성장만 멈춘다(상한 위 = '상한 도달' 판정) — 새 게임 성벽 초기 60~88, 80곳 모두 Lv.1(60)에 닿음(62곳은 Lv.2 · 18곳은 Lv.3에서 다시 열림) | `domCapped`·`domCapWhy` |
 | 명령 가드 | 개간·상업·성벽 보수는 상한에서 **턴·금을 쓰지 않고** 이유를 토스트로 (상한 근처면 상한까지만 상승) | `CMDS.farm`·`CMDS.trade`·`CMDS.repair` |
 | 매달 성장 | 시설 담당 장수가 밀어 올리는 농업·상업·치안·성벽, 달마다 성벽 자동 보강도 상한에서 멈춤 | `runSlots`·`advanceMonth` |
 | 자동·AI | 태수 자동 내정·군사 위임·자동 내정 패스가 상한에 걸린 일을 고르지 않고 이유를 남김 · AI 성장도 같은 상한(AI 시설 Lv은 세력 규모에 따라 1→5) · 군단 자동 내정도 상한 안 | `chooseAutoAction`·`chooseDelegatedAction`·`domCapIdleNote`·`runAiDomestic`·`runCorpsTurn` |
