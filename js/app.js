@@ -12250,7 +12250,7 @@
       if (canRecruit) {
         push({ key: 'recruit', tone: 'urgent',
           title: `이웃 ${topFoe.name}의 병력 ${fmt(topFoe.troops)}이 우리 ${fmt(cs.troops)}${threatWord}`,
-          body: `성벽 ${Math.round(cs.def)}도 넉넉하지 않습니다. 병영에서 징병해 병력을 채우고(금 150 · 군량 120), 다음 달에 성벽을 보수하십시오.`,
+          body: `성벽 ${Math.round(cs.def)}도 넉넉하지 않습니다. 병영에서 징병해 병력을 채우고(금 150 · 군량 120), ${domCapped(cs, 'def') ? '성벽은 지금 시설 상한이니 [시설]에서 성벽을 증축하십시오.' : '다음 달에 성벽을 보수하십시오.'}`,
           label: '병영 · 징병 (금 150 · 군량 120)', short: '징병' });
       } else if (s.gold >= 120 && cs.def < 95) {
         push({ key: 'repair', tone: 'urgent',
