@@ -5043,13 +5043,16 @@
   /* ══════════════════════════════════════════════════════════════
      v6.14b — 시설 레벨별 내정 상한 (사용자 합의 2026-11-28)
      · 농원 Lv ↔ 농업(agri) · 시장 Lv ↔ 상업(comm) · 순찰소 Lv ↔ 치안(order) · 성벽 Lv ↔ 성벽(def)
-     · Lv.1 60 · Lv.2 75 · Lv.3 90 · Lv.4~5 100
-     · 그 시설이 없는 성은 Lv.1(60)로 본다 — 소도시는 순찰소·성벽이 기본으로 없으므로
+     · 농원·시장·순찰소 Lv.1 60 · Lv.2 75 · Lv.3 90 · Lv.4~5 100
+     · 성벽만 따로 부드럽게 (v6.14c) — Lv.1 75 · Lv.2 85 · Lv.3 92 · Lv.4~5 100
+     · 그 시설이 없는 성은 Lv.1로 본다 — 소도시는 순찰소·성벽이 기본으로 없으므로
        치안·성벽을 더 올리려면 공터에 그 시설을 먼저 지어야 한다.
      · 이미 상한보다 높게 시작한 성(성도 85 · 낙양 88 · 장안 84 …)은 수치를 깎지 않는다.
        상한에 '닿은' 것으로 보고 더 오르지 않게만 막는다(화면에는 '상한 위'로 적는다).
      ══════════════════════════════════════════════════════════════ */
   const DOM_CAP_STEPS = [60, 75, 90, 100, 100];
+  /* v6.14c — 성벽(def)만 상한을 더 부드럽게 (사용자 지시 2026-11-28): 75 / 85 / 92 / 100 / 100 */
+  const DOM_CAP_STEPS_DEF = [75, 85, 92, 100, 100];
   const DOM_CAP_FAC = { agri: 'farm', comm: 'market', order: 'patrol', def: 'wall' };
   const DOM_CAP_NAME = { agri: '농업', comm: '상업', order: '치안', def: '성벽' };
   function domCapSlot(cs, stat) {
@@ -5061,7 +5064,12 @@
     const sl = domCapSlot(cs, stat);
     return clamp(sl ? (Number(sl.lv) || 1) : 1, 1, 5);
   }
-  function domCapOf(cs, stat) { return DOM_CAP_STEPS[domCapLv(cs, stat) - 1]; }
+  /* stat별 상한표 — 성벽만 DOM_CAP_STEPS_DEF, 나머지는 DOM_CAP_STEPS */
+  function domCapStep(stat, lv) {
+    const steps = stat === 'def' ? DOM_CAP_STEPS_DEF : DOM_CAP_STEPS;
+    return steps[clamp(Number(lv) || 1, 1, 5) - 1];
+  }
+  function domCapOf(cs, stat) { return domCapStep(stat, domCapLv(cs, stat)); }
   function domCapFacName(stat) { return (SLOT_DEFS[DOM_CAP_FAC[stat]] || {}).name || '시설'; }
   /* 상한에 닿았는가 — 상한보다 높게 시작한 성도 '닿은' 것으로 본다(수치는 깎지 않는다) */
   function domCapped(cs, stat) { return (Number(cs[stat]) || 0) >= domCapOf(cs, stat); }
@@ -5085,7 +5093,7 @@
     const fac = domCapFacName(stat);
     const sl = domCapSlot(cs, stat);
     const head = `${fac} ${sl ? `Lv.${lv}` : '미건설(Lv.1)'} 상한(${cap})`;
-    const next = lv < 5 ? `${fac} Lv.${lv + 1} 상한(${DOM_CAP_STEPS[lv]})` : `${fac} 최고 상한(100)`;
+    const next = lv < 5 ? `${fac} Lv.${lv + 1} 상한(${domCapStep(stat, lv + 1)})` : `${fac} 최고 상한(100)`;
     return cur > cap
       ? `${head} — 지금 ${DOM_CAP_NAME[stat]} ${cur}, 상한 위입니다. ${next}으로 증축해야 더 오릅니다.`
       : `${head} 도달 — 지금 ${DOM_CAP_NAME[stat]} ${cur}. ${next}으로 증축해야 더 올릴 수 있습니다.`;
@@ -5105,6 +5113,8 @@
     return stat ? domCapped(cs, stat) : false;
   }
   SK.DOM_CAP_STEPS = DOM_CAP_STEPS;
+  SK.DOM_CAP_STEPS_DEF = DOM_CAP_STEPS_DEF;
+  SK.domCapStep = domCapStep;
   SK.DOM_CAP_FAC = DOM_CAP_FAC;
   SK.DOM_CAP_NAME = DOM_CAP_NAME;
   SK.DOM_ACT_STAT = DOM_ACT_STAT;
@@ -5886,7 +5896,7 @@
           if (!stat) return '';
           const cap = domCapOf(cs, stat), cur = Math.round(Number(cs[stat]) || 0);
           const on = cur >= cap;
-          const nextTxt = sl.lv < 5 ? `Lv.${sl.lv + 1}(상한 ${DOM_CAP_STEPS[sl.lv]})` : '최고 상한 100';
+          const nextTxt = sl.lv < 5 ? `Lv.${sl.lv + 1}(상한 ${domCapStep(stat, sl.lv + 1)})` : '최고 상한 100';
           return `<div class="slot-capbox${on ? ' on' : ''}">
             <div class="scb-head"><b>내정 상한 — ${DOM_CAP_NAME[stat]}</b><span>${cur} / ${cap}</span></div>
             <i class="scb-bar"><s style="width:${Math.max(2, Math.min(100, Math.round(cur / cap * 100)))}%"></s></i>
@@ -8553,7 +8563,7 @@
   const HELP_TIPS = {
     loyal: { t: '민심', lines: ['백성이 다스림을 따르는 마음입니다. 세수와 인구가 민심을 따라 오르내립니다.', '40 아래로 떨어지면 소란이 나 병력이 줄고, 70을 넘으면 세수 15%가 붙습니다. [관아 → 백성 위로]로 올립니다.', '<b>치안과 함께 60을 넘으면 인구가 더 빨라지고, 둘 다 90이면 인구 증가가 최대 1.7배</b>까지 붙습니다.'] },
     order: { t: '치안', lines: ['성안이 얼마나 안전한지입니다. 동시에 <b>적의 계략(첩보·이간·유언비어)을 막는 힘</b>입니다 — 50부터 오르기 시작해 100이면 +25%. 성벽 방어와 합쳐 <b>최대 80%</b>까지만 막히고, 100% 차단은 없습니다.', '40 아래면 계략 방어가 <b>0%</b>가 되고 <b>도적</b>이 들어 금·병력이 새어 나갑니다. 순찰소에 장수를 배속하면 달마다 오르고, 배속이 없으면 조금씩 풀립니다.', '<b>민심과 함께 60을 넘으면 인구가 빨리 늘고, 둘 다 90이면 최대 1.7배</b> — 다스림이 고를수록 사람이 모입니다.', '<b>시설 상한</b> — 치안은 <b>순찰소 Lv</b>이 정합니다: Lv.1 <b>60</b> · Lv.2 <b>75</b> · Lv.3 <b>90</b> · Lv.4~5 <b>100</b>. 순찰소가 없는 성(소도시 등)은 Lv.1(60)로 보고, 상한에 닿으면 순찰소를 지어 올려야 더 오릅니다.'] },
-    wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>, <b>관아 머리의 지력이 최대 +6%</b>를 더하지만, 모두 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.', '<b>시설 상한</b> — 성벽 수치는 <b>성벽 Lv</b>이 정합니다: Lv.1 <b>60</b> · Lv.2 <b>75</b> · Lv.3 <b>90</b> · Lv.4~5 <b>100</b>. 이미 상한보다 높게 시작한 성(장안·낙양·성도 등)은 수치를 깎지 않고 그대로 두며, 성벽을 증축해야 더 보수할 수 있습니다.'] },
+    wall: { t: '성벽 · 계략 방어', lines: ['성을 지키는 높이(방어도)이자, 적의 첩보·이간·유언비어를 걸러 내는 그물입니다.', '성벽 Lv과 담당 통솔이 높을수록 더 막습니다(최대 55%). 여기에 <b>치안이 최대 +25%</b>, <b>관아 머리의 지력이 최대 +6%</b>를 더하지만, 모두 합쳐도 <b>80%까지</b>입니다 — 아무리 높여도 적 계략이 20%는 통합니다.', '<b>시설 상한</b> — 성벽 수치는 <b>성벽 Lv</b>이 정합니다: Lv.1 <b>75</b> · Lv.2 <b>85</b> · Lv.3 <b>92</b> · Lv.4~5 <b>100</b> (성벽은 농원·시장·순찰소보다 상한이 조금 높습니다 — Lv.1 75부터). 이미 상한보다 높게 시작한 성(장안·낙양·성도 등)은 수치를 깎지 않고 그대로 두며, 성벽을 증축해야 더 보수할 수 있습니다.'] },
     train: { t: '훈련도', lines: [
       '이 성 병사들의 숙련도입니다. <b>전장에서는 50이 기준(100%)</b>이고, 50을 중심으로 <b>연속 비례</b>해서 공·방이 오르내립니다. <b>100 → 공·방 +12% · 치명 +4%p</b>, 75 → +6%, 50 → 0%, 25 → −5%, 0 → −10%.',
       '<b>[병영 → 훈련]</b> 또는 연병장으로 올립니다. 출진할 때 이 수치가 부대 훈련도로 그대로 넘어갑니다.',
@@ -15783,11 +15793,13 @@
          세력이 커진 만큼(boost 0→1) 시설 Lv을 1→5로 함께 올려 잡는다.
          →초반 Lv.1(상한 60)·중반 Lv.2~3·후반 Lv.4~5(상한 100)로 예전 성장 곡선을 지킨다. */
       const aiFacLv = clamp(1 + Math.round(boost * 4), 1, 5);
-      const aiDomCap = DOM_CAP_STEPS[aiFacLv - 1];
-      if (st.def < Math.min(95, aiDomCap) && Math.random() < 0.4 + 0.35 * boost) {
-        st.def = domGrow(st.def, boost > 0.5 && Math.random() < 0.4 ? 2 : 1, Math.min(100, aiDomCap));
+      /* v6.14c — 성벽은 성벽 전용 상한표(75/85/92/100/100)를 쓴다 */
+      const aiDefCap = domCapStep('def', aiFacLv);
+      if (st.def < Math.min(95, aiDefCap) && Math.random() < 0.4 + 0.35 * boost) {
+        st.def = domGrow(st.def, boost > 0.5 && Math.random() < 0.4 ? 2 : 1, Math.min(100, aiDefCap));
       }
       /* 내정 — 농업·상업·치안 (시설 상한 안에서) */
+      const aiDomCap = domCapStep('agri', aiFacLv);
       const pollCap = Math.min(95 + Math.round(5 * boost), aiDomCap);
       const pollP = 0.62 + 0.3 * boost;
       if (st.agri < pollCap) st.agri = domGrow(st.agri || 50, Math.random() < pollP ? 1 : 0, pollCap);
