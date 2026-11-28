@@ -8459,16 +8459,32 @@
     if (B && a && d && a.side === 'ally' && d.side === 'enemy' && dmg > 0) B.allyHits = (B.allyHits || 0) + 1;
   }
 
-  /* v5.17 — 전투 불능은 더 이상 "전사"가 아니다. 15% 생포 / 85% 퇴각. */
+  /* v5.17 — 전투 불능은 더 이상 "전사"가 아니다. 15% 생포 / 85% 퇴각.
+     v6.14a — 일반병사(이름 없는 잡병·수비대·부대)는 생포하지 않는다. 늘 퇴각이고
+     표시도 "퇴각했습니다"로 쓴다(포로·생포 목록에 들어가지 않는다). */
   function downUnit(u) {
     if (!u || !u.alive) return;
     u.hp = 0;
     u.alive = false;
-    u.fate = Math.random() < 0.15 ? '생포' : '퇴각';
+    const plain = !namedUnit(u);
+    u.plain = plain;
+    u.fate = plain ? '퇴각' : (Math.random() < 0.15 ? '생포' : '퇴각');
     /* v6.6 — 즉시 사라지지 않게: 쓰러지는 그림과 발밑 흙먼지를 남긴다 */
     pushFall(u);
     addFx({ kind: 'dust', x: (rxOf(u) + 0.5) * TILE, y: (ryOf(u) + 0.92) * TILE, life: 460 });
   }
+  /* v6.14a — 쓰러진 부대에 띄우는 말풍선 문구 · 결산 표의 표기 */
+  function fateFloatOf(u) {
+    if (!u) return '퇴각';
+    if (u.plain || !namedUnit(u)) return '퇴각했습니다';
+    return u.fate === '생포' ? '생포!' : '퇴각';
+  }
+  function fateLabelOf(u) {
+    if (!u) return '퇴각';
+    if (u.plain || !namedUnit(u)) return '퇴각했습니다';
+    return u.fate === '생포' ? '생포' : '퇴각';
+  }
+  SK.battleFateOf = fateLabelOf;
 
   function applyDamage(a, d, dmg, crit, bond) {
     const wasAlive = d.hp > 0;
@@ -8603,7 +8619,8 @@
     if (a.side === 'ally' && a.uid) battleExp(a, wasAlive && d.hp <= 0 ? 42 : 9);
     if (d.hp <= 0) {
       downUnit(d);
-      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.2) * TILE, d.fate === '생포' ? '생포!' : '퇴각', d.fate === '생포' ? '#ffd166' : '#ff9a7a');
+      addFloat((rxOf(d) + 0.5) * TILE, (ryOf(d) + 0.2) * TILE, fateFloatOf(d), d.fate === '생포' ? '#ffd166' : '#ff9a7a');
+      if (d.plain) feed(`${d.name} — 퇴각했습니다`, d.side === 'ally' ? 'bad' : 'good');
       d.flash = 1;
     }
     if (window.SKBattle) SKBattle.refreshUI();
@@ -13218,7 +13235,7 @@
     const list = B.units.filter((u) => u.side === 'ally').map((u) => {
       const s = u.stat || { dealt: 0, taken: 0, heal: 0, kills: 0 };
       return { name: u.name, dealt: Math.round(s.dealt), taken: Math.round(s.taken),
-        heal: Math.round(s.heal), kills: s.kills, alive: u.alive, fate: u.fate || null,
+        heal: Math.round(s.heal), kills: s.kills, alive: u.alive, fate: u.alive ? null : fateLabelOf(u),
         score: s.dealt * 0.6 + s.taken * 0.18 + s.heal * 0.5 + s.kills * 150 };
     });
     if (!list.length) return '';
@@ -13959,6 +13976,7 @@
     /* v5.9 — 잃은 병력의 35~50%는 전사 대신 부상병으로 함락한 성에 남는다 */
     const lostN = lostOf('ally');
     const prevGenIds = (st.genIds || []).slice();   // v5.77 — 포로·등용되지 않은 적 장수는 남은 성으로 퇴각시킨다
+    if (SK.noteCapture) SK.noteCapture(B.targetId, prevOwner, SK.playerFaction());   // v6.14a — 멸망 속보용
     st.owner = SK.playerFaction();
     st.genIds = [];
     st.wounded = 0;
@@ -14377,9 +14395,10 @@
 
   function retreat() {
     if (!B) return;
-    /* v5.89 — 관전·자동결산 중에는 후퇴도 받지 않는다 (AI가 끝까지 지휘한다) */
-    if (spectateMode || skipMode) {
-      SK.toast('관전 중에는 후퇴할 수 없습니다 — AI가 지휘합니다.');
+    /* v6.14a — 관전·자동결산 중에는 '후퇴'가 아니라 '관전 종료'다 (공격을 취소하지 않고 결과만 받는다) */
+    if (spectateMode) { askLeaveSpectate(); return; }
+    if (skipMode) {
+      SK.toast('자동 결산 중입니다 — 결과까지 AI가 진행합니다.');
       return;
     }
     /* v5.7 — 수성전에서 물러나면 성을 내주는 것과 같다 */
@@ -14453,9 +14472,9 @@
     holdQ.length = 0;
     paceBoost = 1;
     const sbar = document.querySelector('#spectate-bar');
-    if (sbar) sbar.hidden = true;
+    if (sbar) { sbar.hidden = true; sbar.innerHTML = '<b>👁 관전 중</b> AI가 지휘합니다'; }
     const scr = document.getElementById('screen-battle');
-    if (scr) scr.classList.remove('spectating');
+    if (scr) { scr.classList.remove('spectating'); scr.classList.remove('spec-skip'); }
     ['#battle-actions .act.auto', '#btn-retreat', '#btn-speed'].forEach((sel) => {
       const el = document.querySelector(sel);
       if (el) el.hidden = false;
@@ -14532,24 +14551,33 @@
     const bar = document.querySelector('#spectate-bar');
     if (bar) {
       bar.hidden = false;
+      /* v6.14a — 관전 중에는 [⏸ 멈춤] 옆에 [관전 나가기]를 둔다.
+         예전에는 나가는 길이 안드로이드 뒤로가기뿐이었고 그 창이 '후퇴'를 물었다. */
       bar.innerHTML = skipMode
-        ? '<b>👁 자동 결산</b> 총도독이 지휘합니다 — 결과까지 AI가 진행합니다'
-        : '<b>👁 관전 중</b> AI가 지휘합니다 — 직접 조작할 수 없습니다'
-          + '<button type="button" id="spec-pause" class="spec-pause" aria-label="관전 멈춤">⏸ 멈춤</button>';
+        ? '<b>👁 자동 결산</b><span class="sb-msg">총도독이 지휘합니다 — 결과까지 AI가 진행합니다</span>'
+        : '<b>👁 관전 중</b><span class="sb-msg">AI가 지휘합니다 — 직접 조작은 잠김</span>'
+          + '<span class="spec-btns">'
+          + '<button type="button" id="spec-pause" class="spec-pause" aria-label="관전 멈춤">⏸ 멈춤</button>'
+          + '<button type="button" id="spec-exit" class="spec-exit" aria-label="관전 나가기">관전 나가기</button>'
+          + '</span>';
     }
     /* v6.12 — 관전 중에도 [⏸ 멈춤 / ▶ 재개]으로 전장 시계를 세우고, 멈춴 상태에서
        아무 부대나 누르면 그 장수 정보(능력치·병과·기술·체력)를 열어 본다. */
     const pauseBtn = document.getElementById('spec-pause');
     if (pauseBtn) pauseBtn.onclick = () => setSpecPaused(!specPaused);
+    const exitBtn = document.getElementById('spec-exit');
+    if (exitBtn) exitBtn.onclick = () => askLeaveSpectate();
     const autoBtn = document.querySelector('#battle-actions .act.auto');
     if (autoBtn) autoBtn.hidden = true;
     const retreat = document.querySelector('#btn-retreat');
     if (retreat) retreat.hidden = true;
+    /* v6.14a — 배속 버튼은 관전에서도 그대로 둔다(관전은 편하게 보는 자리라 ×1~×4가 필요하다).
+       자동 결산(skip)만 엔진이 배속을 직접 잡으므로 감춘다. */
     const spd = document.querySelector('#btn-speed');
-    if (spd) spd.hidden = true;
+    if (spd) spd.hidden = !!skipMode;
     /* hidden 속성은 display 규칙에 져서 화면에 남는다(.act·.icon-btn) → 전용 클래스로 확실히 숨긴다 */
     const scr = document.getElementById('screen-battle');
-    if (scr) scr.classList.add('spectating');
+    if (scr) { scr.classList.add('spectating'); scr.classList.toggle('spec-skip', !!skipMode); }
     if (skipMode && !headlessMode) {
       autoSpeed = 4;
       paceBoost = 12;   // 같은 엔진을 최대 배속으로 돌려 결과만 빨리 받는다
@@ -14562,6 +14590,52 @@
     autoTimer = wait(autoStep, 160);
     if (!headlessMode) SK.toast(skipMode ? '총도독 전투 — 결과까지 자동으로 결산합니다.' : '관전 — 아군도 AI가 지휘합니다. 직접 명령은 잠겼습니다.');
   }
+
+  /* v6.14a — 관전 나가기: 남은 전투를 AI 자동 결산으로 끝까지 돌리고 결과만 받는다.
+     · 플레이어 부대의 패배·사기 패널티를 만들지 않는다(전투 자체는 같은 엔진이 끝까지 판정한다)
+     · 이미 시작한 공격이라 '후퇴'처럼 공격을 취소하지 않는다 — 결과는 정상 반영된다 */
+  function askLeaveSpectate() {
+    if (!B || B.over || !spectateMode || skipMode) return false;
+    SK.modal({
+      battleOk: true, kicker: '관전', title: '관전을 마칠까요?',
+      body: '<p class="modal-p">남은 전투는 <b>AI 자동 결산</b>으로 끝까지 진행되고, 결과(승패·피해·점령)는 그대로 반영됩니다.<br><span class="modal-sub">관전을 그만두는 것이라 우리 부대에 패배·사기 패널티가 붙지 않습니다. 잠시 뒤 결과 창이 뜹니다.</span></p>',
+      actions: [
+        { label: '계속 관전', primary: true },
+        { label: '관전 종료', onClick: () => resolveSpectateNow() },
+      ],
+    });
+    return true;
+  }
+  /* 남은 관전을 자동 결산으로 넘긴다 — 전장 화면은 결과 창까지 그대로 두고 엔진만 최대로 돌린다 */
+  function resolveSpectateNow() {
+    if (!B || B.over) return;
+    spectateMode = false;
+    skipMode = true;
+    headlessMode = true;
+    B.spectate = true;
+    B.skip = true;
+    autoSpeed = 4;
+    paceBoost = 12;
+    specPaused = false;
+    holdQ.length = 0;
+    paintSpeedBtn();
+    const bar = document.querySelector('#spectate-bar');
+    if (bar) {
+      bar.hidden = false;
+      bar.innerHTML = '<b>👁 자동 결산</b><span class="sb-msg">남은 전투를 AI가 마무리합니다 — 잠시 뒤 결과 창</span>';
+    }
+    const scr = document.getElementById('screen-battle');
+    if (scr) scr.classList.add('spec-skip');
+    const spd = document.querySelector('#btn-speed');
+    if (spd) spd.hidden = true;
+    SK.toast('관전을 마칩니다 — 남은 전투는 자동 결산으로 진행합니다.');
+    if (!autoOn) { autoOn = true; autoClear(); }
+    autoPending = null;
+    autoClear();
+    autoTimer = wait(autoStep, 0);
+  }
+  SK.leaveSpectate = resolveSpectateNow;
+  SK.askLeaveSpectate = askLeaveSpectate;
 
   /* v6.12 — 관전 멈춤/재개. 예약된 대기 콜백을 붙잡아 두었다가 재개에서 풀어 준다 */
   function setSpecPaused(on) {
@@ -14766,7 +14840,8 @@
     if (wasAlive && target.hp <= 0) {
       downUnit(target);
       addFloat((rxOf(target) + 0.5) * TILE, (ryOf(target) + 0.2) * TILE,
-        target.fate === '생포' ? '생포!' : '퇴각', target.fate === '생포' ? '#ffd166' : '#ff9a7a');
+        fateFloatOf(target), target.fate === '생포' ? '#ffd166' : '#ff9a7a');
+      if (target.plain) feed(`${target.name} — 퇴각했습니다`, target.side === 'ally' ? 'bad' : 'good');
       target.flash = 1;
     }
     SKBattle.refreshUI();
@@ -15073,6 +15148,13 @@
   }
 
   const SKBattle = {
+    /* v6.14a — 지금 관전 중인가 (뒤로가기·후퇴 버튼이 '관전 종료'로 갈라지는 판정) */
+    spectateInfo() {
+      return { live: !!B && !B.over, spectate: !!spectateMode, skip: !!skipMode, paused: !!specPaused };
+    },
+    /* v6.14a — 관전 종료 (확인창 → 남은 전투 자동 결산) */
+    leaveSpectate() { resolveSpectateNow(); },
+    askLeaveSpectate() { return askLeaveSpectate(); },
     refreshUI() {
       if (!B) return;
       const allies = B.units.filter((u) => u.side === 'ally' && u.alive);
@@ -15281,6 +15363,16 @@
         })) : [];
       },
       /* v5.37 — 관전 QA: 전투가 멈춘 것인지(페이즈·연출·행동 플래그) 한 번에 본다 */
+      /* v6.14a — 검수용: 부대 목록과 쓰러진 뒤의 표기(생포/퇴각했습니다)를 그대로 본다 */
+      unitList() {
+        if (!B) return [];
+        return B.units.map((u) => ({
+          name: u.name, side: u.side, cls: u.cls, alive: !!u.alive, hp: Math.round(u.hp || 0),
+          uid: u.uid || null, genId: u.genId == null ? null : u.genId, boss: !!u.boss,
+          named: namedUnit(u), plain: !namedUnit(u), fate: u.fate || null,
+          fateText: u.alive ? null : fateFloatOf(u), fateLabel: u.alive ? null : fateLabelOf(u),
+        }));
+      },
       state() {
         if (!B) return null;
         return { phase: B.phase, turn: B.turn, over: !!B.over, busy: busy, anims: anims.length, fx: fx.length,

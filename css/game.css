@@ -8059,10 +8059,11 @@ body:has(#expRoot) .adm-fab { top: auto; bottom: calc(env(safe-area-inset-bottom
 .spectate-bar { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); z-index: 9; max-width: 94%; padding: 5px 10px; border-radius: 999px; background: rgba(92, 26, 20, 0.92); color: #ffeec2; font-size: 11px; font-weight: 800; letter-spacing: -0.01em; text-align: center; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .spectate-bar b { color: #ffd76a; margin-right: 4px; }
 
-/* v5.89 — 관전·자동결산 중에는 후퇴·자동토글·배속 버튼을 확실히 감춘다
-   (hidden 속성만으로는 .act/.icon-btn의 display 규칙에 져서 화면에 남는다) */
+/* v5.89 — 관전·자동결산 중에는 후퇴·자동토글 버튼을 확실히 감춘다
+   (hidden 속성만으로는 .act/.icon-btn의 display 규칙에 져서 화면에 남는다)
+   v6.14a — 배속(#btn-speed)은 관전에서도 보여 준다(관전은 편하게 보는 자리).
+   자동 결산으로 넘어간 뒤에만 감춘다 — 아래 .spec-skip 규칙. */
 #screen-battle.spectating #btn-retreat,
-#screen-battle.spectating #btn-speed,
 #screen-battle.spectating #battle-actions .act.auto { display: none !important; }
 #screen-battle.spectating #battle-actions .act:not(.speed) { opacity: .45; filter: grayscale(.45); }
 
@@ -10058,3 +10059,35 @@ body.tut-on #screen-city .city-commands { position: relative; z-index: 41; }
 
 /* v6.14 — 지도 범례: 봉인된 땅 */
 .lg.sealed { background: #46525e; border: 1px solid #c2ccd4; box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.55); }
+
+/* ══════════════════════════════════════════════════════════════════
+   v6.14a — ① 총도독(군단) 위임 창 장수 칩 대비 ② 관전 바 [관전 나가기]
+   ══════════════════════════════════════════════════════════════════ */
+/* ① 군단 위임 창의 장수 칩(.cp-gen)은 크림색 목판(.cp-card) 위에 놓이는데
+   v6.12에 밝은 크림 글자(#fff2d8)로 들어가 거의 보이지 않았다.
+   목판·비단 테마에 맞춰 진한 먹색 글자 + 뚜렷한 테두리로 바꾼다. */
+.cp-gens { gap: 5px; }
+.cp-gen-city { color: #4a3418; font-size: 11px; }
+.cp-gen-city > b { min-width: 52px; color: #6b3d0b; font-weight: 900; }
+.cp-gen { padding: 2px 8px; border-radius: 999px; border: 1px solid #b98a3a;
+  background: #fff8e6; color: #2c1810; font-size: 11px; font-weight: 800; }
+.cp-gen.gov { border-color: #8a5a12; background: #f2d9a0; color: #20120a; box-shadow: 0 0 0 1px #d9b25c inset; }
+.cp-gen-none { color: #7a6644; }
+
+/* ② 관전 바 — [⏸ 멈춤] 옆에 [관전 나가기]가 잘리지 않고 한 줄에 서도록 두 줄 허용 */
+.spectate-bar { white-space: normal; display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: center; gap: 3px 5px; line-height: 1.35; }
+.spectate-bar .sb-msg { min-width: 0; }
+.spec-btns { display: inline-flex; align-items: center; gap: 4px; pointer-events: none; }
+.spec-exit { pointer-events: auto; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid rgba(255, 170, 130, 0.75); background: rgba(52, 12, 8, 0.85); color: #ffd6c2;
+  font-size: 11px; font-weight: 900; letter-spacing: -0.01em; }
+/* 자동 결산으로 넘어간 뒤에는 배속을 엔진이 잡으므로 감춘다 */
+#screen-battle.spectating.spec-skip #btn-speed { display: none !important; }
+
+/* ③ v6.14a — 군단 위임 성에서도 장수 카드는 '눌러서 정보 보기'가 된다 (조회는 명령이 아니다) */
+#screen-city.corps-locked .city-pane[data-pane="generals"] .gen-card { cursor: pointer; }
+#screen-city.corps-locked #city-tabs .ct-tab { opacity: 1; }
+#screen-city.corps-locked .city-pane[data-pane="generals"] .ap-delegate { opacity: .5; filter: grayscale(.4); cursor: not-allowed; }
+/* display:flex 를 주면 [hidden] 기본 규칙을 이긴다 → 숨김은 따로 못박는다 (일반 전투에 관전 바가 남지 않게) */
+.spectate-bar[hidden] { display: none !important; }

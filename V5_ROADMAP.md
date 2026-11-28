@@ -1,6 +1,19 @@
 # 《꼬마영웅 대난투》 v5.0 진행표 — 완료 / 남은 일
 
-기준: 2026-11-28 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=152`
+기준: 2026-11-28 · 배포 `https://hojin8811-dev.github.io/samgukji-jojo1/?v=155`
+
+## ✅ v6.14a — 사용자 제보 6건: 군단 장수 칩 대비 · 관전 배속 · 관전 나가기 · 일반병사 퇴각 · 위임 중 장수 확인 · 멸망 속보 (2026-11-28 · `?v=155`)
+
+| 갈래 | 내용 | 코드 |
+| --- | --- | --- |
+| ① 군단 장수 칩 | 크림 목판 위 밝은 크림 글자 → 진한 먹색 글자 + 뚜렷한 테두리, 성 이름 라벨도 진한 갈색 | `css/game.css` `.cp-gen`·`.cp-gen-city > b` |
+| ② 관전 배속 | 관전에서 `#btn-speed`(×1~×4)를 숨기지 않는다 — 감추는 것은 자동 결산(`.spec-skip`)뿐 | `js/battle.js` `startSpectating` |
+| ③ 관전 나가기 | '후퇴' 대신 '관전을 마칠까요?' → [관전 종료]는 남은 전투를 AI 자동 결산(공격 취소·패배/사기 패널티 없음) | `js/battle.js` `askLeaveSpectate`·`resolveSpectateNow`, `js/backguard.js` `askBattleExit`, `js/app.js` `SK.confirmRetreat` |
+| ④ 일반병사 퇴각 | 이름 없는 부대는 생포 대신 늘 "퇴각했습니다"(말풍선·전장 로그·결산 표) · 포로/생포 후보 제외 | `js/battle.js` `downUnit`·`fateFloatOf`·`fateLabelOf` |
+| ⑤ 위임 중 장수 확인 | 위임 성의 [장수] 탭·장수 카드 상세·장수 명부 허용, 직접 명령·[군사 임명]만 잠금 | `js/app.js` `bindCorpsLockCapture`, `css/game.css` `.corps-locked` |
+| ⑥ 멸망 속보 | 점령 세력·성을 기록해 "원술군에게 최후의 거점(낙양)을 빼앗겼습니다. 남은 세력 N곳" | `js/app.js` `SK.noteCapture`·`pruneLandlessFactions`·`showFallBanner` |
+
+검수: `python3 tools/v614a_browser.py` (42항목) · 스크린샷 `preview/v614a/`.
 
 ## ✅ v6.12 — 대규모 업데이트 14건: 공성 문구·터치 히트박스·말풍선 톤·관전 확대·총도독 20성·세이브 슬롯 유료화·B/C급 200명 (2026-11-28 · `?v=152`)
 

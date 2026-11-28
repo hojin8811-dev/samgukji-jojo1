@@ -1767,6 +1767,8 @@
       if (!s.carryInfo || typeof s.carryInfo !== 'object') s.carryInfo = null;
       /* v5.75 — 총도독 군단 저장 형식 보정 (옛 저장에는 없다) */
       s.corps = Array.isArray(s.corps) ? s.corps.filter((c) => c && Array.isArray(c.cityIds)) : [];
+      /* v6.14a — ‘누가 마지막 성을 빼았갔는지’ 기록 (멸망 속보용 · 옛 저장에는 없다) */
+      s.lastCaptureBy = (s.lastCaptureBy && typeof s.lastCaptureBy === 'object') ? s.lastCaptureBy : {};
       /* v5.88 — 수송·장수 이동 대기열·건설 기록 (옛 저장에는 없다) */
       s.transitQueue = Array.isArray(s.transitQueue)
         ? s.transitQueue.filter((e) => e && e.to && s.cities[e.to] && (Number(e.left) || 0) > 0) : [];
@@ -7726,6 +7728,7 @@
     const p = surrenderChance(cityId, actor, tid);
     const tsTroopsBefore = Math.round(ts.troops || 0);
     const tsDefBefore = Math.round(ts.def || 50);
+    const prevSurrOwner = ts.owner;                 // v6.14a — 멸망 속보용
     s.gold -= diploCost;
     consumeDispatch(cityId, actor);
     const ok = Math.random() < p;
@@ -7735,6 +7738,7 @@
       (ts.genIds || []).forEach((gid) => {
         if (Math.random() < 0.45) { join.push(gid); return; }
       });
+      if (SK.noteCapture) SK.noteCapture(tid, prevSurrOwner, PF());   // v6.14a
       ts.owner = PF();
       ts.troops = Math.max(800, Math.round((ts.troops || 800) * 0.7));
       ts.loyalty = 50;
@@ -13277,6 +13281,7 @@
     regionIds.forEach((id) => {
       const cs = s.cities[id];
       const c = SK.CITY[id] || {};
+      if (SK.noteCapture) SK.noteCapture(id, cs.owner, fid);   // v6.14a
       cs.owner = fid;
       cs.genIds = [];
       cs.bandit = false;
@@ -14821,6 +14826,9 @@
       if (owns) return;
       const f = s.factions[fid] || {};
       gone.push(f.name || SK.factionName(fid));
+      /* v6.14a — 누가 마지막 거점을 가져갔는지 속보에 적기 위해 점령 기록을 꺼낸다 */
+      const cap = (s.lastCaptureBy || {})[fid] || null;
+      if (cap) delete s.lastCaptureBy[fid];
       /* v5.78 — 멸망 속보를 띄우려고 세력의 깃발·색·군주를 지우기 전에 적어 둔다 */
       s.fallQueue = s.fallQueue || [];
       s.fallQueue.push({
@@ -14829,6 +14837,10 @@
         lord: SK.normName ? SK.normName(f.lord || '') : (f.lord || ''),
         mark: f.mark || SK.FACTION_MARK[fid] || String(f.name || '').replace(/군$/, '').charAt(0),
         color: f.color || SK.FACTION_COLOR[fid] || '#8b8677',
+        /* v6.14a — 멸망을 일으킨 점령 세력과 빼앗긴 성 (특수 멸망이면 빈 값 → 기존 문구) */
+        by: (cap && cap.by) ? cap.by : '',
+        byName: (cap && cap.by) ? SK.factionName(cap.by) : '',
+        cityName: (cap && cap.cityId && SK.CITY[cap.cityId]) ? SK.CITY[cap.cityId].name : '',
       });
       /* v5.78 — 나라를 잃은 군주는 재야가 될 수 있다 (주점 필터에서 빼 준다) */
       const exLord = SK.normName ? SK.normName(f.lord || '') : (f.lord || '');
@@ -14955,6 +14967,19 @@
   }
   SK.wildRelease = wildRelease;
 
+  /* v6.14a — 성을 빼앗을 때마다 '누가 가져갔는지'를 적어 둔다.
+     멸망 속보(세력 멸망)에서 “누구에게 최후의 거점을 빼았겼는지”를 보여 주기 위한 기록이다.
+     점령 경로(플레이어 공성·AI 습격·야전 함락·항복·보스 침공·군단 출진)가 모두 이 함수를 부른다. */
+  function noteCapture(cityId, prevOwner, byFaction) {
+    const s = SK.state;
+    if (!s || !cityId || !prevOwner) return null;
+    if (prevOwner === 'neutral' || prevOwner === byFaction) return null;
+    s.lastCaptureBy = s.lastCaptureBy || {};
+    s.lastCaptureBy[prevOwner] = { by: byFaction || '', cityId: cityId, turn: s.turn || 0 };
+    return s.lastCaptureBy[prevOwner];
+  }
+  SK.noteCapture = noteCapture;
+
   function fallShortName(item) {
     const nm = String((item && item.name) || (SK.FACTIONS[(item || {}).id] || {}).name || '적군');
     return nm.replace(/군$/, '') || '적군';
@@ -14975,13 +15000,18 @@
     const n = list.length;
     const byPlayer = !!it.byPlayer;
     const cityName = it.cityName || '';
+    const byName = it.byName || '';
+    const byIsMe = !!it.by && it.by === s.playerFaction;
     const factionsLeft = Object.keys(s.factions || {}).filter((k) => k !== 'neutral').length;
     const face = lordG
       ? `<img class="fb-face-img" src="${SK.ptSrc(SK.genPortrait(lordG))}" alt="${lord}">`
       : `<span class="fb-face-fallback">${String(lord || short).charAt(0)}</span>`;
     const box = byPlayer
       ? `<div class="fb-prison-box"><b>⚔️ 마지막 성 함락!</b> 군주 <b>${lord || army + ' 군주'}</b> 포함 적장 <b>${n}명</b>이 포로 명단에 올랐습니다.</div>`
-      : `<div class="fb-prison-box quiet"><b>🏴 ${army}이 최후의 거점을 잃었습니다.</b> 남은 세력 ${factionsLeft}곳${cityName ? ` · 마지막 성 ${cityName}` : ''}</div>`;
+      /* v6.14a — 누가 멸망시켰는지(점령 세력·빼앗긴 성)를 밝힌다. 기록이 없는 특수 멸망만 기존 문구. */
+      : (byName
+        ? `<div class="fb-prison-box quiet"><b>🏴 ${army} 멸망</b> — <b>${byIsMe ? '내 군' : byName}</b>에게 최후의 거점${cityName ? `(<b>${cityName}</b>)` : ''}을 빼앗겼습니다. 남은 세력 ${factionsLeft}곳</div>`
+        : `<div class="fb-prison-box quiet"><b>🏴 ${army}이 최후의 거점을 잃었습니다.</b> 남은 세력 ${factionsLeft}곳${cityName ? ` · 마지막 성 ${cityName}` : ''}</div>`);
     const m = SK.modal({
       kicker: '🚨 세력 멸망 속보',
       title: '',
@@ -15048,6 +15078,8 @@
     const ts = s.cities[id];
     if (!ts) return { refuge: null, moved: 0 };
     const o = opts || {};
+    const lostTo = ts.owner;                       // v6.14a — 빼앗기는 쪽(멸망 속보용)
+    if (SK.noteCapture) SK.noteCapture(id, lostTo, faction);
     const refuge = nearestOwnedCity(s, id);
     const gens = cityGens(id);
     const survivors = Math.max(0, Math.round(o.troops || 0));
@@ -15256,6 +15288,7 @@
     if (win) {
       const prev = ts.owner;
       const prevGenIds = (ts.genIds || []).slice();
+      if (SK.noteCapture) SK.noteCapture(plan.target, prev, fid);   // v6.14a — 멸망 속보용
       ts.owner = fid;
       /* v5.66 — 이긴 군세가 성에 들어가 주둔한다 (예전엔 70%가 증발해 전쟁이
          병력만 태우고 대국이 서지 못했다) */
@@ -17068,8 +17101,12 @@
         if (SK.openRoster) SK.openRoster('gen');
         return;
       }
+      /* v6.14a — 위임 중에도 장수 확인은 막지 않는다: [내정]·[시설]·[장수] 탭 전환과
+         장수 탭 내용(카드·장수 명부·상태)은 조회다. 성을 바꾸는 [군사 임명](#btn-delegate)만 막는다. */
+      if (t.closest('#city-tabs')) return;
+      if (t.closest('.city-pane[data-pane="generals"]') && !t.closest('#btn-delegate')) return;
       if (t.closest('.city-commands .cmd[data-grp]') || t.closest('.city-pane')
-        || t.closest('#scene-hotspots') || t.closest('#city-generals') || t.closest('#city-tabs')) {
+        || t.closest('#scene-hotspots') || t.closest('#city-generals')) {
         e.preventDefault();
         e.stopPropagation();
         corpsLockNotice(SK.state.lastCity || '');
@@ -17470,6 +17507,7 @@
             const prevGenIds = (tcs.genIds || []).slice();
             const join = [];
             (tcs.genIds || []).forEach((gid) => { if (Math.random() < 0.3 && join.length < 1) join.push(gid); });
+            if (SK.noteCapture) SK.noteCapture(tid, prevOwner, PF());   // v6.14a — 멸망 속보용
             tcs.owner = PF();
             tcs.troops = Math.max(600, Math.round(send - def * 0.7));
             tcs.def = Math.max(28, Math.round((tcs.def || 50) * 0.85));
@@ -18121,8 +18159,16 @@
     if (corpsRun.news && corpsRun.news.length) s.aiNews = (s.aiNews || []).concat(corpsRun.news).slice(-6);
     /* v5.28 — AI끼리 성을 빼앗아 0성이 된 세력 정리 + 소식 */
     try {
-      (SK.pruneLandlessFactions ? SK.pruneLandlessFactions(s) : []).forEach((nm) => {
-        aiNews.push({ kind: 'warn', text: `${SK.josa(nm, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다` });
+      /* v6.14a — 소식에도 누가 마지막 성을 가져갔는지 적는다 */
+      const q0 = (s.fallQueue || []).length;
+      const goneNames = SK.pruneLandlessFactions ? SK.pruneLandlessFactions(s) : [];
+      const newFalls = (s.fallQueue || []).slice(q0);
+      goneNames.forEach((nm) => {
+        const it = newFalls.find((x) => x && (x.name === nm || (x.name || '').replace(/군$/, '') === String(nm).replace(/군$/, ''))) || null;
+        const by = (it && it.byName)
+          ? ` — ${it.byName}에게 마지막 성${it.cityName ? `(${it.cityName})` : ''}마저 빼앗겼습니다`
+          : '';
+        aiNews.push({ kind: 'warn', text: `${SK.josa(nm, 'i')} 마지막 성을 잃고 천하에서 사라졌습니다${by}` });
       });
     } catch (e) { /* ignore */ }
     // v5 — 건물 담당 장수는 이번 달 건물 일을 한 것으로 치고, 건물이 결산을 내놓는다
@@ -18760,6 +18806,14 @@
     if (rk) { rk.style.cursor = 'pointer'; rk.onclick = () => openRank(); }
     /* v5.23 — 전장 뒤로가기도 상단 ‹ 버튼과 똑같이 이 확인을 띄운다 */
     SK.confirmRetreat = function () {
+      /* v6.14a — 관전 중에는 '후퇴'가 아니라 '관전 종료'다 (공격을 취소하지 않고 결과만 받는다) */
+      if (window.SKBattle && SKBattle.spectateInfo) {
+        const sp = SKBattle.spectateInfo();
+        if (sp && sp.live && sp.spectate && SKBattle.leaveSpectate) {
+          if (SK.askLeaveSpectate) SK.askLeaveSpectate();
+          return;
+        }
+      }
       /* v6.13 — 전투 중에는 창이 보류 큐로 밀려 [후퇴]가 아무 반응이 없었다.
          전투 자체의 확인창이므로 battleOk 로 곧바로 연다. */
       SK.modal({ battleOk: true, title: '후퇴할까요?', body: '<p class="modal-p">전투에서 물러나면 이번 공격은 실패합니다.</p>', actions: [

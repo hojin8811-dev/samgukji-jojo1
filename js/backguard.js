@@ -93,6 +93,17 @@
     return true;
   }
 
+  /* v6.14a — 지금 관전 중인가 (관전이면 뒤로가기가 '후퇴'가 아니라 '관전 종료') */
+  function isSpectating() {
+    try {
+      if (window.SKBattle && typeof window.SKBattle.spectateInfo === 'function') {
+        const sp = window.SKBattle.spectateInfo();
+        return !!(sp && sp.live && sp.spectate);
+      }
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+
   /* ── 뒤로가기 한 번에 할 일 정하기 ───────────────────────── */
   /* 'modal' | 'locked' | 'battle' | 'city' | 'sub' | 'exit' */
   function backAction() {
@@ -125,6 +136,8 @@
          v5.53 — 그 밖에는 곧바로 후퇴시키지 않고, 다른 화면과 똑같이
          "게임을 종료하시겠습니까?" 창을 띄운다 (계속 싸운다 / 후퇴 / 종료).
          예전에는 후퇴 확인만 띄웠는데, 가드가 건너뛰어지면 그대로 앱이 닫혔다. */
+      /* v6.14a — 관전 중에는 이동 취소도, 후퇴도 뜻이 없다 → '관전 종료' 창으로 바로 */
+      if (isSpectating()) { askBattleExit(); return 'battle'; }
       if (typeof SK.battleUndoMove === 'function' && SK.battleUndoMove()) return 'sub';
       askBattleExit();
       return 'battle';
@@ -230,6 +243,22 @@
       return;
     }
     const done = function () { battleExitOpen = false; };
+    /* v6.14a — 관전 중에는 '후퇴'를 묻지 않는다. 남은 전투는 자동 결산으로 마무리하고
+       결과만 받는다(패배·사기 패널티 없음). */
+    if (isSpectating()) {
+      SK.modal({ battleOk: true,
+        kicker: '관전',
+        title: '관전을 마칠까요?',
+        body: '<p class="modal-p">남은 전투는 <b>AI 자동 결산</b>으로 끝까지 진행되고, 결과(승패·피해·점령)는 그대로 반영됩니다.<br><span class="modal-sub">관전을 그만두는 것이라 우리 부대에 패배·사기 패널티가 붙지 않습니다. 잠시 뒤 결과 창이 뜹니다.</span></p>',
+        actions: [
+          { label: '계속 관전', primary: true, onClick: function () { done(); if (SK.toast) SK.toast('관전을 이어갑니다.'); } },
+          { label: '관전 종료', onClick: function () { done(); if (window.SKBattle && SKBattle.leaveSpectate) SKBattle.leaveSpectate(); } },
+          { label: '게임 종료', onClick: function () { done(); leave(); } },
+        ],
+        dismissible: false,
+      });
+      return;
+    }
     SK.modal({ battleOk: true,
       kicker: '전장',
       title: '게임을 종료하시겠습니까?',
